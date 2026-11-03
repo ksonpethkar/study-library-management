@@ -501,8 +501,6 @@ class PlanCalculatorService {
       message: 'Study vacation approved for $freezeDays days. Validity extended from ${_monthName(origEnd.month)} ${origEnd.day} to ${_monthName(newEndDate.month)} ${newEndDate.day}.',
     );
   }
-    );
-  }
 
   /// Calculates pricing for sub-1-month custom durations based on the Monthly Plan price
   static double calculateSubMonthPrice({

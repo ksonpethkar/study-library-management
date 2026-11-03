@@ -3,12 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/services/telegram_service.dart';
 import 'package:study_library/services/local_bridge_service.dart';
 import 'package:study_library/services/notification_service.dart';
 import 'package:study_library/services/owner_digest_service.dart';
 import 'package:study_library/services/waiting_list_promotion_service.dart';
+import 'package:study_library/services/whatsapp_service.dart';
 
 class CommunicationsHubScreen extends ConsumerStatefulWidget {
   const CommunicationsHubScreen({super.key});
@@ -20,6 +22,10 @@ class CommunicationsHubScreen extends ConsumerStatefulWidget {
 class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
+
+  // ── Action Queue (Tab 1) ──────────────────────────────────────────────────
+  String _actionFilter = 'all';
+  String? _sendingStudentId;
 
   // ── Channels (Tab 1) ──────────────────────────────────────────────────────
   bool _pushEnabled = true;
@@ -450,7 +456,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
     final theme = Theme.of(context);
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
@@ -466,7 +472,10 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
           ),
           title: const Text('Communications & Automation'),
           bottom: const TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
+              Tab(icon: Icon(Icons.bolt_rounded), text: 'Action Queue'),
               Tab(icon: Icon(Icons.hub_rounded), text: 'Delivery Channels'),
               Tab(icon: Icon(Icons.auto_awesome_rounded), text: 'Automation Rules'),
             ],
@@ -516,6 +525,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
             ? const Center(child: CircularProgressIndicator())
             : TabBarView(
                 children: [
+                  _buildActionQueueTab(theme),
                   _buildChannelsTab(theme),
                   _buildRulesTab(theme),
                 ],
@@ -1241,5 +1251,590 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         ),
       ],
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TAB 1: ACTION QUEUE (1-TAP WHATSAPP NUDGES)
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildActionQueueTab(ThemeData theme) {
+    var libraryId = ref.watch(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) {
+      libraryId = ref.watch(currentLibraryProvider).value?.id ?? CurrentLibraryNotifier.defaultLibraryId;
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .where('membershipStatus', whereIn: ['active', 'grace'])
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Text('Error loading queue: ${snapshot.error}'),
+            ),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        final now = DateTime.now();
+        final todayMid = DateTime(now.year, now.month, now.day);
+        final todayNudgeKey = 'whatsapp_nudge_${DateFormat('yyyyMMdd').format(now)}';
+
+        final List<Map<String, dynamic>> queueItems = [];
+
+        for (final doc in docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final name = data['name'] as String? ?? 'Student';
+          final phone = data['phone'] as String? ?? '';
+          final status = data['membershipStatus'] as String? ?? 'active';
+          final planId = data['planId'] as String?;
+          final planName = data['customPlanName'] ?? data['planName'] ?? (planId != null ? planId.toUpperCase() : 'Monthly');
+          final seatId = data['seatId'] as String?;
+          final seatLabel = data['seatLabel'] as String? ?? (seatId != null && seatId.isNotEmpty ? 'Seat #$seatId' : null);
+          final fee = (data['amount'] as num?)?.toDouble() ?? (data['totalPlanFee'] as num?)?.toDouble() ?? 0.0;
+          final remindedStages = List<String>.from(data['remindedStages'] as List<dynamic>? ?? []);
+          final isNudgeSentToday = remindedStages.contains(todayNudgeKey);
+
+          DateTime? planEnd;
+          final pEndRaw = data['planEndDate'];
+          if (pEndRaw is Timestamp) {
+            planEnd = pEndRaw.toDate();
+          } else if (pEndRaw is String) {
+            planEnd = DateTime.tryParse(pEndRaw);
+          }
+
+          DateTime? graceEnd;
+          final gEndRaw = data['graceEndDate'];
+          if (gEndRaw is Timestamp) {
+            graceEnd = gEndRaw.toDate();
+          } else if (gEndRaw is String) {
+            graceEnd = DateTime.tryParse(gEndRaw);
+          } else if (planEnd != null) {
+            graceEnd = planEnd.add(const Duration(days: 3));
+          }
+
+          if (planEnd == null) continue;
+
+          final planEndMid = DateTime(planEnd.year, planEnd.month, planEnd.day);
+          final daysLeft = planEndMid.difference(todayMid).inDays;
+
+          final isGrace = status == 'grace' || (now.isAfter(planEnd) && (graceEnd == null || now.isBefore(graceEnd)));
+
+          if (isGrace) {
+            final graceEndMid = graceEnd != null ? DateTime(graceEnd.year, graceEnd.month, graceEnd.day) : planEndMid.add(const Duration(days: 3));
+            final daysUntilDealloc = graceEndMid.difference(todayMid).inDays;
+
+            queueItems.add({
+              'id': doc.id,
+              'name': name,
+              'phone': phone,
+              'status': status,
+              'planName': planName,
+              'seatLabel': seatLabel,
+              'planEnd': planEnd,
+              'graceEnd': graceEnd,
+              'planFee': fee,
+              'category': 'grace',
+              'stage': 'T+2',
+              'badgeText': daysUntilDealloc <= 1 ? 'GRACE: RELEASES TOMORROW' : 'GRACE: SEAT HELD ($daysUntilDealloc DAYS LEFT)',
+              'badgeColor': const Color(0xFFF59E0B),
+              'isNudgeSentToday': isNudgeSentToday,
+              'daysLeft': daysLeft,
+            });
+          } else if (daysLeft == 0) {
+            queueItems.add({
+              'id': doc.id,
+              'name': name,
+              'phone': phone,
+              'status': status,
+              'planName': planName,
+              'seatLabel': seatLabel,
+              'planEnd': planEnd,
+              'graceEnd': graceEnd,
+              'planFee': fee,
+              'category': 'today',
+              'stage': 'T-0',
+              'badgeText': 'EXPIRES TODAY',
+              'badgeColor': const Color(0xFFEF4444),
+              'isNudgeSentToday': isNudgeSentToday,
+              'daysLeft': daysLeft,
+            });
+          } else if (daysLeft > 0 && daysLeft <= 3) {
+            queueItems.add({
+              'id': doc.id,
+              'name': name,
+              'phone': phone,
+              'status': status,
+              'planName': planName,
+              'seatLabel': seatLabel,
+              'planEnd': planEnd,
+              'graceEnd': graceEnd,
+              'planFee': fee,
+              'category': 'upcoming',
+              'stage': 'T-3',
+              'badgeText': daysLeft == 1 ? 'EXPIRES IN 1 DAY' : 'EXPIRES IN $daysLeft DAYS',
+              'badgeColor': const Color(0xFF6366F1),
+              'isNudgeSentToday': isNudgeSentToday,
+              'daysLeft': daysLeft,
+            });
+          }
+        }
+
+        // Sort: grace first, then today, then upcoming
+        queueItems.sort((a, b) {
+          final catOrder = {'grace': 0, 'today': 1, 'upcoming': 2};
+          final cA = catOrder[a['category']] ?? 3;
+          final cB = catOrder[b['category']] ?? 3;
+          if (cA != cB) return cA.compareTo(cB);
+          return (a['daysLeft'] as int).compareTo(b['daysLeft'] as int);
+        });
+
+        final totalGrace = queueItems.where((i) => i['category'] == 'grace').length;
+        final totalToday = queueItems.where((i) => i['category'] == 'today').length;
+        final totalUpcoming = queueItems.where((i) => i['category'] == 'upcoming').length;
+
+        final filteredItems = _actionFilter == 'all'
+            ? queueItems
+            : queueItems.where((i) => i['category'] == _actionFilter).toList();
+
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 820),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+              children: [
+                // Top Action Banner
+                Card(
+                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.bolt_rounded, color: Color(0xFF25D366), size: 28),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Priority Action Queue',
+                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '1-Tap courteous WhatsApp follow-ups for members with upcoming renewals, expiring today, or holding reserved desks under grace.',
+                                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // KPI Metrics Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMetricTile(
+                        label: 'In Grace',
+                        count: totalGrace,
+                        color: const Color(0xFFF59E0B),
+                        icon: Icons.hourglass_top_rounded,
+                        theme: theme,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildMetricTile(
+                        label: 'Expires Today',
+                        count: totalToday,
+                        color: const Color(0xFFEF4444),
+                        icon: Icons.notification_important_rounded,
+                        theme: theme,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildMetricTile(
+                        label: 'Upcoming (3d)',
+                        count: totalUpcoming,
+                        color: const Color(0xFF6366F1),
+                        icon: Icons.calendar_today_rounded,
+                        theme: theme,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Filter Chips
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      FilterChip(
+                        selected: _actionFilter == 'all',
+                        label: Text('All Actions (${queueItems.length})'),
+                        onSelected: (_) => setState(() => _actionFilter = 'all'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        selected: _actionFilter == 'grace',
+                        label: Text('In Grace ($totalGrace)'),
+                        selectedColor: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                        onSelected: (_) => setState(() => _actionFilter = 'grace'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        selected: _actionFilter == 'today',
+                        label: Text('Expires Today ($totalToday)'),
+                        selectedColor: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                        onSelected: (_) => setState(() => _actionFilter = 'today'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        selected: _actionFilter == 'upcoming',
+                        label: Text('Upcoming ($totalUpcoming)'),
+                        selectedColor: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                        onSelected: (_) => setState(() => _actionFilter = 'upcoming'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Empty state or list
+                if (filteredItems.isEmpty) ...[
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: Colors.green, size: 56),
+                          const SizedBox(height: 12),
+                          Text(
+                            'All Student Memberships Up to Date!',
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'No members are currently in grace period or expiring within the next 3 days.',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  for (final item in filteredItems) ...[
+                    _buildStudentActionCard(item, theme),
+                    const SizedBox(height: 10),
+                  ],
+                ],
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMetricTile({
+    required String label,
+    required int count,
+    required Color color,
+    required IconData icon,
+    required ThemeData theme,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                count.toString(),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color),
+              ),
+              Icon(icon, color: color, size: 18),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudentActionCard(Map<String, dynamic> item, ThemeData theme) {
+    final name = item['name'] as String;
+    final phone = item['phone'] as String;
+    final seatLabel = item['seatLabel'] as String?;
+    final planName = item['planName'] as String;
+    final planFee = item['planFee'] as double;
+    final badgeText = item['badgeText'] as String;
+    final badgeColor = item['badgeColor'] as Color;
+    final isNudgeSentToday = item['isNudgeSentToday'] as bool;
+    final isSending = _sendingStudentId == item['id'];
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: badgeColor.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  backgroundColor: badgeColor.withValues(alpha: 0.15),
+                  foregroundColor: badgeColor,
+                  radius: 20,
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: badgeColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              badgeText,
+                              style: TextStyle(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 4,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.phone_outlined, size: 13, color: theme.colorScheme.onSurfaceVariant),
+                              const SizedBox(width: 4),
+                              Text(
+                                phone.isNotEmpty ? phone : 'No phone',
+                                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                          if (seatLabel != null) ...[
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.chair_outlined, size: 13, color: theme.colorScheme.onSurfaceVariant),
+                                const SizedBox(width: 4),
+                                Text(
+                                  seatLabel,
+                                  style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                                ),
+                              ],
+                            ),
+                          ],
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.badge_outlined, size: 13, color: theme.colorScheme.onSurfaceVariant),
+                              const SizedBox(width: 4),
+                              Text(
+                                planName,
+                                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (isNudgeSentToday)
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.green, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Nudge Sent Today',
+                        style: TextStyle(fontSize: 12, color: Colors.green.shade700, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    planFee > 0 ? 'Fee: ₹${planFee.toStringAsFixed(0)}' : 'Renewal Pending',
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366),
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: isSending ? null : () => _sendWhatsAppNudge(item),
+                  icon: isSending
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.chat_bubble_rounded, size: 14),
+                  label: Text(
+                    isNudgeSentToday ? 'Re-send WhatsApp' : 'Nudge on WhatsApp',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendWhatsAppNudge(Map<String, dynamic> item) async {
+    final studentName = item['name'] as String;
+    final phone = item['phone'] as String;
+    final seatLabel = item['seatLabel'] as String?;
+    final stage = item['stage'] as String;
+    final planEnd = item['planEnd'] as DateTime?;
+    final planFee = item['planFee'] as double?;
+    final studentDocId = item['id'] as String;
+
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No phone number recorded for $studentName')),
+      );
+      return;
+    }
+
+    setState(() => _sendingStudentId = studentDocId);
+    try {
+      final libraryName = ref.read(currentLibraryProvider).value?.name ?? 'The Cozy Corner Study Centre';
+      final libraryHelpline = ref.read(currentLibraryProvider).value?.phone ?? '';
+      final libraryUpiId = ref.read(currentLibraryProvider).value?.upiId ?? '';
+
+      final success = await WhatsAppService().sendStageRenewalReminder(
+        phone,
+        studentName,
+        stage,
+        libraryName: libraryName,
+        seatLabel: seatLabel ?? '',
+        expiryDate: planEnd != null ? DateFormat('dd MMM yyyy').format(planEnd) : null,
+        libraryHelpline: libraryHelpline,
+        libraryUpiId: libraryUpiId,
+        renewalAmount: planFee,
+        context: mounted ? context : null,
+      );
+
+      if (success && mounted) {
+        final now = DateTime.now();
+        final todayNudgeKey = 'whatsapp_nudge_${DateFormat('yyyyMMdd').format(now)}';
+        var libraryId = ref.read(currentLibraryIdProvider);
+        if (libraryId == null || libraryId.isEmpty) {
+          libraryId = ref.read(currentLibraryProvider).value?.id ?? CurrentLibraryNotifier.defaultLibraryId;
+        }
+
+        await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('students')
+            .doc(studentDocId)
+            .update({
+          'remindedStages': FieldValue.arrayUnion([todayNudgeKey]),
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ WhatsApp reminder opened for $studentName!'),
+              backgroundColor: Colors.green.shade700,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open WhatsApp: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sendingStudentId = null);
+      }
+    }
   }
 }
