@@ -322,6 +322,34 @@ class PlanSelectionScreen extends ConsumerWidget {
                                                     ),
                                                 ],
                                               ),
+                                              if (smartCalc.isProrated) ...[
+                                                const SizedBox(height: 5),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.amber.shade50,
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    border: Border.all(color: Colors.amber.shade400, width: 0.8),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(Icons.calendar_month_rounded, size: 12, color: Colors.amber.shade900),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        smartCalc.hasBridgeOption
+                                                            ? 'Pro-rata ₹${smartCalc.formattedProratedPrice} (${smartCalc.daysRemaining}d) • Bridge Pass Option'
+                                                            : 'Pro-rata: ₹${smartCalc.formattedProratedPrice} (${smartCalc.daysRemaining}d to month-end)',
+                                                        style: TextStyle(
+                                                          fontSize: 10.5,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Colors.amber.shade900,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
                                             ],
                                           ),
                                         ),
@@ -357,7 +385,7 @@ class PlanSelectionScreen extends ConsumerWidget {
                           FilledButton(
                             onPressed: () => ref.read(registrationStepProvider.notifier).goTo(5),
                             style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14)),
-                            child: const Text('Next: Review & Submit ➔'),
+                            child: const Text('Next: Choose Desk ➔'),
                           ),
                         ],
                       ),

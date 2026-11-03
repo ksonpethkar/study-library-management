@@ -238,8 +238,11 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             builder: (context, ref, _) {
               final student = studentAsync.value;
               final studentId = student?.id;
-              if (studentId == null || studentId.isEmpty) return const SizedBox.shrink();
-              final notifs = ref.watch(studentNotificationsStreamProvider(studentId)).value ?? [];
+              final effectiveId = (studentId != null && studentId.isNotEmpty)
+                  ? studentId
+                  : FirebaseAuth.instance.currentUser?.uid;
+              if (effectiveId == null || effectiveId.isEmpty) return const SizedBox.shrink();
+              final notifs = ref.watch(studentNotificationsStreamProvider(effectiveId)).value ?? [];
               final unreadCount = notifs.where((n) => !n.read).length;
 
               return Badge(
@@ -260,7 +263,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                       context,
                       libraryId: libId,
                       role: 'student',
-                      studentId: studentId,
+                      studentId: effectiveId,
                     );
                   },
                 ),

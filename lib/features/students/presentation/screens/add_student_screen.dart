@@ -12,8 +12,10 @@ import 'package:study_library/features/seats/presentation/providers/seat_provide
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/models/student_model.dart';
+import 'package:flutter/services.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
+import 'package:study_library/services/form_config_service.dart';
 
 class AddStudentScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initialData;
@@ -56,6 +58,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   String? _selectedSeatId;
   String? _bloodGroup;
   final _rollNumberController = TextEditingController();
+  final Map<String, TextEditingController> _customControllers = {};
   bool _isLoading = false;
   String _loadingMessage = 'Saving student...';
 
@@ -96,6 +99,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
     _customPlanFeeController.dispose();
     _customDiscountReasonController.dispose();
     _rollNumberController.dispose();
+    for (final c in _customControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -315,6 +321,13 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         }
       }
 
+      final customData = <String, dynamic>{};
+      for (final entry in _customControllers.entries) {
+        if (entry.value.text.trim().isNotEmpty) {
+          customData[entry.key] = entry.value.text.trim();
+        }
+      }
+
       final newStudent = StudentModel(
         id: '',
         name: _nameController.text.trim(),
@@ -343,7 +356,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         planStartDate: planStartDate,
         planEndDate: planEndDate,
         membershipStatus: status,
-        customFields: {},
+        customFields: customData,
         notes: _notesController.text.trim(),
         bloodGroup: _bloodGroup,
         rollNumber: _rollNumberController.text.trim().isEmpty ? null : _rollNumberController.text.trim(),
@@ -398,6 +411,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final plansAsync = ref.watch(plansStreamProvider);
+    final formConfigAsync = ref.watch(formConfigStreamProvider);
+    final formFields = formConfigAsync.value ?? [];
 
     return Scaffold(
       appBar: AppBar(
@@ -514,16 +529,18 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                         : null,
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _fatherNameController,
-                    decoration: const InputDecoration(
-                      labelText: "Father's / Guardian's Name",
-                      prefixIcon: Icon(Icons.family_restroom_rounded),
-                      border: OutlineInputBorder(),
+                  if (FormConfigService.isFieldVisible(formFields, 'fatherName')) ...[
+                    TextFormField(
+                      controller: _fatherNameController,
+                      decoration: InputDecoration(
+                        labelText: FormConfigService.getFieldLabel(formFields, 'fatherName', "Father's / Guardian's Name"),
+                        prefixIcon: const Icon(Icons.family_restroom_rounded),
+                        border: const OutlineInputBorder(),
+                      ),
+                      textCapitalization: TextCapitalization.words,
                     ),
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
+                  ],
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final genderField = DropdownButtonFormField<Gender>(
@@ -1114,6 +1131,37 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     maxLines: 2,
                   ),
 
+                  Builder(
+                    builder: (context) {
+                      final customFields = formFields.where((f) {
+                        final isBuiltin = f['builtin'] as bool? ?? false;
+                        final isVis = f['visible'] as bool? ?? true;
+                        return !isBuiltin && isVis;
+                      }).toList();
+
+                      if (customFields.isEmpty) return const SizedBox.shrink();
+
+                      // Ensure controllers exist
+                      for (final f in customFields) {
+                        final fid = f['id'] as String? ?? '';
+                        if (fid.isNotEmpty && !_customControllers.containsKey(fid)) {
+                          _customControllers[fid] = TextEditingController();
+                        }
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 24),
+                          _buildSectionHeader(context, 'Additional Admission Fields', Icons.tune_rounded),
+                          const SizedBox(height: 12),
+                          for (final f in customFields)
+                            _buildCustomFieldItem(context, f),
+                        ],
+                      );
+                    },
+                  ),
+
                   const SizedBox(height: 32),
 
                   // Dual Action Buttons: Balanced Discard & Add Student
@@ -1412,6 +1460,108 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCustomFieldItem(BuildContext context, Map<String, dynamic> f) {
+    final id = f['id'] as String? ?? '';
+    final label = f['label'] as String? ?? id;
+    final isRequired = f['required'] as bool? ?? false;
+    final fType = f['type']?.toString() ?? 'Text';
+    final ctrl = _customControllers[id] ??= TextEditingController();
+    final options = (f['options'] as List?)?.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList() ?? [];
+
+    if (fType == 'Dropdown' && options.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: DropdownButtonFormField<String>(
+          initialValue: options.contains(ctrl.text.trim()) ? ctrl.text.trim() : null,
+          decoration: InputDecoration(
+            labelText: '$label${isRequired ? ' *' : ''}',
+            prefixIcon: const Icon(Icons.arrow_drop_down_circle_outlined),
+            border: const OutlineInputBorder(),
+          ),
+          items: options
+              .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
+              .toList(),
+          onChanged: (val) {
+            if (val != null) {
+              setState(() => ctrl.text = val);
+            }
+          },
+          validator: isRequired
+              ? (v) => (v == null || v.trim().isEmpty) ? '$label is required' : null
+              : null,
+        ),
+      );
+    }
+
+    if (fType == 'Date') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: InkWell(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(1920),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null) {
+              final formatted = '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
+              setState(() => ctrl.text = formatted);
+            }
+          },
+          child: AbsorbPointer(
+            child: TextFormField(
+              controller: ctrl,
+              decoration: InputDecoration(
+                labelText: '$label${isRequired ? ' *' : ''}',
+                hintText: 'DD/MM/YYYY',
+                prefixIcon: const Icon(Icons.calendar_today_rounded),
+                border: const OutlineInputBorder(),
+              ),
+              validator: isRequired
+                  ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
+                  : null,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (fType == 'Number') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: TextFormField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(
+            labelText: '$label${isRequired ? ' *' : ''}',
+            prefixIcon: const Icon(Icons.numbers_rounded),
+            border: const OutlineInputBorder(),
+          ),
+          validator: isRequired
+              ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
+              : null,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: TextFormField(
+        controller: ctrl,
+        decoration: InputDecoration(
+          labelText: '$label${isRequired ? ' *' : ''}',
+          prefixIcon: const Icon(Icons.edit_note_rounded),
+          border: const OutlineInputBorder(),
+        ),
+        validator: isRequired
+            ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
+            : null,
+      ),
     );
   }
 }

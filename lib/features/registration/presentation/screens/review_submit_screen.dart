@@ -13,6 +13,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
+import 'package:study_library/services/form_config_service.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:study_library/services/app_notification_service.dart';
@@ -337,6 +338,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
       setState(() => _statusMessage = 'Sending registration request to admin...');
 
       final selectedPlanId = ref.read(selectedPlanProvider);
+      final seatDetails = ref.read(selectedSeatDetailsProvider);
 
       // Create request doc in Firestore
       final requestRef = FirebaseFirestore.instance
@@ -371,6 +373,12 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'customFields': regData['customFields'] ?? {},
         'planId': selectedPlanId,
         'userId': currentUser.uid,
+        'requestedSeatId': seatDetails.isAutoAssign ? null : seatDetails.seatId,
+        'requestedSeatLabel': seatDetails.isAutoAssign ? 'Auto-Assign' : seatDetails.seatLabel,
+        'requestedSectionId': seatDetails.sectionId,
+        'requestedSectionName': seatDetails.sectionName,
+        'seatId': seatDetails.isAutoAssign ? null : seatDetails.seatId,
+        'sectionId': seatDetails.sectionId,
       };
 
       await requestRef.set({
@@ -382,6 +390,12 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'studentId': currentUser.uid,
         'studentData': studentData,
         'planId': selectedPlanId,
+        'requestedSeatId': seatDetails.isAutoAssign ? null : seatDetails.seatId,
+        'requestedSeatLabel': seatDetails.isAutoAssign ? 'Auto-Assign' : seatDetails.seatLabel,
+        'requestedSectionId': seatDetails.sectionId,
+        'requestedSectionName': seatDetails.sectionName,
+        'seatId': seatDetails.isAutoAssign ? null : seatDetails.seatId,
+        'sectionId': seatDetails.sectionId,
         'message': 'New student registration request submitted via app',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -390,10 +404,13 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
       // Notify admin via unified notification service & queue
       try {
         final sName = (regData['name'] as String?)?.trim() ?? 'A student';
+        final seatSnippet = seatDetails.hasSelection
+            ? (seatDetails.isAutoAssign ? ' (Auto-Assign Desk)' : ' (Desk #${seatDetails.seatLabel})')
+            : '';
         await AppNotificationService.sendNotification(
           libraryId: libraryId,
           title: '📋 New Registration Request',
-          body: '$sName submitted an admission application. Please review and approve.',
+          body: '$sName submitted an admission application$seatSnippet. Please review and approve.',
           type: 'admission',
           targetRole: 'admin',
           actionRoute: Routes.adminRequests,
@@ -402,6 +419,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
             'studentName': sName,
             'studentPhone': regData['phone'] ?? '',
             'planId': selectedPlanId,
+            'requestedSeatLabel': seatDetails.isAutoAssign ? 'Auto-Assign' : seatDetails.seatLabel,
           },
         );
         // Also persist to admin_notifications queue for backward compatibility
@@ -412,7 +430,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
             .add({
           'type': 'new_registration',
           'title': '📋 New Registration Request',
-          'body': '$sName submitted an admission application. Please review and approve.',
+          'body': '$sName submitted an admission application$seatSnippet. Please review and approve.',
           'createdAt': FieldValue.serverTimestamp(),
           'isRead': false,
           'requestId': requestRef.id,
@@ -423,6 +441,8 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
       ref.read(registrationNotifierProvider.notifier).clear();
       ref.read(ocrResultProvider.notifier).clear();
       ref.read(selectedPlanProvider.notifier).clear();
+      ref.read(selectedSeatDetailsProvider.notifier).clear();
+      ref.read(selectedSeatProvider.notifier).clear();
 
       // P8: Track registration submitted in Analytics
       if (!kIsWeb) {
@@ -565,18 +585,69 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                               const Divider(height: 20),
                               if (regData['fatherName'] != null && regData['fatherName'].isNotEmpty)
                                 _buildSummaryRow('Father / Guardian', regData['fatherName']),
-                              if (regData['gender'] != null)
+                              if (regData['dob'] != null && regData['dob'].toString().trim().isNotEmpty)
+                                _buildSummaryRow('Date of Birth', regData['dob'].toString()),
+                              if (regData['gender'] != null && regData['gender'].toString().trim().isNotEmpty)
                                 _buildSummaryRow('Gender', regData['gender'].toString().toUpperCase()),
+                              if (regData['bloodGroup'] != null && regData['bloodGroup'].toString().trim().isNotEmpty)
+                                _buildSummaryRow('Blood Group', regData['bloodGroup'].toString()),
                               if (regData['email'] != null && regData['email'].isNotEmpty)
                                 _buildSummaryRow('Email', regData['email']),
+                              if (regData['emergencyContact'] != null && regData['emergencyContact'].toString().trim().isNotEmpty)
+                                _buildSummaryRow('Emergency Contact', regData['emergencyContact'].toString()),
                               if (regData['govIdNumber'] != null && regData['govIdNumber'].isNotEmpty)
                                 _buildSummaryRow('Government ID', '${(regData['govIdType'] ?? 'ID').toString().toUpperCase()} - ${regData['govIdNumber']}'),
+                              if (regData['address'] != null && regData['address'].isNotEmpty)
+                                _buildSummaryRow('Address', regData['address']),
+                              if (regData['pincode'] != null && regData['pincode'].toString().trim().isNotEmpty)
+                                _buildSummaryRow('PIN Code', regData['pincode'].toString()),
+                              if (regData['prep'] != null && regData['prep'].toString().trim().isNotEmpty)
+                                _buildSummaryRow('Target Goal / Exam', regData['prep'].toString()),
                               if (regData['college'] != null && regData['college'].isNotEmpty)
                                 _buildSummaryRow('College', regData['college']),
                               if (regData['course'] != null && regData['course'].isNotEmpty)
                                 _buildSummaryRow('Course', regData['course']),
-                              if (regData['address'] != null && regData['address'].isNotEmpty)
-                                _buildSummaryRow('Address', regData['address']),
+                              if (regData['year'] != null && regData['year'].toString().trim().isNotEmpty)
+                                _buildSummaryRow('Study Year / Semester', regData['year'].toString()),
+                              if (regData['rollNumber'] != null && regData['rollNumber'].toString().trim().isNotEmpty)
+                                _buildSummaryRow('Roll Number', regData['rollNumber'].toString()),
+                              Builder(
+                                builder: (ctx) {
+                                  final custom = regData['customFields'] as Map?;
+                                  if (custom == null || custom.isEmpty) return const SizedBox.shrink();
+                                  final formConfigAsync = ref.watch(formConfigStreamProvider);
+                                  final fieldsList = formConfigAsync.value ?? [];
+                                  final nonEmpties = custom.entries.where(
+                                    (e) => e.value != null && e.value.toString().trim().isNotEmpty,
+                                  ).toList();
+                                  if (nonEmpties.isEmpty) return const SizedBox.shrink();
+
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 8),
+                                      const Divider(height: 16),
+                                      Text(
+                                        'Additional Information',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      ...nonEmpties.map((e) {
+                                        final label = FormConfigService.getFieldLabel(
+                                          fieldsList,
+                                          e.key.toString(),
+                                          e.key.toString(),
+                                        );
+                                        return _buildSummaryRow(label, e.value.toString());
+                                      }),
+                                    ],
+                                  );
+                                },
+                              ),
                             ],
                           ),
                         ),
@@ -767,6 +838,145 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                           );
                         },
                       ),
+                      const SizedBox(height: 16),
+
+                      // Selected Study Desk Card
+                      Builder(
+                        builder: (ctx) {
+                          final seatDetails = ref.watch(selectedSeatDetailsProvider);
+                          final hasSeat = seatDetails.hasSelection;
+                          final isAuto = seatDetails.isAutoAssign;
+                          final isDark = theme.brightness == Brightness.dark;
+
+                          return Card(
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: hasSeat
+                                    ? (isAuto ? Colors.amber.shade300 : const Color(0xFFC4B5FD))
+                                    : (isDark ? const Color(0xFF334155) : Colors.grey.shade300),
+                              ),
+                            ),
+                            color: hasSeat
+                                ? (isAuto
+                                    ? (isDark ? const Color(0xFF261904) : Colors.amber.shade50.withValues(alpha: 0.5))
+                                    : (isDark ? const Color(0xFF1E172E) : const Color(0xFFF5F3FF)))
+                                : null,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: isAuto ? Colors.amber.shade100 : const Color(0xFFEDE9FE),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          isAuto ? Icons.bolt_rounded : Icons.event_seat_rounded,
+                                          size: 20,
+                                          color: isAuto ? const Color(0xFFB45309) : const Color(0xFF6D28D9),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Selected Study Desk',
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                            ),
+                                            Text(
+                                              isAuto ? 'Auto-assign by library management' : 'Dedicated desk preference',
+                                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      TextButton.icon(
+                                        onPressed: () => ref.read(registrationStepProvider.notifier).goTo(5),
+                                        icon: const Icon(Icons.edit_outlined, size: 16),
+                                        label: const Text('Change'),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  if (isAuto) ...[
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF3B2308) : Colors.amber.shade50,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: Colors.amber.shade300, width: 0.8),
+                                      ),
+                                      child: const Row(
+                                        children: [
+                                          Icon(Icons.bolt_rounded, size: 20, color: Color(0xFFD97706)),
+                                          SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              '⚡ Auto-Assign: Any best available desk will be allocated by library staff upon admission approval.',
+                                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ] else if (hasSeat) ...[
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                                            ),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.stars_rounded, color: Colors.white, size: 16),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                'Desk #${seatDetails.seatLabel}',
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green.shade100,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            seatDetails.sectionName ?? 'Cozy Hall',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.green.shade900,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ] else ...[
+                                    const Text('No desk selected. Auto-assign will be used.'),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 20),
 
                       // Rules Agreement Card with Clickable Dialog
@@ -846,7 +1056,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                 ),
                                 const SizedBox(height: 10),
                                 OutlinedButton(
-                                  onPressed: () => ref.read(registrationStepProvider.notifier).goTo(4),
+                                  onPressed: () => ref.read(registrationStepProvider.notifier).goTo(5),
                                   style: OutlinedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(vertical: 14),
                                   ),
@@ -859,7 +1069,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               OutlinedButton(
-                                onPressed: () => ref.read(registrationStepProvider.notifier).goTo(4),
+                                onPressed: () => ref.read(registrationStepProvider.notifier).goTo(5),
                                 style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
                                 child: const Text('Back'),
                               ),

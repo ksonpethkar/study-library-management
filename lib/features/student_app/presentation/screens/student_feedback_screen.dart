@@ -7,6 +7,8 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/models/feedback_model.dart';
+import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/services/app_notification_service.dart';
 
 class StudentFeedbackScreen extends ConsumerStatefulWidget {
   const StudentFeedbackScreen({super.key});
@@ -130,6 +132,16 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      final studentFeedbackMsg = _messageController.text.trim();
+      AppNotificationService.sendNotification(
+        libraryId: libraryId,
+        title: 'New Student ${autoFeedbackType == "issue" ? "Issue Report" : "Feedback"} 💬',
+        body: '${student?.name ?? "A student"} submitted $_category feedback: "$studentFeedbackMsg".',
+        type: 'feedback',
+        targetRole: 'admin',
+        actionRoute: Routes.adminFeedback,
+      ).ignore();
 
       _messageController.clear();
       setState(() => _rating = 5);

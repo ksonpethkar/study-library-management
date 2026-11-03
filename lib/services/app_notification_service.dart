@@ -47,10 +47,15 @@ final studentNotificationsStreamProvider =
   final libraryId = ref.watch(currentLibraryIdProvider);
   if (libraryId == null || libraryId.isEmpty) return Stream.value([]);
 
+  final authUid = FirebaseAuth.instance.currentUser?.uid;
+  final effectiveId = (studentId != null && studentId.trim().isNotEmpty)
+      ? studentId.trim()
+      : authUid;
+
   // STRICT PRIVACY PROTECTION:
-  // If studentId is null or empty, this user has no verified student profile.
+  // If effectiveId is null or empty, this user is not authenticated.
   // They MUST NOT receive any personal student alerts (receipts, admissions, feedback, seat changes).
-  if (studentId == null || studentId.trim().isEmpty) {
+  if (effectiveId == null || effectiveId.isEmpty) {
     return FirebaseFirestore.instance
         .collection('libraries')
         .doc(libraryId)
@@ -75,20 +80,16 @@ final studentNotificationsStreamProvider =
       .snapshots()
       .map((snap) {
         final all = snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList();
-        final currentAuthUid = FirebaseAuth.instance.currentUser?.uid;
         // Strict privacy filter:
         // A student ONLY sees:
-        // 1. Notifications explicitly addressed to THIS specific student (targetUserId == studentId or targetUserId == currentAuthUid)
+        // 1. Notifications explicitly addressed to THIS specific student (targetUserId == effectiveId or targetUserId == authUid)
         // 2. General public broadcasts intended for ALL users (type == 'announcement' with NO student-specific data)
-        // SENSITIVE PERSONAL TRANSACTIONS (payments, receipts, admissions, seat assignments, feedback replies)
-        // ARE STRICTLY FORBIDDEN FROM APPEARING TO ANY OTHER STUDENT!
         return all.where((n) {
           if (n.targetUserId != null && n.targetUserId!.trim().isNotEmpty) {
-            return n.targetUserId == studentId ||
-                (currentAuthUid != null && n.targetUserId == currentAuthUid);
+            return n.targetUserId == effectiveId ||
+                (authUid != null && n.targetUserId == authUid) ||
+                (studentId != null && n.targetUserId == studentId);
           }
-          // Strict privacy leak barrier:
-          // Never leak sensitive personal transactions to other students if targetUserId is missing or unassigned!
           final personalTypes = {
             'payment',
             'receipt',

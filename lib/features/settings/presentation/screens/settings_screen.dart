@@ -18,6 +18,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/badge_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:study_library/services/remote_config_service.dart';
+import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
 
 String _getSafePlatformName() {
   if (kIsWeb) return 'Web Browser';
@@ -51,6 +52,7 @@ class SettingsScreen extends ConsumerWidget {
     final pkgInfo = ref.watch(_packageInfoProvider).value;
     final ver = pkgInfo?.version ?? '1.5.0';
     final build = pkgInfo?.buildNumber ?? '6';
+    final requestCounts = ref.watch(requestModuleCountsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -131,6 +133,10 @@ class SettingsScreen extends ConsumerWidget {
               );
             },
           ),
+          // ── Action Required Pending Requests Hero Card ──
+          if (requestCounts.hasAnyActionable)
+            _buildPendingActionsHeroCard(context, requestCounts),
+
           // ── High-Frequency Quick Launch Tiles ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
@@ -231,6 +237,15 @@ class SettingsScreen extends ConsumerWidget {
                 iconColor: const Color(0xFF7C3AED),
                 title: 'Student Feedback & Complaints',
                 subtitle: 'Review student suggestions, queries & issues',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (requestCounts.openFeedbackCount > 0)
+                      _buildCountBadge(requestCounts.openFeedbackCount, color: const Color(0xFF7C3AED), suffix: 'Open'),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF94A3B8)),
+                  ],
+                ),
                 onTap: () => context.push(Routes.adminFeedback),
               ),
               const Divider(height: 1, indent: 56),
@@ -239,7 +254,33 @@ class SettingsScreen extends ConsumerWidget {
                 iconColor: const Color(0xFF2563EB),
                 title: 'Admissions & Seat Requests',
                 subtitle: 'Approve or reject new registrations & seat changes',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (requestCounts.totalPending > 0)
+                      _buildCountBadge(requestCounts.totalPending, color: Colors.red.shade600, suffix: 'Pending'),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF94A3B8)),
+                  ],
+                ),
                 onTap: () => context.push(Routes.adminRequests),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.hourglass_top_rounded,
+                iconColor: const Color(0xFF6366F1),
+                title: 'Waiting List Queue',
+                subtitle: 'Track students in line for seats & notify availability',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (requestCounts.waitingListCount > 0)
+                      _buildCountBadge(requestCounts.waitingListCount, color: const Color(0xFF6366F1), suffix: 'Waiting'),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF94A3B8)),
+                  ],
+                ),
+                onTap: () => context.push(Routes.adminWaitingList),
               ),
             ],
           ),
@@ -550,6 +591,225 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCountBadge(int count, {Color? color, String? suffix}) {
+    if (count <= 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color ?? Colors.red.shade600,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        suffix != null ? '$count $suffix' : '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10.5,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingActionsHeroCard(BuildContext context, RequestModuleCounts counts) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2D1F08) : const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? const Color(0xFFF59E0B).withValues(alpha: 0.4) : const Color(0xFFFCD34D),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.12 : 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.notification_important_rounded, size: 20, color: Color(0xFFD97706)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'Action Required: ${counts.totalActionableItems} Pending Item${counts.totalActionableItems > 1 ? "s" : ""}',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade600,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${counts.totalActionableItems}',
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        counts.detailedSummary,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Clickable Quick-Jump Pills to specific modules
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (counts.admissionsPending > 0)
+                  _buildHeroPill(
+                    label: '${counts.admissionsPending} Admissions',
+                    icon: Icons.school_rounded,
+                    color: const Color(0xFF2563EB),
+                    onTap: () => context.push('${Routes.adminRequests}?category=registration'),
+                  ),
+                if (counts.seatChangesPending > 0)
+                  _buildHeroPill(
+                    label: '${counts.seatChangesPending} Seat Shifts',
+                    icon: Icons.event_seat_rounded,
+                    color: const Color(0xFFD97706),
+                    onTap: () => context.push('${Routes.adminRequests}?category=seat_change'),
+                  ),
+                if (counts.renewalsPending > 0)
+                  _buildHeroPill(
+                    label: '${counts.renewalsPending} Plan Renewals',
+                    icon: Icons.autorenew_rounded,
+                    color: const Color(0xFF059669),
+                    onTap: () => context.push('${Routes.adminRequests}?category=renewal'),
+                  ),
+                if (counts.profileUpdatesPending > 0)
+                  _buildHeroPill(
+                    label: '${counts.profileUpdatesPending} Profile Edits',
+                    icon: Icons.person_outline_rounded,
+                    color: const Color(0xFF7C3AED),
+                    onTap: () => context.push('${Routes.adminRequests}?category=profile_update'),
+                  ),
+                if (counts.openFeedbackCount > 0)
+                  _buildHeroPill(
+                    label: '${counts.openFeedbackCount} Feedbacks',
+                    icon: Icons.feedback_outlined,
+                    color: const Color(0xFF7C3AED),
+                    onTap: () => context.push(Routes.adminFeedback),
+                  ),
+                if (counts.waitingListCount > 0)
+                  _buildHeroPill(
+                    label: '${counts.waitingListCount} in Waiting List',
+                    icon: Icons.hourglass_top_rounded,
+                    color: const Color(0xFF6366F1),
+                    onTap: () => context.push(Routes.adminWaitingList),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () => context.push(Routes.adminRequests),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Open Requests Hub',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_rounded, size: 14, color: theme.colorScheme.primary),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroPill({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+            const SizedBox(width: 3),
+            Icon(Icons.arrow_forward_ios_rounded, size: 9, color: color),
+          ],
+        ),
       ),
     );
   }

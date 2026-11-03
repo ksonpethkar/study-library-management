@@ -541,13 +541,19 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
           details: {'title': _titleController.text.trim(), 'type': _selectedType.name},
         ).ignore();
 
-        // Notify all students via Firestore trigger doc (Cloud Function picks this up)
-        // Also write to admin_notifications for in-app display
-        // Write to push_queue — processed by Cloud Function (or manually via FCM REST API).
-        // Students are subscribed to 'lib-{libraryId}' topic on login; upgrading to Blaze
-        // plan + adding a Cloud Function will make push go live with zero code change.
+        // Broadcast in-app notification to all members
         if (_isActive) {
           try {
+            await AppNotificationService.sendNotification(
+              libraryId: widget.libraryId,
+              title: '📢 ${_titleController.text.trim()}',
+              body: _messageController.text.trim(),
+              type: 'announcement',
+              targetRole: 'all',
+              actionRoute: Routes.adminAnnouncements,
+              metadata: {'announcementId': docRef.id},
+            );
+
             await FirebaseFirestore.instance
                 .collection('libraries')
                 .doc(widget.libraryId)

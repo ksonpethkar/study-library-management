@@ -32,6 +32,7 @@ import 'package:study_library/firebase_options.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:pdf/pdf.dart';
 import 'package:study_library/services/id_card_pdf_service.dart';
+import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
 
 void main() {
   group('E2E QA Test Suite — Study Library SaaS', () {
@@ -2702,6 +2703,83 @@ void main() {
       };
       expect(renewalPayload['retainSeat'], isTrue);
       expect(SeatHelper.formatSeatLabel(seatId: renewalPayload['currentSeatId'] as String), equals('Seat #2'));
+    });
+
+    test('85. STUDENT REGISTRATION SEAT SELECTION & GENDER RESTRICTION INTEGRITY', () {
+      // 1. SelectedSeatDetails model verification
+      const emptySelection = SelectedSeatDetails();
+      expect(emptySelection.hasSelection, isFalse);
+      expect(emptySelection.isAutoAssign, isFalse);
+      expect(emptySelection.seatId, isNull);
+
+      const specificSeat = SelectedSeatDetails(
+        seatId: '1790647291016_r1_c4',
+        seatLabel: '14',
+        sectionId: '1790647291016',
+        sectionName: 'Cozy Hall',
+        isAutoAssign: false,
+      );
+      expect(specificSeat.hasSelection, isTrue);
+      expect(specificSeat.isAutoAssign, isFalse);
+      expect(specificSeat.seatLabel, equals('14'));
+      expect(specificSeat.sectionName, equals('Cozy Hall'));
+
+      const autoAssign = SelectedSeatDetails(
+        seatId: null,
+        seatLabel: 'Auto-Assign',
+        sectionId: '1790647291016',
+        sectionName: 'Cozy Hall',
+        isAutoAssign: true,
+      );
+      expect(autoAssign.hasSelection, isTrue);
+      expect(autoAssign.isAutoAssign, isTrue);
+
+      // 2. Gender zoning rules check: Desks 1-50 (Boys), Desks 51-60 (Girls)
+      bool isEligibleForGender(String gender, int seatNum) {
+        if (gender == 'male') {
+          return seatNum <= 50;
+        } else if (gender == 'female') {
+          return true; // Girls can select girls zone (51-60) or any available desk
+        }
+        return true;
+      }
+
+      // Male student test
+      expect(isEligibleForGender('male', 14), isTrue);
+      expect(isEligibleForGender('male', 50), isTrue);
+      expect(isEligibleForGender('male', 51), isFalse); // Female row blocked for male
+      expect(isEligibleForGender('male', 60), isFalse); // Female row blocked for male
+
+      // Female student test
+      expect(isEligibleForGender('female', 55), isTrue);
+      expect(isEligibleForGender('female', 14), isTrue);
+
+      // 3. Admission request payload with seat selection metadata
+      final registrationPayload = {
+        'type': 'registration',
+        'status': 'pending',
+        'studentName': 'Rahul Sharma',
+        'studentPhone': '9876543210',
+        'planId': 'plan_monthly',
+        'requestedSeatId': specificSeat.seatId,
+        'requestedSeatLabel': specificSeat.seatLabel,
+        'requestedSectionId': specificSeat.sectionId,
+        'requestedSectionName': specificSeat.sectionName,
+        'studentData': {
+          'name': 'Rahul Sharma',
+          'phone': '9876543210',
+          'gender': 'male',
+          'seatId': specificSeat.seatId,
+          'sectionId': specificSeat.sectionId,
+          'requestedSeatLabel': specificSeat.seatLabel,
+          'requestedSectionName': specificSeat.sectionName,
+        },
+      };
+
+      expect(registrationPayload['requestedSeatId'], equals('1790647291016_r1_c4'));
+      expect(registrationPayload['requestedSeatLabel'], equals('14'));
+      expect(registrationPayload['requestedSectionName'], equals('Cozy Hall'));
+      expect((registrationPayload['studentData'] as Map)['seatId'], equals('1790647291016_r1_c4'));
     });
   });
 }

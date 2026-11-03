@@ -502,7 +502,9 @@ class StudentProvisioningService {
       // 5.5 Dispatch Student Notification for Admission Only
       if (type == 'registration' || type == 'newregistration') {
         final studentName = studentData['name'] ?? data['studentName'] ?? 'Student';
-        final seatNotice = requestedSeatId != null ? ' (Seat $requestedSeatId)' : '';
+        final seatLabelStr = (data['requestedSeatLabel'] ?? studentData['requestedSeatLabel'] ?? requestedSeatId)?.toString();
+        final seatNotice = seatLabelStr != null && !seatLabelStr.toLowerCase().contains('auto') ? ' (Desk #$seatLabelStr)' : '';
+        final primaryTarget = (studentUserId.isNotEmpty) ? studentUserId : createdStudentId;
         AppNotificationService.sendNotification(
           libraryId: libraryId,
           title: 'Admission Approved! 🎉',
@@ -511,9 +513,23 @@ class StudentProvisioningService {
               : 'Hello $studentName! Your admission is approved$seatNotice. Complete your fee payment to activate your pass.',
           type: 'admission',
           targetRole: 'student',
-          targetUserId: createdStudentId,
+          targetUserId: primaryTarget,
           actionRoute: '/student/id-card',
         ).ignore();
+
+        if (studentUserId.isNotEmpty && createdStudentId != null && createdStudentId != studentUserId) {
+          AppNotificationService.sendNotification(
+            libraryId: libraryId,
+            title: 'Admission Approved! 🎉',
+            body: isPaid
+                ? 'Hello $studentName! Your admission is confirmed$seatNotice and your membership is active. Digital ID Pass unlocked!'
+                : 'Hello $studentName! Your admission is approved$seatNotice. Complete your fee payment to activate your pass.',
+            type: 'admission',
+            targetRole: 'student',
+            targetUserId: createdStudentId,
+            actionRoute: '/student/id-card',
+          ).ignore();
+        }
       }
 
       // 6. Audit Logging

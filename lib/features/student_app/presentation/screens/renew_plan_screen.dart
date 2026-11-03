@@ -17,6 +17,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/services/app_notification_service.dart';
 
 enum RenewalTiming { advance, continuousGrace, immediate }
 enum RenewalPaymentMode { upi, bank, deskCash }
@@ -131,6 +133,16 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
         'status': statusStr,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Dispatch admin in-app notification
+      AppNotificationService.sendNotification(
+        libraryId: libraryId,
+        title: 'Plan Renewal Submitted • ₹${amount.toStringAsFixed(0)}',
+        body: '${student.name} requested renewal for ${selectedPlan.name} ($paymentLabelStr).',
+        type: 'renewal',
+        targetRole: 'admin',
+        actionRoute: Routes.adminRequests,
+      ).ignore();
 
       // Cancel local expiry reminders until renewed cycle begins
       ExpirySchedulerService.cancelExpiryReminders().ignore();

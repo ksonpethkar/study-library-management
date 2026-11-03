@@ -11,10 +11,12 @@ import 'package:study_library/models/waiting_list_model.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import '../providers/registration_provider.dart';
+import 'package:study_library/services/form_config_service.dart';
 import 'id_scan_screen.dart';
 import 'registration_form_screen.dart';
 import 'photo_upload_screen.dart';
 import 'plan_selection_screen.dart';
+import 'seat_selection_screen.dart';
 import 'review_submit_screen.dart';
 
 class StudentRegistrationWizard extends ConsumerStatefulWidget {
@@ -188,12 +190,15 @@ class _StudentRegistrationWizardState
       }
     }
 
-    // Standard 5-step registration wizard
+    final formConfigAsync = ref.watch(formConfigStreamProvider);
+    final isGovIdVisible = FormConfigService.isFieldVisible(formConfigAsync.value ?? [], 'govId');
+
+    // Standard registration wizard (adapts dynamically if govId is disabled)
     final step = ref.watch(registrationStepProvider);
 
     switch (step) {
       case 1:
-        return const IdScanScreen();
+        return isGovIdVisible ? const IdScanScreen() : const RegistrationFormScreen();
       case 2:
         return const RegistrationFormScreen();
       case 3:
@@ -201,9 +206,11 @@ class _StudentRegistrationWizardState
       case 4:
         return const PlanSelectionScreen();
       case 5:
+        return const SeatSelectionScreen();
+      case 6:
         return const ReviewSubmitScreen();
       default:
-        return const IdScanScreen();
+        return isGovIdVisible ? const IdScanScreen() : const RegistrationFormScreen();
     }
   }
 

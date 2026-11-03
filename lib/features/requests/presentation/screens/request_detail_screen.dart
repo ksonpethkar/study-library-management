@@ -513,6 +513,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         (data['paymentModeLabel'] ?? '').toString().toLowerCase().contains('desk');
 
     final isRenewal = type == 'renewal';
+    final isRegistration = type == 'registration' || type == 'newregistration';
+    final hasRequestedSeat = data['requestedSeatId'] != null ||
+        data['requestedSeatLabel'] != null ||
+        studentData['seatId'] != null ||
+        studentData['requestedSeatLabel'] != null;
     final hasPaymentInfo = amount != null || paymentMethod.isNotEmpty || refNumber.isNotEmpty || paymentProofUrl.isNotEmpty;
 
     return Scaffold(
@@ -593,6 +598,16 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                       // 6. Profile Update Diff Card
                       if (type == 'profile_update') ...[
                         _buildProfileUpdateCard(theme: theme, data: data),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 6.5 Requested Study Desk Allocation Card
+                      if (hasRequestedSeat || isRegistration) ...[
+                        _buildRequestedSeatCard(
+                          theme: theme,
+                          data: data,
+                          studentData: studentData,
+                        ),
                         const SizedBox(height: 16),
                       ],
 
@@ -1504,6 +1519,178 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 final curVal = curMap?[e.key];
                 return _buildDiffRow(e.key.toString(), curVal, e.value);
               }),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequestedSeatCard({
+    required ThemeData theme,
+    required Map<String, dynamic> data,
+    required Map<String, dynamic> studentData,
+  }) {
+    final seatLabel = (data['requestedSeatLabel'] ??
+            studentData['requestedSeatLabel'] ??
+            data['requestedSeatId'] ??
+            studentData['seatId'] ??
+            '')
+        .toString();
+    final sectionName = (data['requestedSectionName'] ??
+            studentData['requestedSectionName'] ??
+            'Cozy Hall')
+        .toString();
+    final isAuto = seatLabel.toLowerCase().contains('auto') || seatLabel.isEmpty;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isAuto
+                        ? Colors.amber.withValues(alpha: 0.12)
+                        : Colors.purple.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    isAuto ? Icons.bolt_rounded : Icons.event_seat_rounded,
+                    color: isAuto ? Colors.amber.shade900 : Colors.purple,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Requested Study Desk',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        isAuto
+                            ? 'Student opted for auto-assignment by library staff'
+                            : 'Desk preference selected on interactive map',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            if (isAuto) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.shade300, width: 0.8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.bolt_rounded, color: Colors.amber, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '⚡ Auto-Assign Desk',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Approving will let you allocate any currently vacant desk in $sectionName.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.stars_rounded, color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Desk #$seatLabel',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade300, width: 0.8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.meeting_room_outlined, size: 16, color: Color(0xFF15803D)),
+                        const SizedBox(width: 6),
+                        Text(
+                          sectionName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Color(0xFF15803D),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle_outline_rounded, size: 14, color: Colors.blue),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Ready to Allocate: Tapping "Approve" will automatically assign this desk to the student profile.',
+                        style: TextStyle(fontSize: 11.5, color: Colors.blue, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ],
         ),

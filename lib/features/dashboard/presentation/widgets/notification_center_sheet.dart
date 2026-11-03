@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
 
 class NotificationCenterSheet extends ConsumerStatefulWidget {
   final String libraryId;
@@ -49,8 +50,93 @@ class NotificationCenterSheet extends ConsumerStatefulWidget {
   ConsumerState<NotificationCenterSheet> createState() => _NotificationCenterSheetState();
 }
 
+enum NotificationCategory { all, unread, receipts, passSeats, notices }
+
 class _NotificationCenterSheetState extends ConsumerState<NotificationCenterSheet> {
-  bool _showOnlyUnread = false;
+  NotificationCategory _selectedCategory = NotificationCategory.all;
+
+  bool _matchesCategory(AppNotificationModel notif, NotificationCategory category) {
+    final type = notif.type.toLowerCase();
+    switch (category) {
+      case NotificationCategory.all:
+        return true;
+      case NotificationCategory.unread:
+        return !notif.read;
+      case NotificationCategory.receipts:
+        return type == 'payment' || type == 'receipt';
+      case NotificationCategory.passSeats:
+        return type == 'admission' ||
+            type == 'new_registration' ||
+            type == 'seat' ||
+            type == 'seat_change' ||
+            type == 'expiry' ||
+            type == 'due' ||
+            type == 'renewal';
+      case NotificationCategory.notices:
+        return type == 'announcement' ||
+            type == 'feedback' ||
+            type == 'feedback_reply' ||
+            type == 'profile_update_request' ||
+            type == 'general';
+    }
+  }
+
+  Widget _buildCategoryChip({
+    required String label,
+    required NotificationCategory category,
+    required int count,
+    bool isUnreadBadge = false,
+  }) {
+    final isSelected = _selectedCategory == category;
+    final theme = Theme.of(context);
+
+    return FilterChip(
+      selected: isSelected,
+      showCheckmark: false,
+      avatar: isUnreadBadge && count > 0
+          ? Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Color(0xFF06B6D4),
+                shape: BoxShape.circle,
+              ),
+            )
+          : null,
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          if (count > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.15)
+                    : theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      onSelected: (_) {
+        HapticFeedback.selectionClick();
+        setState(() => _selectedCategory = category);
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -219,35 +305,61 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
             const Divider(height: 1),
 
             // Filter Tabs
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                children: [
-                  ChoiceChip(
-                    label: const Text('All Alerts'),
-                    selected: !_showOnlyUnread,
-                    onSelected: (val) {
-                      if (val) setState(() => _showOnlyUnread = false);
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  ChoiceChip(
-                    avatar: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF06B6D4),
-                        shape: BoxShape.circle,
+            Builder(
+              builder: (context) {
+                final allNotifs = notifsAsync.value ?? [];
+                final alertsState = (widget.libraryId.isNotEmpty && widget.role == 'admin')
+                    ? ref.watch(systemAlertsProvider(widget.libraryId))
+                    : const SystemAlertsState();
+                final unreadPending = (widget.pendingRequestsCount - alertsState.acknowledgedPendingCount).clamp(0, 999999);
+                final unreadRenewals = (widget.renewalsDueCount - alertsState.acknowledgedRenewalsCount).clamp(0, 999999);
+
+                final unreadCount = allNotifs.where((n) => !n.read).length +
+                    (widget.role == 'admin' ? (unreadPending + unreadRenewals) : 0);
+                final receiptsCount = allNotifs.where((n) => _matchesCategory(n, NotificationCategory.receipts)).length;
+                final passSeatsCount = allNotifs.where((n) => _matchesCategory(n, NotificationCategory.passSeats)).length +
+                    (widget.role == 'admin' ? (widget.pendingRequestsCount + widget.renewalsDueCount) : 0);
+                final noticesCount = allNotifs.where((n) => _matchesCategory(n, NotificationCategory.notices)).length;
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      _buildCategoryChip(
+                        label: 'All Alerts',
+                        category: NotificationCategory.all,
+                        count: allNotifs.length + (widget.role == 'admin' ? widget.pendingRequestsCount + widget.renewalsDueCount : 0),
                       ),
-                    ),
-                    label: const Text('Unread Only'),
-                    selected: _showOnlyUnread,
-                    onSelected: (val) {
-                      if (val) setState(() => _showOnlyUnread = true);
-                    },
+                      const SizedBox(width: 8),
+                      _buildCategoryChip(
+                        label: 'Unread',
+                        category: NotificationCategory.unread,
+                        count: unreadCount,
+                        isUnreadBadge: true,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCategoryChip(
+                        label: '🧾 Receipts',
+                        category: NotificationCategory.receipts,
+                        count: receiptsCount,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCategoryChip(
+                        label: '🪑 Pass & Desks',
+                        category: NotificationCategory.passSeats,
+                        count: passSeatsCount,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCategoryChip(
+                        label: '📢 Notices',
+                        category: NotificationCategory.notices,
+                        count: noticesCount,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
 
             // Notification Feed List
@@ -260,20 +372,29 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                   final unreadPending = (widget.pendingRequestsCount - alertsState.acknowledgedPendingCount).clamp(0, 999999);
                   final unreadRenewals = (widget.renewalsDueCount - alertsState.acknowledgedRenewalsCount).clamp(0, 999999);
 
-                  // Merge system alerts for admin
-                  final items = _showOnlyUnread
-                      ? notifications.where((n) => !n.read).toList()
-                      : notifications;
+                  // Filter items based on selected category chip
+                  final items = notifications.where((n) => _matchesCategory(n, _selectedCategory)).toList();
 
                   final showPending = widget.role == 'admin' &&
                       widget.pendingRequestsCount > 0 &&
-                      (!_showOnlyUnread || unreadPending > 0);
+                      (_selectedCategory == NotificationCategory.all ||
+                          (_selectedCategory == NotificationCategory.unread && unreadPending > 0) ||
+                          _selectedCategory == NotificationCategory.passSeats);
 
                   final showRenewals = widget.role == 'admin' &&
                       widget.renewalsDueCount > 0 &&
-                      (!_showOnlyUnread || unreadRenewals > 0);
+                      (_selectedCategory == NotificationCategory.all ||
+                          (_selectedCategory == NotificationCategory.unread && unreadRenewals > 0) ||
+                          _selectedCategory == NotificationCategory.passSeats);
 
                   if (items.isEmpty && !showPending && !showRenewals) {
+                    final emptyTitle = switch (_selectedCategory) {
+                      NotificationCategory.unread => 'No Unread Alerts',
+                      NotificationCategory.receipts => 'No Receipts Yet',
+                      NotificationCategory.passSeats => 'No Pass or Desk Alerts',
+                      NotificationCategory.notices => 'No Notices or Feedback',
+                      NotificationCategory.all => 'No Notifications Yet',
+                    };
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.all(32.0),
@@ -283,7 +404,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                             Icon(Icons.notifications_none_rounded, size: 56, color: theme.colorScheme.outline),
                             const SizedBox(height: 12),
                             Text(
-                              _showOnlyUnread ? 'No Unread Notifications' : 'No Notifications Yet',
+                              emptyTitle,
                               style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 4),
@@ -309,8 +430,8 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                             theme: theme,
                             icon: Icons.pending_actions_rounded,
                             iconColor: Colors.red,
-                            title: '${widget.pendingRequestsCount} Pending Student Applications',
-                            body: 'New student admissions are awaiting verification & approval.',
+                            title: '${widget.pendingRequestsCount} Pending Action Requests',
+                            body: ref.watch(requestModuleCountsProvider).detailedSummary,
                             badgeText: unreadPending > 0
                                 ? '${widget.pendingRequestsCount} New'
                                 : '${widget.pendingRequestsCount} Pending • Read',
@@ -553,6 +674,16 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                         height: 1.3,
                       ),
                     ),
+                    Builder(
+                      builder: (ctx) {
+                        final pill = _buildActionPill(context, theme, notif);
+                        if (pill == null) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: pill,
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -578,6 +709,101 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
     ),
     ),
   );
+  }
+
+  Widget? _buildActionPill(BuildContext context, ThemeData theme, AppNotificationModel notif) {
+    String? label;
+    IconData? icon;
+    Color? color;
+    String? defaultRoute;
+
+    final type = notif.type.toLowerCase();
+    final isAdmin = widget.role == 'admin';
+
+    if (type == 'payment' || type == 'receipt') {
+      label = isAdmin ? 'View Receipts' : 'View PDF Receipt';
+      icon = Icons.receipt_long_rounded;
+      color = const Color(0xFF10B981);
+      defaultRoute = isAdmin ? Routes.adminReceipts : Routes.studentReceipts;
+    } else if (type == 'expiry' || type == 'due' || type == 'renewal') {
+      label = isAdmin ? 'Review Due Pass' : '1-Tap Renew';
+      icon = Icons.autorenew_rounded;
+      color = const Color(0xFFF59E0B);
+      defaultRoute = isAdmin ? '${Routes.adminStudents}?filter=Due Soon' : Routes.studentRenew;
+    } else if (type == 'admission' || type == 'new_registration') {
+      label = isAdmin ? 'Review Request' : 'View ID Pass';
+      icon = isAdmin ? Icons.assignment_ind_rounded : Icons.badge_rounded;
+      color = const Color(0xFF3B82F6);
+      defaultRoute = isAdmin ? Routes.adminRequests : Routes.studentIdCard;
+    } else if (type == 'seat' || type == 'seat_change') {
+      label = isAdmin ? 'Inspect Seats' : 'View My Desk';
+      icon = Icons.event_seat_rounded;
+      color = const Color(0xFF8B5CF6);
+      defaultRoute = isAdmin ? Routes.adminSeats : Routes.studentHome;
+    } else if (type == 'announcement') {
+      label = isAdmin ? 'Manage Notices' : 'Read Notice';
+      icon = Icons.campaign_rounded;
+      color = const Color(0xFF6366F1);
+      defaultRoute = isAdmin ? Routes.adminAnnouncements : Routes.studentHome;
+    } else if (type == 'feedback' || type == 'feedback_reply') {
+      label = isAdmin ? 'Open Feedback' : 'View Replies';
+      icon = Icons.question_answer_rounded;
+      color = const Color(0xFF14B8A6);
+      defaultRoute = isAdmin ? Routes.adminFeedback : Routes.studentFeedback;
+    } else if (type == 'profile_update_request') {
+      label = isAdmin ? 'Review Updates' : 'View My Profile';
+      icon = Icons.manage_accounts_rounded;
+      color = const Color(0xFF06B6D4);
+      defaultRoute = isAdmin ? Routes.adminRequests : Routes.studentProfile;
+    }
+
+    if (label == null || color == null) return null;
+
+    final targetRoute = notif.actionRoute?.isNotEmpty == true ? notif.actionRoute! : defaultRoute;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () async {
+        HapticFeedback.lightImpact();
+        if (!notif.read) {
+          await AppNotificationService.markAsRead(
+            libraryId: widget.libraryId,
+            notificationId: notif.id,
+          );
+        }
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          if (targetRoute != null && targetRoute.isNotEmpty) {
+            context.push(targetRoute);
+          }
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(width: 3),
+            Icon(Icons.arrow_forward_ios_rounded, size: 9, color: color),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildSystemAlertTile({
@@ -694,12 +920,14 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
   }
 
   (IconData, Color) _getTypeVisuals(String type) {
-    return switch (type) {
-      'payment' => (Icons.payment_rounded, const Color(0xFF10B981)),
-      'admission' => (Icons.school_rounded, const Color(0xFF3B82F6)),
-      'seat' => (Icons.event_seat_rounded, const Color(0xFF8B5CF6)),
-      'expiry' => (Icons.alarm_rounded, const Color(0xFFF59E0B)),
+    return switch (type.toLowerCase()) {
+      'payment' || 'receipt' => (Icons.receipt_long_rounded, const Color(0xFF10B981)),
+      'admission' || 'new_registration' => (Icons.school_rounded, const Color(0xFF3B82F6)),
+      'seat' || 'seat_change' => (Icons.event_seat_rounded, const Color(0xFF8B5CF6)),
+      'expiry' || 'due' || 'renewal' => (Icons.alarm_rounded, const Color(0xFFF59E0B)),
       'announcement' => (Icons.campaign_rounded, const Color(0xFF6366F1)),
+      'feedback' || 'feedback_reply' => (Icons.feedback_rounded, const Color(0xFF14B8A6)),
+      'profile_update_request' => (Icons.manage_accounts_rounded, const Color(0xFF06B6D4)),
       _ => (Icons.notifications_rounded, const Color(0xFF64748B)),
     };
   }

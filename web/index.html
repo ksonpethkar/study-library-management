@@ -19,7 +19,7 @@
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="The Cozy Corner Centre — Smart Study Library Management Platform">
+  <meta name="description" content="The Cozy Corner Centre â€” Smart Study Library Management Platform">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -60,13 +60,13 @@
             if (manifestLink) {
               const dynManifest = {
                 "name": title,
-                "short_name": title.length > 18 ? title.substring(0, 16) + "�" : title,
+                "short_name": title.length > 18 ? title.substring(0, 16) + "…" : title,
                 "start_url": "/app/",
                 "scope": "/app/",
                 "display": "standalone",
                 "background_color": "#FFF8F0",
                 "theme_color": "#5D4037",
-                "description": title + " � Smart Study Library Management Platform",
+                "description": title + " — Smart Study Library Management Platform",
                 "orientation": "portrait-primary",
                 "icons": [
                   { "src": (url && url.length > 0) ? url : "/app/icons/Icon-192.png", "sizes": "192x192", "type": "image/png" },
@@ -147,7 +147,7 @@
           integrity="sha256-qOKZGNCYsrBuEBK9rv+0rsBEXF1WVHCQI+C9H0QqgOg="
           crossorigin="anonymous"></script>
   <script>
-    // ── Instant Client-Side QR Decoder ──────────────────────────────────────────
+    // â”€â”€ Instant Client-Side QR Decoder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     window.decodeQrCodeFromImage = async function(base64Image) {
       try {
         if (!window.jsQR) {
@@ -206,7 +206,7 @@
       }
     };
 
-    // ── Client-Side Tesseract OCR ───────────────────────────────────────────────
+    // â”€â”€ Client-Side Tesseract OCR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let _sharedTesseractWorker = null;
     window.recognizeOcrText = async function(base64Image) {
       try {

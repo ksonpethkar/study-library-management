@@ -8,7 +8,9 @@ import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/badge_service.dart';
+import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/student_provisioning_service.dart';
+import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
 
 /// Data representation of a student request from raw Firestore data.
 class StudentRequestItem {
@@ -160,17 +162,407 @@ final requestsStreamProvider = StreamProvider.autoDispose<List<StudentRequestIte
   });
 });
 
-/// Screen to view and manage student requests (seat changes, plan changes, etc.).
-class RequestListScreen extends ConsumerWidget {
-  const RequestListScreen({super.key});
+/// Screen to view and manage student requests with module-based categorization.
+class RequestListScreen extends ConsumerStatefulWidget {
+  final String? initialCategory;
+  const RequestListScreen({super.key, this.initialCategory});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RequestListScreen> createState() => _RequestListScreenState();
+}
+
+class _RequestListScreenState extends ConsumerState<RequestListScreen> {
+  late String _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategory = widget.initialCategory ?? 'all';
+  }
+
+  @override
+  void didUpdateWidget(covariant RequestListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCategory != null && widget.initialCategory != oldWidget.initialCategory) {
+      _selectedCategory = widget.initialCategory!;
+    }
+  }
+
+  String _categoryLabel(String cat) {
+    switch (cat.toLowerCase()) {
+      case 'registration':
+      case 'admissions':
+        return 'Admissions';
+      case 'seat_change':
+      case 'seats':
+        return 'Seat Shifts';
+      case 'renewal':
+      case 'renewals':
+        return 'Plan Renewals';
+      case 'profile_update':
+      case 'profile':
+        return 'Profile Edits';
+      default:
+        return 'All Types';
+    }
+  }
+
+  List<StudentRequestItem> _filterByCategory(List<StudentRequestItem> list) {
+    if (_selectedCategory == 'all') return list;
+    return list.where((item) {
+      final t = item.type.toLowerCase().trim();
+      switch (_selectedCategory) {
+        case 'registration':
+        case 'admissions':
+          return t == 'registration' || t == 'newregistration';
+        case 'seat_change':
+        case 'seats':
+          return t == 'seat_change' || t == 'seatchange';
+        case 'renewal':
+        case 'renewals':
+          return t == 'renewal' || t == 'plan_renewal';
+        case 'profile_update':
+        case 'profile':
+          return t == 'profile_update';
+        default:
+          return true;
+      }
+    }).toList();
+  }
+
+  Widget _buildCategoryChip({
+    required String label,
+    required int count,
+    required bool isSelected,
+    required VoidCallback onTap,
+    IconData? icon,
+    Color? color,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final activeColor = color ?? theme.colorScheme.primary;
+
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? activeColor.withValues(alpha: isDark ? 0.3 : 0.15)
+              : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? activeColor : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: isSelected ? activeColor : theme.colorScheme.onSurfaceVariant),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? activeColor : theme.colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: isSelected ? activeColor : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCrossModuleChip({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required int count,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: count > 0 ? color.withValues(alpha: 0.5) : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+            ),
+            if (count > 0) ...[
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+                child: Text('$count', style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
+            ],
+            const SizedBox(width: 4),
+            Icon(Icons.arrow_outward_rounded, size: 11, color: theme.colorScheme.outline),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryChips(BuildContext context, List<StudentRequestItem> requests, RequestModuleCounts counts) {
+    final theme = Theme.of(context);
+    final total = requests.length;
+    final admissions = requests.where((r) => r.type.toLowerCase() == 'registration' || r.type.toLowerCase() == 'newregistration').length;
+    final seatChanges = requests.where((r) => r.type.toLowerCase() == 'seat_change' || r.type.toLowerCase() == 'seatchange').length;
+    final renewals = requests.where((r) => r.type.toLowerCase() == 'renewal' || r.type.toLowerCase() == 'plan_renewal').length;
+    final profile = requests.where((r) => r.type.toLowerCase() == 'profile_update').length;
+
+    return Container(
+      width: double.infinity,
+      color: theme.colorScheme.surface,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: [
+            _buildCategoryChip(
+              label: 'All Modules',
+              count: total,
+              isSelected: _selectedCategory == 'all',
+              onTap: () => setState(() => _selectedCategory = 'all'),
+            ),
+            const SizedBox(width: 8),
+            _buildCategoryChip(
+              label: 'Admissions',
+              icon: Icons.school_rounded,
+              count: admissions,
+              color: const Color(0xFF2563EB),
+              isSelected: _selectedCategory == 'registration' || _selectedCategory == 'admissions',
+              onTap: () => setState(() => _selectedCategory = 'registration'),
+            ),
+            const SizedBox(width: 8),
+            _buildCategoryChip(
+              label: 'Seat Shifts',
+              icon: Icons.event_seat_rounded,
+              count: seatChanges,
+              color: const Color(0xFFD97706),
+              isSelected: _selectedCategory == 'seat_change' || _selectedCategory == 'seats',
+              onTap: () => setState(() => _selectedCategory = 'seat_change'),
+            ),
+            const SizedBox(width: 8),
+            _buildCategoryChip(
+              label: 'Plan Renewals',
+              icon: Icons.autorenew_rounded,
+              count: renewals,
+              color: const Color(0xFF059669),
+              isSelected: _selectedCategory == 'renewal' || _selectedCategory == 'renewals',
+              onTap: () => setState(() => _selectedCategory = 'renewal'),
+            ),
+            if (profile > 0 || _selectedCategory == 'profile_update') ...[
+              const SizedBox(width: 8),
+              _buildCategoryChip(
+                label: 'Profile Edits',
+                icon: Icons.person_outline_rounded,
+                count: profile,
+                color: const Color(0xFF7C3AED),
+                isSelected: _selectedCategory == 'profile_update',
+                onTap: () => setState(() => _selectedCategory = 'profile_update'),
+              ),
+            ],
+            // Cross-module quick jump shortcuts to Feedback & Waiting List
+            const SizedBox(width: 12),
+            Container(width: 1, height: 20, color: theme.dividerColor.withValues(alpha: 0.4)),
+            const SizedBox(width: 12),
+            _buildCrossModuleChip(
+              context: context,
+              label: 'Feedback',
+              icon: Icons.feedback_outlined,
+              count: counts.openFeedbackCount,
+              color: const Color(0xFF7C3AED),
+              onTap: () => context.push(Routes.adminFeedback),
+            ),
+            const SizedBox(width: 8),
+            _buildCrossModuleChip(
+              context: context,
+              label: 'Waiting List',
+              icon: Icons.hourglass_top_rounded,
+              count: counts.waitingListCount,
+              color: const Color(0xFF6366F1),
+              onTap: () => context.push(Routes.adminWaitingList),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModuleBreakdownBanner(BuildContext context, RequestModuleCounts counts) {
+    if (counts.totalPending == 0) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.hub_rounded, size: 16, color: Color(0xFF2563EB)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${counts.totalPending} Requests Across Modules',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    Text(
+                      'Tap a module pill below to focus on specific request types',
+                      style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (counts.admissionsPending > 0)
+                _buildBreakdownPill(
+                  label: '${counts.admissionsPending} Admissions',
+                  icon: Icons.school_rounded,
+                  color: const Color(0xFF2563EB),
+                  onTap: () => setState(() => _selectedCategory = 'registration'),
+                ),
+              if (counts.seatChangesPending > 0)
+                _buildBreakdownPill(
+                  label: '${counts.seatChangesPending} Seat Shifts',
+                  icon: Icons.event_seat_rounded,
+                  color: const Color(0xFFD97706),
+                  onTap: () => setState(() => _selectedCategory = 'seat_change'),
+                ),
+              if (counts.renewalsPending > 0)
+                _buildBreakdownPill(
+                  label: '${counts.renewalsPending} Plan Renewals',
+                  icon: Icons.autorenew_rounded,
+                  color: const Color(0xFF059669),
+                  onTap: () => setState(() => _selectedCategory = 'renewal'),
+                ),
+              if (counts.profileUpdatesPending > 0)
+                _buildBreakdownPill(
+                  label: '${counts.profileUpdatesPending} Profile Edits',
+                  icon: Icons.person_outline_rounded,
+                  color: const Color(0xFF7C3AED),
+                  onTap: () => setState(() => _selectedCategory = 'profile_update'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBreakdownPill({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 5),
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Clear badge when admin opens requests screen (they're seeing the requests)
     BadgeService.clearBadge();
 
     final libraryId = ref.watch(currentLibraryIdProvider);
     final requestsAsync = ref.watch(requestsStreamProvider);
+    final moduleCounts = ref.watch(requestModuleCountsProvider);
 
     Widget buildBackButton() {
       return IconButton(
@@ -190,14 +582,14 @@ class RequestListScreen extends ConsumerWidget {
       loading: () => Scaffold(
         appBar: AppBar(
           leading: buildBackButton(),
-          title: const Text('Student Requests'),
+          title: const Text('Requests Hub'),
         ),
         body: const Center(child: CircularProgressIndicator()),
       ),
       error: (error, _) => Scaffold(
         appBar: AppBar(
           leading: buildBackButton(),
-          title: const Text('Student Requests'),
+          title: const Text('Requests Hub'),
         ),
         body: Center(
           child: Padding(
@@ -253,99 +645,162 @@ class RequestListScreen extends ConsumerWidget {
             child: Scaffold(
               appBar: AppBar(
                 leading: buildBackButton(),
-                title: const Text('Student Requests'),
-              bottom: TabBar(
-                isScrollable: false,
-                tabs: [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Pending'),
-                        if (pending.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.error,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '${pending.length}',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onError,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                title: const Text('Requests Hub'),
+                bottom: TabBar(
+                  isScrollable: false,
+                  tabs: [
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Pending'),
+                          if (pending.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.error,
+                                borderRadius: BorderRadius.circular(10),
                               ),
+                              child: Text(
+                                '${pending.length}',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onError,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const Tab(text: 'Approved'),
+                    const Tab(text: 'Rejected'),
+                    const Tab(text: 'All'),
+                  ],
+                ),
+              ),
+              body: Column(
+                children: [
+                  // 1. Module Category Filter Ribbon
+                  _buildCategoryChips(context, requests, moduleCounts),
+                  const Divider(height: 1),
+
+                  // 2. Active Filter indicator (if not 'all')
+                  if (_selectedCategory != 'all')
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
+                      child: Row(
+                        children: [
+                          Icon(Icons.filter_alt_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Filtered by Module: ${_categoryLabel(_selectedCategory)}',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const Spacer(),
+                          InkWell(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              setState(() => _selectedCategory = 'all');
+                            },
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Clear Filter',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Icon(Icons.close_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
+                              ],
                             ),
                           ),
                         ],
+                      ),
+                    ),
+
+                  // 3. Tab Contents
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _buildRequestList(
+                          context,
+                          ref,
+                          libraryId,
+                          pending,
+                          isPendingTab: true,
+                          moduleCounts: moduleCounts,
+                          emptyTitle: 'All caught up! 🎉',
+                          emptySubtitle: 'There are no pending requests for this filter.',
+                          emptyIcon: Icons.check_circle_outline_rounded,
+                        ),
+                        _buildRequestList(
+                          context,
+                          ref,
+                          libraryId,
+                          approved,
+                          moduleCounts: moduleCounts,
+                          emptyTitle: 'No approved requests',
+                          emptySubtitle: 'Approved requests will appear here.',
+                          emptyIcon: Icons.task_alt_rounded,
+                        ),
+                        _buildRequestList(
+                          context,
+                          ref,
+                          libraryId,
+                          rejected,
+                          moduleCounts: moduleCounts,
+                          emptyTitle: 'No rejected requests',
+                          emptySubtitle: 'Rejected requests will appear here.',
+                          emptyIcon: Icons.cancel_outlined,
+                        ),
+                        _buildRequestList(
+                          context,
+                          ref,
+                          libraryId,
+                          requests,
+                          moduleCounts: moduleCounts,
+                          emptyTitle: 'No requests yet',
+                          emptySubtitle: 'Student requests across modules will appear here.',
+                          emptyIcon: Icons.inbox_outlined,
+                        ),
                       ],
                     ),
                   ),
-                  const Tab(text: 'Approved'),
-                  const Tab(text: 'Rejected'),
-                  const Tab(text: 'All'),
                 ],
               ),
             ),
-            body: TabBarView(
-              children: [
-                _buildRequestList(
-                  context,
-                  ref,
-                  libraryId,
-                  pending,
-                  emptyTitle: 'All caught up! 🎉',
-                  emptySubtitle: 'There are no pending student requests at this moment.',
-                  emptyIcon: Icons.check_circle_outline_rounded,
-                ),
-                _buildRequestList(
-                  context,
-                  ref,
-                  libraryId,
-                  approved,
-                  emptyTitle: 'No approved requests',
-                  emptySubtitle: 'Approved requests will appear here.',
-                  emptyIcon: Icons.task_alt_rounded,
-                ),
-                _buildRequestList(
-                  context,
-                  ref,
-                  libraryId,
-                  rejected,
-                  emptyTitle: 'No rejected requests',
-                  emptySubtitle: 'Rejected requests will appear here.',
-                  emptyIcon: Icons.cancel_outlined,
-                ),
-                _buildRequestList(
-                  context,
-                  ref,
-                  libraryId,
-                  requests,
-                  emptyTitle: 'No requests yet',
-                  emptySubtitle: 'Student requests for seat or plan changes will appear here.',
-                  emptyIcon: Icons.inbox_outlined,
-                ),
-              ],
-            ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
   }
 
   Widget _buildRequestList(
     BuildContext context,
     WidgetRef ref,
     String? libraryId,
-    List<StudentRequestItem> items, {
+    List<StudentRequestItem> rawItems, {
     required String emptyTitle,
     required String emptySubtitle,
     required IconData emptyIcon,
+    bool isPendingTab = false,
+    required RequestModuleCounts moduleCounts,
   }) {
+    final items = _filterByCategory(rawItems);
+
     if (items.isEmpty) {
       return RefreshIndicator(
         onRefresh: () async {
@@ -374,19 +829,31 @@ class RequestListScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    emptyTitle,
+                    _selectedCategory != 'all' && rawItems.isNotEmpty
+                        ? 'No ${_categoryLabel(_selectedCategory)} Requests'
+                        : emptyTitle,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    emptySubtitle,
+                    _selectedCategory != 'all' && rawItems.isNotEmpty
+                        ? 'There are no requests matching "${_categoryLabel(_selectedCategory)}" in this tab.'
+                        : emptySubtitle,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
+                  if (_selectedCategory != 'all' && rawItems.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () => setState(() => _selectedCategory = 'all'),
+                      icon: const Icon(Icons.clear_all_rounded),
+                      label: const Text('Show All Requests'),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -402,69 +869,84 @@ class RequestListScreen extends ConsumerWidget {
       },
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        itemCount: items.length,
+        itemCount: (isPendingTab && _selectedCategory == 'all' && items.isNotEmpty)
+            ? items.length + 1
+            : items.length,
         separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
-          final item = items[index];
-          final card = _RequestCard(
-            request: item,
-            onApprove: () => _updateRequestStatus(context, libraryId, item.id, 'approved', requestItem: item),
-            onReject: () => _promptReject(context, libraryId, item),
-            onDelete: () => _confirmDelete(context, libraryId, item.id),
-          );
-
-          if (!item.isPending) {
-            return card;
+          // If pending tab with 'all' filter, inject module breakdown banner at top
+          if (isPendingTab && _selectedCategory == 'all' && items.isNotEmpty) {
+            if (index == 0) {
+              return _buildModuleBreakdownBanner(context, moduleCounts);
+            }
+            final item = items[index - 1];
+            return _buildDismissibleCard(context, libraryId, item);
           }
 
-          return Dismissible(
-            key: ValueKey('req_dismiss_${item.id}'),
-            direction: DismissDirection.horizontal,
-            background: Container(
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.green.shade600,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 26),
-                  SizedBox(width: 8),
-                  Text('Quick Approve', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                ],
-              ),
-            ),
-            secondaryBackground: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.red.shade600,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text('Reject Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                  SizedBox(width: 8),
-                  Icon(Icons.cancel_rounded, color: Colors.white, size: 26),
-                ],
-              ),
-            ),
-            confirmDismiss: (direction) async {
-              if (direction == DismissDirection.startToEnd) {
-                HapticFeedback.mediumImpact();
-                await _updateRequestStatus(context, libraryId, item.id, 'approved', requestItem: item);
-              } else if (direction == DismissDirection.endToStart) {
-                HapticFeedback.lightImpact();
-                await _promptReject(context, libraryId, item);
-              }
-              return false; // Retain card state until Firestore stream updates the list
-            },
-            child: card,
-          );
+          final item = items[index];
+          return _buildDismissibleCard(context, libraryId, item);
         },
       ),
+    );
+  }
+
+  Widget _buildDismissibleCard(BuildContext context, String? libraryId, StudentRequestItem item) {
+    final card = _RequestCard(
+      request: item,
+      onApprove: () => _updateRequestStatus(context, libraryId, item.id, 'approved', requestItem: item),
+      onReject: () => _promptReject(context, libraryId, item),
+      onDelete: () => _confirmDelete(context, libraryId, item.id),
+    );
+
+    if (!item.isPending) {
+      return card;
+    }
+
+    return Dismissible(
+      key: ValueKey('req_dismiss_${item.id}'),
+      direction: DismissDirection.horizontal,
+      background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.green.shade600,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: Colors.white, size: 26),
+            SizedBox(width: 8),
+            Text('Quick Approve', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+          ],
+        ),
+      ),
+      secondaryBackground: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.red.shade600,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text('Reject Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+            SizedBox(width: 8),
+            Icon(Icons.cancel_rounded, color: Colors.white, size: 26),
+          ],
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          HapticFeedback.mediumImpact();
+          await _updateRequestStatus(context, libraryId, item.id, 'approved', requestItem: item);
+        } else if (direction == DismissDirection.endToStart) {
+          HapticFeedback.lightImpact();
+          await _promptReject(context, libraryId, item);
+        }
+        return false; // Retain card state until Firestore stream updates the list
+      },
+      child: card,
     );
   }
 
@@ -684,6 +1166,34 @@ class RequestListScreen extends ConsumerWidget {
             .collection('requests')
             .doc(requestId)
             .update(updateData);
+
+        // Notify student of rejection/update
+        if (requestItem != null) {
+          final target = (requestItem.studentId.isNotEmpty && requestItem.studentId != 'pending')
+              ? requestItem.studentId
+              : (requestItem.studentUserId ?? '');
+          if (target.isNotEmpty) {
+            final reasonText = reason != null && reason.trim().isNotEmpty
+                ? ': "$reason"'
+                : '';
+            final reqTitle = switch (requestItem.type.toLowerCase()) {
+              'registration' || 'newregistration' => 'Admission Application',
+              'seat_change' || 'seatchange' => 'Seat Change Request',
+              'renewal' || 'plan_renewal' => 'Plan Renewal',
+              'profile_update' => 'Profile Update',
+              _ => 'Request',
+            };
+            AppNotificationService.sendNotification(
+              libraryId: libraryId,
+              title: '$reqTitle Update',
+              body: 'Your $reqTitle could not be approved$reasonText. Please visit reception for details.',
+              type: 'admission',
+              targetRole: 'student',
+              targetUserId: target,
+              actionRoute: Routes.studentHome,
+            ).ignore();
+          }
+        }
       }
 
       if (context.mounted) {
@@ -995,6 +1505,59 @@ class _RequestCard extends StatelessWidget {
     }
   }
 
+  Widget _buildModuleTag(BuildContext context, String type) {
+    final t = type.toLowerCase().trim();
+    String moduleName;
+    Color color;
+    IconData icon;
+
+    if (t == 'seat_change' || t == 'seatchange') {
+      moduleName = 'Seats';
+      color = const Color(0xFFD97706);
+      icon = Icons.event_seat_rounded;
+    } else if (t == 'registration' || t == 'newregistration') {
+      moduleName = 'Admissions';
+      color = const Color(0xFF2563EB);
+      icon = Icons.school_rounded;
+    } else if (t == 'renewal' || t == 'plan_renewal') {
+      moduleName = 'Plans';
+      color = const Color(0xFF059669);
+      icon = Icons.autorenew_rounded;
+    } else if (t == 'profile_update') {
+      moduleName = 'Profile';
+      color = const Color(0xFF7C3AED);
+      icon = Icons.person_rounded;
+    } else {
+      moduleName = 'General';
+      color = const Color(0xFF64748B);
+      icon = Icons.assignment_outlined;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            'Module: $moduleName',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatusBadge(BuildContext context, String status) {
     Color bg;
     Color fg;
@@ -1120,6 +1683,8 @@ class _RequestCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  _buildModuleTag(context, request.type),
                   const Spacer(),
                   _buildStatusBadge(context, request.status),
                   PopupMenuButton<String>(
@@ -1539,6 +2104,51 @@ class _RequestCard extends StatelessWidget {
                 ),
               ),
             ],
+
+              // Contextual Module Shortcut Action
+              if (isPending) ...[
+                if (isSeatChange) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFD97706),
+                        side: BorderSide(color: const Color(0xFFD97706).withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.chair_rounded, size: 14),
+                      label: const Text(
+                        'Inspect Target Desk in Seat Radar ↗',
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () => context.push(Routes.adminSeats),
+                    ),
+                  ),
+                ] else if (isRenewal && request.studentId.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF059669),
+                        side: BorderSide(color: const Color(0xFF059669).withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.person_search_rounded, size: 14),
+                      label: const Text(
+                        'Check Student Profile & Dues ↗',
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () => context.push('/admin/students/${request.studentId}'),
+                    ),
+                  ),
+                ],
+              ],
 
             // Action Buttons
             const SizedBox(height: 14),

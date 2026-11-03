@@ -53,6 +53,85 @@ class SelectedSeatNotifier extends Notifier<String?> {
 final selectedSeatProvider =
     NotifierProvider<SelectedSeatNotifier, String?>(SelectedSeatNotifier.new);
 
+/// Detailed seat selection state containing desk metadata and auto-assign preferences
+class SelectedSeatDetails {
+  final String? seatId;
+  final String? seatLabel;
+  final String? sectionId;
+  final String? sectionName;
+  final bool isAutoAssign;
+
+  const SelectedSeatDetails({
+    this.seatId,
+    this.seatLabel,
+    this.sectionId,
+    this.sectionName,
+    this.isAutoAssign = false,
+  });
+
+  bool get hasSelection => isAutoAssign || (seatId != null && seatId!.isNotEmpty);
+
+  SelectedSeatDetails copyWith({
+    String? seatId,
+    String? seatLabel,
+    String? sectionId,
+    String? sectionName,
+    bool? isAutoAssign,
+  }) {
+    return SelectedSeatDetails(
+      seatId: seatId ?? this.seatId,
+      seatLabel: seatLabel ?? this.seatLabel,
+      sectionId: sectionId ?? this.sectionId,
+      sectionName: sectionName ?? this.sectionName,
+      isAutoAssign: isAutoAssign ?? this.isAutoAssign,
+    );
+  }
+}
+
+class SelectedSeatDetailsNotifier extends Notifier<SelectedSeatDetails> {
+  @override
+  SelectedSeatDetails build() => const SelectedSeatDetails();
+
+  void selectSeat({
+    required String seatId,
+    required String seatLabel,
+    required String sectionId,
+    required String sectionName,
+  }) {
+    state = SelectedSeatDetails(
+      seatId: seatId,
+      seatLabel: seatLabel,
+      sectionId: sectionId,
+      sectionName: sectionName,
+      isAutoAssign: false,
+    );
+    ref.read(selectedSeatProvider.notifier).select(seatId);
+  }
+
+  void selectAutoAssign({
+    String? sectionId,
+    String? sectionName,
+  }) {
+    state = SelectedSeatDetails(
+      seatId: null,
+      seatLabel: 'Auto-Assign',
+      sectionId: sectionId,
+      sectionName: sectionName ?? 'Any Available Section',
+      isAutoAssign: true,
+    );
+    ref.read(selectedSeatProvider.notifier).clear();
+  }
+
+  void clear() {
+    state = const SelectedSeatDetails();
+    ref.read(selectedSeatProvider.notifier).clear();
+  }
+}
+
+final selectedSeatDetailsProvider =
+    NotifierProvider<SelectedSeatDetailsNotifier, SelectedSeatDetails>(
+        SelectedSeatDetailsNotifier.new);
+
 /// Selected plan notifier
 class SelectedPlanNotifier extends Notifier<String?> {
   @override

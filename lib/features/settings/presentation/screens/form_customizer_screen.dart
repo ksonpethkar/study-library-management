@@ -652,7 +652,7 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
                     Row(
                       children: [
                         Text(
-                          '${field['type']} • ${isRequired ? "Required" : "Optional"}${!isVisible ? " • Hidden" : ""}',
+                          '${field['type']} • ${isRequired ? "Required" : "Optional"}${!isVisible ? " • Hidden" : ""}${options.isNotEmpty ? " • ${options.length} options" : ""}',
                           style: TextStyle(
                             fontSize: 11,
                             color: isVisible
@@ -679,7 +679,31 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: isFirstInCategory ? null : () => _moveFieldInCategory(index, true),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Icon(
+                      Icons.arrow_drop_up_rounded,
+                      size: 20,
+                      color: isFirstInCategory ? Colors.grey.shade300 : theme.colorScheme.primary,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: isLastInCategory ? null : () => _moveFieldInCategory(index, false),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Icon(
+                      Icons.arrow_drop_down_rounded,
+                      size: 20,
+                      color: isLastInCategory ? Colors.grey.shade300 : theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 4),
               Transform.scale(
                 scale: 0.82,
                 child: Switch(

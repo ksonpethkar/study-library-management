@@ -11,8 +11,10 @@ import 'package:study_library/features/students/presentation/providers/student_p
 import 'package:study_library/features/payments/presentation/screens/record_payment_screen.dart';
 import 'package:study_library/features/payments/presentation/screens/edit_payment_screen.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/features/id_cards/presentation/screens/id_card_preview_screen.dart';
 import 'package:study_library/models/student_model.dart';
+import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/models/payment_model.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/models/seat_model.dart';
@@ -571,7 +573,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               .doc(s.id)
                               .update({
                             'planEndDate': Timestamp.fromDate(freezeCalc.newEndDate),
-                            'notes': '${s.notes.isNotEmpty ? "${s.notes}\n" : ""}[Freeze] Study Vacation: ${freezeCalc.freezeDays}d (${DateFormat('dd MMM').format(freezeStart)} - ${DateFormat('dd MMM').format(freezeEnd)}). Expiry extended to ${DateFormat('dd MMM yyyy').format(freezeCalc.newEndDate)}.',
+                            'notes': '${(s.notes != null && s.notes!.isNotEmpty) ? "${s.notes}\n" : ""}[Freeze] Study Vacation: ${freezeCalc.freezeDays}d (${DateFormat('dd MMM').format(freezeStart)} - ${DateFormat('dd MMM').format(freezeEnd)}). Expiry extended to ${DateFormat('dd MMM yyyy').format(freezeCalc.newEndDate)}.',
                             'updatedAt': FieldValue.serverTimestamp(),
                           });
 
@@ -638,6 +640,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
       description: '',
       gracePeriodDays: 0,
       isActive: true,
+      isFeatured: false,
       displayOrder: 0,
     );
 
@@ -803,7 +806,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     if (autoReleaseSeat && s.seatId != null && s.sectionId != null) {
                       try {
                         final seatRepo = ref.read(seatRepositoryProvider);
-                        await seatRepo.unassignStudent(libraryId, s.sectionId!, s.seatId!);
+                        await seatRepo.unassignStudent(
+                          libraryId: libraryId,
+                          sectionId: s.sectionId!,
+                          seatId: s.seatId!,
+                          studentId: s.id,
+                        );
                       } catch (e) {
                         debugPrint('Could not unassign seat: $e');
                       }
@@ -821,15 +829,21 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       'previousSectionId': s.sectionId,
                       'seatId': null,
                       'sectionId': null,
-                      'notes': '${s.notes.isNotEmpty ? "${s.notes}\n" : ""}[Exit] Early exit on ${DateFormat('dd MMM yyyy').format(exitDate)}. Used: ${exitCalc.usedDays}/${exitCalc.totalCycleDays}d. Fair usage: ${exitCalc.formattedFairUsage}. Deducted Fee: ₹${processingFee.toStringAsFixed(0)}. Net Refund: ${exitCalc.formattedNetRefund}.',
+                      'notes': '${(s.notes != null && s.notes!.isNotEmpty) ? "${s.notes}\n" : ""}[Exit] Early exit on ${DateFormat('dd MMM yyyy').format(exitDate)}. Used: ${exitCalc.usedDays}/${exitCalc.totalCycleDays}d. Fair usage: ${exitCalc.formattedFairUsage}. Deducted Fee: ₹${processingFee.toStringAsFixed(0)}. Net Refund: ${exitCalc.formattedNetRefund}.',
                       'updatedAt': FieldValue.serverTimestamp(),
                     });
 
                     // 3. Record audit entry
-                    AuditLogger.log(
-                      action: 'student_early_exit',
+                    AuditLogger().log(
+                      action: AuditAction.updated,
+                      entityType: AuditEntity.student,
+                      entityId: s.id,
                       libraryId: libraryId,
-                      details: 'Early exit student ${s.name} (${s.id}). Net refund: ${exitCalc.formattedNetRefund}',
+                      details: {
+                        'action': 'early_exit',
+                        'studentName': s.name,
+                        'netRefund': exitCalc.formattedNetRefund,
+                      },
                     );
 
                     if (context.mounted) {
@@ -1711,8 +1725,47 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       _buildDetailRow(context, 'Address', '${s.address} ${s.pincode.isNotEmpty ? "- ${s.pincode}" : ""}', Icons.location_on_outlined),
                     if (s.emergencyContact.isNotEmpty)
                       _buildDetailRow(context, 'Emergency Contact', s.emergencyContact, Icons.phone_in_talk_outlined),
+                    if (s.bloodGroup != null && s.bloodGroup!.isNotEmpty)
+                      _buildDetailRow(context, 'Blood Group', s.bloodGroup!, Icons.bloodtype_outlined),
+                    if (s.rollNumber != null && s.rollNumber!.isNotEmpty)
+                      _buildDetailRow(context, 'Roll / Enroll No.', s.rollNumber!, Icons.badge_outlined),
                     if (s.notes != null && s.notes!.isNotEmpty)
                       _buildDetailRow(context, 'Notes', s.notes!, Icons.note_alt_outlined),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final formConfigAsync = ref.watch(formConfigStreamProvider);
+                        final fieldsList = formConfigAsync.value ?? [];
+                        final customEntries = s.customFields.entries.where(
+                          (e) => e.key != 'note' && e.value != null && e.value.toString().trim().isNotEmpty,
+                        ).toList();
+
+                        if (customEntries.isEmpty) return const SizedBox.shrink();
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 8),
+                            const Divider(height: 16),
+                            Text(
+                              'Custom & Admission Fields',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            for (final entry in customEntries)
+                              _buildDetailRow(
+                                context,
+                                FormConfigService.getFieldLabel(fieldsList, entry.key, entry.key),
+                                entry.value.toString(),
+                                Icons.tune_rounded,
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),

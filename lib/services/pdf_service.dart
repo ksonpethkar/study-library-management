@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -250,6 +251,24 @@ class PdfService {
         : 'CC-${student.id.length > 6 ? student.id.substring(0, 6).toUpperCase() : student.id.toUpperCase()}';
 
     final wordsText = receipt.amount > 0 ? '${numberToIndianWords(receipt.amount.toInt())} Rupees Only' : 'Zero Rupees';
+
+    // ── Load Form Config Custom Fields tagged for Receipt ─────────────────────
+    List<Map<String, dynamic>> receiptCustomFields = [];
+    try {
+      final configDoc = await FirebaseFirestore.instance
+          .collection('libraries').doc(library.id)
+          .collection('settings').doc('form_config').get();
+      if (configDoc.exists) {
+        final data = configDoc.data()?['fields'] as List<dynamic>? ?? [];
+        receiptCustomFields = data
+            .whereType<Map>()
+            .map((f) => Map<String, dynamic>.from(f))
+            .where((f) =>
+                (f['showOnReceipt'] as bool? ?? false) &&
+                (f['visible'] as bool? ?? true))
+            .toList();
+      }
+    } catch (_) { /* intentionally silent */ }
 
     // ── Dynamic Resolution of Active Plan & Service Features ──────────────────
     List<String> resolvedFeatures = [];
@@ -677,6 +696,16 @@ class PdfService {
                                   'Mobile:',
                                   pw.Text(student.phone.isNotEmpty ? student.phone : '—', style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155'))),
                                 ),
+                                for (final f in receiptCustomFields)
+                                  if (student.customFields[f['id']?.toString() ?? ''] != null &&
+                                      student.customFields[f['id']?.toString() ?? '']!.toString().trim().isNotEmpty)
+                                    dualCardRow(
+                                      '${f['label']?.toString() ?? f['id']}:',
+                                      pw.Text(
+                                        sanitizePdfText(student.customFields[f['id']?.toString() ?? '']!.toString().trim()),
+                                        style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155')),
+                                      ),
+                                    ),
                               ],
                             ),
                           ),

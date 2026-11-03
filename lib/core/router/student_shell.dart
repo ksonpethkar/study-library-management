@@ -1,14 +1,30 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
+import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/utils/app_haptics.dart';
+import 'package:study_library/features/students/presentation/providers/student_providers.dart';
+import 'package:study_library/models/app_notification_model.dart';
+import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/services/in_app_notification_toast.dart';
 import 'app_router.dart';
 
-/// Student shell with PopScope exit-app dialog so back never closes the app silently.
-class StudentShell extends StatelessWidget {
+/// Student shell with PopScope exit-app dialog so back never closes the app silently,
+/// and live foreground in-app toast notification stream listener.
+class StudentShell extends ConsumerStatefulWidget {
   final Widget child;
   const StudentShell({super.key, required this.child});
+
+  @override
+  ConsumerState<StudentShell> createState() => _StudentShellState();
+}
+
+class _StudentShellState extends ConsumerState<StudentShell> {
+  DateTime? _shellStartTime;
+  final Set<String> _seenNotificationIds = {};
 
   bool _isMainTab(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
@@ -38,6 +54,48 @@ class StudentShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMainTab = _isMainTab(context);
+    final libraryId = ref.watch(currentLibraryIdProvider);
+    final student = ref.watch(currentStudentProvider).value;
+    final authUid = FirebaseAuth.instance.currentUser?.uid;
+    final effectiveId = (student?.id != null && student!.id.isNotEmpty)
+        ? student.id
+        : authUid;
+
+    // Listen to real-time student notifications for foreground floating toast
+    if (effectiveId != null && effectiveId.isNotEmpty) {
+      ref.listen<AsyncValue<List<AppNotificationModel>>>(
+        studentNotificationsStreamProvider(effectiveId),
+        (previous, next) {
+          final notifications = next.value;
+          if (notifications == null || notifications.isEmpty) return;
+
+          final now = DateTime.now();
+          _shellStartTime ??= now;
+
+          if (previous == null || previous.isLoading || previous.value == null) {
+            _seenNotificationIds.addAll(notifications.map((n) => n.id));
+            return;
+          }
+
+          for (final notif in notifications) {
+            if (!_seenNotificationIds.contains(notif.id)) {
+              _seenNotificationIds.add(notif.id);
+              if (!notif.read &&
+                  notif.createdAt.isAfter(_shellStartTime!.subtract(const Duration(minutes: 2)))) {
+                if (context.mounted && libraryId != null && libraryId.isNotEmpty) {
+                  InAppNotificationToast.show(
+                    context,
+                    notification: notif,
+                    libraryId: libraryId,
+                  );
+                }
+                break;
+              }
+            }
+          }
+        },
+      );
+    }
 
     return PopScope(
       canPop: false,
@@ -66,7 +124,7 @@ class StudentShell extends StatelessWidget {
       },
       child: Scaffold(
         extendBody: isMainTab,
-        body: child,
+        body: widget.child,
         bottomNavigationBar: isMainTab
             ? SafeArea(
                 top: false,

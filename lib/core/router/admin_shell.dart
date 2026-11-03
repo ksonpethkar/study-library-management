@@ -10,6 +10,10 @@ import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/utils/app_haptics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
+import 'package:study_library/models/app_notification_model.dart';
+import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/services/in_app_notification_toast.dart';
 
 /// Stream provider for pending request count shown in the bottom nav badge.
 final _pendingCountProvider = StreamProvider.autoDispose<int>((ref) {
@@ -34,6 +38,9 @@ class AdminShell extends ConsumerStatefulWidget {
 }
 
 class _AdminShellState extends ConsumerState<AdminShell> {
+  DateTime? _shellStartTime;
+  final Set<String> _seenNotificationIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -262,7 +269,44 @@ class _AdminShellState extends ConsumerState<AdminShell> {
   Widget build(BuildContext context) {
     final isMainTab = _isMainTab(context);
     final currentIndex = _getSelectedIndex(context);
-    final pendingCount = ref.watch(_pendingCountProvider).value ?? 0;
+    final reqCounts = ref.watch(requestModuleCountsProvider);
+    final pendingCount = reqCounts.totalActionableItems > 0
+        ? reqCounts.totalActionableItems
+        : (ref.watch(_pendingCountProvider).value ?? 0);
+
+    final libraryId = ref.watch(currentLibraryIdProvider);
+    ref.listen<AsyncValue<List<AppNotificationModel>>>(
+      adminNotificationsStreamProvider,
+      (previous, next) {
+        final notifications = next.value;
+        if (notifications == null || notifications.isEmpty) return;
+
+        final now = DateTime.now();
+        _shellStartTime ??= now;
+
+        if (previous == null || previous.isLoading || previous.value == null) {
+          _seenNotificationIds.addAll(notifications.map((n) => n.id));
+          return;
+        }
+
+        for (final notif in notifications) {
+          if (!_seenNotificationIds.contains(notif.id)) {
+            _seenNotificationIds.add(notif.id);
+            if (!notif.read &&
+                notif.createdAt.isAfter(_shellStartTime!.subtract(const Duration(minutes: 2)))) {
+              if (context.mounted && libraryId != null && libraryId.isNotEmpty) {
+                InAppNotificationToast.show(
+                  context,
+                  notification: notif,
+                  libraryId: libraryId,
+                );
+              }
+              break;
+            }
+          }
+        }
+      },
+    );
 
     return PopScope(
       canPop: false,

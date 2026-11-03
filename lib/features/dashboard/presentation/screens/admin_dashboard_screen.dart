@@ -28,6 +28,7 @@ import 'package:study_library/services/backup_service.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
 import 'package:study_library/services/quick_actions_service.dart';
 import 'package:study_library/services/remote_config_service.dart';
+import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
 import 'package:study_library/features/holidays/presentation/screens/holiday_calendar_screen.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:study_library/models/student_model.dart';
@@ -1134,21 +1135,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                            stream: (libId.isNotEmpty)
-                                ? FirebaseFirestore.instance
-                                    .collection('libraries')
-                                    .doc(libId)
-                                    .collection('requests')
-                                    .where('status', whereIn: ['pending', 'desk_payment_pending', 'payment_pending'])
-                                    .snapshots()
-                                : null,
-                            builder: (context, reqSnap) {
-                              final count = reqSnap.data?.docs.length ?? 0;
+                          child: Consumer(
+                            builder: (context, ref, _) {
+                              final reqCounts = ref.watch(requestModuleCountsProvider);
+                              final count = reqCounts.totalPending;
                               return _buildMicroMetricTile(
-                                label: 'Pending App',
+                                label: 'Requests Hub',
                                 value: '$count',
-                                subtext: count > 0 ? 'action needed' : 'all cleared',
+                                subtext: count > 0 ? reqCounts.summaryText : 'all cleared',
                                 color: count > 0 ? const Color(0xFFF59E0B) : const Color(0xFF64748B),
                                 icon: Icons.pending_actions_rounded,
                                 onTap: () => context.push(Routes.adminRequests),

@@ -10,7 +10,9 @@ import 'package:study_library/models/student_model.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/security/audit_logger.dart';
+import 'package:flutter/services.dart';
 import 'package:study_library/core/utils/app_validators.dart';
+import 'package:study_library/services/form_config_service.dart';
 
 class EditStudentScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -45,6 +47,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
   DateTime? _dob;
   File? _newPhoto;
   String _currentPhotoUrl = '';
+  final Map<String, TextEditingController> _customControllers = {};
   bool _isLoading = true;
   bool _isSaving = false;
   String _savingMessage = 'Saving changes...';
@@ -71,6 +74,9 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
     _emergencyController.dispose();
     _govIdNumberController.dispose();
     _notesController.dispose();
+    for (final c in _customControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -118,6 +124,13 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         _membershipStatus = s.membershipStatus;
         _dob = s.dob;
         _currentPhotoUrl = s.photoUrl;
+
+        _customControllers.clear();
+        for (final entry in s.customFields.entries) {
+          if (entry.key != 'note') {
+            _customControllers[entry.key] = TextEditingController(text: entry.value?.toString() ?? '');
+          }
+        }
 
         setState(() => _isLoading = false);
       } else {
@@ -210,6 +223,11 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         }
       }
 
+      final updatedCustom = Map<String, dynamic>.from(_originalStudent!.customFields);
+      for (final entry in _customControllers.entries) {
+        updatedCustom[entry.key] = entry.value.text.trim();
+      }
+
       final updated = _originalStudent!.copyWith(
         name: _nameController.text.trim(),
         fatherName: _fatherNameController.text.trim(),
@@ -229,6 +247,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         photoUrl: finalPhotoUrl,
         membershipStatus: _membershipStatus,
         bloodGroup: _bloodGroup,
+        customFields: updatedCustom,
         updatedAt: DateTime.now(),
       );
 
@@ -656,6 +675,47 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     maxLines: 2,
                   ),
 
+                  Builder(
+                    builder: (context) {
+                      final formConfigAsync = ref.watch(formConfigStreamProvider);
+                      final fieldsList = formConfigAsync.value ?? [];
+                      final customFields = fieldsList.where((f) {
+                        final isBuiltin = f['builtin'] as bool? ?? false;
+                        final isVis = f['visible'] as bool? ?? true;
+                        return !isBuiltin && isVis;
+                      }).toList();
+
+                      final allKeys = {
+                        ...customFields.map((f) => f['id'] as String),
+                        ..._customControllers.keys,
+                      };
+
+                      if (allKeys.isEmpty) return const SizedBox.shrink();
+
+                      for (final fid in allKeys) {
+                        if (fid.isNotEmpty && !_customControllers.containsKey(fid)) {
+                          _customControllers[fid] = TextEditingController();
+                        }
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 24),
+                          _buildSectionHeader(context, 'Custom & Admission Fields', Icons.tune_rounded),
+                          const SizedBox(height: 12),
+                          for (final fid in allKeys)
+                            Builder(
+                              builder: (ctx) {
+                                final f = customFields.where((el) => el['id'] == fid).firstOrNull ?? {'id': fid, 'label': fid, 'type': 'Text'};
+                                return _buildCustomFieldItem(ctx, f);
+                              },
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+
                   const SizedBox(height: 32),
                   FilledButton.icon(
                     onPressed: _saveStudent,
@@ -687,6 +747,108 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCustomFieldItem(BuildContext context, Map<String, dynamic> f) {
+    final id = f['id'] as String? ?? '';
+    final label = f['label'] as String? ?? id;
+    final isRequired = f['required'] as bool? ?? false;
+    final fType = f['type']?.toString() ?? 'Text';
+    final ctrl = _customControllers[id] ??= TextEditingController();
+    final options = (f['options'] as List?)?.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList() ?? [];
+
+    if (fType == 'Dropdown' && options.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: DropdownButtonFormField<String>(
+          initialValue: options.contains(ctrl.text.trim()) ? ctrl.text.trim() : null,
+          decoration: InputDecoration(
+            labelText: '$label${isRequired ? ' *' : ''}',
+            prefixIcon: const Icon(Icons.arrow_drop_down_circle_outlined),
+            border: const OutlineInputBorder(),
+          ),
+          items: options
+              .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
+              .toList(),
+          onChanged: (val) {
+            if (val != null) {
+              setState(() => ctrl.text = val);
+            }
+          },
+          validator: isRequired
+              ? (v) => (v == null || v.trim().isEmpty) ? '$label is required' : null
+              : null,
+        ),
+      );
+    }
+
+    if (fType == 'Date') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: InkWell(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(1920),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null) {
+              final formatted = '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
+              setState(() => ctrl.text = formatted);
+            }
+          },
+          child: AbsorbPointer(
+            child: TextFormField(
+              controller: ctrl,
+              decoration: InputDecoration(
+                labelText: '$label${isRequired ? ' *' : ''}',
+                hintText: 'DD/MM/YYYY',
+                prefixIcon: const Icon(Icons.calendar_today_rounded),
+                border: const OutlineInputBorder(),
+              ),
+              validator: isRequired
+                  ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
+                  : null,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (fType == 'Number') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: TextFormField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(
+            labelText: '$label${isRequired ? ' *' : ''}',
+            prefixIcon: const Icon(Icons.numbers_rounded),
+            border: const OutlineInputBorder(),
+          ),
+          validator: isRequired
+              ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
+              : null,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: TextFormField(
+        controller: ctrl,
+        decoration: InputDecoration(
+          labelText: '$label${isRequired ? ' *' : ''}',
+          prefixIcon: const Icon(Icons.edit_note_rounded),
+          border: const OutlineInputBorder(),
+        ),
+        validator: isRequired
+            ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
+            : null,
+      ),
     );
   }
 }

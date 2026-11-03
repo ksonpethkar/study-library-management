@@ -8,6 +8,7 @@ import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/features/auth/services/admin_whitelist_service.dart';
+import 'package:study_library/features/auth/services/auth_role_service.dart';
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/services/notification_service.dart';
@@ -131,6 +132,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       }
 
+      // ── Step 0b: Enrolled Student Precedence & Auto-Healing ─────────────
+      // In professional SaaS apps (e.g. Mindbody, ClassPass), enrolled student
+      // identity always takes strict precedence over orphan test workspaces.
+      final wasStudentHealed = await AuthRoleService.healEnrolledStudentRole(
+        ref,
+        context,
+        navigate: false,
+      );
+      if (wasStudentHealed) {
+        await _goStudent(user: user, libId: defaultLibId);
+        return;
+      }
+
       // ── Step 1: Check persisted role (fastest path for returning users - 0ms if cached) ──
       final persisted = await readPersistedUserRole(user.uid)
           .timeout(const Duration(seconds: 2), onTimeout: () => null);
@@ -141,15 +155,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final libId = (persisted['libraryId'] ?? '') as String;
 
         if (roleStr == AppUserRole.admin.name) {
-          if (libId.isNotEmpty) {
+          // Strictly verify staff membership before granting admin access
+          final isStaff = libId.isNotEmpty
+              ? await FirebaseFirestore.instance
+                  .collection('libraries').doc(libId)
+                  .collection('staff').doc(user.uid).get()
+                  .then((d) => d.exists && (d.data()?['isActive'] ?? true) == true, onError: (_) => false)
+              : false;
+          if (isStaff) {
             ref.read(currentLibraryIdProvider.notifier).set(libId);
+            ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
+            if (!mounted) return;
+            final isLocked = await BiometricService.isLockEnabled(isAdmin: true);
+            if (!mounted) return;
+            context.go(isLocked ? Routes.biometricLock : Routes.adminHome);
+            return;
           }
-          ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
-          if (!mounted) return;
-          final isLocked = await BiometricService.isLockEnabled(isAdmin: true);
-          if (!mounted) return;
-          context.go(isLocked ? Routes.biometricLock : Routes.adminHome);
-          return;
+          // Not staff or whitelisted — purge illegitimate admin role
+          ref.read(userRoleProvider.notifier).clear();
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('cached_current_user_role');
+          await prefs.remove('persisted_role');
+          await prefs.remove('persisted_uid');
         }
 
         if (roleStr == AppUserRole.student.name) {
@@ -270,8 +297,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final reqByEmail = discoveryResults[5] as QuerySnapshot?;
       final staffByEmail = discoveryResults[6] as QuerySnapshot?;
 
-      // Check Owner match
-      if (ownedLibrary != null) {
+      // Check Owner match (Strictly restricted to the official default library)
+      if (ownedLibrary != null && ownedLibrary.id == defaultLibId) {
         await _goAdmin(user: user, libId: ownedLibrary.id);
         return;
       }

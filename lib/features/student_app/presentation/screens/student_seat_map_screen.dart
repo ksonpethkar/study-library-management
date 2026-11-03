@@ -14,6 +14,8 @@ import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
+import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/services/app_notification_service.dart';
 
 class StudentSeatMapScreen extends ConsumerStatefulWidget {
   const StudentSeatMapScreen({super.key});
@@ -628,6 +630,16 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                       'reason': reasonController.text.trim(),
                                       'createdAt': FieldValue.serverTimestamp(),
                                     });
+
+                                    // Dispatch admin in-app notification
+                                    AppNotificationService.sendNotification(
+                                      libraryId: libraryId,
+                                      title: 'Seat Change Requested 🪑',
+                                      body: '${student.name} requested desk change from Desk #${student.seatId ?? "None"} to Desk #${targetSeat.label}.',
+                                      type: 'seat_change',
+                                      targetRole: 'admin',
+                                      actionRoute: Routes.adminRequests,
+                                    ).ignore();
 
                                     if (context.mounted) {
                                       HapticFeedback.heavyImpact();

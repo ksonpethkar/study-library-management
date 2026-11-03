@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:study_library/services/remote_config_service.dart';
 
 class AdminWhitelistService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -52,21 +53,16 @@ class AdminWhitelistService {
         return true;
       }
 
-      // 1b. Check if email matches the default library email
-      final libDoc = await _firestore.collection('libraries').limit(1).get();
-      if (libDoc.docs.isNotEmpty) {
-        final libEmail = (libDoc.docs.first.data()['email'] as String?)?.trim().toLowerCase();
+      // 1b. Check if email matches the default official library email
+      final defaultLibDoc = await _firestore
+          .collection('libraries')
+          .doc(RemoteConfigService.defaultLibraryId)
+          .get();
+      if (defaultLibDoc.exists && defaultLibDoc.data() != null) {
+        final libEmail = (defaultLibDoc.data()!['email'] as String?)?.trim().toLowerCase();
         if (libEmail != null && libEmail.isNotEmpty && libEmail == normalized) {
           return true;
         }
-      } else {
-        // 2. If 0 libraries exist in the entire database, allow the first user to set up the system.
-        await addWhitelistedAdmin(
-          normalized,
-          addedBy: 'initial_setup',
-          notes: 'Master Initial Admin',
-        );
-        return true;
       }
 
       return false;
