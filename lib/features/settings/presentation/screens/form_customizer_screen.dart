@@ -560,10 +560,18 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
     );
   }
 
-  Widget _buildFieldCard(BuildContext context, int index, Map<String, dynamic> field, ThemeData theme) {
+  Widget _buildFieldCard(
+    BuildContext context,
+    int index,
+    Map<String, dynamic> field,
+    ThemeData theme, {
+    bool isFirstInCategory = false,
+    bool isLastInCategory = false,
+  }) {
     final isVisible = field['visible'] == true;
     final isBuiltin = field['builtin'] == true;
     final isRequired = field['required'] == true;
+    final options = (field['options'] as List?)?.map((e) => e.toString()).toList() ?? [];
 
     return Card(
       key: ValueKey(field['id']),

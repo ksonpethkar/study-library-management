@@ -1410,7 +1410,8 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
             ),
           ),
         ),
-      ],
+      ),
+    ],
     ),
   );
 },
