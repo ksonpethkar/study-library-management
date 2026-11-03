@@ -1288,6 +1288,19 @@ Future<void> _showEditProfileSheet(BuildContext context, WidgetRef ref, StudentM
                         'createdAt': FieldValue.serverTimestamp(),
                       });
 
+                      await AppNotificationService.sendNotification(
+                        libraryId: libraryId,
+                        title: 'Profile Update Request',
+                        body: '${student.name} requested profile updates.',
+                        type: 'profile_update_request',
+                        targetRole: 'admin',
+                        actionRoute: Routes.adminRequests,
+                        metadata: {
+                          'studentId': student.id,
+                          'studentName': student.name,
+                        },
+                      );
+
                       await FirebaseFirestore.instance
                           .collection('libraries')
                           .doc(libraryId)

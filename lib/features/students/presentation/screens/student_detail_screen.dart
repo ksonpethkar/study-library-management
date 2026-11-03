@@ -1645,6 +1645,40 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 ),
               ],
             ),
+            if (s.planId != null && s.membershipStatus != MembershipStatus.blocked) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF2563EB),
+                        side: const BorderSide(color: Color(0xFF93C5FD)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.ac_unit_rounded, size: 16),
+                      label: const Text('Freeze (10+ Days)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      onPressed: () => _showFreezeMembershipDialog(context, s),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.deepOrange.shade800,
+                        side: BorderSide(color: Colors.deepOrange.shade200),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.exit_to_app_rounded, size: 16),
+                      label: const Text('Early Exit / Refund', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      onPressed: () => _showEarlyExitDialog(context, s),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 24),
 
             // Personal & Academic Details Card

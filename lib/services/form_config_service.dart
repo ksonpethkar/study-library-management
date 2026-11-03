@@ -204,9 +204,33 @@ class FormConfigService {
     return defaultLabel;
   }
 
+  /// Returns configured dropdown options for a field (if any)
+  static List<String> getFieldOptions(List<Map<String, dynamic>> fields, String fieldId) {
+    if (fields.isNotEmpty) {
+      final match = fields.where((f) => f['id'] == fieldId).firstOrNull;
+      if (match != null && match['options'] is List) {
+        return (match['options'] as List)
+            .map((e) => e?.toString().trim() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+    }
+    return [];
+  }
+
   /// Returns fields visible in form entry in the exact configured sequence
   static List<Map<String, dynamic>> getVisibleFields(List<Map<String, dynamic>> fields) {
     return fields.where((f) => f['visible'] == true).toList();
+  }
+
+  /// Returns custom fields for a specific category
+  static List<Map<String, dynamic>> getCustomFieldsForCategory(List<Map<String, dynamic>> fields, String category) {
+    return fields.where((f) {
+      final isBuiltin = f['builtin'] as bool? ?? false;
+      final cat = f['category']?.toString() ?? FormFieldCategory.custom;
+      final visible = f['visible'] as bool? ?? true;
+      return !isBuiltin && visible && cat == category;
+    }).toList();
   }
 
   /// Returns fields to show in the student's profile view in the exact configured sequence

@@ -107,6 +107,10 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
     }
 
     try {
+      final authUid = authUser?.uid ?? '';
+      final studentDocId = student?.id ?? authUid;
+      final effectiveUserId = authUid.isNotEmpty ? authUid : (student?.userId ?? '');
+
       await FirebaseFirestore.instance
           .collection('libraries')
           .doc(libraryId)
@@ -116,8 +120,10 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
         'feedbackType': autoFeedbackType,
         'category': _category,
         'message': _messageController.text.trim(),
-        'studentId': student?.id ?? authUser?.uid ?? '',
-        'userId': authUser?.uid ?? student?.userId ?? '',
+        'libraryId': libraryId,
+        'studentId': studentDocId,
+        'userId': effectiveUserId,
+        'studentUserId': effectiveUserId,
         'studentEmail': authUser?.email ?? student?.email ?? '',
         'studentName': student?.name ?? authUser?.displayName ?? 'Student',
         'studentPhone': student?.phone ?? '',
@@ -137,9 +143,16 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(successMsg),
-            backgroundColor: Colors.green,
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(child: Text(successMsg, style: const TextStyle(fontWeight: FontWeight.w500))),
+              ],
+            ),
+            backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
         // Switch to history tab so student sees their submitted feedback immediately
@@ -147,11 +160,25 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
       }
     } catch (e) {
       if (mounted) {
+        final friendlyMsg = AppErrorFormatter.toUserFriendly(e, actionContext: 'feedback');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to submit: $e'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    friendlyMsg,
+                    style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade800,
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -354,13 +381,25 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
     }
 
     final dateFormat = DateFormat('dd MMM yyyy • hh:mm a');
+    final authUid = authUser?.uid ?? '';
+
+    Query<Map<String, dynamic>> feedbackQuery = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('feedback');
+
+    if (authUid.isNotEmpty) {
+      feedbackQuery = feedbackQuery.where(
+        Filter.or(
+          Filter('studentUserId', isEqualTo: authUid),
+          Filter('userId', isEqualTo: authUid),
+          Filter('studentId', isEqualTo: authUid),
+        ),
+      );
+    }
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('feedback')
-          .snapshots(),
+      stream: feedbackQuery.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

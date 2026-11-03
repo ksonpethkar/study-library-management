@@ -131,6 +131,37 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
     }
   }
 
+  void _moveFieldInCategory(int fieldIndex, bool moveUp) {
+    if (fieldIndex < 0 || fieldIndex >= _fields.length) return;
+    final category = _fields[fieldIndex]['category']?.toString() ?? FormFieldCategory.custom;
+
+    // Find all indices belonging to this category in order
+    final catIndices = <int>[];
+    for (int i = 0; i < _fields.length; i++) {
+      final c = _fields[i]['category']?.toString() ?? FormFieldCategory.custom;
+      if (c == category) {
+        catIndices.add(i);
+      }
+    }
+
+    final pos = catIndices.indexOf(fieldIndex);
+    if (pos == -1) return;
+
+    if (moveUp && pos > 0) {
+      final targetIdx = catIndices[pos - 1];
+      final temp = _fields[fieldIndex];
+      _fields[fieldIndex] = _fields[targetIdx];
+      _fields[targetIdx] = temp;
+      setState(() {});
+    } else if (!moveUp && pos < catIndices.length - 1) {
+      final targetIdx = catIndices[pos + 1];
+      final temp = _fields[fieldIndex];
+      _fields[fieldIndex] = _fields[targetIdx];
+      _fields[targetIdx] = temp;
+      setState(() {});
+    }
+  }
+
   void _showAddEditFieldDialog({int? index}) {
     final isEditing = index != null;
     final current = isEditing ? _fields[index] : null;
@@ -138,6 +169,9 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
     String selectedCategory = (current?['category'] as String?) ?? FormFieldCategory.custom;
 
     final labelController = TextEditingController(text: current?['label'] ?? '');
+    final optionsController = TextEditingController(
+      text: (current?['options'] as List?)?.join(', ') ?? '',
+    );
     String fieldType = current?['type'] ?? 'Text';
     bool isRequired = current?['required'] ?? false;
     bool isVisible = current?['visible'] ?? true;
