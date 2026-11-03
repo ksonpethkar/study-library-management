@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String appName = 'Study Library Management';
+  static const String appName = 'The Cozy Corner Study Centre';
   // Note: Use PackageInfo.fromPlatform() for runtime version display.
   // This constant is kept as a compile-time fallback only.
   static const String appVersion = '1.5.47';

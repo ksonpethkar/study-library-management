@@ -9,6 +9,7 @@ import 'package:study_library/core/widgets/empty_state_widget.dart';
 import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/features/recycle_bin/data/repositories/recycle_bin_repository.dart';
+import 'package:study_library/services/app_notification_service.dart';
 
 /// Stream provider for announcements of the current library, sorted by createdAt descending.
 final announcementsStreamProvider =

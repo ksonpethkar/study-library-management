@@ -302,6 +302,17 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
                 final label = labelController.text.trim();
                 if (label.isEmpty) return;
 
+                List<String> options = [];
+                if (fieldType == 'Dropdown') {
+                  options = optionsController.text
+                      .split(',')
+                      .map((e) => e.trim())
+                      .where((e) => e.isNotEmpty)
+                      .toList();
+                } else if (current?['options'] is List) {
+                  options = List<String>.from(current!['options']);
+                }
+
                 final item = {
                   'id': isEditing ? current!['id'] : 'custom_${DateTime.now().millisecondsSinceEpoch}',
                   'label': label,
@@ -313,6 +324,7 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
                   'showOnProfile': showOnProfile,
                   'showOnIdCard': showOnIdCard,
                   'showOnReceipt': showOnReceipt,
+                  if (options.isNotEmpty) 'options': options,
                 };
 
                 setState(() {
@@ -524,8 +536,15 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
                             ],
                           ),
                         ),
-                        for (final entry in catFields)
-                          _buildFieldCard(context, entry.key, entry.value, theme),
+                        for (int i = 0; i < catFields.length; i++)
+                          _buildFieldCard(
+                            context,
+                            catFields[i].key,
+                            catFields[i].value,
+                            theme,
+                            isFirstInCategory: i == 0,
+                            isLastInCategory: i == catFields.length - 1,
+                          ),
                         const SizedBox(height: 6),
                       ],
                     );

@@ -460,7 +460,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: Routes.adminRequests, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const RequestListScreen(),
+        state: state, child: RequestListScreen(
+          initialCategory: state.uri.queryParameters['category'],
+        ),
       )),
       GoRoute(path: Routes.adminRequestDetail, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: RequestDetailScreen(requestId: state.pathParameters['id'] ?? ''),

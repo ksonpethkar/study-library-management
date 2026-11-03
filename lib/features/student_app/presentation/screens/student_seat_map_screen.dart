@@ -1276,15 +1276,17 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                 ),
               ),
               InteractiveViewer(
-                minScale: 0.8,
-                maxScale: 2.5,
+                minScale: 0.65,
+                maxScale: 2.8,
                 clipBehavior: Clip.none,
-                boundaryMargin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 240),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: GridView.builder(
+                boundaryMargin: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                child: SizedBox(
+                  width: math.max(screenWidth - 32, crossAxisCount * 54.0),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 240),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: GridView.builder(
               key: ValueKey('grid_${section.id}_${seats.length}'),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),

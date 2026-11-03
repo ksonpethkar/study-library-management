@@ -79,6 +79,7 @@ class PlanSelectionScreen extends ConsumerWidget {
                         final saved = plan.getSavingsAmount(baseMonthlyPrice: baseMonthly);
                         final hasDiscount = origPrice != null && origPrice > plan.price;
                         final dailyRate = PlanCalculatorService.getDailyRate(plan);
+                        final smartCalc = PlanCalculatorService.calculateSmartPlan(plan: plan);
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12.0),
