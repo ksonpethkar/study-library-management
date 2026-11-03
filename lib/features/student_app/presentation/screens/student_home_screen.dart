@@ -21,6 +21,7 @@ import 'package:study_library/features/plans/presentation/providers/plan_provide
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/library_model.dart';
+import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/providers/theme_provider.dart';
@@ -296,7 +297,22 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
 
           // Look up plan details
           final plans = plansAsync.value ?? [];
-          final plan = plans.where((p) => p.id == planId).firstOrNull;
+          final plan = plans.where((p) => p.id == planId).firstOrNull ??
+              (student?.planId == 'custom'
+                  ? PlanModel(
+                      id: 'custom',
+                      libraryId: ref.read(currentLibraryIdProvider) ?? '',
+                      name: student?.customPlanName?.isNotEmpty == true ? student!.customPlanName! : 'Custom Plan',
+                      price: student?.customPlanFee ?? 500.0,
+                      duration: 1,
+                      durationUnit: DurationUnit.months,
+                      description: student?.customDiscountReason ?? '',
+                      gracePeriodDays: 0,
+                      isActive: true,
+                      isFeatured: false,
+                      displayOrder: 0,
+                    )
+                  : null);
 
           // No student doc yet — check for a pending registration request in real-time
           if (student == null) {

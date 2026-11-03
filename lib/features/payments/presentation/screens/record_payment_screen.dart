@@ -1183,12 +1183,16 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '⚡ Mid-Month Join: ${smartCalc.daysRemaining} days in ${DateFormat('MMMM').format(smartCalc.endDate)}',
+                                        _studentPlanEndDate == null
+                                            ? '⚡ New Admission: ${smartCalc.daysRemaining} days in ${DateFormat('MMMM').format(smartCalc.endDate)}'
+                                            : '⚡ Re-Admission Fresh Start: ${smartCalc.daysRemaining} days in ${DateFormat('MMMM').format(smartCalc.endDate)}',
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Colors.green),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        'Full Month: ₹${plan.price.toStringAsFixed(0)} • Fair Prorated: ₹$proratedStr (${smartCalc.formattedDailyRate})',
+                                        _studentPlanEndDate == null
+                                            ? 'First-Time Joiner • Full: ₹${plan.price.toStringAsFixed(0)} • Fair Prorated: ₹$proratedStr (${smartCalc.formattedDailyRate})'
+                                            : 'Returning After Gap • Full: ₹${plan.price.toStringAsFixed(0)} • Fair Prorated: ₹$proratedStr (${smartCalc.formattedDailyRate})',
                                         style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
                                       ),
                                     ],

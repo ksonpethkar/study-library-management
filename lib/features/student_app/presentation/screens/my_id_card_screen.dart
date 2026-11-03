@@ -183,7 +183,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
 
           final plans = plansAsync.value ?? [];
           final plan = plans.where((p) => p.id == student.planId).firstOrNull;
-          final planName = plan?.name ?? 'Standard Membership';
+          final planName = plan?.name ?? (student.customPlanName?.isNotEmpty == true ? student.customPlanName! : 'Standard Membership');
 
           final seatText = SeatHelper.formatSeatLabel(seatId: student.seatId, rawLabel: _seatLabel, includePrefix: false);
           final secText = _sectionName != null && _sectionName!.isNotEmpty ? ' ($_sectionName)' : '';

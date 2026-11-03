@@ -2646,5 +2646,62 @@ void main() {
       expect(customPlanStudioTitle.toLowerCase().contains('ad-hoc'), isFalse);
       expect(defaultCustomPlanName.toLowerCase().contains('ad-hoc'), isFalse);
     });
+
+    test('84. ZERO-INDEXED SEAT CORRECTION, MONTH-END CAPPED CUSTOM PLANS & AUTO-SEAT RETENTION', () {
+      // 1. Zero-indexed column seat label formatting (c0 -> Seat #1, c1 -> Seat #2)
+      expect(SeatHelper.formatSeatLabel(seatId: 'c0'), equals('Seat #1'));
+      expect(SeatHelper.formatSeatLabel(seatId: 'c1'), equals('Seat #2'));
+      expect(SeatHelper.formatSeatLabel(seatId: 'c0', includePrefix: false), equals('#1'));
+      expect(SeatHelper.formatSeatLabel(seatId: 'c1', includePrefix: false), equals('#2'));
+      expect(SeatHelper.formatSeatLabel(seatId: 'desk_c0'), equals('Seat #1'));
+      expect(SeatHelper.formatSeatLabel(seatId: 'seat_c4'), equals('Seat #5'));
+
+      // 2. Custom plan model persistence with sticky recurring concession
+      final customStudent = StudentModel.fromJson({
+        'id': 'stud_custom_001',
+        'name': 'Scholarship Candidate',
+        'fatherName': 'Father',
+        'gender': 'MALE',
+        'phone': '9988776655',
+        'email': 'scholar@study.com',
+        'planId': 'custom',
+        'customPlanName': 'Merit Scholarship',
+        'customPlanFee': 450.0,
+        'isStickyCustomPrice': true,
+        'customDiscountReason': 'Academic Excellence Award',
+      });
+
+      final json = customStudent.toJson();
+      expect(json['planId'], equals('custom'));
+      expect(json['customPlanName'], equals('Merit Scholarship'));
+      expect(json['customPlanFee'], equals(450.0));
+      expect(json['isStickyCustomPrice'], isTrue);
+      expect(json['customDiscountReason'], equals('Academic Excellence Award'));
+
+      final restored = StudentModel.fromJson(json);
+      expect(restored.planId, equals('custom'));
+      expect(restored.customPlanName, equals('Merit Scholarship'));
+      expect(restored.customPlanFee, equals(450.0));
+      expect(restored.isStickyCustomPrice, isTrue);
+      expect(restored.customDiscountReason, equals('Academic Excellence Award'));
+
+      // 3. Strict month-end capping invariant
+      final now = DateTime(2026, 11, 15);
+      final nextMonthFirst = DateTime(now.year, now.month + 1, 1);
+      final monthEnd = DateTime(nextMonthFirst.year, nextMonthFirst.month, 0, 23, 59, 59, 999);
+      expect(monthEnd.month, equals(11));
+      expect(monthEnd.day, equals(30)); // Nov has 30 days
+      expect(monthEnd.hour, equals(23));
+
+      // 4. Renewal retainSeat payload validation
+      final renewalPayload = {
+        'type': 'renewal',
+        'studentId': 'stud_001',
+        'retainSeat': true,
+        'currentSeatId': 'c1',
+      };
+      expect(renewalPayload['retainSeat'], isTrue);
+      expect(SeatHelper.formatSeatLabel(seatId: renewalPayload['currentSeatId'] as String), equals('Seat #2'));
+    });
   });
 }

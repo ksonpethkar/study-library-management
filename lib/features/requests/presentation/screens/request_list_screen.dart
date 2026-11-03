@@ -1540,48 +1540,90 @@ class _RequestCard extends StatelessWidget {
               ),
             ],
 
-            // Action Buttons for Pending Requests
-            if (isPending) ...[
-              const SizedBox(height: 16),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
+            // Action Buttons
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            if (isPending)
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: theme.colorScheme.error,
-                      side: BorderSide(color: theme.colorScheme.error),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.7)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     onPressed: onReject,
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    label: const Text('Reject'),
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    label: const Text('Reject', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.green.shade700,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: onApprove,
+                      icon: const Icon(Icons.check_circle_rounded, size: 16),
+                      label: Text(
+                        isRenewal && (request.amount != null && request.amount! > 0)
+                            ? 'Collect ₹${request.amount!.toStringAsFixed(0)} & Approve'
+                            : (isSeatChange ? 'Approve Seat' : 'Approve Request'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    onPressed: onApprove,
-                    icon: const Icon(Icons.check_rounded, size: 18),
-                    label: Text(
-                      isRenewal && (request.amount != null && request.amount! > 0)
-                          ? 'Collect ₹${request.amount!.toStringAsFixed(0)} & Approve'
-                          : (isSeatChange ? 'Approve Seat' : 'Approve'),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    tooltip: 'View Details',
+                    icon: Icon(Icons.arrow_forward_rounded, size: 18, color: theme.colorScheme.primary),
+                    onPressed: () => context.push('${Routes.adminRequests}/${request.id}'),
+                  ),
+                ],
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        request.status == 'approved' ? Icons.check_circle_outline_rounded : Icons.cancel_outlined,
+                        size: 15,
+                        color: request.status == 'approved' ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        request.status == 'approved' ? 'Request Approved' : 'Request Resolved',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: request.status == 'approved' ? Colors.green.shade800 : Colors.red.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      visualDensity: VisualDensity.compact,
                     ),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                    label: const Text('View Details', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => context.push('${Routes.adminRequests}/${request.id}'),
                   ),
                 ],
               ),
-            ],
           ],
         ),
       ),

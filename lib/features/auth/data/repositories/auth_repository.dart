@@ -145,6 +145,8 @@ class AuthRepository {
         return 'Sign in was cancelled. Tap the button whenever you\'re ready.';
       case 'cancelled-popup-request':
         return 'Sign in was cancelled. Tap the button whenever you\'re ready.';
+      case 'missing-initial-state':
+        return 'Browser security partition blocked the login handshake. Please retry or open in normal (non-incognito) window.';
       default:
         return 'We couldn\'t sign you in right now. Please try again.';
     }

@@ -141,6 +141,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
         'currentSeatId': student.seatId ?? student.previousSeatId,
         'currentSectionId': student.sectionId ?? student.previousSectionId,
         'keepSeat': _keepSeat,
+        'retainSeat': _keepSeat,
         'isAdvanceRenewal': isAdvance,
         'isContinuousGraceRenewal': isContinuousGrace,
         'cycleStartDate': Timestamp.fromDate(startDate),
@@ -208,12 +209,37 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
 
           return plansAsync.when(
             data: (plans) {
-              final activePlans = plans.where((p) => p.isActive).toList();
+              final List<PlanModel> activePlans = [
+                if (student.isStickyCustomPrice && student.customPlanFee != null)
+                  PlanModel(
+                    id: 'custom',
+                    libraryId: libraryId,
+                    name: student.customPlanName?.isNotEmpty == true
+                        ? student.customPlanName!
+                        : 'Approved Concession',
+                    price: student.customPlanFee!,
+                    duration: 1,
+                    durationUnit: DurationUnit.months,
+                    description: student.customDiscountReason?.isNotEmpty == true
+                        ? 'Approved Concession: ${student.customDiscountReason}'
+                        : 'Pre-approved special recurring concession rate',
+                    gracePeriodDays: 0,
+                    isActive: true,
+                    isFeatured: true,
+                    displayOrder: 0,
+                  ),
+                ...plans.where((p) => p.isActive),
+              ];
 
               if (_selectedPlanId == null && activePlans.isNotEmpty) {
-                // Default to current plan if active, else first active plan
-                final currentMatches = activePlans.any((p) => p.id == student.planId);
-                _selectedPlanId = currentMatches ? student.planId : activePlans.first.id;
+                // Default to approved sticky custom plan if active, or current plan, else first active plan
+                final hasStickyCustom = student.isStickyCustomPrice && student.customPlanFee != null;
+                if (hasStickyCustom) {
+                  _selectedPlanId = 'custom';
+                } else {
+                  final currentMatches = activePlans.any((p) => p.id == student.planId);
+                  _selectedPlanId = currentMatches ? student.planId : activePlans.first.id;
+                }
               }
 
               final selectedPlan = activePlans.where((p) => p.id == _selectedPlanId).firstOrNull ??

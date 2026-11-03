@@ -605,9 +605,32 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
     PlanModel? resolvedPlan = planPreloaded;
     if (resolvedPlan == null && pDoc?.exists == true) {
       resolvedPlan = PlanModel.fromJson({...pDoc!.data()!, 'id': pDoc.id});
+    } else if (resolvedPlan == null && (receipt.planId == 'custom' || studentData['planId'] == 'custom')) {
+      final customName = (receipt.customFields['planName'] ??
+              receipt.customFields['customPlanName'] ??
+              studentData['customPlanName'] ??
+              'Custom Plan')
+          .toString();
+      resolvedPlan = PlanModel(
+        id: 'custom',
+        libraryId: effectiveLibId,
+        name: customName.isNotEmpty ? customName : 'Custom Plan',
+        price: (studentData['customPlanFee'] as num?)?.toDouble() ?? receipt.amount,
+        duration: 1,
+        durationUnit: DurationUnit.months,
+        description: (studentData['customDiscountReason'] ?? '').toString(),
+        gracePeriodDays: 0,
+        isActive: true,
+        isFeatured: false,
+        displayOrder: 0,
+      );
     }
 
-    final planName = resolvedPlan?.name ?? (pDoc?.data()?['name'] as String?) ?? 'Membership';
+    final planName = resolvedPlan?.name ??
+        (receipt.customFields['planName'] as String?) ??
+        (studentData['customPlanName'] as String?) ??
+        (pDoc?.data()?['name'] as String?) ??
+        'Membership';
     final templateData = templateDoc?.exists == true ? templateDoc!.data() : null;
 
     // Resolve seat and section concurrently if attached to student

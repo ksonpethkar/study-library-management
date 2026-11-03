@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -471,90 +472,9 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
     if (_submitted) {
       return Scaffold(
         body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(28.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 100, height: 100,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.pending_actions_rounded, size: 56,
-                        color: theme.colorScheme.primary),
-                  ),
-                  const SizedBox(height: 28),
-                  Text(
-                    'Application Submitted! 🎉',
-                    style: theme.textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.amber.shade300),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.hourglass_top_rounded,
-                            color: Colors.amber.shade700, size: 18),
-                        const SizedBox(width: 8),
-                        Text('Status: Under Review',
-                            style: TextStyle(
-                                color: Colors.amber.shade800,
-                                fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Your registration application has been submitted successfully.\n\nThe library administrator will review your details and confirm your membership. You will receive a notification once approved.\n\nThis usually takes less than 24 hours. 😊',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.6),
-                  ),
-                  if (_requestId != null) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Reference: ${_requestId!.length >= 8 ? _requestId!.substring(0, 8).toUpperCase() : _requestId!.toUpperCase()}',
-                        style: const TextStyle(
-                            fontFamily: 'monospace', fontSize: 12),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 36),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () => context.go(Routes.login),
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: const Text('Done — I will wait for confirmation'),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          child: _SubmissionSuccessView(
+            requestId: _requestId,
+            onDone: () => context.go(Routes.login),
           ),
         ),
       );
@@ -986,5 +906,502 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         },
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CELEBRATION & SUBMISSION SUCCESS VIEW (SPRING BOUNCE + CONFETTI CANNON)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SubmissionSuccessView extends StatefulWidget {
+  final String? requestId;
+  final VoidCallback onDone;
+
+  const _SubmissionSuccessView({
+    required this.requestId,
+    required this.onDone,
+  });
+
+  @override
+  State<_SubmissionSuccessView> createState() => _SubmissionSuccessViewState();
+}
+
+class _SubmissionSuccessViewState extends State<_SubmissionSuccessView>
+    with TickerProviderStateMixin {
+  late final AnimationController _confettiController;
+  late final AnimationController _badgeController;
+  late final AnimationController _pulseController;
+  late final AnimationController _contentController;
+
+  late final Animation<double> _scaleAnimation;
+  late final Animation<double> _ringScaleAnimation;
+  late final Animation<double> _ringOpacityAnimation;
+  late final Animation<double> _pulseAnimation;
+
+  late final List<_ConfettiParticle> _particles;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 1. Badge Spring Bounce (0 -> 1 with elastic bounce)
+    _badgeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _scaleAnimation = CurvedAnimation(
+      parent: _badgeController,
+      curve: Curves.elasticOut,
+    );
+
+    // Radiating ring wave
+    _ringScaleAnimation = Tween<double>(begin: 0.8, end: 1.6).animate(
+      CurvedAnimation(
+        parent: _badgeController,
+        curve: const Interval(0.18, 0.9, curve: Curves.easeOutQuad),
+      ),
+    );
+    _ringOpacityAnimation = Tween<double>(begin: 0.7, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _badgeController,
+        curve: const Interval(0.18, 0.9, curve: Curves.easeOutQuad),
+      ),
+    );
+
+    // 2. Confetti Particle System (2.6 seconds burst)
+    _confettiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    );
+
+    final rng = math.Random();
+    const colors = [
+      Color(0xFFF59E0B), // Warm Amber / Gold
+      Color(0xFF10B981), // Emerald Green
+      Color(0xFF0D9488), // Teal
+      Color(0xFFF43F5E), // Rose Coral
+      Color(0xFF8B5CF6), // Royal Purple
+      Color(0xFF3B82F6), // Sky Blue
+    ];
+
+    _particles = List.generate(55, (i) {
+      // Shoot predominantly upwards and outwards (-160 to -20 degrees)
+      final angle = (-math.pi * 0.9) + rng.nextDouble() * (math.pi * 0.8);
+      final speed = 240.0 + rng.nextDouble() * 420.0;
+      return _ConfettiParticle(
+        color: colors[rng.nextInt(colors.length)],
+        vx: math.cos(angle) * speed,
+        vy: math.sin(angle) * speed,
+        size: 6.0 + rng.nextDouble() * 6.0,
+        rotation: rng.nextDouble() * math.pi * 2,
+        rotationSpeed: (rng.nextDouble() - 0.5) * 12.0,
+        isCircle: rng.nextBool(),
+      );
+    });
+
+    // 3. Staggered Content Fade & Slide
+    _contentController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    // 4. Subtle Breathing Pulse for "Under Review" Badge
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.78, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // Launch animations
+    _badgeController.forward();
+    _confettiController.forward();
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) _contentController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _badgeController.dispose();
+    _confettiController.dispose();
+    _pulseController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildStaggeredItem({
+    required double startInterval,
+    required double endInterval,
+    required Widget child,
+  }) {
+    final fade = CurvedAnimation(
+      parent: _contentController,
+      curve: Interval(startInterval, endInterval, curve: Curves.easeOut),
+    );
+    final slide = Tween<Offset>(
+      begin: const Offset(0, 0.25),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _contentController,
+      curve: Interval(startInterval, endInterval, curve: Curves.easeOutCubic),
+    ));
+
+    return FadeTransition(
+      opacity: fade,
+      child: SlideTransition(
+        position: slide,
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Stack(
+      children: [
+        // Confetti Canvas Layer (in front of background, behind modal content if pressed)
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _confettiController,
+              builder: (context, _) {
+                return CustomPaint(
+                  painter: _ConfettiPainter(
+                    progress: _confettiController.value,
+                    particles: _particles,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+
+        // Main Celebratory Content
+        Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Animated Badge with Radiating Ripple Wave
+                SizedBox(
+                  width: 130,
+                  height: 130,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Radiating Pulse Ring
+                      AnimatedBuilder(
+                        animation: _badgeController,
+                        builder: (context, _) {
+                          return Transform.scale(
+                            scale: _ringScaleAnimation.value,
+                            child: Opacity(
+                              opacity: _ringOpacityAnimation.value,
+                              child: Container(
+                                width: 100,
+                                height: 100,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: const Color(0xFF10B981),
+                                    width: 3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                      // Elastic Bouncing Icon
+                      ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF059669), Color(0xFF10B981)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.38),
+                                blurRadius: 24,
+                                spreadRadius: 4,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.check_rounded,
+                            size: 56,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // 1. Headline
+                _buildStaggeredItem(
+                  startInterval: 0.0,
+                  endInterval: 0.45,
+                  child: Column(
+                    children: [
+                      Text(
+                        'Application Submitted! 🎉',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Welcome to the Cozy Corner family!',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // 2. Pulsing Status Badge
+                _buildStaggeredItem(
+                  startInterval: 0.2,
+                  endInterval: 0.65,
+                  child: AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _pulseAnimation.value,
+                        child: child,
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.5),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.hourglass_top_rounded,
+                            color: Color(0xFFD97706),
+                            size: 17,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Status: Under Review',
+                            style: TextStyle(
+                              color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                // 3. Information Card
+                _buildStaggeredItem(
+                  startInterval: 0.4,
+                  endInterval: 0.85,
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                          : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Your registration application has been submitted successfully.\n\n'
+                          'The library administrator will review your details and confirm your membership. '
+                          'You will receive a notification once approved.\n\n'
+                          'This usually takes less than 24 hours. 😊',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            height: 1.6,
+                          ),
+                        ),
+                        if (widget.requestId != null && widget.requestId!.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.tag_rounded, size: 14, color: theme.colorScheme.outline),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Application ID: ${widget.requestId!.length >= 8 ? widget.requestId!.substring(0, 8).toUpperCase() : widget.requestId!.toUpperCase()}',
+                                  style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // 4. Primary Done Action Button
+                _buildStaggeredItem(
+                  startInterval: 0.6,
+                  endInterval: 1.0,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: widget.onDone,
+                      icon: const Icon(Icons.check_circle_outline_rounded),
+                      label: const Text(
+                        'Done — Return to Home',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                      ),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ConfettiParticle {
+  final Color color;
+  final double vx;
+  final double vy;
+  final double size;
+  final double rotation;
+  final double rotationSpeed;
+  final bool isCircle;
+
+  const _ConfettiParticle({
+    required this.color,
+    required this.vx,
+    required this.vy,
+    required this.size,
+    required this.rotation,
+    required this.rotationSpeed,
+    required this.isCircle,
+  });
+}
+
+class _ConfettiPainter extends CustomPainter {
+  final double progress; // 0.0 -> 1.0
+  final List<_ConfettiParticle> particles;
+
+  _ConfettiPainter({required this.progress, required this.particles});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress >= 1.0) return;
+
+    final centerX = size.width / 2;
+    // Launch origin from behind the bouncing badge
+    final startY = size.height * 0.32;
+    final t = progress * 2.6; // elapsed seconds
+
+    final opacity = (1.0 - math.pow(progress, 3)).clamp(0.0, 1.0).toDouble();
+    final gravity = 480.0; // px/s^2
+
+    for (final p in particles) {
+      final x = centerX + p.vx * t;
+      final y = startY + p.vy * t + 0.5 * gravity * t * t;
+
+      // Skip offscreen particles
+      if (y > size.height + 20 || x < -20 || x > size.width + 20) continue;
+
+      final paint = Paint()
+        ..color = p.color.withValues(alpha: opacity)
+        ..style = PaintingStyle.fill;
+
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(p.rotation + p.rotationSpeed * t);
+
+      if (p.isCircle) {
+        canvas.drawCircle(Offset.zero, p.size / 2, paint);
+      } else {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(center: Offset.zero, width: p.size * 1.6, height: p.size * 0.9),
+            const Radius.circular(2),
+          ),
+          paint,
+        );
+      }
+
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

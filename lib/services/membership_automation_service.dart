@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/services/expiry_notification_service.dart';
@@ -218,10 +219,15 @@ class MembershipAutomationService {
           }
         }
 
-        // Stage 3: T+2 Days (Grace Period Final Warning)
-        if (daysLeft == -2 && currentStatus == MembershipStatus.grace.name) {
-          if (!remindedStages.contains('T+2')) {
-            remindedStages.add('T+2');
+        // Stage 3: Dynamic Eve-of-Grace Warning (1 day before grace period ends)
+        final graceEndMid = DateTime(graceEnd.year, graceEnd.month, graceEnd.day);
+        final daysUntilGraceEnd = graceEndMid.difference(todayMid).inDays;
+        final isInGraceWindow = currentStatus == MembershipStatus.grace.name ||
+            (now.isAfter(planEnd) && now.isBefore(graceEnd));
+
+        if (daysUntilGraceEnd == 1 && isInGraceWindow) {
+          if (!remindedStages.contains('T+2') && !remindedStages.contains('grace_eve')) {
+            remindedStages.add('grace_eve');
             updatedStages = true;
             libRef.collection('notifications').add({
               'title': '🚨 Final Grace Warning: Desk Release Tomorrow',
@@ -281,6 +287,18 @@ class MembershipAutomationService {
           batch.update(doc.reference, studentUpdate);
           hasBatchOps = true;
 
+          // Student Notification: Post-Grace Expiry & Seat Released
+          libRef.collection('notifications').add({
+            'title': '❌ Seat Released & Pass Suspended',
+            'body': '$studentName, your grace period for $seatText has ended. The desk has been released to the library pool. Tap here to view available seats and renew your membership.',
+            'targetRole': 'student',
+            'targetUserId': studentUserId,
+            'type': 'seat_deallocated',
+            'actionRoute': '/student/renew',
+            'read': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
           // Write audit log entry
           final auditRef = libRef.collection('audit_log').doc();
           batch.set(auditRef, {
@@ -308,6 +326,19 @@ class MembershipAutomationService {
             'updatedAt': FieldValue.serverTimestamp(),
           });
           hasBatchOps = true;
+
+          // Student Notification: Entered Grace Period
+          final formattedGraceEnd = DateFormat('dd MMM yyyy').format(graceEnd);
+          libRef.collection('notifications').add({
+            'title': '⏳ Plan Expired — Seat Held in Grace Period',
+            'body': '$studentName, your study plan expired today. Your desk ($seatText) is temporarily reserved for you until $formattedGraceEnd under our grace policy. Renew now to retain your seat!',
+            'targetRole': 'student',
+            'targetUserId': studentUserId,
+            'type': 'entered_grace',
+            'actionRoute': '/student/renew',
+            'read': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
           // Write audit log entry
           final auditRef = libRef.collection('audit_log').doc();

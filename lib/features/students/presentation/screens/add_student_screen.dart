@@ -39,6 +39,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   final _emergencyController = TextEditingController();
   final _govIdNumberController = TextEditingController();
   final _notesController = TextEditingController();
+  final _customPlanNameController = TextEditingController(text: 'Custom Plan');
+  final _customPlanFeeController = TextEditingController(text: '500');
+  final _customDiscountReasonController = TextEditingController();
 
   // State
   Gender _gender = Gender.male;
@@ -46,6 +49,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   DateTime? _dob;
   File? _pickedPhoto;
   String? _selectedPlanId;
+  DateTime? _customPlanEndDate;
+  int _customDurationDays = 0; // 0 = Till Month End, 1 = Today only, -1 = Pick date
+  bool _isStickyCustomPrice = false;
   String? _selectedSectionId;
   String? _selectedSeatId;
   String? _bloodGroup;
@@ -86,6 +92,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
     _emergencyController.dispose();
     _govIdNumberController.dispose();
     _notesController.dispose();
+    _customPlanNameController.dispose();
+    _customPlanFeeController.dispose();
+    _customDiscountReasonController.dispose();
     _rollNumberController.dispose();
     super.dispose();
   }
@@ -282,18 +291,27 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
       MembershipStatus status = MembershipStatus.pending;
 
       if (_selectedPlanId != null && _selectedPlanId!.isNotEmpty) {
-        final plansAsync = ref.read(plansStreamProvider);
-        final plans = plansAsync.value ?? [];
-        final plan = plans.where((p) => p.id == _selectedPlanId).firstOrNull;
-
-        if (plan != null) {
+        if (_selectedPlanId == 'custom') {
           planStartDate = DateTime.now();
-          final smartCalc = PlanCalculatorService.calculateSmartPlan(
-            plan: plan,
-            fromDate: planStartDate,
-          );
-          planEndDate = smartCalc.endDate;
+          final now = planStartDate;
+          final nextMonthFirst = DateTime(now.year, now.month + 1, 1);
+          final monthEnd = DateTime(nextMonthFirst.year, nextMonthFirst.month, 0, 23, 59, 59, 999);
+          planEndDate = _customPlanEndDate ?? monthEnd;
           status = MembershipStatus.active;
+        } else {
+          final plansAsync = ref.read(plansStreamProvider);
+          final plans = plansAsync.value ?? [];
+          final plan = plans.where((p) => p.id == _selectedPlanId).firstOrNull;
+
+          if (plan != null) {
+            planStartDate = DateTime.now();
+            final smartCalc = PlanCalculatorService.calculateSmartPlan(
+              plan: plan,
+              fromDate: planStartDate,
+            );
+            planEndDate = smartCalc.endDate;
+            status = MembershipStatus.active;
+          }
         }
       }
 
@@ -318,6 +336,10 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         seatId: _selectedSeatId,
         sectionId: _selectedSectionId,
         planId: _selectedPlanId,
+        customPlanName: _selectedPlanId == 'custom' ? _customPlanNameController.text.trim() : null,
+        customPlanFee: _selectedPlanId == 'custom' ? double.tryParse(_customPlanFeeController.text.trim()) : null,
+        isStickyCustomPrice: _selectedPlanId == 'custom' ? _isStickyCustomPrice : false,
+        customDiscountReason: _selectedPlanId == 'custom' ? _customDiscountReasonController.text.trim() : null,
         planStartDate: planStartDate,
         planEndDate: planEndDate,
         membershipStatus: status,
@@ -869,6 +891,207 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                               ),
                             );
                           }),
+
+                          // Option 3: Custom Plan (Ad-Hoc / Special Concession)
+                          _buildPlanOptionCard(
+                            context: context,
+                            isSelected: _selectedPlanId == 'custom',
+                            title: 'Custom Plan (Ad-Hoc / Special Concession)',
+                            subtitle: 'Tailored fee, special scholarship, or sprint duration capped at month end',
+                            icon: Icons.tune_rounded,
+                            priceText: '₹${_customPlanFeeController.text.isNotEmpty ? _customPlanFeeController.text : "500"}',
+                            badge: 'CUSTOM',
+                            onTap: () {
+                              setState(() {
+                                _selectedPlanId = 'custom';
+                                final now = DateTime.now();
+                                final nextMonthFirst = DateTime(now.year, now.month + 1, 1);
+                                _customPlanEndDate ??= DateTime(nextMonthFirst.year, nextMonthFirst.month, 0, 23, 59, 59, 999);
+                              });
+                            },
+                          ),
+
+                          // Custom Plan Configuration Card
+                          if (_selectedPlanId == 'custom') ...[
+                            const SizedBox(height: 10),
+                            Builder(
+                              builder: (context) {
+                                final theme = Theme.of(context);
+                                final now = DateTime.now();
+                                final nextMonthFirst = DateTime(now.year, now.month + 1, 1);
+                                final monthEnd = DateTime(nextMonthFirst.year, nextMonthFirst.month, 0, 23, 59, 59, 999);
+                                final remainingDaysInMonth = monthEnd.difference(now).inDays + 1;
+                                final df = DateFormat('dd MMM yyyy');
+
+                                return Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.4)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.tune_rounded, size: 18, color: theme.colorScheme.primary),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Custom Plan Configuration',
+                                            style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary, fontSize: 14),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      TextFormField(
+                                        controller: _customPlanNameController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Custom Plan Name *',
+                                          hintText: 'e.g. 15-Day Exam Pass, Daily Trial, Scholarship',
+                                          border: OutlineInputBorder(),
+                                          isDense: true,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      TextFormField(
+                                        controller: _customPlanFeeController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Custom Plan Fee (₹) *',
+                                          prefixText: '₹ ',
+                                          border: OutlineInputBorder(),
+                                          isDense: true,
+                                        ),
+                                        onChanged: (_) => setState(() {}),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Validity & Duration (Strictly capped to current month end):',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          ChoiceChip(
+                                            label: const Text('Today Only (1 Day)'),
+                                            selected: _customDurationDays == 1,
+                                            onSelected: (val) {
+                                              if (val) {
+                                                setState(() {
+                                                  _customDurationDays = 1;
+                                                  _customPlanEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+                                                });
+                                              }
+                                            },
+                                          ),
+                                          ChoiceChip(
+                                            label: Text('Till Month End ($remainingDaysInMonth Days)'),
+                                            selected: _customDurationDays == 0,
+                                            onSelected: (val) {
+                                              if (val) {
+                                                setState(() {
+                                                  _customDurationDays = 0;
+                                                  _customPlanEndDate = monthEnd;
+                                                });
+                                              }
+                                            },
+                                          ),
+                                          if (remainingDaysInMonth > 7)
+                                            ChoiceChip(
+                                              label: const Text('7 Days Sprint'),
+                                              selected: _customDurationDays == 7,
+                                              onSelected: (val) {
+                                                if (val) {
+                                                  setState(() {
+                                                    _customDurationDays = 7;
+                                                    _customPlanEndDate = now.add(const Duration(days: 6));
+                                                  });
+                                                }
+                                              },
+                                            ),
+                                          if (remainingDaysInMonth > 15)
+                                            ChoiceChip(
+                                              label: const Text('15 Days Pass'),
+                                              selected: _customDurationDays == 15,
+                                              onSelected: (val) {
+                                                if (val) {
+                                                  setState(() {
+                                                    _customDurationDays = 15;
+                                                    _customPlanEndDate = now.add(const Duration(days: 14));
+                                                  });
+                                                }
+                                              },
+                                            ),
+                                          ChoiceChip(
+                                            avatar: const Icon(Icons.calendar_month_rounded, size: 16),
+                                            label: Text(_customDurationDays == -1 && _customPlanEndDate != null
+                                                ? 'Exp: ${df.format(_customPlanEndDate!)}'
+                                                : 'Pick Specific Date...'),
+                                            selected: _customDurationDays == -1,
+                                            onSelected: (val) async {
+                                              final picked = await showDatePicker(
+                                                context: context,
+                                                initialDate: _customPlanEndDate ?? now,
+                                                firstDate: now,
+                                                lastDate: monthEnd,
+                                                helpText: 'Select Custom Expiry (Capped to Month End)',
+                                              );
+                                              if (picked != null) {
+                                                setState(() {
+                                                  _customDurationDays = -1;
+                                                  _customPlanEndDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+                                                });
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.surface,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: theme.colorScheme.outlineVariant),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            SwitchListTile(
+                                              contentPadding: EdgeInsets.zero,
+                                              title: const Text('Recurring Monthly Concession', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                              subtitle: const Text('Apply this custom rate to all future renewals (Permanent)', style: TextStyle(fontSize: 11)),
+                                              value: _isStickyCustomPrice,
+                                              onChanged: (v) => setState(() => _isStickyCustomPrice = v),
+                                            ),
+                                            if (_isStickyCustomPrice) ...[
+                                              const SizedBox(height: 6),
+                                              TextFormField(
+                                                controller: _customDiscountReasonController,
+                                                decoration: const InputDecoration(
+                                                  labelText: 'Concession / Approval Reason (Optional)',
+                                                  hintText: 'e.g. Merit Scholarship, Staff Ward, Financial Hardship',
+                                                  border: OutlineInputBorder(),
+                                                  isDense: true,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '✓ Plan valid until ${df.format(_customPlanEndDate ?? monthEnd)}. On the 1st of next month, all standard catalog plans will be available.',
+                                        style: TextStyle(fontSize: 11.5, color: theme.colorScheme.primary, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ],
                       );
                     },
