@@ -759,9 +759,11 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
     } catch (e) {
       if (mounted) {
         final errorMsg = e.toString().replaceAll('Exception:', '').trim();
-        final isCancelled = errorMsg.toLowerCase().contains('cancelled') ||
-            errorMsg.toLowerCase().contains('popup-closed') ||
-            errorMsg.toLowerCase().contains('whenever you\'re ready');
+        final lowerError = errorMsg.toLowerCase();
+        final isCancelled = lowerError.contains('cancel') ||
+            lowerError.contains('popup-closed') ||
+            lowerError.contains('whenever you\'re ready') ||
+            lowerError.contains('user-cancelled');
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -776,16 +778,99 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                 Expanded(
                   child: Text(
                     isCancelled
-                        ? 'Google verification cancelled. Tap "Forgot Master PIN" whenever you are ready.'
+                        ? 'Google verification was cancelled or popup closed.'
                         : errorMsg,
                   ),
                 ),
               ],
             ),
-            backgroundColor: isCancelled ? Colors.grey.shade800 : Colors.red.shade700,
+            backgroundColor: isCancelled ? Colors.grey.shade900 : Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
+            action: isCancelled
+                ? SnackBarAction(
+                    label: 'Retry',
+                    textColor: const Color(0xFFF59E0B),
+                    onPressed: () => _handleAdminGoogleReAuth(),
+                  )
+                : null,
           ),
         );
+
+        // If on Web and the popup was cancelled/blocked, show informative recovery dialog
+        if (kIsWeb && isCancelled) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.shield_outlined, color: Color(0xFFF59E0B), size: 26),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Google Verification',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'The Google sign-in window was closed before completion. If your browser blocked the popup, please enable popups for this site.',
+                    style: TextStyle(fontSize: 13, height: 1.4),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.25)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '💡 Fast Troubleshooting:',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          '1. Check your browser address bar for a blocked popup icon (🚫) and choose "Always allow".',
+                          style: TextStyle(fontSize: 12, height: 1.3),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '2. Ensure you sign in with the authorized library account: $adminEmail.',
+                          style: const TextStyle(fontSize: 12, height: 1.3),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Dismiss'),
+                ),
+                FilledButton.icon(
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Retry Verification'),
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _handleAdminGoogleReAuth();
+                  },
+                ),
+              ],
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) {

@@ -593,6 +593,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         'pendingDueBalance': remainingDue,
         'membershipStatus': 'active',
         'graceEndDate': FieldValue.delete(), // Clear stale grace period from previous cycle
+        'remindedStages': FieldValue.delete(), // Reset notification stages for new cycle
       };
       if (_selectedPlanId != null && _selectedPlanId != 'custom') {
         studentUpdates['planId'] = _selectedPlanId;
