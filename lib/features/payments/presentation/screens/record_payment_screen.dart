@@ -55,6 +55,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   final _bankNameController = TextEditingController();
   final _notesController = TextEditingController();
   final _customPlanNameController = TextEditingController(text: 'Custom Plan');
+  final _dailyRateController = TextEditingController(text: '25');
 
   String _paymentMethod = 'Cash';
   bool _isLoading = false;
@@ -69,6 +70,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
 
   // Custom Plan configuration
   int _customDurationDays = 30; // default 30 days
+  DateTime? _customStartDate; // if admin overrides start date
   DateTime? _customCustomExpiryDate; // if admin picked a specific date via calendar
 
   DateTime? _studentPlanStartDate;
@@ -306,10 +308,14 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
     _bankNameController.dispose();
     _notesController.dispose();
     _customPlanNameController.dispose();
+    _dailyRateController.dispose();
     super.dispose();
   }
 
   DateTime _getEffectiveStartDate() {
+    if (_customStartDate != null) {
+      return _customStartDate!;
+    }
     final now = DateTime.now();
     final isAdvance = _studentPlanEndDate != null && _studentPlanEndDate!.isAfter(now);
     return isAdvance
@@ -343,12 +349,43 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
     }
 
     if (_customDurationDays > 0) {
-      final target = effectiveStart.add(Duration(days: _customDurationDays));
+      final target = effectiveStart.add(Duration(days: _customDurationDays - 1));
       return DateTime(target.year, target.month, target.day, 23, 59, 59, 999);
     }
 
     // Snap to current calendar month end if duration is 0
-    return DateTime(effectiveStart.year, effectiveStart.month + 1, 0, 23, 59, 59);
+    final nextMonthFirst = DateTime(effectiveStart.year, effectiveStart.month + 1, 1);
+    final monthEnd = nextMonthFirst.subtract(const Duration(days: 1));
+    return DateTime(monthEnd.year, monthEnd.month, monthEnd.day, 23, 59, 59, 999);
+  }
+
+  int _calculateCustomDays(List<PlanModel> plans) {
+    final start = _getEffectiveStartDate();
+    final end = _calculateNewExpiryDate(plans);
+    final startDay = DateTime(start.year, start.month, start.day);
+    final endDay = DateTime(end.year, end.month, end.day);
+    return (endDay.difference(startDay).inDays + 1).clamp(1, 1000);
+  }
+
+  void _recalculateCustomFeeFromDailyRate(List<PlanModel> plans) {
+    final dailyRate = double.tryParse(_dailyRateController.text) ?? 0.0;
+    final days = _calculateCustomDays(plans);
+    if (dailyRate > 0 && days > 0) {
+      final total = (days * dailyRate).roundToDouble();
+      _totalFeeController.text = total.toStringAsFixed(0);
+      if (!_isPartialPayment) {
+        _amountController.text = total.toStringAsFixed(0);
+      }
+    }
+  }
+
+  void _recalculateDailyRateFromTotalFee(List<PlanModel> plans) {
+    final total = double.tryParse(_totalFeeController.text) ?? 0.0;
+    final days = _calculateCustomDays(plans);
+    if (total > 0 && days > 0) {
+      final dailyRate = total / days;
+      _dailyRateController.text = dailyRate.toStringAsFixed(1);
+    }
   }
 
   void _save(List<PlanModel> plans) async {
@@ -1046,6 +1083,82 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                         );
                       },
                     ),
+
+                    // Smart Proration Banner for Catalog Plans
+                    if (_selectedPlanId != null && _selectedPlanId != 'custom')
+                      Builder(
+                        builder: (ctx) {
+                          final matching = plans.where((p) => p.id == _selectedPlanId);
+                          if (matching.isEmpty) return const SizedBox.shrink();
+                          final plan = matching.first;
+                          final start = _getEffectiveStartDate();
+                          final smartCalc = PlanCalculatorService.calculateSmartPlan(
+                            plan: plan,
+                            fromDate: start,
+                          );
+
+                          if (!smartCalc.isProrated) return const SizedBox.shrink();
+
+                          final proratedStr = smartCalc.proratedPrice.toStringAsFixed(0);
+                          final isApplied = _totalFeeController.text == proratedStr;
+
+                          return Container(
+                            margin: const EdgeInsets.only(top: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.auto_awesome_rounded, size: 20, color: Colors.green),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '⚡ Mid-Month Join: ${smartCalc.daysRemaining} days in ${DateFormat('MMMM').format(smartCalc.endDate)}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Colors.green),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Full Month: ₹${plan.price.toStringAsFixed(0)} • Fair Prorated: ₹$proratedStr (${smartCalc.formattedDailyRate})',
+                                        style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.green.shade800,
+                                    side: BorderSide(color: isApplied ? Colors.green : Colors.green.shade400),
+                                    backgroundColor: isApplied ? Colors.green.withValues(alpha: 0.15) : null,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  icon: Icon(isApplied ? Icons.check_circle_rounded : Icons.check_rounded, size: 14),
+                                  label: Text(
+                                    isApplied ? 'Applied' : 'Use ₹$proratedStr',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() {
+                                      _totalFeeController.text = proratedStr;
+                                      if (!_isPartialPayment) {
+                                        _amountController.text = proratedStr;
+                                      }
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
 
                     // Custom Plan Configuration Studio (Inspired by leading SaaS membership apps)
                     if (_selectedPlanId == 'custom') ...[

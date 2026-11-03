@@ -700,6 +700,17 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
                                           ),
                                           visualDensity: VisualDensity.compact,
                                         ),
+                                      if (entry.createdAt != null &&
+                                          DateTime.now().difference(entry.createdAt!).inDays >= 30)
+                                        Chip(
+                                          backgroundColor: Colors.orange.shade50,
+                                          avatar: const Icon(Icons.hourglass_bottom_rounded, size: 13, color: Colors.orange),
+                                          label: Text(
+                                            'Stale (${DateTime.now().difference(entry.createdAt!).inDays}d in queue)',
+                                            style: TextStyle(fontSize: 11, color: Colors.orange.shade900, fontWeight: FontWeight.bold),
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
                                       if (entry.createdAt != null)
                                         Chip(
                                           avatar: const Icon(Icons.access_time, size: 13),

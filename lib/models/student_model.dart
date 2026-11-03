@@ -481,6 +481,8 @@ class StudentModel {
           if (now.isBefore(graceEndInclusive) || now.isAtSameMomentAs(graceEndInclusive)) {
             return MembershipStatus.grace;
           }
+        } else if (membershipStatus == MembershipStatus.grace) {
+          return MembershipStatus.grace;
         }
         return MembershipStatus.expired;
       }
@@ -520,6 +522,8 @@ class StudentModel {
       if (now.isBefore(graceEndInclusive) || now.isAtSameMomentAs(graceEndInclusive)) {
         return true;
       }
+    } else if (membershipStatus == MembershipStatus.grace) {
+      return true;
     }
     return false;
   }
@@ -539,6 +543,8 @@ class StudentModel {
       if (now.isBefore(graceEndInclusive) || now.isAtSameMomentAs(graceEndInclusive)) {
         return false;
       }
+    } else if (membershipStatus == MembershipStatus.grace) {
+      return false;
     }
     final planEndInclusive = DateTime(
       planEndDate!.year,

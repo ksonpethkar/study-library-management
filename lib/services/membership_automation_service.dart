@@ -96,6 +96,17 @@ class MembershipAutomationService {
         // Use default if settings not found
       }
 
+      // Query catalog plans to load plan-level gracePeriodDays (Recommendation 1: Single Source of Truth)
+      final planGraceDays = <String, int>{};
+      try {
+        final plansSnap = await libRef.collection('plans').get();
+        for (final pDoc in plansSnap.docs) {
+          final pData = pDoc.data();
+          final gDays = (pData['gracePeriodDays'] as num?)?.toInt();
+          if (gDays != null) planGraceDays[pDoc.id] = gDays;
+        }
+      } catch (_) {}
+
       // Query all students who are currently active or in grace
       final studentsSnap = await libRef
           .collection('students')
@@ -130,11 +141,13 @@ class MembershipAutomationService {
 
         if (planEnd == null) continue;
 
-        // Resolve plan-specific override or global default
+        // Resolve plan-specific override, catalog plan setting, or global default (3-tier resolution)
         final studentPlanId = studentData['planId'] as String?;
         final int effectiveGraceDays = (studentPlanId != null && planOverrides.containsKey(studentPlanId))
             ? planOverrides[studentPlanId]!
-            : defaultGraceDays;
+            : (studentPlanId != null && planGraceDays.containsKey(studentPlanId)
+                ? planGraceDays[studentPlanId]!
+                : defaultGraceDays);
 
         // Calculate grace end safely anchored to the current planEnd
         DateTime graceEnd;
@@ -156,6 +169,77 @@ class MembershipAutomationService {
         final seatId = studentData['seatId'] as String?;
         final sectionId = studentData['sectionId'] as String?;
         final studentName = studentData['name'] as String? ?? 'Student';
+        final studentUserId = studentData['userId'] as String? ?? doc.id;
+        final seatText = studentData['seatLabel'] != null
+            ? 'Seat #${studentData['seatLabel']}'
+            : (seatId != null && seatId.isNotEmpty ? 'Seat #$seatId' : 'your study desk');
+
+        // Multi-stage renewal tracking
+        final remindedStages = List<String>.from(studentData['remindedStages'] as List<dynamic>? ?? []);
+        bool updatedStages = false;
+
+        final todayMid = DateTime(now.year, now.month, now.day);
+        final planEndMid = DateTime(planEnd.year, planEnd.month, planEnd.day);
+        final daysLeft = planEndMid.difference(todayMid).inDays;
+
+        // Stage 1: T-3 Days (Upcoming Expiry Reminder)
+        if (daysLeft == 3 && currentStatus == MembershipStatus.active.name) {
+          if (!remindedStages.contains('T-3')) {
+            remindedStages.add('T-3');
+            updatedStages = true;
+            libRef.collection('notifications').add({
+              'title': '📅 Membership Expiring in 3 Days',
+              'body': 'Hello $studentName, your membership for $seatText expires in 3 days. Renew now to retain your seat!',
+              'targetRole': 'student',
+              'targetUserId': studentUserId,
+              'type': 'plan_expiring',
+              'actionRoute': '/student/renew',
+              'read': false,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+
+        // Stage 2: T-0 Day (Expires Today Urgent Notice)
+        if (daysLeft == 0 && currentStatus == MembershipStatus.active.name) {
+          if (!remindedStages.contains('T-0')) {
+            remindedStages.add('T-0');
+            updatedStages = true;
+            libRef.collection('notifications').add({
+              'title': '⚠️ Membership Expires Today!',
+              'body': 'Dear $studentName, today is the final day of your current pass for $seatText. Tap to renew now.',
+              'targetRole': 'student',
+              'targetUserId': studentUserId,
+              'type': 'plan_expiring',
+              'actionRoute': '/student/renew',
+              'read': false,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+
+        // Stage 3: T+2 Days (Grace Period Final Warning)
+        if (daysLeft == -2 && currentStatus == MembershipStatus.grace.name) {
+          if (!remindedStages.contains('T+2')) {
+            remindedStages.add('T+2');
+            updatedStages = true;
+            libRef.collection('notifications').add({
+              'title': '🚨 Final Grace Warning: Desk Release Tomorrow',
+              'body': '$studentName, your grace period ends tomorrow. Renew today to retain your allocated $seatText!',
+              'targetRole': 'student',
+              'targetUserId': studentUserId,
+              'type': 'plan_expired',
+              'actionRoute': '/student/renew',
+              'read': false,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+
+        if (updatedStages) {
+          batch.update(doc.reference, {'remindedStages': remindedStages});
+          hasBatchOps = true;
+        }
 
         // ── SCENARIO A: Expired past grace period ──────────────────────────
         // Only release seat if BOTH the plan and the grace period have elapsed.
@@ -272,6 +356,13 @@ class MembershipAutomationService {
         await ExpiryNotificationService.checkExpiringPlans(libraryId);
       } catch (e) {
         if (kDebugMode) debugPrint('Expiry notification check error: $e');
+      }
+
+      // Check and cascade expired 2-hour waiting list holds
+      try {
+        await WaitingListPromotionService().checkAndCascadeExpiredHolds(libraryId);
+      } catch (e) {
+        if (kDebugMode) debugPrint('Expired waiting list hold cascade check error: $e');
       }
 
       return AutomationResult(

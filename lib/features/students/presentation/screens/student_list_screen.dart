@@ -1,4 +1,5 @@
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -788,17 +789,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   child: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF25D366)),
                 ),
                 title: const Text('WhatsApp Message', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Open WhatsApp chat'),
+                subtitle: const Text('Open WhatsApp reminder / chat'),
                 onTap: () async {
                   Navigator.pop(ctx);
                   if (context.mounted) {
-                    await WhatsAppService().sendMessage(
-                      student.phone,
-                      'Hello ${student.name},\n\nRegards,\nCozy Corner Library',
-                      recipientName: student.name,
-                      title: 'Message ${student.name}',
-                      context: context,
-                    );
+                    await _sendWhatsAppNudge(student);
                   }
                 },
               ),
@@ -806,6 +801,31 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _sendWhatsAppNudge(StudentModel student) async {
+    final lib = ref.read(currentLibraryProvider).value;
+    final libName = lib?.name.isNotEmpty == true ? lib!.name : 'The Cozy Corner';
+    String message;
+    if ((student.pendingDueBalance ?? 0) > 0) {
+      message = 'Dear ${student.name},\n\nYou have a pending fee of ₹${student.pendingDueBalance!.toStringAsFixed(0)} for your study library membership at $libName. Kindly clear it at your earliest convenience.\n\nThank you,\n$libName';
+    } else if (student.isExpired || student.membershipStatus == MembershipStatus.grace) {
+      final expStr = student.planEndDate != null ? DateFormat('dd MMM yyyy').format(student.planEndDate!) : 'recently';
+      message = 'Dear ${student.name},\n\nYour library membership expired on $expStr. Please renew your plan to continue using your study seat.\n\nThank you,\n$libName';
+    } else if (student.planEndDate != null) {
+      final expStr = DateFormat('dd MMM yyyy').format(student.planEndDate!);
+      message = 'Dear ${student.name},\n\nThis is a friendly reminder that your library membership is expiring soon on $expStr. Please visit the reception or use the app to renew in advance.\n\nThank you,\n$libName';
+    } else {
+      message = 'Hello ${student.name},\n\nGreetings from $libName!\n\nBest regards,\n$libName';
+    }
+
+    await WhatsAppService().sendMessage(
+      student.phone,
+      message,
+      recipientName: student.name,
+      title: 'Message ${student.name}',
+      context: context,
     );
   }
 
@@ -1037,45 +1057,66 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           size: 24,
                         )
                       else
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            if ((student.pendingDueBalance ?? 0) > 0) ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withValues(alpha: 0.12),
-                                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'Due ₹${student.pendingDueBalance!.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    color: Colors.red,
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.bold,
-                                    fontFeatures: [FontFeature.tabularFigures()],
+                            if ((student.pendingDueBalance ?? 0) > 0 ||
+                                student.membershipStatus == MembershipStatus.grace ||
+                                student.isExpired ||
+                                _selectedFilter == 'Due Soon') ...[
+                              IconButton(
+                                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: Color(0xFF25D366)),
+                                tooltip: 'WhatsApp Reminder',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                onPressed: () {
+                                  HapticFeedback.selectionClick();
+                                  _sendWhatsAppNudge(student);
+                                },
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                if ((student.pendingDueBalance ?? 0) > 0) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.12),
+                                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'Due ₹${student.pendingDueBalance!.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.bold,
+                                        fontFeatures: [FontFeature.tabularFigures()],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    student.membershipStatus.name.toUpperCase(),
+                                    style: TextStyle(
+                                      color: statusColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.3,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                            ],
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                student.membershipStatus.name.toUpperCase(),
-                                style: TextStyle(
-                                  color: statusColor,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
+                              ],
                             ),
                           ],
                         ),

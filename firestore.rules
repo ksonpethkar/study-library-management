@@ -92,6 +92,8 @@ service cloud.firestore {
                        staffCan(libraryId, 'canManageStudents') ||
                        (isAuth() && (
                          studentId == uid() ||
+                         resource.data.userId == uid() ||
+                         resource.data.studentUserId == uid() ||
                          uid() == resource.data.get('userId', '') ||
                          uid() == resource.data.get('studentUserId', '') ||
                          (resource.data.get('email', '') != '' && request.auth.token.email != null &&
@@ -107,6 +109,8 @@ service cloud.firestore {
                          staffCan(libraryId, 'canManageStudents') ||
                          (isAuth() && (
                            studentId == uid() ||
+                           resource.data.userId == uid() ||
+                           resource.data.studentUserId == uid() ||
                            uid() == resource.data.get('userId', '') ||
                            uid() == resource.data.get('studentUserId', '') ||
                            (resource.data.get('userId', '') == '' && (
@@ -243,6 +247,9 @@ service cloud.firestore {
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canManageStudents') ||
                        (isAuth() && (
+                         resource.data.studentId == uid() ||
+                         resource.data.studentUserId == uid() ||
+                         resource.data.userId == uid() ||
                          resource.data.get('studentId', '') == uid() ||
                          resource.data.get('studentUserId', '') == uid() ||
                          resource.data.get('userId', '') == uid()
@@ -251,6 +258,9 @@ service cloud.firestore {
         allow update, delete: if isOwner(libraryId) ||
                                  staffCan(libraryId, 'canManageStudents') ||
                                  (isAuth() && (
+                                   resource.data.studentId == uid() ||
+                                   resource.data.studentUserId == uid() ||
+                                   resource.data.userId == uid() ||
                                    resource.data.get('studentId', '') == uid() ||
                                    resource.data.get('studentUserId', '') == uid() ||
                                    resource.data.get('userId', '') == uid()
@@ -402,6 +412,7 @@ service cloud.firestore {
     // Prevents any authenticated user from reading all staff across all libraries
     match /{path=**}/staff/{staffDoc} {
       allow read: if isAuth() && (
+        resource.data.userId == uid() ||
         uid() == resource.data.get('userId', '') ||
         uid() == get(/databases/$(database)/documents/libraries/$(resource.data.get('libraryId', 'NONE'))).data.ownerId
       );
@@ -412,6 +423,8 @@ service cloud.firestore {
     match /{path=**}/students/{studentDoc} {
       allow read: if isAuth() && (
         studentDoc == uid() ||
+        resource.data.userId == uid() ||
+        resource.data.studentUserId == uid() ||
         uid() == resource.data.get('userId', '') ||
         uid() == resource.data.get('studentUserId', '') ||
         (resource.data.get('email', '') != '' && request.auth.token.email != null &&

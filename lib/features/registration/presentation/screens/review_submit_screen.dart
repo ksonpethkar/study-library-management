@@ -222,21 +222,25 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
           (regData['photoUrl'] as String?) ?? '';
 
       final photoPath = regData['photoPath'] as String?;
-      if (photoPath != null && photoPath.isNotEmpty && !photoPath.startsWith('data:image')) {
-        try {
-          final photoFile = File(photoPath);
-          if (photoFile.existsSync()) {
-            final timestamp = DateTime.now().millisecondsSinceEpoch;
-            try {
-              photoUrl = await ImageService.uploadToStorage(
-                file: photoFile,
-                path: 'libraries/$libraryId/requests/photos/req_$timestamp.jpg',
-              );
-            } catch (e) {
-              if (kDebugMode) debugPrint('Error uploading request photo: $e');
+      if (photoUrl.isEmpty && photoPath != null && photoPath.isNotEmpty) {
+        if (photoPath.startsWith('data:image') || photoPath.startsWith('http')) {
+          photoUrl = photoPath;
+        } else if (!kIsWeb) {
+          try {
+            final photoFile = File(photoPath);
+            if (photoFile.existsSync()) {
+              final timestamp = DateTime.now().millisecondsSinceEpoch;
+              try {
+                photoUrl = await ImageService.uploadToStorage(
+                  file: photoFile,
+                  path: 'libraries/$libraryId/requests/photos/req_$timestamp.jpg',
+                );
+              } catch (e) {
+                if (kDebugMode) debugPrint('Error uploading request photo: $e');
+              }
             }
-          }
-        } catch (_) { /* intentionally silent */ }
+          } catch (_) { /* intentionally silent */ }
+        }
       }
 
       String govIdImageUrl = (regData['govIdImageUrl'] ?? regData['govIdDataUrl'] ?? regData['govIdFrontUrl'] ?? '') as String;

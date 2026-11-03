@@ -306,8 +306,10 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
           );
         }
       } else {
-        final actualSeats = ref.read(seatsProvider(widget.section!.id)).value;
-        final currentSeatCount = actualSeats?.where((s) => !s.id.startsWith('missing_')).length ?? widget.section!.capacity;
+        final realSeats = await repository.getSeatsOnce(widget.libraryId, widget.section!.id);
+        final currentSeatCount = realSeats.isNotEmpty
+            ? realSeats.where((s) => !s.id.startsWith('missing_')).length
+            : (ref.read(seatsProvider(widget.section!.id)).value?.length ?? widget.section!.capacity);
         final updatedSection = widget.section!.copyWith(
           name: _nameController.text.trim(),
           color: _selectedColor,
@@ -317,6 +319,8 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
           floor: _floor,
           amenities: _selectedAmenities,
           totalSeats: currentSeatCount,
+          rows: (currentSeatCount <= 10) ? 1 : (currentSeatCount / 10).ceil(),
+          cols: 10,
           updatedAt: DateTime.now(),
         );
         await repository.updateSection(
@@ -817,13 +821,45 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Current Capacity:', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Current Capacity:', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      Text(
+                                        'Physical Desks: $liveSeatCount',
+                                        style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                                      ),
+                                    ],
+                                  ),
                                   Chip(
                                     avatar: const Icon(Icons.event_seat_rounded, size: 16),
                                     label: Text('$liveSeatCount Seats', style: const TextStyle(fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               ),
+                              if (widget.section!.capacity != liveSeatCount) ...[
+                                const SizedBox(height: 10),
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.sync_problem_rounded, color: Colors.amber, size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Stored capacity is ${widget.section!.capacity}, but only $liveSeatCount desks exist. Tapping "Update Section" will synchronize capacity to $liveSeatCount.',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 12),
                               TextFormField(
                                 controller: _addSeatsController,

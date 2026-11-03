@@ -133,11 +133,172 @@ class WaitingListPromotionService {
     await batch.commit();
   }
 
+  /// Automated 2-hour reservation hold placed on a vacated seat for candidate #1
+  Future<void> holdSeatForCandidate({
+    required String libraryId,
+    required WaitingListEntry entry,
+    required String sectionId,
+    required String seatId,
+    required String seatLabel,
+    String? libraryName,
+    int holdHours = 2,
+  }) async {
+    final now = DateTime.now();
+    final expiresAt = now.add(Duration(hours: holdHours));
+    final batch = _firestore.batch();
+    final libRef = _firestore.collection(FirestorePaths.libraries).doc(libraryId);
+
+    // 1. Put seat in reserved status with waitlist hold
+    final seatRef = libRef
+        .collection(FirestorePaths.sections)
+        .doc(sectionId)
+        .collection(FirestorePaths.seats)
+        .doc(seatId);
+
+    batch.update(seatRef, {
+      'status': SeatStatus.reserved.name,
+      'reservationType': 'waitlist_hold',
+      'reservedCandidateId': entry.id,
+      'reservedCandidateName': entry.studentName,
+      'reservationExpiresAt': Timestamp.fromDate(expiresAt),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // 2. Update candidate in waiting list to 'offered'
+    final waitRef = libRef.collection(FirestorePaths.waitingList).doc(entry.id);
+    batch.update(waitRef, {
+      'status': 'offered',
+      'offeredSeatId': seatId,
+      'offeredSectionId': sectionId,
+      'offeredSeatLabel': seatLabel,
+      'reservationExpiresAt': Timestamp.fromDate(expiresAt),
+      'notifiedAt': FieldValue.serverTimestamp(),
+    });
+
+    // 3. Log audit event
+    final auditRef = libRef.collection(FirestorePaths.auditLog).doc();
+    batch.set(auditRef, {
+      'action': 'waiting_list_hold_placed',
+      'entityType': 'seat',
+      'entityId': seatId,
+      'userId': 'system_automation',
+      'timestamp': FieldValue.serverTimestamp(),
+      'details': {
+        'candidateId': entry.id,
+        'candidateName': entry.studentName,
+        'candidatePhone': entry.studentPhone,
+        'seatLabel': seatLabel,
+        'sectionId': sectionId,
+        'holdHours': holdHours,
+        'expiresAt': expiresAt.toIso8601String(),
+      },
+    });
+
+    await batch.commit();
+
+    // 4. Notify admin via in-app alert
+    await AppNotificationService.sendNotification(
+      libraryId: libraryId,
+      title: '⏳ 2-Hour Waitlist Hold: Seat $seatLabel',
+      body: 'Seat $seatLabel is held for 2 hours for ${entry.studentName}. Awaiting confirmation.',
+      type: 'seat',
+      targetRole: 'admin',
+      actionRoute: '/admin/students?filter=waiting',
+      metadata: {
+        'candidateId': entry.id,
+        'candidateName': entry.studentName,
+        'candidatePhone': entry.studentPhone,
+        'seatId': seatId,
+        'seatLabel': seatLabel,
+        'sectionId': sectionId,
+        'expiresAt': expiresAt.toIso8601String(),
+      },
+    );
+  }
+
+  /// Scans for expired 2-hour holds and cascades to candidate #2
+  Future<int> checkAndCascadeExpiredHolds(String libraryId) async {
+    final now = DateTime.now();
+    int cascadedCount = 0;
+
+    try {
+      final libRef = _firestore.collection(FirestorePaths.libraries).doc(libraryId);
+      final expiredWaitlistSnap = await libRef
+          .collection(FirestorePaths.waitingList)
+          .where('status', isEqualTo: 'offered')
+          .get();
+
+      for (final doc in expiredWaitlistSnap.docs) {
+        final data = doc.data();
+        final rawExp = data['reservationExpiresAt'];
+        DateTime? expiresAt;
+        if (rawExp is Timestamp) {
+          expiresAt = rawExp.toDate();
+        } else if (rawExp is String) {
+          expiresAt = DateTime.tryParse(rawExp);
+        }
+
+        if (expiresAt != null && now.isAfter(expiresAt)) {
+          // Hold expired!
+          final seatId = data['offeredSeatId'] as String?;
+          final sectionId = data['offeredSectionId'] as String?;
+          final seatLabel = data['offeredSeatLabel'] as String? ?? seatId ?? '';
+
+          // Mark current candidate as offer_expired
+          await doc.reference.update({
+            'status': 'offer_expired',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          // Cascade to candidate #2
+          if (sectionId != null && seatId != null) {
+            final nextCandidate = await findNextEligibleCandidate(
+              libraryId: libraryId,
+              sectionId: sectionId,
+            );
+
+            if (nextCandidate != null) {
+              await holdSeatForCandidate(
+                libraryId: libraryId,
+                entry: nextCandidate,
+                sectionId: sectionId,
+                seatId: seatId,
+                seatLabel: seatLabel,
+              );
+              cascadedCount++;
+            } else {
+              // No more candidates on waitlist, release seat back to available
+              final seatRef = libRef
+                  .collection(FirestorePaths.sections)
+                  .doc(sectionId)
+                  .collection(FirestorePaths.seats)
+                  .doc(seatId);
+
+              await seatRef.update({
+                'status': SeatStatus.available.name,
+                'reservationType': FieldValue.delete(),
+                'reservedCandidateId': FieldValue.delete(),
+                'reservedCandidateName': FieldValue.delete(),
+                'reservationExpiresAt': FieldValue.delete(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error checking and cascading expired holds: $e');
+    }
+
+    return cascadedCount;
+  }
+
   /// Launch WhatsApp with candidate notification message
   static Future<bool> launchWhatsAppNotification({
     required WaitingListEntry entry,
     required String seatLabel,
     required String libraryName,
+    int holdHours = 2,
   }) async {
     final cleanPhone = entry.studentPhone.replaceAll(RegExp(r'\D'), '');
     final withCode = cleanPhone.startsWith('91') || cleanPhone.length > 10
@@ -145,7 +306,7 @@ class WaitingListPromotionService {
         : '91$cleanPhone';
 
     final message =
-        'Hello ${entry.studentName}, exciting news! Seat $seatLabel has just become available for you at $libraryName. Your position on the waiting list has arrived! Please visit or contact us to confirm your admission.';
+        'Hello ${entry.studentName}, exciting news! 💺 Seat #$seatLabel has just become available for you at $libraryName! We have placed a priority $holdHours-hour reservation hold on this desk for you. Please confirm your admission within $holdHours hours to secure this desk.';
 
     final uri = Uri.parse('https://wa.me/$withCode?text=${Uri.encodeComponent(message)}');
     if (await canLaunchUrl(uri)) {
@@ -160,6 +321,7 @@ class WaitingListPromotionService {
     required String sectionId,
     required String seatId,
     required String seatLabel,
+    String? libraryName,
   }) async {
     final candidate = await findNextEligibleCandidate(
       libraryId: libraryId,
@@ -167,49 +329,14 @@ class WaitingListPromotionService {
     );
 
     if (candidate != null) {
-      final libRef = _firestore.collection(FirestorePaths.libraries).doc(libraryId);
-
-      // Stamp candidate with promotion suggestion
-      await libRef.collection(FirestorePaths.waitingList).doc(candidate.id).update({
-        'suggestedSeatId': seatId,
-        'suggestedSectionId': sectionId,
-        'suggestedSeatLabel': seatLabel,
-        'notifiedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Dispatch high priority in-app notification to Admin
-      await AppNotificationService.sendNotification(
+      await holdSeatForCandidate(
         libraryId: libraryId,
-        title: 'Seat $seatLabel Available for Waitlist',
-        body: '${candidate.studentName} is #1 on the waiting list for Seat $seatLabel. Tap to assign or notify candidate on WhatsApp.',
-        type: 'seat',
-        targetRole: 'admin',
-        actionRoute: '/admin/students?filter=waiting',
-        metadata: {
-          'candidateId': candidate.id,
-          'candidateName': candidate.studentName,
-          'candidatePhone': candidate.studentPhone,
-          'seatId': seatId,
-          'seatLabel': seatLabel,
-          'sectionId': sectionId,
-        },
+        entry: candidate,
+        sectionId: sectionId,
+        seatId: seatId,
+        seatLabel: seatLabel,
+        libraryName: libraryName,
       );
-
-      // Log high priority audit entry
-      await libRef.collection(FirestorePaths.auditLog).add({
-        'action': 'waiting_list_promotion_ready',
-        'entityType': 'waiting_list',
-        'entityId': candidate.id,
-        'userId': 'system_automation',
-        'timestamp': FieldValue.serverTimestamp(),
-        'details': {
-          'candidateName': candidate.studentName,
-          'candidatePhone': candidate.studentPhone,
-          'seatLabel': seatLabel,
-          'sectionId': sectionId,
-          'seatId': seatId,
-        },
-      });
     }
 
     return candidate;

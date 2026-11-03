@@ -13,6 +13,10 @@ class SeatModel {
   final SeatStatus status;
   final GenderRestriction genderRestriction;
   final String? studentId;
+  final String? reservationType;
+  final String? reservedCandidateId;
+  final String? reservedCandidateName;
+  final DateTime? reservationExpiresAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -26,6 +30,10 @@ class SeatModel {
     required this.status,
     required this.genderRestriction,
     this.studentId,
+    this.reservationType,
+    this.reservedCandidateId,
+    this.reservedCandidateName,
+    this.reservationExpiresAt,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -41,6 +49,10 @@ class SeatModel {
       status: _parseSeatStatus(json['status'] as String?),
       genderRestriction: _parseGenderRestriction(json['genderRestriction'] as String?),
       studentId: json['studentId'] as String?,
+      reservationType: json['reservationType'] as String?,
+      reservedCandidateId: json['reservedCandidateId'] as String?,
+      reservedCandidateName: json['reservedCandidateName'] as String?,
+      reservationExpiresAt: _parseDate(json['reservationExpiresAt']),
       createdAt: _parseDate(json['createdAt']),
       updatedAt: _parseDate(json['updatedAt']),
       deletedAt: _parseDate(json['deletedAt']),
@@ -57,6 +69,10 @@ class SeatModel {
       'status': status.name,
       'genderRestriction': genderRestriction.name,
       if (studentId != null) 'studentId': studentId,
+      if (reservationType != null) 'reservationType': reservationType,
+      if (reservedCandidateId != null) 'reservedCandidateId': reservedCandidateId,
+      if (reservedCandidateName != null) 'reservedCandidateName': reservedCandidateName,
+      if (reservationExpiresAt != null) 'reservationExpiresAt': reservationExpiresAt!.toIso8601String(),
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
@@ -73,6 +89,11 @@ class SeatModel {
     GenderRestriction? genderRestriction,
     String? studentId,
     bool clearStudent = false,
+    String? reservationType,
+    String? reservedCandidateId,
+    String? reservedCandidateName,
+    DateTime? reservationExpiresAt,
+    bool clearReservation = false,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -86,6 +107,10 @@ class SeatModel {
       status: status ?? this.status,
       genderRestriction: genderRestriction ?? this.genderRestriction,
       studentId: clearStudent ? null : (studentId ?? this.studentId),
+      reservationType: clearReservation ? null : (reservationType ?? this.reservationType),
+      reservedCandidateId: clearReservation ? null : (reservedCandidateId ?? this.reservedCandidateId),
+      reservedCandidateName: clearReservation ? null : (reservedCandidateName ?? this.reservedCandidateName),
+      reservationExpiresAt: clearReservation ? null : (reservationExpiresAt ?? this.reservationExpiresAt),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,

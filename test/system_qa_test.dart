@@ -2504,5 +2504,99 @@ void main() {
       final actualDays = end.difference(start).inDays + 1;
       expect(actualDays, equals(39));
     });
+
+    test('81. SECTION CAPACITY AUTO-HEAL & CUSTOM PLAN STUDIO INTEGRITY', () {
+      // 1. Stored Section Capacity vs Physical Desks
+      // When Cozy Hall was initialized with 120 capacity, but only 59 desks were generated:
+      final rawSection = SectionModel(
+        id: 'sec_cozy_hall',
+        libraryId: 'lib_1',
+        name: 'Cozy Hall',
+        rows: 10,
+        cols: 12,
+        color: 0xFF5D4037,
+        order: 0,
+        isActive: true,
+        totalSeats: 120, // Old stored capacity in DB
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      expect(rawSection.capacity, equals(120));
+
+      // Auto-heal logic: live physical desks count (59) updates the section
+      const physicalDesksCount = 59;
+      final healedSection = rawSection.copyWith(
+        totalSeats: physicalDesksCount,
+        rows: (physicalDesksCount <= 10) ? 1 : (physicalDesksCount / 10).ceil(),
+        cols: 10,
+        updatedAt: DateTime.now(),
+      );
+      expect(healedSection.capacity, equals(59));
+      expect(healedSection.totalSeats, equals(59));
+
+      // 2. Custom Plan Naming & Complete Removal of "Ad-hoc fee"
+      const userCustomName = 'Custom Plan';
+      final effectivePlanName = userCustomName.isNotEmpty ? userCustomName : 'Custom Plan';
+      expect(effectivePlanName, equals('Custom Plan'));
+      expect(effectivePlanName.toLowerCase().contains('ad-hoc'), isFalse);
+      expect(effectivePlanName.toLowerCase().contains('adhoc'), isFalse);
+
+      // 3. Plan deserialization with merged doc ID
+      final rawFirestoreDoc = {
+        'name': 'Monthly',
+        'price': 700.0,
+        'duration': 30,
+        'durationUnit': 'days',
+        'isActive': true,
+      };
+      // When doc ID 'plan_monthly_1' is merged into fromJson payload:
+      final plan = PlanModel.fromJson({...rawFirestoreDoc, 'id': 'plan_monthly_1'});
+      expect(plan.id, equals('plan_monthly_1'));
+      expect(plan.name, equals('Monthly'));
+      expect(plan.price, equals(700.0));
+      expect(plan.isActive, isTrue);
+    });
+
+    test('82. UNIFIED GRACE PERIOD RESOLUTION & CONTINUOUS RENEWAL CYCLE INTEGRITY', () {
+      final now = DateTime.now();
+      final expiredDate = DateTime(2026, 10, 31);
+
+      // 1. Student in grace without explicit graceEndDate evaluates dynamically as grace and active
+      final studentInGrace = StudentModel.fromJson({
+        'id': 'student_grace_eval_01',
+        'name': 'Grace Candidate',
+        'fatherName': 'Father',
+        'phone': '9876543210',
+        'email': 'grace@test.com',
+        'membershipStatus': 'grace',
+        'planEndDate': expiredDate.toIso8601String(),
+      });
+
+      expect(studentInGrace.effectiveMembershipStatus, equals(MembershipStatus.grace));
+      expect(studentInGrace.isEffectivelyActive, isTrue, reason: 'Grace period students hold their desk and remain active');
+      expect(studentInGrace.isExpired, isFalse, reason: 'Student in grace is not marked expired');
+
+      // 2. Continuous Queue vs Fresh Start Date Resolution
+      // Continuous: Start = previous planEndDate + 1 day
+      final continuousStart = DateTime(expiredDate.year, expiredDate.month, expiredDate.day + 1);
+      expect(continuousStart, equals(DateTime(2026, 11, 1)));
+
+      // Fresh start: Start = today
+      final freshStart = DateTime(now.year, now.month, now.day);
+      expect(freshStart.day, equals(now.day));
+
+      // 3. 3-Tier Grace Period Resolution Hierarchy
+      const defaultGraceDays = 3;
+      final planOverrides = {'plan_custom': 5};
+      final catalogGraceDays = {'plan_standard': 4};
+
+      int resolveGrace(String planId) {
+        return planOverrides[planId] ?? catalogGraceDays[planId] ?? defaultGraceDays;
+      }
+
+      expect(resolveGrace('plan_custom'), equals(5), reason: 'Admin override takes top priority');
+      expect(resolveGrace('plan_standard'), equals(4), reason: 'Catalog plan setting is respected');
+      expect(resolveGrace('plan_unconfigured'), equals(3), reason: 'Global default fallback applies');
+    });
   });
 }

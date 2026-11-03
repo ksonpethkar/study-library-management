@@ -1298,33 +1298,139 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.payments_rounded, color: Theme.of(context).colorScheme.primary),
-                            const SizedBox(width: 8),
-                            Text('Payment History', style: Theme.of(context).textTheme.titleLarge),
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.6),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.account_balance_wallet_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Payment & Dues History',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
                           ],
                         ),
-                        FilledButton.icon(
-                          onPressed: () {
-                            final due = s.pendingDueBalance ?? 0.0;
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RecordPaymentScreen(
-                                  studentId: widget.studentId,
-                                  studentName: s.name,
-                                  studentPhone: s.phone,
-                                  planPrice: due > 0 ? due : planPrice,
-                                  pendingDue: due,
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert_rounded),
+                          tooltip: 'Payment History Options',
+                          onSelected: (val) {
+                            if (val == 'record') {
+                              final due = s.pendingDueBalance ?? 0.0;
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RecordPaymentScreen(
+                                    studentId: widget.studentId,
+                                    studentName: s.name,
+                                    studentPhone: s.phone,
+                                    planPrice: due > 0 ? due : planPrice,
+                                    pendingDue: due,
+                                  ),
+                                ),
+                              ).then((_) {
+                                if (mounted) _loadStudent();
+                              });
+                            } else if (val == 'clear_due') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RecordPaymentScreen(
+                                    studentId: widget.studentId,
+                                    studentName: s.name,
+                                    studentPhone: s.phone,
+                                    planPrice: s.pendingDueBalance ?? 0.0,
+                                    pendingDue: s.pendingDueBalance ?? 0.0,
+                                  ),
+                                ),
+                              ).then((_) {
+                                if (mounted) _loadStudent();
+                              });
+                            } else if (val == 'send_ledger') {
+                              _sendWhatsAppPaymentLedger(s, libraryId);
+                            } else if (val == 'refresh') {
+                              _loadStudent();
+                            }
+                          },
+                          itemBuilder: (ctx) => [
+                            const PopupMenuItem(
+                              value: 'record',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.add_circle_outline_rounded, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Record Payment & Issue Receipt'),
+                                ],
+                              ),
+                            ),
+                            if ((s.pendingDueBalance ?? 0) > 0)
+                              const PopupMenuItem(
+                                value: 'clear_due',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('Clear Outstanding Due Balance'),
+                                  ],
                                 ),
                               ),
-                            ).then((_) {
-                              if (mounted) _loadStudent();
-                            });
-                          },
-                          icon: const Icon(Icons.add),
-                          label: const Text('Record Payment'),
+                            const PopupMenuItem(
+                              value: 'send_ledger',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Send WhatsApp Ledger Statement'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'refresh',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.refresh_rounded, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Refresh Payment Records'),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          final due = s.pendingDueBalance ?? 0.0;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RecordPaymentScreen(
+                                studentId: widget.studentId,
+                                studentName: s.name,
+                                studentPhone: s.phone,
+                                planPrice: due > 0 ? due : planPrice,
+                                pendingDue: due,
+                              ),
+                            ),
+                          ).then((_) {
+                            if (mounted) _loadStudent();
+                          });
+                        },
+                        icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+                        label: const Text(
+                          '+ Record Payment / Issue Official Receipt',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     StreamBuilder<QuerySnapshot>(
@@ -1537,6 +1643,76 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
         ],
       ),
     );
+  }
+
+  Future<void> _sendWhatsAppPaymentLedger(StudentModel s, String libraryId) async {
+    final phone = s.phone.replaceAll(RegExp(r'\D'), '');
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No phone number recorded for student.')),
+      );
+      return;
+    }
+
+    try {
+      final paymentsSnap = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('payments')
+          .where('studentId', isEqualTo: widget.studentId)
+          .get();
+
+      double totalPaid = 0.0;
+      final historyLines = <String>[];
+      for (final doc in paymentsSnap.docs) {
+        final data = doc.data();
+        if (data['status'] == 'refunded') continue;
+        final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
+        totalPaid += amt;
+        final date = (data['date'] as Timestamp?)?.toDate() ?? DateTime.now();
+        final method = data['method'] ?? 'Paid';
+        historyLines.add('• ₹${amt.toStringAsFixed(0)} on ${DateFormat('dd MMM yyyy').format(date)} ($method)');
+      }
+
+      final lib = ref.read(currentLibraryProvider).value;
+      final libName = lib?.name.isNotEmpty == true ? lib!.name : 'The Cozy Corner Study Centre';
+
+      final buf = StringBuffer()
+        ..writeln('📜 *Payment & Dues Statement — $libName*')
+        ..writeln()
+        ..writeln('Dear *${s.name}*,')
+        ..writeln('Here is your verified fee statement summary:')
+        ..writeln()
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💰 *ACCOUNT SUMMARY*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💳 *Total Paid to Date:* ₹${totalPaid.toStringAsFixed(0)}')
+        ..writeln('⚠️ *Pending Due Balance:* ₹${(s.pendingDueBalance ?? 0.0).toStringAsFixed(0)}')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━\n')
+        ..writeln('🧾 *Recent Transactions:*');
+
+      for (final line in historyLines) {
+        buf.writeln(line);
+      }
+
+      buf.writeln('\nOfficial receipts are generated for all recorded installments. Thank you! 🙏');
+
+      if (mounted) {
+        await WhatsAppService().sendMessage(
+          phone,
+          buf.toString(),
+          context: context,
+          recipientName: s.name,
+          title: 'Student Payment Ledger',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating statement: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _showPaymentActionSheet(

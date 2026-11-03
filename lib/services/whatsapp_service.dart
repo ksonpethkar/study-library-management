@@ -318,6 +318,141 @@ class WhatsAppService {
     );
   }
 
+  /// Sends multi-stage renewal reminder (T-3, T-0, T+2) with dynamic UPI pay-link
+  Future<bool> sendStageRenewalReminder(
+    String phone,
+    String studentName,
+    String stage, {
+    String libraryName = '',
+    String seatLabel = '',
+    String? expiryDate,
+    String? libraryHelpline,
+    String? libraryUpiId,
+    double? renewalAmount,
+    BuildContext? context,
+  }) async {
+    final libName = libraryName.isNotEmpty ? libraryName : 'The Cozy Corner Study Centre';
+    final seatText = seatLabel.isNotEmpty ? 'Seat #$seatLabel' : 'your allocated desk';
+    final amtText = renewalAmount != null && renewalAmount > 0 ? '₹${renewalAmount.toStringAsFixed(0)}' : 'your membership fee';
+    final upiLink = (libraryUpiId != null && libraryUpiId.isNotEmpty)
+        ? 'upi://pay?pa=$libraryUpiId&pn=${Uri.encodeComponent(libName)}&am=${renewalAmount?.toStringAsFixed(0) ?? ""}&cu=INR'
+        : null;
+
+    final buffer = StringBuffer();
+    if (stage == 'T-3') {
+      buffer
+        ..writeln('📅 *Upcoming Renewal in 3 Days — $libName*')
+        ..writeln()
+        ..writeln('Dear *$studentName*,')
+        ..writeln('Your study desk subscription for *$seatText* completes in *3 days* (Valid till: *${expiryDate ?? "soon"}*).')
+        ..writeln()
+        ..writeln('To ensure uninterrupted study hours and retain your dedicated seat, please renew before expiration.')
+        ..writeln()
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💳 *RENEWAL PAYMENT*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💰 Amount: *$amtText*');
+      if (libraryUpiId != null && libraryUpiId.isNotEmpty) {
+        buffer.writeln('📲 UPI ID: `$libraryUpiId`');
+        if (upiLink != null) {
+          buffer.writeln('🔗 Tap to Pay via UPI: $upiLink');
+        }
+      }
+    } else if (stage == 'T-0') {
+      buffer
+        ..writeln('⚠️ *Membership Expires Today! — $libName*')
+        ..writeln()
+        ..writeln('Dear *$studentName*,')
+        ..writeln('Today is the *final day* of your active pass for *$seatText*.')
+        ..writeln()
+        ..writeln('Kindly settle your renewal today to avoid entering the grace queue and retain your desk.')
+        ..writeln()
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💳 *INSTANT RENEWAL*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💰 Amount: *$amtText*');
+      if (libraryUpiId != null && libraryUpiId.isNotEmpty) {
+        buffer.writeln('📲 UPI ID: `$libraryUpiId`');
+        if (upiLink != null) {
+          buffer.writeln('🔗 Tap to Pay via UPI: $upiLink');
+        }
+      }
+    } else {
+      buffer
+        ..writeln('🚨 *Final Grace Period Notice — Desk Auto-Release Tomorrow*')
+        ..writeln()
+        ..writeln('Dear *$studentName*,')
+        ..writeln('Your grace period for *$seatText* at *$libName* ends *tomorrow*.')
+        ..writeln()
+        ..writeln('As per study center policy, unrenewed desks are automatically released to the waiting list. Settle today to prevent desk reassignment.')
+        ..writeln()
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💳 *URGENT SETTLEMENT*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💰 Amount: *$amtText*');
+      if (libraryUpiId != null && libraryUpiId.isNotEmpty) {
+        buffer.writeln('📲 UPI ID: `$libraryUpiId`');
+        if (upiLink != null) {
+          buffer.writeln('🔗 Tap to Pay via UPI: $upiLink');
+        }
+      }
+    }
+
+    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+      buffer.writeln('\n📞 Reception Helpline: $libraryHelpline');
+    }
+    buffer.writeln('\nThank you for studying with us! 🙏');
+
+    return await sendMessage(
+      phone,
+      buffer.toString(),
+      context: context,
+      recipientName: studentName,
+      title: 'Renewal Reminder ($stage)',
+    );
+  }
+
+  /// Sends a 2-hour waitlist reservation offer message with hold countdown
+  Future<bool> sendWaitlistHoldOffer(
+    String phone,
+    String studentName,
+    String seatLabel, {
+    String libraryName = '',
+    String sectionName = '',
+    int holdHours = 2,
+    String? libraryHelpline,
+    BuildContext? context,
+  }) async {
+    final libName = libraryName.isNotEmpty ? libraryName : 'The Cozy Corner Study Centre';
+    final buffer = StringBuffer()
+      ..writeln('🎉 *Seat Opportunity Alert — $libName*')
+      ..writeln()
+      ..writeln('Dear *$studentName*,')
+      ..writeln('Good news! A desk has just been vacated and you are *#1 on our Waiting List*! 🌟')
+      ..writeln()
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('💺 *RESERVED DESK DETAILS*')
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('📍 Section: *${sectionName.isNotEmpty ? sectionName : "Main Hall"}*')
+      ..writeln('💺 Desk: *Seat #$seatLabel*')
+      ..writeln('⏳ Hold Timer: *Priority $holdHours-Hour Reservation*')
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━\n')
+      ..writeln('We are holding this desk exclusively for you for the next *$holdHours hours*. Please visit the reception desk or reply to confirm your admission before the timer expires.\n');
+
+    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+      buffer.writeln('📞 Reception Helpline: $libraryHelpline');
+    }
+    buffer.writeln('\nWe look forward to welcoming you! 📚✨');
+
+    return await sendMessage(
+      phone,
+      buffer.toString(),
+      context: context,
+      recipientName: studentName,
+      title: 'Waitlist Priority Hold Offer',
+    );
+  }
+
   /// Sends a seat assignment confirmation.
   Future<bool> sendSeatAssigned(
     String phone,

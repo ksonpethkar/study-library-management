@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
+import 'package:study_library/services/membership_automation_service.dart';
 
 class GracePeriodScreen extends ConsumerStatefulWidget {
   const GracePeriodScreen({super.key});
@@ -101,6 +102,9 @@ class _GracePeriodScreenState extends ConsumerState<GracePeriodScreen> {
       }, SetOptions(merge: true));
 
       await batch.commit();
+
+      // Trigger instant automation recalculation with new settings
+      MembershipAutomationService.runDailyMaintenance(libraryId, force: true).ignore();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

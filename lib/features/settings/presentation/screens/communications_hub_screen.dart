@@ -7,6 +7,8 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/services/telegram_service.dart';
 import 'package:study_library/services/local_bridge_service.dart';
 import 'package:study_library/services/notification_service.dart';
+import 'package:study_library/services/owner_digest_service.dart';
+import 'package:study_library/services/waiting_list_promotion_service.dart';
 
 class CommunicationsHubScreen extends ConsumerStatefulWidget {
   const CommunicationsHubScreen({super.key});
@@ -15,9 +17,7 @@ class CommunicationsHubScreen extends ConsumerStatefulWidget {
   ConsumerState<CommunicationsHubScreen> createState() => _CommunicationsHubScreenState();
 }
 
-class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -48,10 +48,19 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
   bool _planExpired = true;
   bool _announcementPush = true;
 
+  // ── Roadmapped Core Automations (Phases 1, 2, 3) ─────────────────────────
+  bool _multiStageRenewals = true;
+  bool _morningBriefing = true;
+  bool _nightlySettlement = true;
+  bool _waitlistCascade = true;
+
+  bool _isSendingMorningBriefing = false;
+  bool _isSendingNightlySettlement = false;
+  bool _isTestingCascade = false;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadSettings();
   }
 
@@ -141,6 +150,12 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
           _planExpired = cRules['planExpired'] as bool? ?? (nData['planExpired'] as bool? ?? true);
           _announcementPush = cRules['announcementPush'] as bool? ?? (nData['announcementPush'] as bool? ?? true);
 
+          // Roadmapped Automations
+          _multiStageRenewals = cRules['multiStageRenewals'] as bool? ?? true;
+          _morningBriefing = cRules['morningBriefing'] as bool? ?? true;
+          _nightlySettlement = cRules['nightlySettlement'] as bool? ?? true;
+          _waitlistCascade = cRules['waitlistCascade'] as bool? ?? true;
+
           _isLoading = false;
         });
       }
@@ -148,6 +163,93 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       if (kDebugMode) debugPrint('Error loading communications settings: $e');
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _triggerTestMorningBriefing() async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    if (libraryId.isEmpty) return;
+
+    setState(() => _isSendingMorningBriefing = true);
+    final digest = OwnerDigestService();
+    final tg = ref.read(telegramServiceProvider);
+    final ok = await digest.sendMorningBriefing(libraryId: libraryId, telegramService: tg);
+    if (mounted) {
+      setState(() => _isSendingMorningBriefing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? '🌅 8:00 AM Morning Briefing Dispatched to Telegram & In-App Alerts! ✅' : 'Failed to dispatch morning briefing.'),
+          backgroundColor: ok ? Colors.green : Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _triggerTestNightlySettlement() async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    if (libraryId.isEmpty) return;
+
+    setState(() => _isSendingNightlySettlement = true);
+    final digest = OwnerDigestService();
+    final tg = ref.read(telegramServiceProvider);
+    final ok = await digest.sendNightlySettlement(libraryId: libraryId, telegramService: tg);
+    if (mounted) {
+      setState(() => _isSendingNightlySettlement = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? '🌙 11:00 PM Nightly Financial Settlement Dispatched to Telegram! ✅' : 'Failed to dispatch nightly settlement.'),
+          backgroundColor: ok ? Colors.green : Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _triggerTestWaitlistCascade() async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    if (libraryId.isEmpty) return;
+
+    setState(() => _isTestingCascade = true);
+    final promo = WaitingListPromotionService();
+    final count = await promo.checkAndCascadeExpiredHolds(libraryId);
+    if (mounted) {
+      setState(() => _isTestingCascade = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(count > 0 ? '🚀 $count expired hold(s) auto-cascaded to candidate #2!' : '⏳ Waitlist checked: No expired holds. Queue is active and in-sync! ✅'),
+          backgroundColor: Colors.teal,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _triggerTestRenewalPush() async {
+    try {
+      final lib = ref.read(currentLibraryProvider).value;
+      final libName = lib?.name.isNotEmpty == true ? lib!.name : 'The Cozy Corner Study Centre';
+      await NotificationService.showNotification(
+        title: '📅 Test: Plan Expiring in 3 Days (T-3)',
+        body: 'Hello Student, your membership for Seat #2 at $libName completes in 3 days. Renew now to retain your seat!',
+        channelId: NotificationService.channelGeneral,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Multi-Stage Renewal (T-3) test prompt delivered to status bar! 📲'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error triggering prompt: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
   }
 
   Future<void> _saveSettings() async {
@@ -182,6 +284,10 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       'planExpiring': _planExpiring,
       'planExpired': _planExpired,
       'announcementPush': _announcementPush,
+      'multiStageRenewals': _multiStageRenewals,
+      'morningBriefing': _morningBriefing,
+      'nightlySettlement': _nightlySettlement,
+      'waitlistCascade': _waitlistCascade,
     };
 
     try {
@@ -333,7 +439,6 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
 
   @override
   void dispose() {
-    _tabController.dispose();
     _telegramTokenController.dispose();
     _telegramChatIdController.dispose();
     _localBridgeUrlController.dispose();
@@ -345,77 +450,78 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back to Settings',
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/admin/more');
-            }
-          },
-        ),
-        title: const Text('Communications & Automation'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.hub_rounded), text: 'Delivery Channels'),
-            Tab(icon: Icon(Icons.auto_awesome_rounded), text: 'Automation Rules'),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          decoration: BoxDecoration(
-            color: theme.scaffoldBackgroundColor,
-            border: Border(
-              top: BorderSide(
-                color: theme.dividerColor.withValues(alpha: 0.15),
-                width: 1,
-              ),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 6,
-                offset: const Offset(0, -2),
-              ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back to Settings',
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                context.go('/admin/more');
+              }
+            },
+          ),
+          title: const Text('Communications & Automation'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.hub_rounded), text: 'Delivery Channels'),
+              Tab(icon: Icon(Icons.auto_awesome_rounded), text: 'Automation Rules'),
             ],
           ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 820),
-              child: SizedBox(
-                height: 48,
-                width: double.infinity,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            decoration: BoxDecoration(
+              color: theme.scaffoldBackgroundColor,
+              border: Border(
+                top: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.15),
+                  width: 1,
+                ),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 6,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 820),
+                child: SizedBox(
+                  height: 48,
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _isSaving ? null : _saveSettings,
+                    icon: _isSaving
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.save_rounded),
+                    label: Text(_isSaving ? 'Saving Configuration...' : 'Save Communications Configuration', style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                  onPressed: _isSaving ? null : _saveSettings,
-                  icon: _isSaving
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.save_rounded),
-                  label: Text(_isSaving ? 'Saving Configuration...' : 'Save Communications Configuration', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
           ),
         ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                children: [
+                  _buildChannelsTab(theme),
+                  _buildRulesTab(theme),
+                ],
+              ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildChannelsTab(theme),
-                _buildRulesTab(theme),
-              ],
-            ),
     );
   }
 
@@ -806,9 +912,219 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         ),
         const SizedBox(height: 18),
 
-        // ── SECTION 1: ADMIN AUTOMATIONS ────────────────────────────────────
+        // ── SECTION 1: CORE AUTOMATION ENGINE (PHASES 1, 2, 3) ───────────────
         Text(
-          'ADMIN DESK AUTOMATIONS',
+          'CORE LIBRARY AUTOMATIONS (PHASES 1, 2, 3)',
+          style: theme.textTheme.labelMedium?.copyWith(
+            letterSpacing: 1.2,
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Phase 1 Card
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: Colors.blue.withValues(alpha: 0.3)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.autorenew_rounded, color: Colors.blue),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Multi-Stage Renewal Engine (Phase 1)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Eliminates collection chasing with staged alerts', style: theme.textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: _multiStageRenewals && _allNotifications,
+                      onChanged: _allNotifications ? (val) => setState(() => _multiStageRenewals = val) : null,
+                    ),
+                  ],
+                ),
+                if (_multiStageRenewals && _allNotifications) ...[
+                  const Divider(height: 20),
+                  const Text('Automated Lifecycle Alerts Dispatched:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  _buildStageChip('T-3 Days', 'Upcoming renewal reminder to student app & push', Colors.indigo),
+                  const SizedBox(height: 4),
+                  _buildStageChip('T-0 Today', 'Urgent expiration notice + 1-Tap UPI payment link', Colors.amber.shade900),
+                  const SizedBox(height: 4),
+                  _buildStageChip('T+2 Grace', 'Final warning: desk released to waitlist tomorrow', Colors.red.shade800),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _triggerTestRenewalPush,
+                    icon: const Icon(Icons.send_to_mobile_rounded, size: 16),
+                    label: const Text('Send Test T-3 Push Prompt (This Device)'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Phase 2 Card: Owner Digests
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: Colors.teal.withValues(alpha: 0.3)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.mark_email_read_rounded, color: Colors.teal),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Owner's Daily Executive Digests (Phase 2)", style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Automated operational & financial clarity zero searching', style: theme.textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(Icons.wb_sunny_rounded, color: Colors.orange),
+                  title: const Text('8:00 AM Morning Briefing', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Occupancy %, expiring today, waitlist queue & pending requests', style: TextStyle(fontSize: 11)),
+                  value: _morningBriefing && _allNotifications,
+                  onChanged: _allNotifications ? (val) => setState(() => _morningBriefing = val) : null,
+                ),
+                if (_morningBriefing && _allNotifications)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 40, bottom: 8),
+                    child: OutlinedButton.icon(
+                      onPressed: _isSendingMorningBriefing ? null : _triggerTestMorningBriefing,
+                      icon: _isSendingMorningBriefing
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.send_rounded, size: 15),
+                      label: Text(_isSendingMorningBriefing ? 'Dispatching...' : 'Send 8 AM Morning Briefing Now (Preview)'),
+                    ),
+                  ),
+                const Divider(height: 16),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(Icons.nightlight_round, color: Colors.indigo),
+                  title: const Text('11:00 PM Nightly Financial Settlement', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Total revenue, UPI vs Cash breakdown, official receipts & admissions', style: TextStyle(fontSize: 11)),
+                  value: _nightlySettlement && _allNotifications,
+                  onChanged: _allNotifications ? (val) => setState(() => _nightlySettlement = val) : null,
+                ),
+                if (_nightlySettlement && _allNotifications)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 40, bottom: 4),
+                    child: OutlinedButton.icon(
+                      onPressed: _isSendingNightlySettlement ? null : _triggerTestNightlySettlement,
+                      icon: _isSendingNightlySettlement
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.send_rounded, size: 15),
+                      label: Text(_isSendingNightlySettlement ? 'Dispatching...' : 'Send 11 PM Nightly Settlement Now (Preview)'),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Phase 3 Card: Waiting List Cascade
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: Colors.purple.withValues(alpha: 0.3)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.hourglass_bottom_rounded, color: Colors.purple),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Automated Waiting-List Cascade (Phase 3)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Fills vacated seats within hours automatically', style: theme.textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: _waitlistCascade && _allNotifications,
+                      onChanged: _allNotifications ? (val) => setState(() => _waitlistCascade = val) : null,
+                    ),
+                  ],
+                ),
+                if (_waitlistCascade && _allNotifications) ...[
+                  const Divider(height: 20),
+                  Text(
+                    'When a student vacates a seat after grace expiry, the desk is held exclusively for 2 hours for candidate #1. If unclaimed within 2 hours, it automatically cascades to candidate #2.',
+                    style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _isTestingCascade ? null : _triggerTestWaitlistCascade,
+                    icon: _isTestingCascade
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.sync_rounded, size: 16),
+                    label: Text(_isTestingCascade ? 'Scanning Holds...' : 'Run Waiting List Cascade Check Now'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // ── SECTION 2: ADMIN DESK ALERTS ────────────────────────────────────
+        Text(
+          'ADMIN DESK ALERTS',
           style: theme.textTheme.labelMedium?.copyWith(
             letterSpacing: 1.2,
             fontWeight: FontWeight.bold,
@@ -900,5 +1216,29 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
     ),
   ),
 );
+  Widget _buildStageChip(String label, String desc, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            desc,
+            style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+          ),
+        ),
+      ],
+    );
   }
 }

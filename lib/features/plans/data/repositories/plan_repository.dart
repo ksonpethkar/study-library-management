@@ -22,12 +22,39 @@ class PlanRepository {
       updatedAt: DateTime.now(),
     );
     await doc.set(newPlan.toJson());
+
+    // Synchronize settings/grace_period planOverrides in real-time
+    try {
+      await _firestore
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('grace_period')
+          .set({
+            'planOverrides': {doc.id: plan.gracePeriodDays},
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+    } catch (_) {}
+
     return doc.id;
   }
 
   Future<void> updatePlan(String libraryId, PlanModel plan) async {
     final updatedPlan = plan.copyWith(updatedAt: DateTime.now());
     await _plansRef(libraryId).doc(plan.id).update(updatedPlan.toJson());
+
+    // Synchronize settings/grace_period planOverrides in real-time
+    try {
+      await _firestore
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('grace_period')
+          .set({
+            'planOverrides': {plan.id: plan.gracePeriodDays},
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+    } catch (_) {}
   }
 
   Future<void> deletePlan(String libraryId, String planId) async {
@@ -38,6 +65,17 @@ class PlanRepository {
     await _plansRef(libraryId).doc(planId).update({
       'deletedAt': DateTime.now().toIso8601String(),
     });
+
+    try {
+      await _firestore
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('grace_period')
+          .update({
+            'planOverrides.$planId': FieldValue.delete(),
+          });
+    } catch (_) {}
   }
 
   Future<String> duplicatePlan(String libraryId, String planId) async {
