@@ -56,6 +56,8 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   final _notesController = TextEditingController();
   final _customPlanNameController = TextEditingController(text: 'Custom Plan');
   final _dailyRateController = TextEditingController(text: '25');
+  final _discountReasonController = TextEditingController();
+  bool _isStickyCustomPrice = false;
 
   String _paymentMethod = 'Cash';
   bool _isLoading = false;
@@ -163,6 +165,21 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           _studentSectionId = sectionId;
           _studentPreviousSeatId = prevSeatId;
           _studentPreviousSectionId = prevSectionId;
+          if (data['customPlanName'] != null) {
+            _customPlanNameController.text = data['customPlanName'] as String;
+            _selectedPlanName = data['customPlanName'] as String;
+          }
+          if (data['customPlanFee'] != null && _totalFeeController.text.isEmpty) {
+            final cFee = (data['customPlanFee'] as num).toDouble();
+            _totalFeeController.text = cFee.toStringAsFixed(0);
+            if (!_isPartialPayment) _amountController.text = cFee.toStringAsFixed(0);
+          }
+          if (data['isStickyCustomPrice'] == true) {
+            _isStickyCustomPrice = true;
+          }
+          if (data['customDiscountReason'] != null) {
+            _discountReasonController.text = data['customDiscountReason'] as String;
+          }
           if (hasActivePlanDue) {
             _extendValidity = false; // Paying current plan due does not advance expiry
           }
@@ -309,6 +326,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
     _notesController.dispose();
     _customPlanNameController.dispose();
     _dailyRateController.dispose();
+    _discountReasonController.dispose();
     super.dispose();
   }
 
@@ -356,25 +374,32 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       }
     }
 
-    // Custom Plan Date Calculation
+    // Custom Plan Date Calculation: strictly capped at current month end
+    final nextMonthFirst = DateTime(effectiveStart.year, effectiveStart.month + 1, 1);
+    final monthEnd = DateTime(nextMonthFirst.year, nextMonthFirst.month, 0, 23, 59, 59, 999);
+
     if (_customCustomExpiryDate != null) {
-      return DateTime(
+      final picked = DateTime(
         _customCustomExpiryDate!.year,
         _customCustomExpiryDate!.month,
         _customCustomExpiryDate!.day,
         23, 59, 59, 999,
       );
+      return picked.isBefore(monthEnd) ? picked : monthEnd;
     }
 
     if (_customDurationDays > 0) {
-      final target = effectiveStart.add(Duration(days: _customDurationDays - 1));
-      return DateTime(target.year, target.month, target.day, 23, 59, 59, 999);
+      final target = DateTime(
+        effectiveStart.year,
+        effectiveStart.month,
+        effectiveStart.day + _customDurationDays - 1,
+        23, 59, 59, 999,
+      );
+      return target.isBefore(monthEnd) ? target : monthEnd;
     }
 
     // Snap to current calendar month end if duration is 0
-    final nextMonthFirst = DateTime(effectiveStart.year, effectiveStart.month + 1, 1);
-    final monthEnd = nextMonthFirst.subtract(const Duration(days: 1));
-    return DateTime(monthEnd.year, monthEnd.month, monthEnd.day, 23, 59, 59, 999);
+    return monthEnd;
   }
 
   int _calculateCustomDays(List<PlanModel> plans) {
@@ -572,9 +597,20 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       if (_selectedPlanId != null && _selectedPlanId != 'custom') {
         studentUpdates['planId'] = _selectedPlanId;
         studentUpdates['customPlanName'] = FieldValue.delete();
+        studentUpdates['customPlanFee'] = FieldValue.delete();
+        studentUpdates['isStickyCustomPrice'] = FieldValue.delete();
+        studentUpdates['customDiscountReason'] = FieldValue.delete();
+        studentUpdates['customDailyRate'] = FieldValue.delete();
       } else {
         studentUpdates['planId'] = 'custom';
         studentUpdates['customPlanName'] = effectivePlanName;
+        studentUpdates['customPlanFee'] = totalFee;
+        studentUpdates['isStickyCustomPrice'] = _isStickyCustomPrice;
+        if (_discountReasonController.text.trim().isNotEmpty) {
+          studentUpdates['customDiscountReason'] = _discountReasonController.text.trim();
+        } else {
+          studentUpdates['customDiscountReason'] = FieldValue.delete();
+        }
         studentUpdates['customDailyRate'] = double.tryParse(_dailyRateController.text) ?? 25.0;
       }
       if (_extendValidity) {
@@ -1397,9 +1433,9 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                             ),
                             const SizedBox(height: 14),
 
-                            // 4. Validity Duration Presets (User Requested Chips)
+                            // 4. Validity Duration Presets (User Requested: Today, Till Month End, or Capped Specific Date)
                             Text(
-                              'Validity Duration',
+                              'Validity Duration (Max: Current Month End)',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 12,
@@ -1407,101 +1443,141 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              children: [
-                                ChoiceChip(
-                                  label: const Text('15 Days'),
-                                  selected: _customDurationDays == 15 && _customCustomExpiryDate == null,
-                                  onSelected: (selected) {
-                                    if (selected) {
-                                      setState(() {
-                                        _customDurationDays = 15;
-                                        _customCustomExpiryDate = null;
-                                        _recalculateCustomFeeFromDailyRate(plans);
-                                      });
-                                    }
-                                  },
-                                ),
-                                ChoiceChip(
-                                  label: const Text('30 Days (1 Month)'),
-                                  selected: _customDurationDays == 30 && _customCustomExpiryDate == null,
-                                  onSelected: (selected) {
-                                    if (selected) {
-                                      setState(() {
-                                        _customDurationDays = 30;
-                                        _customCustomExpiryDate = null;
-                                        _recalculateCustomFeeFromDailyRate(plans);
-                                      });
-                                    }
-                                  },
-                                ),
-                                ChoiceChip(
-                                  label: const Text('60 Days (2 Months)'),
-                                  selected: _customDurationDays == 60 && _customCustomExpiryDate == null,
-                                  onSelected: (selected) {
-                                    if (selected) {
-                                      setState(() {
-                                        _customDurationDays = 60;
-                                        _customCustomExpiryDate = null;
-                                        _recalculateCustomFeeFromDailyRate(plans);
-                                      });
-                                    }
-                                  },
-                                ),
-                                ChoiceChip(
-                                  label: const Text('90 Days (Quarter)'),
-                                  selected: _customDurationDays == 90 && _customCustomExpiryDate == null,
-                                  onSelected: (selected) {
-                                    if (selected) {
-                                      setState(() {
-                                        _customDurationDays = 90;
-                                        _customCustomExpiryDate = null;
-                                        _recalculateCustomFeeFromDailyRate(plans);
-                                      });
-                                    }
-                                  },
-                                ),
-                                ChoiceChip(
-                                  label: const Text('Till Month End'),
-                                  selected: _customDurationDays == 0 && _customCustomExpiryDate == null,
-                                  onSelected: (selected) {
-                                    if (selected) {
-                                      setState(() {
-                                        _customDurationDays = 0;
-                                        _customCustomExpiryDate = null;
-                                        _recalculateCustomFeeFromDailyRate(plans);
-                                      });
-                                    }
-                                  },
-                                ),
-                                ChoiceChip(
-                                  avatar: const Icon(Icons.event_rounded, size: 16),
-                                  label: Text(
-                                    _customCustomExpiryDate != null
-                                        ? DateFormat('dd MMM yyyy').format(_customCustomExpiryDate!)
-                                        : 'Pick Specific Date...',
+                            Builder(
+                              builder: (ctx) {
+                                final effectiveStart = _getEffectiveStartDate();
+                                final nextMonthFirst = DateTime(effectiveStart.year, effectiveStart.month + 1, 1);
+                                final monthEnd = DateTime(nextMonthFirst.year, nextMonthFirst.month, 0);
+                                final remainingDaysInMonth = monthEnd.difference(effectiveStart).inDays + 1;
+
+                                return Wrap(
+                                  spacing: 8,
+                                  runSpacing: 6,
+                                  children: [
+                                    // 1. Today Only (1 Day Pass)
+                                    ChoiceChip(
+                                      avatar: const Icon(Icons.wb_sunny_rounded, size: 16),
+                                      label: const Text('Today Only (1 Day)'),
+                                      selected: _customDurationDays == 1 && _customCustomExpiryDate == null,
+                                      onSelected: (selected) {
+                                        if (selected) {
+                                          setState(() {
+                                            _customDurationDays = 1;
+                                            _customCustomExpiryDate = null;
+                                            _recalculateCustomFeeFromDailyRate(plans);
+                                          });
+                                        }
+                                      },
+                                    ),
+                                    // 2. Till Month End (Snap to last calendar day of current month)
+                                    ChoiceChip(
+                                      avatar: const Icon(Icons.event_available_rounded, size: 16),
+                                      label: Text('Till Month End ($remainingDaysInMonth Days)'),
+                                      selected: _customDurationDays == 0 && _customCustomExpiryDate == null,
+                                      onSelected: (selected) {
+                                        if (selected) {
+                                          setState(() {
+                                            _customDurationDays = 0;
+                                            _customCustomExpiryDate = null;
+                                            _recalculateCustomFeeFromDailyRate(plans);
+                                          });
+                                        }
+                                      },
+                                    ),
+                                    // 3. Intermediate chips if they fit within current month
+                                    if (remainingDaysInMonth >= 7 && remainingDaysInMonth != 7)
+                                      ChoiceChip(
+                                        label: const Text('7 Days'),
+                                        selected: _customDurationDays == 7 && _customCustomExpiryDate == null,
+                                        onSelected: (selected) {
+                                          if (selected) {
+                                            setState(() {
+                                              _customDurationDays = 7;
+                                              _customCustomExpiryDate = null;
+                                              _recalculateCustomFeeFromDailyRate(plans);
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    if (remainingDaysInMonth >= 15 && remainingDaysInMonth != 15)
+                                      ChoiceChip(
+                                        label: const Text('15 Days'),
+                                        selected: _customDurationDays == 15 && _customCustomExpiryDate == null,
+                                        onSelected: (selected) {
+                                          if (selected) {
+                                            setState(() {
+                                              _customDurationDays = 15;
+                                              _customCustomExpiryDate = null;
+                                              _recalculateCustomFeeFromDailyRate(plans);
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    // 4. Pick Specific Date... (Strictly capped at current month end)
+                                    ChoiceChip(
+                                      avatar: const Icon(Icons.event_rounded, size: 16),
+                                      label: Text(
+                                        _customCustomExpiryDate != null
+                                            ? DateFormat('dd MMM yyyy').format(_customCustomExpiryDate!)
+                                            : 'Pick Specific Date...',
+                                      ),
+                                      selected: _customCustomExpiryDate != null,
+                                      onSelected: (_) async {
+                                        final picked = await showDatePicker(
+                                          context: context,
+                                          initialDate: _customCustomExpiryDate ?? monthEnd,
+                                          firstDate: effectiveStart,
+                                          lastDate: monthEnd,
+                                          helpText: 'VALIDITY CAPPED TILL MONTH END',
+                                        );
+                                        if (picked != null) {
+                                          setState(() {
+                                            _customCustomExpiryDate = picked;
+                                            _customDurationDays = picked.difference(effectiveStart).inDays + 1;
+                                            _recalculateCustomFeeFromDailyRate(plans);
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Sticky Concession / Recurring Override Container
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7)),
+                              ),
+                              child: Column(
+                                children: [
+                                  SwitchListTile.adaptive(
+                                    contentPadding: EdgeInsets.zero,
+                                    value: _isStickyCustomPrice,
+                                    title: const Text('Recurring Concession for Monthly Renewals', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                    subtitle: Text(
+                                      _isStickyCustomPrice
+                                          ? 'Student will be allowed to renew each month at this pre-approved ₹${_totalFeeController.text.isEmpty ? "0" : _totalFeeController.text} rate.'
+                                          : 'One-time ad-hoc validity. After this custom plan ends, student renews on standard catalog plans.',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    onChanged: (v) => setState(() => _isStickyCustomPrice = v),
                                   ),
-                                  selected: _customCustomExpiryDate != null,
-                                  onSelected: (_) async {
-                                    final start = _getEffectiveStartDate();
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: _customCustomExpiryDate ?? start.add(const Duration(days: 30)),
-                                      firstDate: start,
-                                      lastDate: start.add(const Duration(days: 365 * 2)),
-                                    );
-                                    if (picked != null) {
-                                      setState(() {
-                                        _customCustomExpiryDate = picked;
-                                        _customDurationDays = picked.difference(start).inDays + 1;
-                                        _recalculateCustomFeeFromDailyRate(plans);
-                                      });
-                                    }
-                                  },
-                                ),
-                              ],
+                                  if (_isStickyCustomPrice) ...[
+                                    const SizedBox(height: 8),
+                                    ValidatedTextField(
+                                      label: 'Concession / Approval Reason (Optional)',
+                                      controller: _discountReasonController,
+                                      hint: 'e.g. Scholarship, Hardship, Staff Ward',
+                                      prefixIcon: const Icon(Icons.verified_user_outlined),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 14),
 

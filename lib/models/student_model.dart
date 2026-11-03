@@ -121,6 +121,10 @@ class StudentModel {
   final String? previousSeatId;
   final String? previousSectionId;
   final String? planId;
+  final String? customPlanName;
+  final double? customPlanFee;
+  final bool isStickyCustomPrice;
+  final String? customDiscountReason;
   final DateTime? planStartDate;
   final DateTime? planEndDate;
   final DateTime? graceEndDate;
@@ -163,6 +167,10 @@ class StudentModel {
     this.previousSeatId,
     this.previousSectionId,
     this.planId,
+    this.customPlanName,
+    this.customPlanFee,
+    this.isStickyCustomPrice = false,
+    this.customDiscountReason,
     this.planStartDate,
     this.planEndDate,
     this.graceEndDate,
@@ -227,6 +235,10 @@ class StudentModel {
       previousSeatId: json['previousSeatId'] as String?,
       previousSectionId: json['previousSectionId'] as String?,
       planId: json['planId'] as String?,
+      customPlanName: json['customPlanName'] as String?,
+      customPlanFee: (json['customPlanFee'] as num?)?.toDouble() ?? (json['customFee'] as num?)?.toDouble(),
+      isStickyCustomPrice: json['isStickyCustomPrice'] == true,
+      customDiscountReason: json['customDiscountReason'] as String?,
       planStartDate: _parseDate(json['planStartDate']),
       planEndDate: _parseDate(json['planEndDate']),
       graceEndDate: _parseDate(json['graceEndDate']),
@@ -272,6 +284,10 @@ class StudentModel {
       if (previousSeatId != null) 'previousSeatId': previousSeatId,
       if (previousSectionId != null) 'previousSectionId': previousSectionId,
       if (planId != null) 'planId': planId,
+      if (customPlanName != null) 'customPlanName': customPlanName,
+      if (customPlanFee != null) 'customPlanFee': customPlanFee,
+      if (isStickyCustomPrice) 'isStickyCustomPrice': true,
+      if (customDiscountReason != null) 'customDiscountReason': customDiscountReason,
       if (planStartDate != null) 'planStartDate': planStartDate!.toIso8601String(),
       if (planEndDate != null) 'planEndDate': planEndDate!.toIso8601String(),
       if (graceEndDate != null) 'graceEndDate': graceEndDate!.toIso8601String(),
@@ -316,6 +332,10 @@ class StudentModel {
     String? previousSeatId,
     String? previousSectionId,
     String? planId,
+    String? customPlanName,
+    double? customPlanFee,
+    bool? isStickyCustomPrice,
+    String? customDiscountReason,
     DateTime? planStartDate,
     DateTime? planEndDate,
     DateTime? graceEndDate,
@@ -358,6 +378,10 @@ class StudentModel {
       previousSeatId: previousSeatId ?? this.previousSeatId,
       previousSectionId: previousSectionId ?? this.previousSectionId,
       planId: planId ?? this.planId,
+      customPlanName: customPlanName ?? this.customPlanName,
+      customPlanFee: customPlanFee ?? this.customPlanFee,
+      isStickyCustomPrice: isStickyCustomPrice ?? this.isStickyCustomPrice,
+      customDiscountReason: customDiscountReason ?? this.customDiscountReason,
       planStartDate: planStartDate ?? this.planStartDate,
       planEndDate: planEndDate ?? this.planEndDate,
       graceEndDate: graceEndDate ?? this.graceEndDate,

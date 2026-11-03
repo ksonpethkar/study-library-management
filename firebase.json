@@ -39,7 +39,13 @@
       "**/*.apk",
       "**/*.exe"
     ],
-    "redirects": [],
+    "redirects": [
+      {
+        "source": "/app",
+        "destination": "/app/",
+        "type": 301
+      }
+    ],
     "rewrites": [
       {
         "source": "/flutter_bootstrap.js",
@@ -79,6 +85,32 @@
       }
     ],
     "headers": [
+      {
+        "source": "**/*.@(js|mjs)",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "text/javascript; charset=utf-8"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          }
+        ]
+      },
+      {
+        "source": "**/*.wasm",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/wasm"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          }
+        ]
+      },
       {
         "source": "**",
         "headers": [

@@ -130,16 +130,21 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
         String loadedPlanName = '';
         double loadedPlanPrice = 0;
         if (s.planId != null && s.planId!.isNotEmpty) {
-          try {
-            final planDoc = await FirebaseFirestore.instance
-                .collection('libraries').doc(libraryId)
-                .collection('plans').doc(s.planId)
-                .get();
-            if (planDoc.exists) {
-              loadedPlanName = planDoc.data()?['name'] ?? 'Unknown Plan';
-              loadedPlanPrice = (planDoc.data()?['price'] ?? 0).toDouble();
-            }
-          } catch (_) {}
+          if (s.planId == 'custom') {
+            loadedPlanName = s.customPlanName?.isNotEmpty == true ? s.customPlanName! : 'Custom Plan';
+            loadedPlanPrice = s.customPlanFee ?? 0;
+          } else {
+            try {
+              final planDoc = await FirebaseFirestore.instance
+                  .collection('libraries').doc(libraryId)
+                  .collection('plans').doc(s.planId)
+                  .get();
+              if (planDoc.exists) {
+                loadedPlanName = planDoc.data()?['name'] ?? 'Unknown Plan';
+                loadedPlanPrice = (planDoc.data()?['price'] ?? 0).toDouble();
+              }
+            } catch (_) {}
+          }
         }
 
         if (mounted) {
@@ -358,6 +363,194 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     });
   }
 
+  Future<void> _showCustomPlanDialog(BuildContext context, String libraryId, StudentModel? s) async {
+    final now = DateTime.now();
+    final nextMonthFirst = DateTime(now.year, now.month + 1, 1);
+    final monthEnd = DateTime(nextMonthFirst.year, nextMonthFirst.month, 0, 23, 59, 59, 999);
+    final remainingDays = monthEnd.difference(now).inDays + 1;
+
+    final nameCtrl = TextEditingController(text: s?.customPlanName ?? 'Custom Plan');
+    final feeCtrl = TextEditingController(text: (s?.customPlanFee ?? 500).toStringAsFixed(0));
+    final reasonCtrl = TextEditingController(text: s?.customDiscountReason ?? '');
+    int durationDays = 0; // 0 = Till Month End
+    DateTime? pickedExpiry;
+    bool isSticky = s?.isStickyCustomPrice ?? false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) {
+          final theme = Theme.of(context);
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.tune_rounded, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                const Text('Assign Custom Plan'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 440,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Custom Plan Name *',
+                        hintText: 'e.g. 15-Day Exam Pass, Daily Trial, Scholarship',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: feeCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Custom Plan Fee (₹) *',
+                        prefixText: '₹ ',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Validity Duration (Max: Month End)',
+                      style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Today Only (1 Day)'),
+                          selected: durationDays == 1 && pickedExpiry == null,
+                          onSelected: (val) {
+                            if (val) {
+                              setDlgState(() {
+                                durationDays = 1;
+                                pickedExpiry = null;
+                              });
+                            }
+                          },
+                        ),
+                        ChoiceChip(
+                          label: Text('Till Month End ($remainingDays Days)'),
+                          selected: durationDays == 0 && pickedExpiry == null,
+                          onSelected: (val) {
+                            if (val) {
+                              setDlgState(() {
+                                durationDays = 0;
+                                pickedExpiry = null;
+                              });
+                            }
+                          },
+                        ),
+                        ChoiceChip(
+                          avatar: const Icon(Icons.event_rounded, size: 14),
+                          label: Text(
+                            pickedExpiry != null
+                                ? DateFormat('dd MMM yyyy').format(pickedExpiry!)
+                                : 'Specific Date...',
+                          ),
+                          selected: pickedExpiry != null,
+                          onSelected: (_) async {
+                            final p = await showDatePicker(
+                              context: context,
+                              initialDate: pickedExpiry ?? monthEnd,
+                              firstDate: now,
+                              lastDate: monthEnd,
+                              helpText: 'SELECT EXPIRY (MAX MONTH END)',
+                            );
+                            if (p != null) {
+                              setDlgState(() {
+                                pickedExpiry = p;
+                                durationDays = p.difference(now).inDays + 1;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: isSticky,
+                      title: const Text('Recurring Concession for Monthly Renewals', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Allow renewing each month at this custom rate', style: TextStyle(fontSize: 10.5)),
+                      onChanged: (v) => setDlgState(() => isSticky = v),
+                    ),
+                    if (isSticky) ...[
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: reasonCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Concession Reason (Optional)',
+                          hintText: 'e.g. Scholarship, Hardship, Staff Ward',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () async {
+                  final name = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : 'Custom Plan';
+                  final fee = double.tryParse(feeCtrl.text.trim()) ?? 500.0;
+                  final effectiveEnd = pickedExpiry != null
+                      ? DateTime(pickedExpiry!.year, pickedExpiry!.month, pickedExpiry!.day, 23, 59, 59, 999)
+                      : (durationDays > 0
+                          ? DateTime(now.year, now.month, now.day + durationDays - 1, 23, 59, 59, 999)
+                          : monthEnd);
+
+                  await FirebaseFirestore.instance
+                      .collection('libraries')
+                      .doc(libraryId)
+                      .collection('students')
+                      .doc(widget.studentId)
+                      .update({
+                    'planId': 'custom',
+                    'customPlanName': name,
+                    'customPlanFee': fee,
+                    'isStickyCustomPrice': isSticky,
+                    if (reasonCtrl.text.trim().isNotEmpty) 'customDiscountReason': reasonCtrl.text.trim(),
+                    'planStartDate': Timestamp.fromDate(now),
+                    'planEndDate': Timestamp.fromDate(effectiveEnd),
+                    'membershipStatus': MembershipStatus.active.name,
+                  });
+
+                  AuditLogger().log(
+                    action: AuditAction.updated,
+                    entityType: AuditEntity.student,
+                    libraryId: libraryId,
+                    entityId: widget.studentId,
+                    details: {'planChanged': true, 'planId': 'custom', 'planName': name, 'fee': fee},
+                  ).ignore();
+
+                  if (context.mounted) {
+                    Navigator.pop(ctx);
+                    Navigator.pop(context); // Close assign plan sheet
+                    _loadStudent();
+                  }
+                },
+                child: const Text('Assign Custom Plan'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _showAssignPlanSheet() {
     showModalBottomSheet(
       context: context,
@@ -378,9 +571,35 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     }
                     return ListView.builder(
                       controller: scrollController,
-                      itemCount: activePlans.length,
+                      itemCount: activePlans.length + 1,
                       itemBuilder: (context, index) {
-                        final plan = activePlans[index];
+                        if (index == 0) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)),
+                            ),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
+                              ),
+                              title: const Text('Custom Plan / Fee Override', style: TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: const Text('Set custom pricing, daily pass, or validity till month end', style: TextStyle(fontSize: 12)),
+                              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                              onTap: () {
+                                final libraryId = ref.read(currentLibraryIdProvider);
+                                if (libraryId != null) {
+                                  _showCustomPlanDialog(context, libraryId, student);
+                                }
+                              },
+                            ),
+                          );
+                        }
+
+                        final plan = activePlans[index - 1];
                         return ListTile(
                           title: Text(plan.name),
                           subtitle: Text('Duration: ${plan.duration} ${plan.durationUnit.name}'),
@@ -1425,10 +1644,13 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             if (mounted) _loadStudent();
                           });
                         },
-                        icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
-                        label: const Text(
-                          '+ Record Payment / Issue Official Receipt',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        icon: const Icon(Icons.add_circle_outline_rounded, size: 19),
+                        label: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Record Payment & Issue Official Receipt',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
                         ),
                       ),
                     ),

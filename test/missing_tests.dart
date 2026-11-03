@@ -863,7 +863,8 @@ void main() {
         customFields: const {},
       );
       expect(graceStudent.membershipStatus, equals(MembershipStatus.grace));
-      expect(graceStudent.isEffectivelyActive, isFalse); // grace ≠ active
+      expect(graceStudent.effectiveMembershipStatus, equals(MembershipStatus.grace)); // status is grace, not active
+      expect(graceStudent.isEffectivelyActive, isTrue); // retains study pass access during grace period
     });
 
     test('StudentModel toJson → fromJson round-trip preserves all fields', () {
