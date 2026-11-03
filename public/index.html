@@ -499,7 +499,9 @@
     <!-- Left Column (Desktop Hero & CTAs) -->
     <div class="col-left">
       <div class="hero-card">
-        <div class="app-icon" id="appLogo">📚</div>
+        <div class="app-icon" id="appLogo">
+          <img src="/app/favicon.png" alt="The Cozy Corner Logo" onerror="this.onerror=null;this.parentElement.innerHTML='📚'">
+        </div>
         <h1 id="appName">The Cozy Corner Study Centre</h1>
         <p class="subtitle" id="appSubtitle">Smart Study Centre &amp; Silent Reading Hall</p>
         
@@ -773,12 +775,39 @@
         if (data.adminFeatures) renderFeatures('adminList', data.adminFeatures, false);
 
         if (data.organization) {
-          if (data.organization.name) {
-            document.getElementById('appName').textContent = data.organization.name;
-            document.title = data.organization.name + ' — Smart Study Library';
+          var org = data.organization;
+          if (org.name) {
+            document.getElementById('appName').textContent = org.name;
+            document.title = org.name + ' — Smart Study Library';
           }
-          if (data.organization.accentColor) {
-            applyAccentColor(data.organization.accentColor);
+          if (org.logoUrl) {
+            var logoDiv = document.getElementById('appLogo');
+            if (logoDiv) {
+              logoDiv.innerHTML = '<img src="' + org.logoUrl + '" alt="' + (org.name || 'Library') + ' Logo">';
+            }
+          }
+          if (org.accentColor) {
+            applyAccentColor(org.accentColor);
+          }
+          if (org.address || org.contact || org.email || org.operatingHours) {
+            var orgMeta = document.getElementById('orgMeta');
+            var orgAddress = document.getElementById('orgAddress');
+            var orgLinks = document.getElementById('orgLinks');
+            if (orgMeta) orgMeta.style.display = 'flex';
+            if (orgAddress && org.address) orgAddress.textContent = '📍 ' + org.address;
+            if (orgLinks) {
+              var pills = '';
+              if (org.contact) {
+                pills += '<a class="org-pill" href="tel:' + org.contact + '">📞 ' + formatPhone(org.contact) + '</a>';
+              }
+              if (org.email) {
+                pills += '<a class="org-pill" href="mailto:' + org.email + '">✉️ ' + org.email + '</a>';
+              }
+              if (org.operatingHours) {
+                pills += '<span class="org-pill">⏰ ' + org.operatingHours + '</span>';
+              }
+              orgLinks.innerHTML = pills;
+            }
           }
         }
       })

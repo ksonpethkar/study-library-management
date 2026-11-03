@@ -421,6 +421,13 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         }
       }
 
+      // Compute clean, customer-facing plan name (custom or catalog)
+      final effectivePlanName = (_selectedPlanId == 'custom')
+          ? (_customPlanNameController.text.trim().isNotEmpty
+              ? _customPlanNameController.text.trim()
+              : 'Custom Plan')
+          : (_selectedPlanName ?? 'Standard Plan');
+
       // 3. Atomically Generate Official Receipt (if enabled)
       String? createdReceiptId;
       String receiptNumber = 'REC-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
@@ -433,7 +440,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           libraryId: libraryId,
           receiptNumber: receiptNumber,
           studentId: widget.studentId,
-          planId: _selectedPlanId ?? '',
+          planId: _selectedPlanId ?? 'custom',
           amount: amount,
           totalFee: totalFee,
           paidAmount: amount,
@@ -447,7 +454,8 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
             if (_bankNameController.text.trim().isNotEmpty) 'bankName': _bankNameController.text.trim(),
             if (_notesController.text.trim().isNotEmpty) 'notes': _notesController.text.trim(),
             if (_isPartialPayment) 'isInstalment': true,
-            if (_selectedPlanName != null) 'planName': _selectedPlanName,
+            'planName': effectivePlanName,
+            if (_selectedPlanId == 'custom') 'isCustomPlan': true,
             if (isAdvance) 'isAdvanceRenewal': true,
             if (isAdvance) 'advanceCycle': '${DateFormat('dd MMM yyyy').format(validFrom)} to ${DateFormat('dd MMM yyyy').format(validTo)}',
             if (activeSmartCalc != null && activeSmartCalc.isProrated) ...{
@@ -473,6 +481,8 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         paymentNotes = '${_notesController.text.trim().isNotEmpty ? "${_notesController.text.trim()} • " : ""}⚡ Advance Plan Renewal: ${DateFormat('dd MMM yyyy').format(validFrom)} – ${DateFormat('dd MMM yyyy').format(validTo)}';
       } else if (activeSmartCalc != null && activeSmartCalc.isProrated) {
         paymentNotes = '${_notesController.text.trim().isNotEmpty ? "${_notesController.text.trim()} • " : ""}⚡ Fair Mid-Cycle Prorated (${activeSmartCalc.daysRemaining}d rate to ${DateFormat('dd MMM yyyy').format(validTo)})';
+      } else if (_selectedPlanId == 'custom') {
+        paymentNotes = '${_notesController.text.trim().isNotEmpty ? "${_notesController.text.trim()} • " : ""}✨ $effectivePlanName';
       } else {
         paymentNotes = _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null;
       }
@@ -505,6 +515,10 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       };
       if (_selectedPlanId != null && _selectedPlanId != 'custom') {
         studentUpdates['planId'] = _selectedPlanId;
+        studentUpdates['customPlanName'] = FieldValue.delete();
+      } else {
+        studentUpdates['planId'] = 'custom';
+        studentUpdates['customPlanName'] = effectivePlanName;
       }
       if (_extendValidity) {
         if (!isAdvance) {
@@ -977,7 +991,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                             : (_selectedPlanId == 'custom' ? 'custom' : (plans.isNotEmpty ? plans.first.id : 'custom'));
 
                         return DropdownButtonFormField<String>(
-                          value: dropdownValue,
+                          initialValue: dropdownValue,
                           decoration: const InputDecoration(
                             labelText: 'Membership Plan *',
                             prefixIcon: Icon(Icons.card_membership_rounded),

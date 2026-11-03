@@ -1192,7 +1192,28 @@ class _SectionSubtitle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final seatsAsync = ref.watch(seatsProvider(section.id));
-    final count = seatsAsync.value?.where((s) => !s.id.startsWith('missing_')).length ?? section.capacity;
+    final liveCount = seatsAsync.value?.where((s) => !s.id.startsWith('missing_')).length;
+    final count = liveCount ?? section.capacity;
+
+    // Auto-heal: If live count is resolved and differs from registered capacity (e.g. 59 physical desks vs 120 capacity)
+    // quietly sync Firestore section totalSeats so entire app (occupancy, posters, dashboard) is 100% accurate.
+    if (liveCount != null && liveCount > 0 && liveCount != section.capacity) {
+      Future.microtask(() {
+        final libId = ref.read(currentLibraryIdProvider);
+        if (libId != null && libId.isNotEmpty) {
+          ref.read(seatRepositoryProvider).updateSection(
+            libraryId: libId,
+            section: section.copyWith(
+              totalSeats: liveCount,
+              rows: (liveCount <= 10) ? 1 : (liveCount / 10).ceil(),
+              cols: 10,
+              updatedAt: DateTime.now(),
+            ),
+          ).ignore();
+        }
+      });
+    }
+
     return Text(
       '$count seats',
       style: TextStyle(

@@ -275,40 +275,55 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
 
       // S4 FIX: Rate limiting & duplicate prevention
       // 1. Check if user is already an active student
-      final existingStudent = await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('students')
-          .where('userId', isEqualTo: currentUser.uid)
-          .limit(1)
-          .get();
-      if (existingStudent.docs.isNotEmpty) {
+      QuerySnapshot? existingStudent;
+      try {
+        existingStudent = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('students')
+            .where('userId', isEqualTo: currentUser.uid)
+            .limit(1)
+            .get();
+      } catch (e) {
+        if (kDebugMode) debugPrint('Student duplicate pre-check skipped: $e');
+      }
+      if (existingStudent != null && existingStudent.docs.isNotEmpty) {
         throw Exception('You are already registered as a student in this library! Please return to student home.');
       }
 
       // 2. Check if user already has a pending registration request
-      final existingPending = await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('requests')
-          .where('studentId', isEqualTo: currentUser.uid)
-          .where('status', isEqualTo: 'pending')
-          .limit(1)
-          .get();
-      if (existingPending.docs.isNotEmpty) {
+      QuerySnapshot? existingPending;
+      try {
+        existingPending = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('requests')
+            .where('studentId', isEqualTo: currentUser.uid)
+            .where('status', isEqualTo: 'pending')
+            .limit(1)
+            .get();
+      } catch (e) {
+        if (kDebugMode) debugPrint('Pending request pre-check skipped: $e');
+      }
+      if (existingPending != null && existingPending.docs.isNotEmpty) {
         throw Exception('You already have a pending registration request for this library. Please wait for admin approval.');
       }
 
       // 3. Check if phone number is already registered to an active student (L6 Fix)
       if (studentPhone.isNotEmpty) {
-        final existingPhone = await FirebaseFirestore.instance
-            .collection('libraries')
-            .doc(libraryId)
-            .collection('students')
-            .where('phone', isEqualTo: studentPhone)
-            .limit(1)
-            .get();
-        if (existingPhone.docs.isNotEmpty) {
+        QuerySnapshot? existingPhone;
+        try {
+          existingPhone = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('students')
+              .where('phone', isEqualTo: studentPhone)
+              .limit(1)
+              .get();
+        } catch (e) {
+          if (kDebugMode) debugPrint('Phone duplicate pre-check skipped: $e');
+        }
+        if (existingPhone != null && existingPhone.docs.isNotEmpty) {
           throw Exception('A student with mobile number $studentPhone is already registered in this library. If this is you, please log in.');
         }
       }
@@ -414,7 +429,11 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
           e.toString().contains('UNAVAILABLE')) {
         message = 'No internet connection. Please check your network and retry.';
       } else if (e.toString().contains('permission') || e.toString().contains('PERMISSION_DENIED')) {
-        message = 'Permission denied. Please sign in with Google to continue.';
+        if (FirebaseAuth.instance.currentUser == null) {
+          message = 'Session expired. Please sign in with Google to continue.';
+        } else {
+          message = 'Permission error while submitting request. Please try again or contact library admin.';
+        }
       } else if (_submitAttempts >= _maxAttempts) {
         message = 'Submission failed after $_maxAttempts attempts. Please contact library admin.';
       }

@@ -1042,7 +1042,7 @@
       });
     }
 
-    function updateStats(seats) {
+    function updateStats(seats, shouldSave = true) {
       let total = seats.length;
       let available = 0;
       let occupied = 0;
@@ -1056,6 +1056,10 @@
       document.getElementById('statTotal').innerText = total;
       document.getElementById('statAvailable').innerText = available;
       document.getElementById('statOccupied').innerText = occupied;
+
+      if (shouldSave && libraryId) {
+        saveToCache(libraryId, { seats: seats });
+      }
     }
 
     function showModal(label, statusText, gender) {
