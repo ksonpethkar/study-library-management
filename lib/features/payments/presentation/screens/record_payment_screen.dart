@@ -82,6 +82,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   String? _studentSectionId;
   String? _studentPreviousSeatId;
   String? _studentPreviousSectionId;
+  String? _studentNotes;
   bool _isLoadingStudent = true;
 
   List<String> _paymentMethods = ['Cash', 'UPI / QR', 'Debit / Credit Card', 'Bank Transfer', 'Cheque / DD'];
@@ -165,6 +166,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           _studentSectionId = sectionId;
           _studentPreviousSeatId = prevSeatId;
           _studentPreviousSectionId = prevSectionId;
+          _studentNotes = data['notes'] as String?;
           if (data['customPlanName'] != null) {
             _customPlanNameController.text = data['customPlanName'] as String;
             _selectedPlanName = data['customPlanName'] as String;
@@ -595,6 +597,32 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         'graceEndDate': FieldValue.delete(), // Clear stale grace period from previous cycle
         'remindedStages': FieldValue.delete(), // Reset notification stages for new cycle
       };
+
+      // Auto-clean stale pending fee notes & raw database IDs upon receiving payment
+      final currentNotes = _studentNotes;
+      if (remainingDue <= 0 && currentNotes != null && currentNotes.isNotEmpty) {
+        var cleanedNotes = currentNotes;
+        // Remove raw request ID if present, e.g. (Gjq8iLM9sZ7W1y2OlZ2S)
+        cleanedNotes = cleanedNotes.replaceAll(RegExp(r'\s*\([A-Za-z0-9_-]{15,}\)'), '');
+        // Strip out pending fee disclaimers
+        cleanedNotes = cleanedNotes
+            .replaceAll(RegExp(r'\s*—\s*Pending Fee Payment', caseSensitive: false), '')
+            .replaceAll(RegExp(r'\s*Pending Fee Payment', caseSensitive: false), '')
+            .replaceAll(RegExp(r'\s*—\s*Pay at Reception', caseSensitive: false), '')
+            .replaceAll(RegExp(r'\s*Pay at Reception', caseSensitive: false), '')
+            .replaceAll(RegExp(r'\s*—\s*Pending Desk Payment', caseSensitive: false), '')
+            .replaceAll(RegExp(r'\s*Pending Desk Payment', caseSensitive: false), '')
+            .replaceAll(RegExp(r'\s*—\s*Desk Payment Selected', caseSensitive: false), '')
+            .replaceAll(RegExp(r'\s*Desk Payment Selected', caseSensitive: false), '')
+            .trim();
+
+        // Also clean up any trailing or leading dashes / bullet points left over
+        cleanedNotes = cleanedNotes.replaceAll(RegExp(r'^[\s—•-]+|[\s—•-]+$'), '').trim();
+
+        if (cleanedNotes != currentNotes) {
+          studentUpdates['notes'] = cleanedNotes.isEmpty ? FieldValue.delete() : cleanedNotes;
+        }
+      }
       if (_selectedPlanId != null && _selectedPlanId != 'custom') {
         studentUpdates['planId'] = _selectedPlanId;
         studentUpdates['customPlanName'] = FieldValue.delete();

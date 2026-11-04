@@ -23,7 +23,6 @@ class StudentHistoryScreen extends ConsumerWidget {
                   .doc(libraryId)
                   .collection('audit_log')
                   .where('studentId', isEqualTo: studentId)
-                  .orderBy('timestamp', descending: true)
                   .limit(50)
                   .snapshots(),
               builder: (context, snapshot) {
@@ -34,7 +33,17 @@ class StudentHistoryScreen extends ConsumerWidget {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final docs = snapshot.data?.docs ?? [];
+                final docs = List.of(snapshot.data?.docs ?? []);
+                docs.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>?;
+                  final bData = b.data() as Map<String, dynamic>?;
+                  final aTime = aData?['timestamp'] ?? aData?['createdAt'];
+                  final bTime = bData?['timestamp'] ?? bData?['createdAt'];
+                  if (aTime is Timestamp && bTime is Timestamp) {
+                    return bTime.compareTo(aTime);
+                  }
+                  return 0;
+                });
                 
                 if (docs.isEmpty) {
                   return const Center(

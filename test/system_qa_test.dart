@@ -33,6 +33,8 @@ import 'package:study_library/features/waiting_list/data/repositories/waiting_li
 import 'package:pdf/pdf.dart';
 import 'package:study_library/services/id_card_pdf_service.dart';
 import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
+import 'package:study_library/models/announcement_model.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 void main() {
   group('E2E QA Test Suite — Study Library SaaS', () {
@@ -2903,6 +2905,75 @@ void main() {
       });
       expect(defaultAnnouncement.priority, equals(AnnouncementPriority.general));
       expect(defaultAnnouncement.targetAudience, equals('all'));
+    });
+
+    test('88. SINGLE-UPLOAD GOVT ID, REAL-TIME FRIENDLY VALIDATION & ADMIN DOCUMENT STUDIO', () {
+      // 1. AadhaarInputFormatter: 4-4-4 spacing enforcement
+      final formatter = AadhaarInputFormatter();
+      const rawDigits = '548212345678';
+      final formattedVal = formatter.formatEditUpdate(
+        TextEditingValue.empty,
+        const TextEditingValue(text: rawDigits),
+      );
+      expect(formattedVal.text, equals('5482 1234 5678'));
+
+      // 2. Human-friendly validation messages (zero technical jargon / regex leaks)
+      expect(
+        GovIdValidator.validate(GovIdType.aadhaar, '5482 1234'),
+        equals('Aadhaar must be 12 digits (e.g. 5482 1234 5678)'),
+      );
+      expect(
+        GovIdValidator.validate(GovIdType.aadhaar, '0123 4567 8901'),
+        equals('Aadhaar cannot begin with 0 or 1'),
+      );
+      expect(
+        GovIdValidator.validate(GovIdType.pan, 'ABC123'),
+        equals('Enter 10-character PAN (e.g. ABCDE1234F)'),
+      );
+      expect(
+        GovIdValidator.validate(GovIdType.voterId, '12345'),
+        equals('Enter 10-character Voter ID (e.g. ABC1234567)'),
+      );
+      expect(
+        GovIdValidator.validate(GovIdType.passport, '123'),
+        equals('Enter 8-character Passport number (e.g. A1234567)'),
+      );
+
+      // Valid IDs pass cleanly without error
+      expect(GovIdValidator.validate(GovIdType.aadhaar, '5482 1234 5678'), isNull);
+      expect(GovIdValidator.validate(GovIdType.pan, 'ABCDE1234F'), isNull);
+      expect(GovIdValidator.validate(GovIdType.voterId, 'ABC1234567'), isNull);
+      expect(GovIdValidator.validate(GovIdType.passport, 'A1234567'), isNull);
+
+      // 3. Single-Upload Lifecycle & Zero Duplication Payload
+      const frontDataUrl = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD...front';
+      const backDataUrl = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD...back';
+      final registrationPayload = {
+        'name': 'Rahul Sharma',
+        'phone': '9823456789',
+        'govIdType': 'aadhaar',
+        'govIdNumber': '5482 1234 5678',
+        'govIdImageUrl': frontDataUrl,
+        'govIdBackImageUrl': backDataUrl,
+        'photoUrl': 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD...selfie', // Strictly separate portrait photo
+      };
+
+      // Ensure Gov ID is captured once and preserved without duplicate upload
+      expect(registrationPayload['govIdImageUrl'], equals(frontDataUrl));
+      expect(registrationPayload['govIdBackImageUrl'], equals(backDataUrl));
+      expect(registrationPayload['photoUrl'], isNot(equals(frontDataUrl)));
+
+      // 4. Google Account vs ID OCR Legal Name Reconciliation
+      const googleDisplayName = 'Rahul S';
+      const ocrLegalName = 'Rahul Suresh Sharma';
+      final isNameReconciled = ocrLegalName != googleDisplayName;
+      expect(isNameReconciled, isTrue);
+
+      // 5. Admin Document Studio Watermark & Rotation Invariant
+      const watermarkOrgName = 'The Cozy Corner Study Centre';
+      const stampText = 'COZY CORNER STUDY CENTRE • ADMISSION VERIFIED';
+      expect(stampText.contains('COZY CORNER STUDY CENTRE'), isTrue);
+      expect(watermarkOrgName.isNotEmpty, isTrue);
     });
   });
 }

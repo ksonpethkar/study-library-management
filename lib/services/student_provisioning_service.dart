@@ -220,11 +220,14 @@ class StudentProvisioningService {
             planStartDate: isPaid ? planStartDate : null,
             planEndDate: isPaid ? planEndDate : null,
             membershipStatus: isPaid ? MembershipStatus.active : MembershipStatus.inactive,
-            customFields: extractedCustomFields,
+            customFields: {
+              ...extractedCustomFields,
+              'originalRequestId': requestId,
+            },
             securityDepositAmount: planSecurityDeposit,
             notes: isPaid
-                ? 'Registered & Approved via App ($requestId)'
-                : 'Admission Approved via App ($requestId) — Pending Fee Payment',
+                ? 'Approved via Student App'
+                : 'Admission Approved via App — Pending Fee Payment',
             userId: studentUserId,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),

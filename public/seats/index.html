@@ -1150,35 +1150,69 @@
       } catch (_) {}
     }
 
-    // Fast-path REST API fetch (~150ms)
+    // Fast-path REST API fetch (~150ms) - Parallel fetch of Library Branding + Live Seat Occupancy
     async function fetchViaRestApi(libId, secId) {
       try {
         const targetSecId = secId || activeSectionId || DEFAULT_SECTION_ID;
-        const url = `https://firestore.googleapis.com/v1/projects/study-lib-mgmt-2026/databases/(default)/documents/libraries/${libId}/sections/${targetSecId}/seats?pageSize=300`;
-        const resp = await fetch(url);
-        if (!resp.ok) return;
-        const data = await resp.json();
-        if (data.documents && data.documents.length > 0) {
-          const sec = sectionsList.find(s => s.id === targetSecId);
-          const cols = sec ? sec.cols : DEFAULT_COLS;
-          const seats = data.documents.map(doc => {
-            const f = doc.fields || {};
-            return {
-              id: doc.name.split('/').pop(),
-              label: f.label?.stringValue || '',
-              seatNumber: f.seatNumber?.stringValue || '',
-              status: f.status?.stringValue || 'available',
-              genderRestriction: f.genderRestriction?.stringValue || 'any',
-              row: parseInt(f.row?.integerValue || '0', 10),
-              col: parseInt(f.col?.integerValue || '0', 10),
-            };
-          });
-          renderSeats(seats, cols);
-          updateStats(seats);
-          saveToCache(libId, { seats: seats, cols: cols });
+        const libUrl = `https://firestore.googleapis.com/v1/projects/study-lib-mgmt-2026/databases/(default)/documents/libraries/${libId}`;
+        const seatsUrl = `https://firestore.googleapis.com/v1/projects/study-lib-mgmt-2026/databases/(default)/documents/libraries/${libId}/sections/${targetSecId}/seats?pageSize=300`;
+
+        const [libResp, seatsResp] = await Promise.allSettled([
+          fetch(libUrl).then(r => r.ok ? r.json() : null),
+          fetch(seatsUrl).then(r => r.ok ? r.json() : null)
+        ]);
+
+        // 1. Process Library Branding & Details (Instant Logo, Address, Contact)
+        if (libResp.status === 'fulfilled' && libResp.value && libResp.value.fields) {
+          const lf = libResp.value.fields;
+          const libName = lf.name?.stringValue || 'The Cozy Corner Study Centre';
+          const libAddress = lf.address?.stringValue || '';
+          const logoUrl = lf.logoUrl?.stringValue || '';
+          const phone = lf.phone?.stringValue || '';
+
+          if (libName) {
+            document.getElementById('libName').innerText = libName;
+            document.title = libName + ' — Live Seat Map';
+          }
+          if (libAddress) {
+            document.getElementById('libAddress').innerText = libAddress;
+          }
+          if (logoUrl && logoUrl.trim().length > 0) {
+            document.getElementById('libLogo').innerHTML = `<img src="${logoUrl}" alt="${libName} Logo">`;
+          }
+          if (phone) {
+            libraryPhone = phone;
+            const recLink = document.getElementById('contactReceptionLink');
+            if (recLink) recLink.href = 'tel:+91' + phone;
+          }
+          saveToCache(libId, { name: libName, address: libAddress, logoUrl: logoUrl, phone: phone });
+        }
+
+        // 2. Process Live Seats Grid & Occupancy
+        if (seatsResp.status === 'fulfilled' && seatsResp.value && seatsResp.value.documents) {
+          const docs = seatsResp.value.documents;
+          if (docs.length > 0) {
+            const sec = sectionsList.find(s => s.id === targetSecId);
+            const cols = sec ? sec.cols : DEFAULT_COLS;
+            const seats = docs.map(doc => {
+              const f = doc.fields || {};
+              return {
+                id: doc.name.split('/').pop(),
+                label: f.label?.stringValue || '',
+                seatNumber: f.seatNumber?.stringValue || '',
+                status: f.status?.stringValue || 'available',
+                genderRestriction: f.genderRestriction?.stringValue || 'any',
+                row: parseInt(f.row?.integerValue || '0', 10),
+                col: parseInt(f.col?.integerValue || '0', 10),
+              };
+            });
+            renderSeats(seats, cols);
+            updateStats(seats);
+            saveToCache(libId, { seats: seats, cols: cols });
+          }
         }
       } catch (err) {
-        console.warn('REST API fetch error:', err);
+        console.warn('REST API parallel fetch error:', err);
       }
     }
 
@@ -1303,7 +1337,9 @@
     }
 
     function renderSeats(seats, cols) {
-      if (!seats || seats.length === 0) return;
+      if (!seats || seats.length === 0) {
+        seats = generateDefaultSeats();
+      }
       hasLoadedData = true;
 
       const grid = document.getElementById('gridContainer');

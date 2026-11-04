@@ -60,13 +60,12 @@ final studentNotificationsStreamProvider =
         .collection('libraries')
         .doc(libraryId)
         .collection('notifications')
-        .where('targetRole', isEqualTo: 'all')
         .orderBy('createdAt', descending: true)
         .limit(20)
         .snapshots()
         .map((snap) {
           final all = snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList();
-          return all.where((n) => n.targetUserId == null || n.targetUserId!.isEmpty).toList();
+          return all.where((n) => n.targetRole == 'all' && (n.targetUserId == null || n.targetUserId!.isEmpty)).toList();
         });
   }
 
@@ -74,7 +73,6 @@ final studentNotificationsStreamProvider =
       .collection('libraries')
       .doc(libraryId)
       .collection('notifications')
-      .where('targetRole', whereIn: ['student', 'all'])
       .orderBy('createdAt', descending: true)
       .limit(50)
       .snapshots()

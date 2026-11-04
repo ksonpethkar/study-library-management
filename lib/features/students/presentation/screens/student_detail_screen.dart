@@ -1732,7 +1732,48 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     if (s.rollNumber != null && s.rollNumber!.isNotEmpty)
                       _buildDetailRow(context, 'Roll / Enroll No.', s.rollNumber!, Icons.badge_outlined),
                     if (s.notes != null && s.notes!.isNotEmpty)
-                      _buildDetailRow(context, 'Notes', s.notes!, Icons.note_alt_outlined),
+                      _buildDetailRow(
+                        context,
+                        'Notes',
+                        s.notes!,
+                        Icons.note_alt_outlined,
+                        trailingAction: Tooltip(
+                          message: 'Edit Note',
+                          child: InkWell(
+                            onTap: () => _showQuickEditNotesDialog(context, s),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                              child: Icon(Icons.edit_outlined, size: 16, color: Theme.of(context).colorScheme.primary),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2.0),
+                        child: InkWell(
+                          onTap: () => _showQuickEditNotesDialog(context, s),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2.0),
+                            child: Row(
+                              children: [
+                                Icon(Icons.note_add_outlined, size: 16, color: Colors.grey.shade500),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '+ Add Note',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     Consumer(
                       builder: (context, ref, _) {
                         final formConfigAsync = ref.watch(formConfigStreamProvider);
@@ -2557,7 +2598,13 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     );
   }
 
-  Widget _buildDetailRow(BuildContext context, String label, String value, IconData icon) {
+  Widget _buildDetailRow(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon, {
+    Widget? trailingAction,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -2578,7 +2625,167 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
               style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
             ),
           ),
+          if (trailingAction != null) ...[
+            const SizedBox(width: 8),
+            trailingAction,
+          ],
         ],
+      ),
+    );
+  }
+
+  Future<void> _showQuickEditNotesDialog(BuildContext context, StudentModel s) async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    if (libraryId.isEmpty) return;
+
+    final controller = TextEditingController(text: s.notes ?? '');
+    final theme = Theme.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final hasPendingFeeOrRawId = s.notes != null &&
+        (s.notes!.contains('Pending Fee Payment') ||
+            s.notes!.contains('Pay at Reception') ||
+            RegExp(r'\([A-Za-z0-9_-]{15,}\)').hasMatch(s.notes!));
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              const Text('Student Notes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add internal administrative remarks or clear previous notes.',
+                  style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+                ),
+                if (hasPendingFeeOrRawId) ...[
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: () {
+                      setDialogState(() {
+                        controller.text = controller.text
+                            .replaceAll(RegExp(r'\s*\([A-Za-z0-9_-]{15,}\)'), '')
+                            .replaceAll(RegExp(r'\s*—\s*Pending Fee Payment', caseSensitive: false), '')
+                            .replaceAll(RegExp(r'\s*Pending Fee Payment', caseSensitive: false), '')
+                            .replaceAll(RegExp(r'\s*—\s*Pay at Reception', caseSensitive: false), '')
+                            .replaceAll(RegExp(r'\s*Pay at Reception', caseSensitive: false), '')
+                            .replaceAll(RegExp(r'^[\s—•-]+|[\s—•-]+$'), '')
+                            .trim();
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade700),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.auto_fix_high_rounded, size: 15, color: Colors.amber.shade700),
+                          const SizedBox(width: 6),
+                          Text(
+                            '1-Tap Clean: Remove "Pending Fee" & Raw ID',
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.amber.shade700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  maxLines: 4,
+                  minLines: 2,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Enter student notes or remarks...',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            if (s.notes != null && s.notes!.isNotEmpty)
+              TextButton.icon(
+                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                label: const Text('Clear', style: TextStyle(color: Colors.red)),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('students')
+                        .doc(s.id)
+                        .update({
+                      'notes': FieldValue.delete(),
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    });
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Note cleared successfully.')),
+                      );
+                      _loadStudent();
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Failed to clear note: $e'), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                },
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final newNotes = controller.text.trim();
+                Navigator.pop(ctx);
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('libraries')
+                      .doc(libraryId)
+                      .collection('students')
+                      .doc(s.id)
+                      .update({
+                    'notes': newNotes.isEmpty ? FieldValue.delete() : newNotes,
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  });
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Notes updated successfully.')),
+                    );
+                    _loadStudent();
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text('Failed to update notes: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }

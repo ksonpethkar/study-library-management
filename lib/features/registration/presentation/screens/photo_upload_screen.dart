@@ -89,15 +89,42 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(9999),
+                      border: Border.all(color: const Color(0xFFA7F3D0)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.verified_rounded, size: 16, color: Color(0xFF059669)),
+                        SizedBox(width: 6),
+                        Text(
+                          'Govt ID Attached • Single-Upload Complete',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF065F46),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Text(
-                    'Upload Your Profile Photo',
+                    'Upload Your Portrait Photo',
                     style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'This photo will appear on your digital ID card and membership profile.',
+                    'This photo will appear on your digital student pass and membership profile.\n(Your Government ID document is already securely attached).',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade600,
+                      height: 1.4,
+                    ),
                   ),
                   const SizedBox(height: 36),
                   GestureDetector(

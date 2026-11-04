@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:study_library/core/providers/library_provider.dart';
-import 'package:study_library/models/student_model.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/ocr_service.dart';
 import '../../data/ocr_parser.dart';
@@ -583,6 +582,33 @@ class _RegistrationFormScreenState
                       capitalization: TextCapitalization.words,
                       validator: (v) => AppValidators.name(v, label: 'Full Name'),
                     ),
+                    if (FirebaseAuth.instance.currentUser?.displayName != null &&
+                        _nameController.text.trim().isNotEmpty &&
+                        _nameController.text.trim().toLowerCase() !=
+                            FirebaseAuth.instance.currentUser!.displayName!.trim().toLowerCase() &&
+                        _autoFilledKeys.contains('name')) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF1D4ED8)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Using legal name from ID for official library pass (Google: ${FirebaseAuth.instance.currentUser!.displayName})',
+                                style: const TextStyle(fontSize: 11.5, color: Color(0xFF1E40AF), fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
 
                     if (_isFieldVisible('fatherName')) ...[
@@ -729,6 +755,41 @@ class _RegistrationFormScreenState
                         const SizedBox(height: 14),
                       ],
                     ],
+                    if (_isFieldVisible('gender')) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: (_gender == 'male' ? const Color(0xFFEFF6FF) : const Color(0xFFFDF2F8)),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: (_gender == 'male' ? const Color(0xFFBFDBFE) : const Color(0xFFFBCFE8)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _gender == 'male' ? Icons.male_rounded : Icons.female_rounded,
+                              size: 16,
+                              color: _gender == 'male' ? const Color(0xFF2563EB) : const Color(0xFFDB2777),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _gender == 'male'
+                                    ? 'Desk Allocation Info: Desks 1 to 50 are assigned for Boys. Desks 51 to 60 are reserved for Girls.'
+                                    : 'Desk Allocation Info: Desks 51 to 60 are dedicated quiet desks for Girls (near road-facing windows).',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: _gender == 'male' ? const Color(0xFF1E40AF) : const Color(0xFF9D174D),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     // Blood Group
                     if (_isFieldVisible('bloodGroup')) ...[
@@ -854,6 +915,278 @@ class _RegistrationFormScreenState
                           v,
                           isRequired: _isFieldRequired('govId'),
                         ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Single-Upload Document Attachment Section
+                      Builder(
+                        builder: (context) {
+                          final regData = ref.watch(registrationNotifierProvider);
+                          final frontUrl = (regData['govIdImageUrl'] ?? regData['govIdDataUrl'] ?? '').toString();
+                          final backUrl = (regData['govIdBackImageUrl'] ?? regData['govIdBackDataUrl'] ?? '').toString();
+                          final hasFront = frontUrl.isNotEmpty;
+                          final hasBack = backUrl.isNotEmpty;
+                          final hasTwoSides = _selectedGovIdType == GovIdType.aadhaar ||
+                              _selectedGovIdType == GovIdType.drivingLicence ||
+                              _selectedGovIdType == GovIdType.voterId ||
+                              _selectedGovIdType == GovIdType.passport;
+
+                          if (_isScanningId) {
+                            return Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Text(
+                                      _scanStatusMessage.isNotEmpty
+                                          ? _scanStatusMessage
+                                          : 'Analyzing document...',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          if (hasFront) {
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFECFDF5),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFA7F3D0), width: 1.5),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 20),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                          'ID Document Attached (Single-Upload Verified)',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13.5,
+                                            color: Color(0xFF065F46),
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFD1FAE5),
+                                          borderRadius: BorderRadius.circular(9999),
+                                        ),
+                                        child: Text(
+                                          _selectedGovIdType.displayName,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF047857),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    'Securely encrypted and stored. You do not need to re-upload your ID in any subsequent step.',
+                                    style: TextStyle(fontSize: 12, color: Color(0xFF047857), height: 1.3),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      // Front thumbnail
+                                      GestureDetector(
+                                        onTap: () => ImageService.showImageViewer(context, imageUrl: frontUrl, title: 'Front ID Preview'),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(10),
+                                          child: Stack(
+                                            children: [
+                                              Image(
+                                                image: ImageService.getImageProvider(frontUrl)!,
+                                                width: 84,
+                                                height: 56,
+                                                fit: BoxFit.cover,
+                                              ),
+                                              Positioned(
+                                                bottom: 2,
+                                                left: 2,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withValues(alpha: 0.65),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: const Text(
+                                                    'FRONT',
+                                                    style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      if (hasBack) ...[
+                                        const SizedBox(width: 10),
+                                        GestureDetector(
+                                          onTap: () => ImageService.showImageViewer(context, imageUrl: backUrl, title: 'Back ID Preview'),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(10),
+                                            child: Stack(
+                                              children: [
+                                                Image(
+                                                  image: ImageService.getImageProvider(backUrl)!,
+                                                  width: 84,
+                                                  height: 56,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                                Positioned(
+                                                  bottom: 2,
+                                                  left: 2,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.black.withValues(alpha: 0.65),
+                                                      borderRadius: BorderRadius.circular(4),
+                                                    ),
+                                                    child: const Text(
+                                                      'BACK',
+                                                      style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      const Spacer(),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          OutlinedButton.icon(
+                                            style: OutlinedButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              visualDensity: VisualDensity.compact,
+                                              foregroundColor: const Color(0xFF047857),
+                                              side: const BorderSide(color: Color(0xFF059669)),
+                                            ),
+                                            onPressed: () => _pickSourceAndScan(isBack: false),
+                                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                                            label: const Text('Replace ID', style: TextStyle(fontSize: 12)),
+                                          ),
+                                          if (hasTwoSides && !hasBack) ...[
+                                            const SizedBox(height: 6),
+                                            TextButton.icon(
+                                              style: TextButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                visualDensity: VisualDensity.compact,
+                                                foregroundColor: const Color(0xFF047857),
+                                              ),
+                                              onPressed: () => _pickSourceAndScan(isBack: true),
+                                              icon: const Icon(Icons.add_photo_alternate_outlined, size: 15),
+                                              label: const Text('+ Add Back Side', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          // Unattached: Show intuitive Scan/Attach box
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: theme.dividerColor.withValues(alpha: 0.35),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+                                      child: Icon(Icons.document_scanner_rounded, size: 20, color: theme.colorScheme.primary),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Attach ${_selectedGovIdType.displayName} Card',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                          ),
+                                          Text(
+                                            'Single upload: Auto-fills details & attaches proof',
+                                            style: TextStyle(fontSize: 11.5, color: theme.colorScheme.onSurfaceVariant),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(vertical: 10),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        ),
+                                        onPressed: () => _scanOrAttachGovId(ImageSource.camera),
+                                        icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                                        label: const Text('Take Photo', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(vertical: 10),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        ),
+                                        onPressed: () => _scanOrAttachGovId(ImageSource.gallery),
+                                        icon: const Icon(Icons.upload_file_rounded, size: 18),
+                                        label: const Text('Upload File', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 24),
                     ],
