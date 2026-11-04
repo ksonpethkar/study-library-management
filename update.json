@@ -1,4 +1,21 @@
 {
+  "android": {
+    "versionCode": 56,
+    "versionName": "1.5.48+56",
+    "apkSize": "51.8 MB",
+    "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.48/StudyLibrary.apk",
+    "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.48/StudyLibrary.apk",
+    "mandatory": false,
+    "forceUpdate": false,
+    "minVersionCode": 1,
+    "releasedAt": "2026-11-04T02:21:20Z",
+    "releaseNotes": "v1.5.48: Priority announcements system with multi-notice carousel, dedicated Notice Board, auto-expiry, and live read receipts. Seamless leading-app back navigation with zero accidental app exits."
+  },
+  "web": {
+    "version": "1.5.48",
+    "buildNumber": 56,
+    "buildDate": "2026-11-04"
+  },
   "versionCode": 56,
   "latestVersionCode": 56,
   "latestBuild": 56,

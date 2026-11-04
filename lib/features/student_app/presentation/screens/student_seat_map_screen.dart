@@ -599,9 +599,15 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                     }).firstOrNull;
 
                                     if (activeDoc != null) {
-                                      if (context.mounted) {
-                                        Navigator.pop(dialogCtx);
-                                        _showPendingWarning(context, libraryId, activeDoc.id, activeDoc.data());
+                                      if (dialogCtx.mounted) {
+                                        if (Navigator.of(dialogCtx, rootNavigator: true).canPop()) {
+                                          Navigator.of(dialogCtx, rootNavigator: true).pop();
+                                        } else if (Navigator.of(dialogCtx).canPop()) {
+                                          Navigator.of(dialogCtx).pop();
+                                        }
+                                      }
+                                      if (mounted) {
+                                        _showPendingWarning(this.context, libraryId, activeDoc.id, activeDoc.data());
                                       }
                                       return;
                                     }
@@ -642,10 +648,16 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                       actionRoute: Routes.adminRequests,
                                     ).ignore();
 
-                                    if (context.mounted) {
+                                    // Industry Best Practice (Delta/BookMyShow/WeWork): Automatically close popup on submission success
+                                    if (Navigator.of(dialogCtx, rootNavigator: true).canPop()) {
+                                      Navigator.of(dialogCtx, rootNavigator: true).pop();
+                                    } else if (Navigator.of(dialogCtx).canPop()) {
+                                      Navigator.of(dialogCtx).pop();
+                                    }
+
+                                    if (mounted) {
                                       HapticFeedback.heavyImpact();
-                                      Navigator.pop(dialogCtx);
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(this.context).showSnackBar(
                                         SnackBar(
                                           content: Row(
                                             children: [
@@ -653,7 +665,7 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                               const SizedBox(width: 8),
                                               Expanded(
                                                 child: Text(
-                                                  'Seat change request for Seat #${targetSeat.label} submitted to management!',
+                                                  'Seat change request for Desk #${targetSeat.label} submitted to management!',
                                                 ),
                                               ),
                                             ],
@@ -664,8 +676,8 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                       );
                                     }
                                   } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(this.context).showSnackBar(
                                         SnackBar(
                                           content: Text('Failed to submit request: $e'),
                                           backgroundColor: Colors.red,
@@ -673,7 +685,9 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                       );
                                     }
                                   } finally {
-                                    setSheetState(() => isSubmitting = false);
+                                    if (dialogCtx.mounted) {
+                                      setSheetState(() => isSubmitting = false);
+                                    }
                                   }
                                 },
                         ),
@@ -703,7 +717,7 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
           tooltip: 'Back',
           onPressed: () => context.canPop() ? context.pop() : context.go(Routes.studentHome),
         ),
-        title: const Text('Library Seat Map'),
+        title: const Text('Seat Map & Desk Change'),
         centerTitle: true,
       ),
       body: studentAsync.when(

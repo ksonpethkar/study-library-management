@@ -165,6 +165,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     final announcementsAsync = ref.watch(announcementsStreamProvider);
     final plansAsync = ref.watch(plansStreamProvider);
     final sectionsAsync = ref.watch(sectionsProvider);
+    final pendingSeatChange = ref.watch(studentPendingSeatChangeProvider).value;
 
     final library = libraryAsync.value;
     final libraryName = library?.name.isNotEmpty == true ? library!.name : 'Study Library';
@@ -569,6 +570,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   sectionName,
                   seatId,
                   effectiveStatus: student.effectiveMembershipStatus,
+                  pendingSeatChange: pendingSeatChange,
                 ),
                 const SizedBox(height: 20),
 
@@ -1517,28 +1519,44 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     String sectionName,
     String? seatId, {
     MembershipStatus effectiveStatus = MembershipStatus.active,
+    Map<String, dynamic>? pendingSeatChange,
   }) {
     final isDark = theme.brightness == Brightness.dark;
     final isExpired = effectiveStatus == MembershipStatus.expired || effectiveStatus == MembershipStatus.blocked;
     final isGrace = effectiveStatus == MembershipStatus.grace;
+    final bool hasPendingChange = pendingSeatChange != null;
+
+    final String targetSeatLabel = hasPendingChange
+        ? SeatHelper.formatSeatLabel(rawLabel: pendingSeatChange['targetSeatLabel'] as String?)
+        : '';
+    final String targetSecName = hasPendingChange
+        ? (pendingSeatChange['targetSectionName'] as String? ?? sectionName)
+        : sectionName;
 
     final Color accentColor = isExpired
         ? const Color(0xFFEF4444)
-        : (isGrace ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
+        : (hasPendingChange
+            ? const Color(0xFFF59E0B)
+            : (isGrace ? const Color(0xFFF59E0B) : const Color(0xFF10B981)));
 
     final String badgeLabel = isExpired
         ? 'EXPIRED'
-        : (isGrace ? 'GRACE PERIOD' : 'ALLOCATED');
+        : (hasPendingChange
+            ? 'CHANGE IN PROGRESS'
+            : (isGrace ? 'GRACE PERIOD' : 'ALLOCATED'));
 
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accentColor.withValues(alpha: isDark ? 0.35 : 0.25), width: 1.2),
+        border: Border.all(
+          color: accentColor.withValues(alpha: isDark ? (hasPendingChange ? 0.6 : 0.35) : (hasPendingChange ? 0.5 : 0.25)),
+          width: hasPendingChange ? 1.5 : 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: accentColor.withValues(alpha: isDark ? 0.08 : 0.05),
-            blurRadius: 12,
+            color: accentColor.withValues(alpha: isDark ? 0.12 : 0.08),
+            blurRadius: hasPendingChange ? 14 : 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -1547,29 +1565,58 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: accentColor.withValues(alpha: 0.15),
-          child: Icon(Icons.event_seat_rounded, color: accentColor),
+          child: Icon(
+            hasPendingChange
+                ? Icons.swap_horiz_rounded
+                : (isExpired ? Icons.event_seat_rounded : Icons.chair_rounded),
+            color: accentColor,
+          ),
         ),
         title: Row(
           children: [
-            Text(
-              seatLabel,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: accentColor.withValues(alpha: 0.3)),
-              ),
-              child: Text(
-                badgeLabel,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: accentColor,
-                  letterSpacing: 0.5,
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      seatLabel,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    if (hasPendingChange) ...[
+                      const SizedBox(width: 6),
+                      const Icon(Icons.arrow_forward_rounded, size: 15, color: Color(0xFFF59E0B)),
+                      const SizedBox(width: 6),
+                      Text(
+                        targetSeatLabel,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Color(0xFFD97706),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        badgeLabel,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: accentColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1585,18 +1632,22 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
               Text(
                 isExpired
                     ? 'Desk access inactive • Renew to reactivate'
-                    : (isGrace
-                        ? 'Desk temporarily reserved • Grace active'
-                        : (sectionName.isNotEmpty ? 'Section: $sectionName' : 'Reserved Study Desk')),
+                    : (hasPendingChange
+                        ? 'Requested move to $targetSeatLabel ($targetSecName) • Waiting for admin approval'
+                        : (isGrace
+                            ? 'Desk temporarily reserved • Grace active'
+                            : (sectionName.isNotEmpty ? 'Section: $sectionName' : 'Reserved Study Desk'))),
                 style: TextStyle(
                   color: isExpired
                       ? const Color(0xFFEF4444)
-                      : (isGrace ? const Color(0xFFD97706) : theme.colorScheme.onSurfaceVariant),
+                      : (hasPendingChange
+                          ? (isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309))
+                          : (isGrace ? const Color(0xFFD97706) : theme.colorScheme.onSurfaceVariant)),
                   fontSize: 12,
-                  fontWeight: isExpired || isGrace ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: isExpired || isGrace || hasPendingChange ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
-              if (!isExpired && !isGrace)
+              if (!isExpired && !isGrace && !hasPendingChange)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                   decoration: BoxDecoration(
@@ -1612,13 +1663,26 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           ),
         ),
         trailing: OutlinedButton.icon(
-          icon: Icon(isExpired ? Icons.refresh_rounded : Icons.map_outlined, size: 15),
-          label: Text(isExpired ? 'Renew' : 'Seat Map', style: const TextStyle(fontSize: 12)),
+          icon: Icon(
+            isExpired
+                ? Icons.refresh_rounded
+                : (hasPendingChange ? Icons.hourglass_top_rounded : Icons.swap_horiz_rounded),
+            size: 15,
+          ),
+          label: Text(
+            isExpired
+                ? 'Renew'
+                : (hasPendingChange ? 'View Request' : 'Change Desk'),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
           style: OutlinedButton.styleFrom(
             visualDensity: VisualDensity.compact,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            foregroundColor: isExpired ? const Color(0xFFDC2626) : null,
+            foregroundColor: isExpired
+                ? const Color(0xFFDC2626)
+                : (hasPendingChange ? const Color(0xFFD97706) : null),
+            side: hasPendingChange ? const BorderSide(color: Color(0xFFF59E0B), width: 1.2) : null,
           ),
           onPressed: () {
             HapticFeedback.lightImpact();

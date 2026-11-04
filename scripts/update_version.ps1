@@ -1,30 +1,37 @@
 # Usage: .\scripts\update_version.ps1
-# Reads version from pubspec.yaml and updates update.json + deploys to Firebase Hosting
+# Reads version from pubspec.yaml and updates web release info in update.json
+# NOTE: This updates the WEB channel only. Native Android APK updates are only published
+# by .\scripts\publish_latest_build.ps1 when an actual APK binary is compiled and uploaded!
 
 $pubspec = Get-Content 'pubspec.yaml' -Raw
 $versionLine = $pubspec | Select-String -Pattern 'version:\s+(.+)' | Select-Object -First 1
 $fullVersion = $versionLine.Matches[0].Groups[1].Value.Trim()
 
-# Split version string (e.g., '1.5.3+10') -> name='1.5.3', code=10
+# Split version string (e.g., '1.5.48+56') -> name='1.5.48', code=56
 $parts = $fullVersion -split '\+'
 $versionName = $parts[0]
 $versionCode = [int]$parts[1]
 
-Write-Host "Version: $versionName ($versionCode)"
+Write-Host "Updating Web Channel Version: $versionName (Build $versionCode)" -ForegroundColor Cyan
 
 # Read existing update.json
-$updateJson = Get-Content 'update.json' -Raw | ConvertFrom-Json
+$targetPath = if (Test-Path 'public/update.json') { 'public/update.json' } else { 'update.json' }
+$updateJson = Get-Content $targetPath -Raw | ConvertFrom-Json
 
-# Update fields
-$updateJson.latestVersion = $versionName
-$updateJson.latestVersionCode = $versionCode
-$updateJson.releaseDate = (Get-Date -Format 'yyyy-MM-dd')
+# Update Web Channel ONLY (Do NOT modify Android APK release version)
+if (-not $updateJson.web) {
+    $updateJson | Add-Member -MemberType NoteProperty -Name "web" -Value ([PSCustomObject]@{})
+}
+$updateJson.web.version = $versionName
+$updateJson.web.buildNumber = $versionCode
+$updateJson.web.buildDate = (Get-Date -Format 'yyyy-MM-dd')
 
 # Write back
-$updateJson | ConvertTo-Json -Depth 10 | Set-Content 'update.json'
-if (Test-Path 'public/update.json') {
-    $updateJson | ConvertTo-Json -Depth 10 | Set-Content 'public/update.json'
+$jsonStr = $updateJson | ConvertTo-Json -Depth 10
+Set-Content -Path 'public/update.json' -Value $jsonStr -Encoding UTF8
+if (Test-Path 'update.json') {
+    Set-Content -Path 'update.json' -Value $jsonStr -Encoding UTF8
 }
 
-Write-Host "update.json updated to $versionName+$versionCode"
-Write-Host "Run 'firebase deploy --only hosting' to publish."
+Write-Host "Web build manifest updated to $versionName (Build $versionCode). Android APK release untouched." -ForegroundColor Green
+Write-Host "Run 'firebase deploy --only hosting' to publish web portal."

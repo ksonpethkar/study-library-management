@@ -20,7 +20,7 @@ service cloud.firestore {
       return isAuth() && (
         email() in ['ksonpethkar@gmail.com', 'thecozycornersc@gmail.com'] ||
         (exists(/databases/$(database)/documents/admin_whitelist/$(email())) &&
-         get(/databases/$(database)/documents/admin_whitelist/$(email())).data.isActive == true)
+         get(/databases/$(database)/documents/admin_whitelist/$(email())).data.get('isActive', false) == true)
       );
     }
 
@@ -92,15 +92,14 @@ service cloud.firestore {
                        staffCan(libraryId, 'canManageStudents') ||
                        (isAuth() && (
                          studentId == uid() ||
-                         resource.data.userId == uid() ||
-                         resource.data.studentUserId == uid() ||
-                         uid() == resource.data.get('userId', '') ||
-                         uid() == resource.data.get('studentUserId', '') ||
+                         resource.data.get('userId', '') == uid() ||
+                         resource.data.get('studentUserId', '') == uid() ||
                          (resource.data.get('email', '') != '' && request.auth.token.email != null &&
                           resource.data.get('email', '').lower() == request.auth.token.email.lower()) ||
                          (request.auth.token.phone_number != null &&
                           (resource.data.get('phone', '') == request.auth.token.phone_number ||
-                           ('+91' + resource.data.get('phone', '')) == request.auth.token.phone_number))
+                           ('+91' + resource.data.get('phone', '')) == request.auth.token.phone_number ||
+                           resource.data.get('phone', '') == ('+91' + request.auth.token.phone_number)))
                        ));
 
         allow create: if ownerOrStaffCan(libraryId, 'canManageStudents');
@@ -109,11 +108,13 @@ service cloud.firestore {
                          staffCan(libraryId, 'canManageStudents') ||
                          (isAuth() && (
                            studentId == uid() ||
-                           resource.data.userId == uid() ||
-                           resource.data.studentUserId == uid() ||
-                           uid() == resource.data.get('userId', '') ||
-                           uid() == resource.data.get('studentUserId', '') ||
+                           resource.data.get('userId', '') == uid() ||
+                           resource.data.get('studentUserId', '') == uid() ||
                            (resource.data.get('userId', '') == '' && (
+                             request.resource.data.get('userId', '') == uid() ||
+                             request.resource.data.get('studentUserId', '') == uid()
+                           )) ||
+                           (resource.data.get('studentUserId', '') == '' && (
                              request.resource.data.get('userId', '') == uid() ||
                              request.resource.data.get('studentUserId', '') == uid()
                            )) ||
@@ -121,7 +122,8 @@ service cloud.firestore {
                             resource.data.get('email', '').lower() == request.auth.token.email.lower()) ||
                            (request.auth.token.phone_number != null &&
                             (resource.data.get('phone', '') == request.auth.token.phone_number ||
-                             ('+91' + resource.data.get('phone', '')) == request.auth.token.phone_number))
+                             ('+91' + resource.data.get('phone', '')) == request.auth.token.phone_number ||
+                             resource.data.get('phone', '') == ('+91' + request.auth.token.phone_number)))
                          ) &&
                           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                             'fcmToken', 'fcmUpdatedAt', 'photoUrl', 'updatedAt', 'phone', 'email', 'emergencyContact', 'address', 'userId', 'studentUserId',
@@ -235,9 +237,6 @@ service cloud.firestore {
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canManageStudents') ||
                        (isAuth() && (
-                         resource.data.studentId == uid() ||
-                         resource.data.studentUserId == uid() ||
-                         resource.data.userId == uid() ||
                          resource.data.get('studentId', '') == uid() ||
                          resource.data.get('studentUserId', '') == uid() ||
                          resource.data.get('userId', '') == uid()
@@ -253,9 +252,6 @@ service cloud.firestore {
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canManageStudents') ||
                        (isAuth() && (
-                         resource.data.studentId == uid() ||
-                         resource.data.studentUserId == uid() ||
-                         resource.data.userId == uid() ||
                          resource.data.get('studentId', '') == uid() ||
                          resource.data.get('studentUserId', '') == uid() ||
                          resource.data.get('userId', '') == uid()
@@ -264,9 +260,6 @@ service cloud.firestore {
         allow update, delete: if isOwner(libraryId) ||
                                  staffCan(libraryId, 'canManageStudents') ||
                                  (isAuth() && (
-                                   resource.data.studentId == uid() ||
-                                   resource.data.studentUserId == uid() ||
-                                   resource.data.userId == uid() ||
                                    resource.data.get('studentId', '') == uid() ||
                                    resource.data.get('studentUserId', '') == uid() ||
                                    resource.data.get('userId', '') == uid()
@@ -381,7 +374,7 @@ service cloud.firestore {
         (uid() == userId && (
           // Role cannot be changed by the user themselves unless already matches
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
-           request.resource.data.role == resource.data.role)
+           request.resource.data.get('role', '') == resource.data.get('role', ''))
         ))
       );
 
@@ -418,9 +411,8 @@ service cloud.firestore {
     // Prevents any authenticated user from reading all staff across all libraries
     match /{path=**}/staff/{staffDoc} {
       allow read: if isAuth() && (
-        resource.data.userId == uid() ||
-        uid() == resource.data.get('userId', '') ||
-        uid() == get(/databases/$(database)/documents/libraries/$(resource.data.get('libraryId', 'NONE'))).data.ownerId
+        resource.data.get('userId', '') == uid() ||
+        uid() == get(/databases/$(database)/documents/libraries/$(resource.data.get('libraryId', 'NONE'))).data.get('ownerId', '')
       );
     }
 
@@ -429,16 +421,15 @@ service cloud.firestore {
     match /{path=**}/students/{studentDoc} {
       allow read: if isAuth() && (
         studentDoc == uid() ||
-        resource.data.userId == uid() ||
-        resource.data.studentUserId == uid() ||
-        uid() == resource.data.get('userId', '') ||
-        uid() == resource.data.get('studentUserId', '') ||
+        resource.data.get('userId', '') == uid() ||
+        resource.data.get('studentUserId', '') == uid() ||
         (resource.data.get('email', '') != '' && request.auth.token.email != null &&
          resource.data.get('email', '').lower() == request.auth.token.email.lower()) ||
         (request.auth.token.phone_number != null &&
          (resource.data.get('phone', '') == request.auth.token.phone_number ||
-          ('+91' + resource.data.get('phone', '')) == request.auth.token.phone_number)) ||
-        uid() == get(/databases/$(database)/documents/libraries/$(resource.data.get('libraryId', 'NONE'))).data.ownerId
+          ('+91' + resource.data.get('phone', '')) == request.auth.token.phone_number ||
+          resource.data.get('phone', '') == ('+91' + request.auth.token.phone_number))) ||
+        uid() == get(/databases/$(database)/documents/libraries/$(resource.data.get('libraryId', 'NONE'))).data.get('ownerId', '')
       );
     }
   }
