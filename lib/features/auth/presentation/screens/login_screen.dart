@@ -14,6 +14,7 @@ import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/services/notification_service.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
+import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -611,12 +612,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Subscribe to library-specific admin & announcement topics (no Cloud Functions needed)
       await NotificationService.subscribeToLibraryTopics(libraryId: libId, isAdmin: true);
     } catch (_) { /* intentionally silent */ }
-    // Link staff userId if missing
-    if (staffResult != null && staffResult.docs.isNotEmpty) {
-      final staffDoc = staffResult.docs.first;
-      if ((staffDoc.data() as Map)['userId']?.toString().isEmpty ?? true) {
-        await staffDoc.reference.update({'userId': user.uid});
-      }
+    // Ensure staff record is keyed by user.uid so firestore.rules can evaluate isActiveStaff and staffCan
+    if (libId.isNotEmpty && user.uid != null && user.email != null) {
+      try {
+        final repo = ref.read(staffRepositoryProvider);
+        await repo.ensureStaffDocKeyedByUid(libId, user.uid as String, user.email as String);
+      } catch (_) { /* intentionally silent */ }
     }
     if (!mounted) return;
     final isLocked = await BiometricService.isLockEnabled(isAdmin: true);

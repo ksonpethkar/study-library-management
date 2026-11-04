@@ -649,10 +649,12 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                     ).ignore();
 
                                     // Industry Best Practice (Delta/BookMyShow/WeWork): Automatically close popup on submission success
-                                    if (Navigator.of(dialogCtx, rootNavigator: true).canPop()) {
-                                      Navigator.of(dialogCtx, rootNavigator: true).pop();
-                                    } else if (Navigator.of(dialogCtx).canPop()) {
-                                      Navigator.of(dialogCtx).pop();
+                                    if (dialogCtx.mounted) {
+                                      if (Navigator.of(dialogCtx, rootNavigator: true).canPop()) {
+                                        Navigator.of(dialogCtx, rootNavigator: true).pop();
+                                      } else if (Navigator.of(dialogCtx).canPop()) {
+                                        Navigator.of(dialogCtx).pop();
+                                      }
                                     }
 
                                     if (mounted) {

@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:study_library/core/utils/web_reload_helper.dart';
 import 'package:study_library/services/force_update_service.dart';
 
 class AppUpdateBanner extends ConsumerWidget {
@@ -17,8 +19,72 @@ class AppUpdateBanner extends ConsumerWidget {
     final info = updateState.info!;
     final isForce = updateState.status == UpdateStatus.forceUpdate;
     final dl = updateState.downloadState;
-
     final isDark = theme.brightness == Brightness.dark;
+
+    // ── WEB APP SEPARATION ──────────────────────────────────────────────────
+    // On web browsers, never present APK download cards or progress bars.
+    // If a new web release is ready, show a slim, elegant reload prompt.
+    if (kIsWeb) {
+      if (updateState.status == UpdateStatus.optionalUpdate && info.isWebUpdate) {
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          elevation: isDark ? 2 : 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.35)),
+          ),
+          color: isDark
+              ? theme.colorScheme.surfaceContainerHigh
+              : theme.colorScheme.primaryContainer.withValues(alpha: 0.25),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.cloud_sync_rounded, color: theme.colorScheme.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Web Update Available',
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'A new web app version is ready with fresh improvements.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
+                  child: const Text('Later'),
+                ),
+                const SizedBox(width: 4),
+                FilledButton.icon(
+                  onPressed: () => reloadAppWeb(),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Reload'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      return const SizedBox.shrink();
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),

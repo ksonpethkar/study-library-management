@@ -333,10 +333,24 @@ service cloud.firestore {
         allow read, write: if ownerOrStaffCan(libraryId, 'canManageStudents');
       }
 
-      // ── Staff management — OWNER ONLY ────────────────────────────────────
+      // ── Staff management ──────────────────────────────────────────────────
       match /staff/{staffId} {
-        allow read: if isOwner(libraryId) || isActiveStaff(libraryId);
-        allow create, update, delete: if isOwner(libraryId);
+        allow read: if isOwner(libraryId) || isActiveStaff(libraryId) ||
+                       (isAuth() && (staffId == uid() || (resource != null && resource.data.get('email', '').lower() == request.auth.token.email.lower())));
+        allow create: if isOwner(libraryId) ||
+                         (isAuth() && staffId == uid() && request.auth.token.email != null &&
+                          request.resource.data.get('email', '').lower() == request.auth.token.email.lower());
+        allow update: if isOwner(libraryId) ||
+                         (isAuth() && staffId == uid() && request.auth.token.email != null &&
+                          request.resource.data.get('email', '').lower() == request.auth.token.email.lower() &&
+                          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                            'role', 'canManageSeats', 'canRecordPayments', 'canManageStudents',
+                            'canDeleteStudents', 'canViewRevenue', 'canManageSettings', 'canManagePlans',
+                            'canExportData', 'canManageRequests', 'canViewAuditLog'
+                          ]));
+        allow delete: if isOwner(libraryId) ||
+                         (isAuth() && request.auth.token.email != null &&
+                          resource.data.get('email', '').lower() == request.auth.token.email.lower());
       }
 
       // ── Settings ─────────────────────────────────────────────────────────
@@ -412,6 +426,8 @@ service cloud.firestore {
     match /{path=**}/staff/{staffDoc} {
       allow read: if isAuth() && (
         resource.data.get('userId', '') == uid() ||
+        (resource.data.get('email', '') != '' && request.auth.token.email != null &&
+         resource.data.get('email', '').lower() == request.auth.token.email.lower()) ||
         uid() == get(/databases/$(database)/documents/libraries/$(resource.data.get('libraryId', 'NONE'))).data.get('ownerId', '')
       );
     }

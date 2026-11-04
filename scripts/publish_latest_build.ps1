@@ -64,26 +64,40 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "  Uploaded successfully to CDN!" -ForegroundColor Green
 }
 
-# ── Step 4: Update update.json with correct version ──────────────────────────
+# ── Step 4: Update update.json with correct Android APK version ─────────────
 Write-Host "`n[4/5] Updating public/update.json (v$versionName, code=$versionCode)..." -ForegroundColor Yellow
 $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 
-# Release notes — edit this when you ship new features
-$releaseNotes = "v$versionName - Client-Side Midnight Auto-Expiration Trigger (auto-expires overdue plans & releases seats on app resume), Reorderable Sections with drag-and-drop on Seat Map, Security Rate Limiting & Login History, and 1-Tap Seat Transfer."
+$targetPath = if (Test-Path "public\update.json") { "public\update.json" } else { "update.json" }
+$currentJson = Get-Content $targetPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
-$jsonObj = [ordered]@{
-    versionCode    = $versionCode
-    versionName    = $versionName
-    minVersionCode = 1
-    forceUpdate    = $false
-    apkUrl         = "https://github.com/$Repo/releases/latest/download/StudyLibrary.apk"
-    iosUrl         = ""
-    releaseNotes   = $releaseNotes
-    releasedAt     = $timestamp
+# Update Android channel
+if (-not $currentJson.android) {
+    $currentJson | Add-Member -MemberType NoteProperty -Name "android" -Value ([PSCustomObject]@{})
 }
-$jsonString = $jsonObj | ConvertTo-Json -Depth 4
+$currentJson.android.versionCode = $versionCode
+$currentJson.android.versionName = "$versionName+$versionCode"
+$currentJson.android.apkSize = "$sizeMB MB"
+$currentJson.android.downloadUrl = "https://github.com/$Repo/releases/download/v$versionName/StudyLibrary.apk"
+$currentJson.android.apkUrl = "https://github.com/$Repo/releases/download/v$versionName/StudyLibrary.apk"
+$currentJson.android.releasedAt = $timestamp
+$currentJson.android.releaseNotes = "v$versionName: Official release build $versionCode with real-time pass validity, desk radar, and instant check-in."
+
+# Update top-level legacy fallback fields
+$currentJson.versionCode = $versionCode
+$currentJson.latestVersionCode = $versionCode
+$currentJson.latestBuild = $versionCode
+$currentJson.latestVersion = $versionName
+$currentJson.versionName = "$versionName+$versionCode"
+$currentJson.apkSize = "$sizeMB MB"
+$currentJson.downloadUrl = "https://github.com/$Repo/releases/download/v$versionName/StudyLibrary.apk"
+
+$jsonString = $currentJson | ConvertTo-Json -Depth 10
 Set-Content -Path "public\update.json" -Value $jsonString -Encoding UTF8
-Write-Host "  update.json written: versionCode=$versionCode, versionName=$versionName" -ForegroundColor Green
+if (Test-Path "update.json") {
+    Set-Content -Path "update.json" -Value $jsonString -Encoding UTF8
+}
+Write-Host "  update.json written: android.versionCode=$versionCode, versionName=$versionName" -ForegroundColor Green
 
 # ── Step 5: Deploy to Firebase Hosting ───────────────────────────────────────
 Write-Host "`n[5/5] Deploying web portal to Firebase Hosting..." -ForegroundColor Yellow

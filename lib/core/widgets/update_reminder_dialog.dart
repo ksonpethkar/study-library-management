@@ -13,6 +13,9 @@ class UpdateReminderDialog {
 
   /// Checks if an update is available and presents a friendly daily reminder modal.
   static Future<void> checkAndShow(BuildContext context, WidgetRef ref) async {
+    // Web applications update via browser refresh/service worker; never show APK install modal
+    if (kIsWeb) return;
+
     try {
       // 1. Wait a moment for dashboard frame to settle
       await Future.delayed(const Duration(milliseconds: 700));

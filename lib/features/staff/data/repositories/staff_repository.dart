@@ -17,18 +17,66 @@ class StaffRepository {
     });
   }
 
-  /// Adds a new staff member and automatically authorizes their email
+  /// Adds a new staff member and keys by their Auth UID if known
   Future<void> addStaff(String libraryId, StaffModel staff) async {
-    final docRef = _staffRef(libraryId).doc();
-    final newStaff = staff.copyWith(id: docRef.id, libraryId: libraryId);
+    String targetDocId = staff.userId;
+    if (targetDocId.isEmpty) {
+      try {
+        final userQuery = await _firestore
+            .collection('users')
+            .where('email', isEqualTo: staff.email.trim().toLowerCase())
+            .limit(1)
+            .get();
+        if (userQuery.docs.isNotEmpty) {
+          targetDocId = userQuery.docs.first.id;
+        }
+      } catch (_) {}
+    }
+
+    final docRef = targetDocId.isNotEmpty ? _staffRef(libraryId).doc(targetDocId) : _staffRef(libraryId).doc();
+    final newStaff = staff.copyWith(
+      id: docRef.id,
+      libraryId: libraryId,
+      userId: targetDocId.isNotEmpty ? targetDocId : staff.userId,
+    );
     await docRef.set(newStaff.toJson());
 
-    // Automatically whitelist their Google email so they can log in
-    await AdminWhitelistService.addWhitelistedAdmin(
-      staff.email,
-      addedBy: 'library_owner',
-      notes: '${staff.role.name.toUpperCase()} for Library $libraryId',
-    );
+    // Only add to master admin whitelist if role is explicitly Admin (Co-Owner)
+    if (staff.role == StaffRole.admin) {
+      await AdminWhitelistService.addWhitelistedAdmin(
+        staff.email,
+        addedBy: 'library_owner',
+        notes: 'Co-Admin for Library $libraryId',
+      );
+    }
+  }
+
+  /// Ensures a staff record is keyed by the user's Auth UID so firestore.rules
+  /// getStaff(libraryId) resolves successfully.
+  Future<void> ensureStaffDocKeyedByUid(String libraryId, String uid, String email) async {
+    try {
+      final targetRef = _staffRef(libraryId).doc(uid);
+      final targetDoc = await targetRef.get();
+      if (targetDoc.exists) return; // already keyed by uid
+
+      // Find by normalized email
+      final emailQuery = await _staffRef(libraryId)
+          .where('email', isEqualTo: email.trim().toLowerCase())
+          .limit(1)
+          .get();
+
+      if (emailQuery.docs.isNotEmpty) {
+        final oldDoc = emailQuery.docs.first;
+        if (oldDoc.id != uid) {
+          final data = Map<String, dynamic>.from(oldDoc.data());
+          data['id'] = uid;
+          data['userId'] = uid;
+          data['updatedAt'] = DateTime.now().toIso8601String();
+          await targetRef.set(data, SetOptions(merge: true));
+          await oldDoc.reference.delete().catchError((_) {});
+        }
+      }
+    } catch (_) {}
   }
 
   /// Updates staff permissions and role

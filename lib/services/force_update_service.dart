@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show File, HttpClient, HttpHeaders, FileMode, Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 
 enum UpdateStatus { upToDate, optionalUpdate, forceUpdate, checkFailed }
 
@@ -24,6 +25,7 @@ class UpdateInfo {
   final String message;
   final List<String> releaseNotes;
   final String apkSize;
+  final bool isWebUpdate;
 
   const UpdateInfo({
     required this.versionCode,
@@ -33,10 +35,42 @@ class UpdateInfo {
     required this.isForceUpdate,
     required this.message,
     required this.releaseNotes,
-    this.apkSize = '74.0 MB',
+    this.apkSize = '51.8 MB',
+    this.isWebUpdate = false,
   });
 
-  factory UpdateInfo.fromJson(Map<String, dynamic> json, {required bool isIos}) {
+  factory UpdateInfo.fromJson(
+    Map<String, dynamic> json, {
+    required bool isIos,
+    required bool isWeb,
+  }) {
+    if (isWeb) {
+      final webData = (json['web'] as Map<String, dynamic>?) ?? json;
+      final rawNotes = webData['releaseNotes'] ?? json['releaseNotes'];
+      List<String> notes = [];
+      if (rawNotes is List) {
+        notes = rawNotes.map((e) => e.toString()).toList();
+      } else if (rawNotes is String && rawNotes.isNotEmpty) {
+        notes = rawNotes.split(RegExp(r'\.\s+')).where((s) => s.trim().isNotEmpty).toList();
+      }
+
+      final vCode = (webData['buildNumber'] as num?)?.toInt() ??
+          (json['versionCode'] as num?)?.toInt() ??
+          56;
+      final vName = (webData['version'] ?? json['versionName'] ?? json['latestVersion'] ?? '1.5.48').toString();
+
+      return UpdateInfo(
+        versionCode: vCode,
+        versionName: vName,
+        apkUrl: '',
+        storeUrl: '',
+        isForceUpdate: false,
+        message: 'A fresh web app update is available. Reload to get the latest features.',
+        releaseNotes: notes,
+        isWebUpdate: true,
+      );
+    }
+
     final platformKey = isIos ? 'ios' : 'android';
     final nested = json[platformKey] as Map<String, dynamic>?;
     final data = nested ?? json;
@@ -61,7 +95,7 @@ class UpdateInfo {
             (isIos ? data['iosUrl'] : null) ??
             '')
         .toString();
-    final size = (data['apkSize'] ?? '74.0 MB').toString();
+    final size = (data['apkSize'] ?? '51.8 MB').toString();
 
     return UpdateInfo(
       versionCode: vCode,
@@ -71,7 +105,8 @@ class UpdateInfo {
       isForceUpdate: data['forceUpdate'] == true,
       message: 'Version ${vName.isNotEmpty ? vName : '?'} is ready to install.',
       releaseNotes: notes,
-      apkSize: size.isNotEmpty && size != 'null' ? size : '51.5 MB',
+      apkSize: size.isNotEmpty && size != 'null' ? size : '51.8 MB',
+      isWebUpdate: false,
     );
   }
 }
@@ -159,24 +194,74 @@ class ForceUpdateService extends Notifier<UpdateState> {
     return File('${dir.path}/studylibrary_update.apk');
   }
 
-  /// Check for updates
+  /// Verifies that the remote APK file is actually reachable on the CDN/server before advertising an update.
+  /// Prevents phantom updates and 404 download errors.
+  Future<bool> _verifyApkExists(String apkUrl) async {
+    if (apkUrl.isEmpty || !apkUrl.startsWith('https://')) return false;
+    try {
+      final uri = Uri.parse(apkUrl);
+      final response = await http.head(uri).timeout(const Duration(seconds: 5));
+      if (response.statusCode >= 200 && response.statusCode < 400) {
+        final cl = int.tryParse(response.headers['content-length'] ?? '') ?? 0;
+        // If content-length is reported and under 1MB, it's not a valid APK binary
+        if (cl > 0 && cl < 1024 * 1024) {
+          if (kDebugMode) debugPrint('APK HEAD check: File size too small ($cl bytes). Suppressing.');
+          return false;
+        }
+        return true;
+      }
+      if (kDebugMode) debugPrint('APK HEAD check returned HTTP ${response.statusCode}');
+      return false;
+    } catch (e) {
+      if (kDebugMode) debugPrint('APK HEAD check error: $e');
+      return false;
+    }
+  }
+
+  /// Check for updates with strict platform segregation and artifact verification.
   Future<void> checkForUpdate({bool manualCheck = false}) async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersionCode = int.tryParse(packageInfo.buildNumber) ?? 1;
-
       final isIos = !kIsWeb && Platform.isIOS;
-      final updateInfo = await _fetchUpdateMetadata(isIos: isIos);
+      final updateInfo = await _fetchUpdateMetadata(isIos: isIos, isWeb: kIsWeb);
 
       if (updateInfo == null) {
         if (manualCheck) {
           state = state.copyWith(
             status: UpdateStatus.checkFailed,
-            errorMessage: 'Unable to connect to the update server. Please check your internet connection and try again.',
+            errorMessage: 'Unable to connect to update server. Please check your internet connection.',
           );
         }
         return;
       }
+
+      // ── WEB APP PLATFORM HANDLING ──────────────────────────────────────────
+      // Web apps do NOT use APK installers or native package channels.
+      if (kIsWeb) {
+        // On web, compare client version code against the web manifest
+        final currentWebCode = int.tryParse(packageInfo.buildNumber) ?? 56;
+        final hasNewerWebVersion = updateInfo.versionCode > currentWebCode;
+
+        if (hasNewerWebVersion) {
+          state = state.copyWith(
+            status: UpdateStatus.optionalUpdate,
+            info: updateInfo,
+            errorMessage: null,
+          );
+        } else {
+          state = state.copyWith(
+            status: UpdateStatus.upToDate,
+            info: updateInfo,
+            errorMessage: manualCheck
+                ? 'Web portal is running the latest version (v${updateInfo.versionName}).'
+                : null,
+          );
+        }
+        return;
+      }
+
+      // ── NATIVE MOBILE APP HANDLING (Android APK / iOS) ─────────────────────
+      final currentVersionCode = int.tryParse(packageInfo.buildNumber) ?? 1;
 
       bool isRemoteForce = false;
       try {
@@ -189,11 +274,6 @@ class ForceUpdateService extends Notifier<UpdateState> {
       final isForce = isRemoteForce ||
           (updateInfo.isForceUpdate && currentVersionCode < updateInfo.versionCode);
 
-      if (isForce) {
-        state = state.copyWith(status: UpdateStatus.forceUpdate, info: updateInfo);
-        return;
-      }
-
       final hasNewerVersion = _isNewerVersion(
         updateInfo.versionName,
         updateInfo.versionCode,
@@ -202,8 +282,40 @@ class ForceUpdateService extends Notifier<UpdateState> {
       );
 
       if (hasNewerVersion) {
+        // GHOST RELEASE PREVENTION:
+        // Only trigger update banner if the actual APK binary is live and verified on the CDN/Download page.
+        if (!isIos && updateInfo.apkUrl.isNotEmpty) {
+          final apkExists = await _verifyApkExists(updateInfo.apkUrl);
+          if (!apkExists) {
+            if (kDebugMode) {
+              debugPrint('Update announced (${updateInfo.versionName}), but APK binary is not reachable on CDN. Suppressing update banner.');
+            }
+            state = state.copyWith(
+              status: UpdateStatus.upToDate,
+              info: updateInfo,
+              errorMessage: manualCheck
+                  ? 'A new build v${updateInfo.versionName} has been announced, but the APK package is still being uploaded to the download page. Please check back shortly.'
+                  : null,
+            );
+            return;
+          }
+        }
+
+        if (isForce) {
+          state = state.copyWith(
+            status: UpdateStatus.forceUpdate,
+            info: updateInfo,
+            errorMessage: null,
+          );
+          return;
+        }
+
         if (manualCheck) {
-          state = state.copyWith(status: UpdateStatus.optionalUpdate, info: updateInfo);
+          state = state.copyWith(
+            status: UpdateStatus.optionalUpdate,
+            info: updateInfo,
+            errorMessage: null,
+          );
         } else {
           final prefs = await SharedPreferences.getInstance();
           final dismissedVersion = prefs.getInt(_prefDismissedVersionKey) ?? 0;
@@ -231,20 +343,30 @@ class ForceUpdateService extends Notifier<UpdateState> {
                   progress: 1.0,
                   downloadedBytes: fileSize,
                   totalBytes: fileSize,
+                  errorMessage: null,
                 );
                 return;
               } else {
-                // Incomplete or corrupted file from prior interrupted download — delete cleanly
                 try {
                   await apkFile.delete();
                 } catch (_) { /* intentionally silent */ }
               }
             }
-            state = state.copyWith(status: UpdateStatus.optionalUpdate, info: updateInfo);
+            state = state.copyWith(
+              status: UpdateStatus.optionalUpdate,
+              info: updateInfo,
+              errorMessage: null,
+            );
           }
         }
       } else {
-        state = state.copyWith(status: UpdateStatus.upToDate, info: updateInfo);
+        state = state.copyWith(
+          status: UpdateStatus.upToDate,
+          info: updateInfo,
+          errorMessage: manualCheck
+              ? 'You have the latest version of Study Library (v${packageInfo.version} build $currentVersionCode).'
+              : null,
+        );
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Update check failed: $e');
@@ -259,7 +381,7 @@ class ForceUpdateService extends Notifier<UpdateState> {
     }
   }
 
-  /// Dismiss update card and reminders for 24 hours / rest of the day (does NOT clear downloaded APK path)
+  /// Dismiss update card and reminders for 24 hours (does NOT clear downloaded APK path)
   Future<void> dismissLater() async {
     if (state.info != null) {
       final prefs = await SharedPreferences.getInstance();
@@ -273,13 +395,15 @@ class ForceUpdateService extends Notifier<UpdateState> {
     state = state.copyWith(status: UpdateStatus.upToDate);
   }
 
-  /// Start or resume a download
+  /// Start or resume an APK download (Android native only)
   Future<void> startUpdate() async {
+    if (kIsWeb) return;
+
     final info = state.info;
     if (info == null) return;
 
     // iOS: open App Store
-    if (!kIsWeb && Platform.isIOS) {
+    if (Platform.isIOS) {
       if (info.storeUrl.isNotEmpty) {
         final uri = Uri.tryParse(info.storeUrl);
         if (uri != null && await canLaunchUrl(uri)) {
@@ -363,7 +487,7 @@ class ForceUpdateService extends Notifier<UpdateState> {
   /// Resume a paused download
   Future<void> resumeUpdate() async {
     final info = state.info;
-    if (info == null) return;
+    if (info == null || kIsWeb) return;
 
     _isPaused = false;
     final apkFile = await _getApkFile();
@@ -388,14 +512,12 @@ class ForceUpdateService extends Notifier<UpdateState> {
 
       final request = await client.getUrl(Uri.parse(apkUrl));
 
-      // Support resume via HTTP Range header
       if (resumeFrom > 0) {
         request.headers.set(HttpHeaders.rangeHeader, 'bytes=$resumeFrom-');
       }
 
       final response = await request.close();
 
-      // 206 = Partial Content (resume), 200 = full download
       if (response.statusCode != 200 && response.statusCode != 206) {
         throw Exception('Server error: ${response.statusCode}');
       }
@@ -404,7 +526,6 @@ class ForceUpdateService extends Notifier<UpdateState> {
       final totalBytes = resumeFrom + (contentLength > 0 ? contentLength : 0);
       int received = resumeFrom;
 
-      // Append if resuming, overwrite if starting fresh
       final sink = apkFile.openWrite(mode: resumeFrom > 0 ? FileMode.append : FileMode.write);
 
       await for (final chunk in response) {
@@ -429,7 +550,6 @@ class ForceUpdateService extends Notifier<UpdateState> {
       client.close();
       _activeClient = null;
 
-      // ✅ Download complete — show Install button, don't auto-launch
       state = state.copyWith(
         downloadState: DownloadState.completed,
         downloadedApkPath: apkFile.path,
@@ -438,7 +558,7 @@ class ForceUpdateService extends Notifier<UpdateState> {
         totalBytes: totalBytes > 0 ? totalBytes : received,
       );
     } catch (e) {
-      if (_isPaused) return; // Intentional cancellation
+      if (_isPaused) return;
       _activeClient = null;
       state = state.copyWith(
         downloadState: DownloadState.failed,
@@ -449,9 +569,10 @@ class ForceUpdateService extends Notifier<UpdateState> {
 
   /// Install the already-downloaded APK
   Future<void> installUpdate() async {
+    if (kIsWeb) return;
+
     final path = state.downloadedApkPath;
     if (path == null || path.isEmpty) {
-      // Path lost — restart download
       state = state.copyWith(downloadState: DownloadState.idle, clearApkPath: true);
       return;
     }
@@ -461,7 +582,6 @@ class ForceUpdateService extends Notifier<UpdateState> {
       return;
     }
 
-    // Check package installer permission
     try {
       final canInstall = await _channel.invokeMethod<bool>('canInstallPackages') ?? true;
       if (!canInstall) {
@@ -471,7 +591,6 @@ class ForceUpdateService extends Notifier<UpdateState> {
       }
     } catch (_) { /* intentionally silent */ }
 
-    // Verify APK archive integrity before launching installer
     try {
       final isValid = await _channel.invokeMethod<bool>('verifyApk', {'filePath': path}) ?? false;
       if (!isValid) {
@@ -491,6 +610,7 @@ class ForceUpdateService extends Notifier<UpdateState> {
   }
 
   Future<void> requestInstallPermission() async {
+    if (kIsWeb) return;
     try {
       await _channel.invokeMethod('openInstallPermissionSettings');
       state = state.copyWith(downloadState: DownloadState.idle);
@@ -498,6 +618,7 @@ class ForceUpdateService extends Notifier<UpdateState> {
   }
 
   Future<void> _installApk(String filePath) async {
+    if (kIsWeb) return;
     try {
       await _channel.invokeMethod('installApk', {'filePath': filePath});
     } catch (e) {
@@ -508,21 +629,20 @@ class ForceUpdateService extends Notifier<UpdateState> {
     }
   }
 
-  Future<UpdateInfo?> _fetchUpdateMetadata({required bool isIos}) async {
+  Future<UpdateInfo?> _fetchUpdateMetadata({required bool isIos, required bool isWeb}) async {
     try {
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 10);
       final cacheBustedUrl = '$_metadataUrl?t=${DateTime.now().millisecondsSinceEpoch}';
-      final request = await client.getUrl(Uri.parse(cacheBustedUrl));
-      request.headers.set(HttpHeaders.cacheControlHeader, 'no-cache, no-store, must-revalidate');
-      request.headers.set(HttpHeaders.pragmaHeader, 'no-cache');
-      final response = await request.close();
+      final response = await http.get(
+        Uri.parse(cacheBustedUrl),
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
-        final body = await response.transform(utf8.decoder).join();
-        final json = jsonDecode(body) as Map<String, dynamic>;
-        client.close();
-        return UpdateInfo.fromJson(json, isIos: isIos);
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return UpdateInfo.fromJson(json, isIos: isIos, isWeb: isWeb);
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Fetch update metadata error: $e');
