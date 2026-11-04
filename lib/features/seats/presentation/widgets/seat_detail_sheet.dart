@@ -8,6 +8,7 @@ import 'package:study_library/models/waiting_list_model.dart';
 import 'package:study_library/services/waiting_list_promotion_service.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/error/error_handler.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 import '../providers/seat_providers.dart';
 

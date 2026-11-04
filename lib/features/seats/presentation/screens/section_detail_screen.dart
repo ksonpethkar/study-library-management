@@ -10,7 +10,6 @@ import 'package:study_library/models/seat_model.dart';
 import '../providers/seat_providers.dart';
 import '../widgets/seat_grid_widget.dart';
 import 'add_section_screen.dart';
-import 'package:study_library/core/utils/error_formatter.dart';
 
 class SectionDetailScreen extends ConsumerStatefulWidget {
   final String sectionId;
