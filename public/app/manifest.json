@@ -1,12 +1,12 @@
 {
-    "name": "The Cozy Corner Centre",
-    "short_name": "The Cozy Corner Centre",
+    "name": "The Cozy Corner Study Centre",
+    "short_name": "The Cozy Corner Study Centre",
     "start_url": "/app/",
     "scope": "/app/",
     "display": "standalone",
     "background_color": "#FFF8F0",
     "theme_color": "#5D4037",
-    "description": "The Cozy Corner Centre — Smart Study Library Management Platform",
+    "description": "The Cozy Corner Study Centre — Smart Study Library Management Platform",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

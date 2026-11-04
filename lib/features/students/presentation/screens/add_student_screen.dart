@@ -468,14 +468,14 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                             }
                           },
                           child: CircleAvatar(
-                            radius: 54,
+                            radius: 44,
                             backgroundColor: theme.colorScheme.primaryContainer,
                             backgroundImage:
                                 _pickedPhoto != null ? FileImage(_pickedPhoto!) : null,
                             child: _pickedPhoto == null
                                 ? Icon(
                                     Icons.person_rounded,
-                                    size: 54,
+                                    size: 44,
                                     color: theme.colorScheme.onPrimaryContainer,
                                   )
                                 : null,
@@ -709,9 +709,10 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       final idTypeField = DropdownButtonFormField<GovIdType>(
                         isExpanded: true,
                         initialValue: _govIdType,
+                        icon: const Icon(Icons.arrow_drop_down, size: 22),
                         decoration: const InputDecoration(
                           labelText: 'ID Type',
-                          prefixIcon: Icon(Icons.badge_outlined),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 15),
                           border: OutlineInputBorder(),
                         ),
                         items: const [
@@ -730,11 +731,12 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                         decoration: InputDecoration(
                           labelText: '${_govIdType.name.toUpperCase()} Number',
                           prefixIcon: const Icon(Icons.numbers_rounded),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
                           border: const OutlineInputBorder(),
                         ),
                       );
 
-                      if (constraints.maxWidth < 460) {
+                      if (constraints.maxWidth < 560) {
                         return Column(
                           children: [
                             idTypeField,
@@ -745,9 +747,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       }
                       return Row(
                         children: [
-                          Expanded(flex: 2, child: idTypeField),
+                          Expanded(flex: 5, child: idTypeField),
                           const SizedBox(width: 12),
-                          Expanded(flex: 3, child: idNumberField),
+                          Expanded(flex: 6, child: idNumberField),
                         ],
                       );
                     },
@@ -821,9 +823,10 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       final bloodField = DropdownButtonFormField<String>(
                         isExpanded: true,
                         initialValue: _bloodGroup,
+                        icon: const Icon(Icons.arrow_drop_down, size: 22),
                         decoration: const InputDecoration(
                           labelText: 'Blood Group',
-                          prefixIcon: Icon(Icons.bloodtype_rounded),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 15),
                           border: OutlineInputBorder(),
                         ),
                         hint: const Text('Select'),
@@ -840,7 +843,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                         onChanged: (v) => setState(() => _bloodGroup = v),
                       );
 
-                      if (constraints.maxWidth < 460) {
+                      if (constraints.maxWidth < 560) {
                         return Column(
                           children: [
                             rollField,
@@ -1172,11 +1175,12 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                         child: OutlinedButton.icon(
                           onPressed: _isLoading ? null : _confirmDiscardAndExit,
                           icon: const Icon(Icons.close_rounded, size: 18),
-                          label: const Text('Discard'),
+                          label: const Text('Cancel'),
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size.fromHeight(52),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                            side: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
                           ),
                         ),
                       ),
@@ -1185,8 +1189,14 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                         flex: 3,
                         child: FilledButton.icon(
                           onPressed: _isLoading ? null : _saveStudent,
-                          icon: const Icon(Icons.person_add_rounded, size: 20),
-                          label: const Text('Add Student to Library'),
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.person_add_rounded, size: 20),
+                          label: Text(_isLoading ? 'Saving...' : 'Add Student to Library'),
                           style: FilledButton.styleFrom(
                             minimumSize: const Size.fromHeight(52),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

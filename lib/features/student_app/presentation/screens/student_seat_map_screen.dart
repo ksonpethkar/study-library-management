@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -697,6 +698,11 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.studentHome),
+        ),
         title: const Text('Library Seat Map'),
         centerTitle: true,
       ),

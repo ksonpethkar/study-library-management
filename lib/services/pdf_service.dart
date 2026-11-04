@@ -136,8 +136,27 @@ class PdfService {
     String? seatLabel,
     int? cols,
     SectionModel? section,
+    String? gstin,
   }) async {
     final pdf = pw.Document();
+
+    // ── Load GSTIN from library settings if not passed ──
+    String resolvedGstin = gstin?.trim() ?? '';
+    if (resolvedGstin.isEmpty) {
+      final templateGstin = (template?['gstin'] as String?)?.trim();
+      if (templateGstin != null && templateGstin.isNotEmpty) {
+        resolvedGstin = templateGstin;
+      } else {
+        try {
+          final pmDoc = await FirebaseFirestore.instance
+              .collection('libraries').doc(library.id)
+              .collection('settings').doc('payment_methods').get();
+          if (pmDoc.exists) {
+            resolvedGstin = (pmDoc.data()?['gstin'] as String?)?.trim() ?? '';
+          }
+        } catch (_) {}
+      }
+    }
 
     // Fast-path cached base font for Unicode & Indian Rupee symbol
     final notoSans = await PdfFontService.getBaseFont();
@@ -550,6 +569,13 @@ class PdfService {
                                         'Helpline: ${library.effectiveHelpline.isNotEmpty ? library.effectiveHelpline : (cleanContact.isNotEmpty ? cleanContact : "Desk Reception")}${library.email.isNotEmpty ? " • Email: ${library.email}" : ""}',
                                         style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569')),
                                       ),
+                                    if (resolvedGstin.isNotEmpty) ...[
+                                      pw.SizedBox(height: 2.0),
+                                      pw.Text(
+                                        'GSTIN: $resolvedGstin',
+                                        style: pw.TextStyle(fontSize: 8.0, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569')),
+                                      ),
+                                    ],
                                     ],
                                     if (showTagline && (cleanWelcome.isNotEmpty || cleanOrgName.isNotEmpty)) ...[
                                       pw.SizedBox(height: 2),

@@ -1273,34 +1273,23 @@ class SettingsScreen extends ConsumerWidget {
         contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
         title: Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: imageProvider != null
-                    ? Image(
-                        image: imageProvider,
-                        width: 44,
-                        height: 44,
-                        fit: BoxFit.contain,
-                      )
-                    : Image.asset(
-                        'assets/images/app_logo_transparent.png',
-                        width: 44,
-                        height: 44,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => Icon(
-                          Icons.local_library_rounded,
-                          color: theme.colorScheme.primary,
-                          size: 26,
-                        ),
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: Colors.white,
+              backgroundImage: imageProvider ?? const AssetImage('assets/images/app_logo_transparent.png'),
+              child: (imageProvider == null)
+                  ? Image.asset(
+                      'assets/images/app_logo_transparent.png',
+                      width: 36,
+                      height: 36,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => Icon(
+                        Icons.local_library_rounded,
+                        color: theme.colorScheme.primary,
+                        size: 24,
                       ),
-              ),
+                    )
+                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1950,10 +1939,32 @@ class SettingsScreen extends ConsumerWidget {
                                 leading: Icon(Icons.email_outlined, color: theme.colorScheme.primary),
                                 title: const Text('Email Developer Support', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                 subtitle: Text(devEmail, style: const TextStyle(fontSize: 12)),
-                                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                                onTap: () async {
-                                  final uri = Uri.parse('mailto:$devEmail?subject=Support%20Request%20-%20v$ver%20(Build%20$build)&body=Library:%20${lib?.name}%20(ID:%20${lib?.id})%0APlatform:%20${_getSafePlatformVersion()}');
-                                  if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined, size: 18),
+                                      tooltip: 'Edit Support Email',
+                                      onPressed: () {
+                                        if (lib?.id != null) {
+                                          _editDeveloperEmail(context, lib!.id, devEmail);
+                                        }
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.send_rounded, size: 18),
+                                      tooltip: 'Send Email',
+                                      onPressed: () async {
+                                        final uri = Uri.parse('mailto:$devEmail?subject=Support%20Request%20-%20v$ver%20(Build%20$build)&body=Library:%20${lib?.name}%20(ID:%20${lib?.id})%0APlatform:%20${_getSafePlatformVersion()}');
+                                        if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                onTap: () {
+                                  if (lib?.id != null) {
+                                    _editDeveloperEmail(context, lib!.id, devEmail);
+                                  }
                                 },
                               ),
                             ],

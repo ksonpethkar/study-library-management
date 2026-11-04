@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:study_library/core/router/app_router.dart';
+import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
@@ -117,6 +119,11 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back to Home',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.studentHome),
+        ),
         title: const Text('My Receipts & Invoices'),
         centerTitle: true,
       ),

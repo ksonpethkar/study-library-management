@@ -7,6 +7,8 @@ class HolidayModel {
   final String reason;
   final bool isFullDay;
   final DateTime createdAt;
+  final bool membershipExtended;
+  final int extensionDays;
 
   HolidayModel({
     required this.id,
@@ -15,6 +17,8 @@ class HolidayModel {
     required this.reason,
     required this.isFullDay,
     required this.createdAt,
+    this.membershipExtended = false,
+    this.extensionDays = 0,
   });
 
   factory HolidayModel.fromJson(Map<String, dynamic> json) {
@@ -25,6 +29,8 @@ class HolidayModel {
       reason: json['reason'] as String? ?? '',
       isFullDay: json['isFullDay'] as bool? ?? true,
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now(),
+      membershipExtended: json['membershipExtended'] as bool? ?? false,
+      extensionDays: (json['extensionDays'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -36,6 +42,8 @@ class HolidayModel {
       'reason': reason,
       'isFullDay': isFullDay,
       'createdAt': createdAt.toIso8601String(),
+      'membershipExtended': membershipExtended,
+      'extensionDays': extensionDays,
     };
   }
 
@@ -46,6 +54,8 @@ class HolidayModel {
     String? reason,
     bool? isFullDay,
     DateTime? createdAt,
+    bool? membershipExtended,
+    int? extensionDays,
   }) {
     return HolidayModel(
       id: id ?? this.id,
@@ -54,6 +64,8 @@ class HolidayModel {
       reason: reason ?? this.reason,
       isFullDay: isFullDay ?? this.isFullDay,
       createdAt: createdAt ?? this.createdAt,
+      membershipExtended: membershipExtended ?? this.membershipExtended,
+      extensionDays: extensionDays ?? this.extensionDays,
     );
   }
 

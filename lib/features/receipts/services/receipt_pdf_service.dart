@@ -23,6 +23,7 @@ class ReceiptPdfService {
     required DateTime? validTo,
     double? securityDeposit,
     String? notes,
+    String? gstin,
   }) async {
     final effectiveValidFrom = validFrom ?? paymentDate;
     final effectiveValidTo = validTo ?? DateTime(paymentDate.year, paymentDate.month + 1, 0, 23, 59, 59);
@@ -108,6 +109,7 @@ class ReceiptPdfService {
       plan,
       library,
       null,
+      gstin: gstin,
     );
   }
 }

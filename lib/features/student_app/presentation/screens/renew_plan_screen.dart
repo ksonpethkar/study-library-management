@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,15 +58,37 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
     required double? origPrice,
     required bool hasDiscount,
   }) async {
-    if ((_paymentMode == RenewalPaymentMode.upi || _paymentMode == RenewalPaymentMode.bank) &&
-        _transactionRefController.text.trim().isEmpty) {
+    if (_paymentMode == RenewalPaymentMode.upi) {
+      final utr = _transactionRefController.text.trim();
+      if (utr.isEmpty) {
+        HapticFeedback.lightImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter your 12-digit UPI UTR / Transaction Reference number'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      if (!RegExp(r'^\d{12}$').hasMatch(utr)) {
+        HapticFeedback.lightImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid UTR format: UPI UTR must be exactly 12 numeric digits (e.g. 431289567123).'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    } else if (_paymentMode == RenewalPaymentMode.bank && _transactionRefController.text.trim().isEmpty) {
       HapticFeedback.lightImpact();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_paymentMode == RenewalPaymentMode.upi
-              ? 'Please enter your 12-digit UPI UTR / Transaction Reference number'
-              : 'Please enter your Bank Transfer UTR / Transaction Reference number'),
+        const SnackBar(
+          content: Text('Please enter your Bank Transfer UTR / Transaction Reference number'),
           backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -187,6 +210,11 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.studentHome),
+        ),
         title: const Text('Renew Membership'),
         centerTitle: true,
       ),
@@ -1259,12 +1287,17 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                               // UTR Reference Input Field
                               TextField(
                                 controller: _transactionRefController,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(12),
+                                ],
                                 decoration: const InputDecoration(
                                   labelText: 'UTR / Transaction Reference No. *',
                                   hintText: 'e.g. 423589123456',
                                   prefixIcon: Icon(Icons.tag_rounded),
                                   border: OutlineInputBorder(),
-                                  helperText: 'Enter 12-digit UTR from your bank or UPI payment confirmation',
+                                  helperText: 'Enter 12-digit numeric UTR from your bank or UPI payment confirmation',
                                 ),
                               ),
                               _buildPaymentProofAttachmentWidget(theme),

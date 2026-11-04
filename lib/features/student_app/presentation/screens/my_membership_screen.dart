@@ -27,6 +27,11 @@ class MyMembershipScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back to Home',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.studentHome),
+        ),
         title: const Text('My Membership'),
         centerTitle: true,
       ),

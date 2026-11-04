@@ -146,6 +146,11 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.studentHome),
+        ),
         title: const Text('My Digital ID Card'),
         centerTitle: true,
       ),

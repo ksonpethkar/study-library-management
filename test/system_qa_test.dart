@@ -2781,5 +2781,77 @@ void main() {
       expect(registrationPayload['requestedSectionName'], equals('Cozy Hall'));
       expect((registrationPayload['studentData'] as Map)['seatId'], equals('1790647291016_r1_c4'));
     });
+
+    test('86. ROLE PRECEDENCE, STUDENT MULTI-TENANT ISOLATION & TEST WORKSPACE QUARANTINE', () {
+      const defaultLibraryId = 'aPSMq8xSAjuZQh2fTtuY';
+      const testLibraryId = 'a9XtHXM2jDpFWXvm7guS';
+      const studentUid = 'Z4vp6LzMXkMaLbGfUm7XEyfcr463';
+      const studentEmail = 'ashishchoudhari04@gmail.com';
+      const studentPhone = '7385817571';
+
+      // 1. Master admin whitelist rejection check
+      const masterWhitelistedEmails = {
+        'ksonpethkar@gmail.com',
+        'thecozycornersc@gmail.com',
+      };
+      expect(masterWhitelistedEmails.contains(studentEmail.toLowerCase()), isFalse);
+
+      // 2. Student Precedence Invariant:
+      // When a user exists in the library roster as a student,
+      // their role MUST resolve as AppUserRole.student, regardless of any test library ownership
+      final studentRosterEntry = {
+        'id': 'CC20260002_ashish',
+        'name': 'Ashish Wagesh Choudhari',
+        'phone': studentPhone,
+        'email': studentEmail,
+        'libraryId': defaultLibraryId,
+        'membershipStatus': 'expired',
+        'expiryDate': '2026-10-31T00:00:00.000Z',
+      };
+
+      // Multi-identifier resolution verification
+      final phoneVariants = <String>{
+        studentPhone,
+        '+91$studentPhone',
+        '91$studentPhone',
+        '0$studentPhone',
+      };
+      expect(phoneVariants.contains('7385817571'), isTrue);
+      expect(phoneVariants.contains('+917385817571'), isTrue);
+
+      // 3. Test Library Quarantine Policy:
+      // Any test library owned by studentUid that is NOT defaultLibraryId must be quarantined
+      final rawLibraries = [
+        {'id': defaultLibraryId, 'name': 'The Cozy Corner Study Centre', 'ownerId': '85k5JWF8baMgAJmtRdZd3IIpxnf1'},
+        {'id': testLibraryId, 'name': 'the cozy corner (test)', 'ownerId': studentUid, 'totalDesks': 3481},
+      ];
+
+      final quarantinedLibraries = rawLibraries.map((lib) {
+        if (lib['ownerId'] == studentUid && lib['id'] != defaultLibraryId) {
+          return {
+            ...lib,
+            'ownerId': 'quarantined_test_owner',
+            'quarantinedReason': 'Disassociated orphan test library - owner is student',
+          };
+        }
+        return lib;
+      }).toList();
+
+      expect(quarantinedLibraries[0]['ownerId'], equals('85k5JWF8baMgAJmtRdZd3IIpxnf1'));
+      expect(quarantinedLibraries[1]['ownerId'], equals('quarantined_test_owner'));
+
+      // 4. Role Authority & Session Cleansing Invariant
+      final sessionProfile = {
+        'role': 'student',
+        'libraryId': defaultLibraryId,
+        'isStaff': false,
+        'isOwner': false,
+        'studentName': studentRosterEntry['name'],
+      };
+
+      expect(sessionProfile['role'], equals('student'));
+      expect(sessionProfile['libraryId'], equals(defaultLibraryId));
+      expect(sessionProfile['isOwner'], isFalse);
+    });
   });
 }

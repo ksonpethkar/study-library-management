@@ -535,6 +535,30 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
                       ),
                     ),
                   ),
+                if (holiday.membershipExtended)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.green.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.more_time_rounded, size: 10, color: Colors.green.shade800),
+                        const SizedBox(width: 3),
+                        Text(
+                          '+${holiday.extensionDays > 0 ? holiday.extensionDays : 1}d Extension',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -596,6 +620,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
   final _reasonController = TextEditingController();
   DateTime? _selectedDate = DateTime.now();
   bool _isFullDay = true;
+  bool _extendActiveMemberships = false;
   bool _isSaving = false;
   String? _dateError;
 
@@ -652,12 +677,63 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
         reason: _reasonController.text.trim(),
         isFullDay: _isFullDay,
         createdAt: DateTime.now(),
+        membershipExtended: _extendActiveMemberships,
+        extensionDays: _extendActiveMemberships ? 1 : 0,
       );
 
       await newDoc.set(holiday.toJson());
 
+      // If compensatory extension is requested, extend all active students by 1 day
+      int extendedCount = 0;
+      if (_extendActiveMemberships) {
+        final studentsSnapshot = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('students')
+            .where('membershipStatus', isEqualTo: 'active')
+            .get();
+
+        if (studentsSnapshot.docs.isNotEmpty) {
+          final batch = FirebaseFirestore.instance.batch();
+          for (final doc in studentsSnapshot.docs) {
+            final data = doc.data();
+            final currentEndStr = data['planEndDate'] as String?;
+            if (currentEndStr != null) {
+              final currentEnd = DateTime.tryParse(currentEndStr);
+              if (currentEnd != null) {
+                final newEnd = currentEnd.add(const Duration(days: 1));
+                final updates = <String, dynamic>{
+                  'planEndDate': newEnd.toIso8601String(),
+                };
+                final graceStr = data['graceEndDate'] as String?;
+                if (graceStr != null) {
+                  final graceEnd = DateTime.tryParse(graceStr);
+                  if (graceEnd != null) {
+                    updates['graceEndDate'] = graceEnd.add(const Duration(days: 1)).toIso8601String();
+                  }
+                }
+                batch.update(doc.reference, updates);
+                extendedCount++;
+              }
+            }
+          }
+          if (extendedCount > 0) {
+            await batch.commit();
+          }
+        }
+      }
+
       if (mounted) {
         Navigator.of(context).pop(true);
+        if (_extendActiveMemberships && extendedCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Holiday added & $extendedCount active student memberships extended by 1 day!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -768,6 +844,17 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
                 ),
                 value: _isFullDay,
                 onChanged: _isSaving ? null : (val) => setState(() => _isFullDay = val),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Compensatory Extension (+1 Day)'),
+                subtitle: Text(
+                  'Extend active students\' plan end-date by 1 day for this closure',
+                  style: theme.textTheme.bodySmall,
+                ),
+                value: _extendActiveMemberships,
+                onChanged: _isSaving ? null : (val) => setState(() => _extendActiveMemberships = val),
               ),
             ],
           ),

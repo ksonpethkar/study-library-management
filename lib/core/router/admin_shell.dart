@@ -39,6 +39,7 @@ class AdminShell extends ConsumerStatefulWidget {
 
 class _AdminShellState extends ConsumerState<AdminShell> {
   DateTime? _shellStartTime;
+  DateTime? _lastBackPressTime;
   final Set<String> _seenNotificationIds = {};
 
   @override
@@ -312,24 +313,33 @@ class _AdminShellState extends ConsumerState<AdminShell> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final shouldExit = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Exit App?'),
-            content: const Text('Do you want to exit the application?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Stay'),
+        final currentIndex = _getSelectedIndex(context);
+        if (currentIndex != 0) {
+          // Layer 2: On secondary tabs (Seats, Students, More), return to Admin Home tab
+          _onItemTapped(context, 0);
+          return;
+        }
+
+        // Layer 3: Already on Home tab: double-tap back to exit with 2-second timeout (Leading app standard)
+        final now = DateTime.now();
+        final last = _lastBackPressTime;
+        if (last == null || now.difference(last) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).removeCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Press back again to exit'),
+                duration: Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
               ),
-              FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('Exit'),
-              ),
-            ],
-          ),
-        );
-        if (shouldExit == true && context.mounted) {
+            );
+          }
+          return;
+        }
+
+        // Second press within 2 seconds: close app cleanly
+        if (context.mounted) {
           await SystemNavigator.pop();
         }
       },

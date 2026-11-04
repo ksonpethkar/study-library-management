@@ -191,6 +191,17 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     final payeeName = _payeeNameController.text.trim();
     final upiPhone = _upiPhoneController.text.trim();
 
+    final upiVpaRegex = RegExp(r'^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$');
+    if (upiId.isNotEmpty && !upiVpaRegex.hasMatch(upiId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid UPI ID (e.g. library@bank or 9876543210@upi)'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final bankDetails = {
       'bankName': _bankNameController.text.trim(),
       'accountNumber': _accountNumberController.text.trim(),
@@ -600,6 +611,8 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     final theme = Theme.of(context);
     final currentUpi = _upiIdController.text.trim();
     final currentPayee = _payeeNameController.text.trim();
+    final upiVpaRegex = RegExp(r'^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$');
+    final isUpiValid = currentUpi.isNotEmpty && upiVpaRegex.hasMatch(currentUpi);
     final previewUri = 'upi://pay?pa=$currentUpi&pn=${Uri.encodeComponent(currentPayee)}&cu=INR';
 
     final hasBankDetails = _bankNameController.text.isNotEmpty && _accountNumberController.text.isNotEmpty;
@@ -687,6 +700,9 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
                             hintText: 'e.g. library@upi or cozycorner@okaxis',
                             prefixIcon: const Icon(Icons.alternate_email_rounded),
                             border: const OutlineInputBorder(),
+                            errorText: (currentUpi.isNotEmpty && !isUpiValid)
+                                ? 'Invalid UPI VPA format (e.g. library@bank or 9876543210@upi)'
+                                : null,
                             helperText: 'Google Pay, PhonePe, Paytm, BHIM registered UPI ID',
                             suffixIcon: IconButton(
                               icon: const Icon(Icons.copy_rounded, size: 18),

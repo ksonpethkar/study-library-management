@@ -454,7 +454,7 @@ class SeatRepository {
         }
       }
 
-      // 2. Mark target seat as occupied
+      // 2. Mark target seat as occupied (with anti-collision check)
       final targetSeatRef = _firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
@@ -462,6 +462,18 @@ class SeatRepository {
           .doc(sectionId)
           .collection(FirestorePaths.seats)
           .doc(seatId);
+
+      final targetSeatSnap = await targetSeatRef.get();
+      if (targetSeatSnap.exists) {
+        final currentOccupant = targetSeatSnap.data()?['studentId'] as String?;
+        final currentStatus = targetSeatSnap.data()?['status'] as String?;
+        if (currentStatus == SeatStatus.occupied.name &&
+            currentOccupant != null &&
+            currentOccupant.isNotEmpty &&
+            currentOccupant != studentId) {
+          throw Exception('Seat is already occupied by another student.');
+        }
+      }
 
       batch.update(targetSeatRef, {
         'status': SeatStatus.occupied.name,

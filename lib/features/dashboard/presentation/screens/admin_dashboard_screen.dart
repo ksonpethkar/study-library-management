@@ -610,7 +610,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                       InkWell(
                         onTap: () {
                           HapticFeedback.lightImpact();
-                          context.go('${Routes.adminStudents}?filter=Due Soon');
+                          context.go(Uri(path: Routes.adminStudents, queryParameters: {'filter': 'Due Soon'}).toString());
                         },
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
@@ -1492,7 +1492,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
           // Outstanding dues alert or healthy confirmation
           if (defaulters.isNotEmpty)
             InkWell(
-              onTap: () => context.go('${Routes.adminStudents}?filter=Has Dues'),
+              onTap: () => context.go(Uri(path: Routes.adminStudents, queryParameters: {'filter': 'Has Dues'}).toString()),
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1666,7 +1666,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 icon: Icons.alarm_rounded,
                 label: '$renewalsDue Renew in 7d',
                 color: renewalsDue > 0 ? const Color(0xFFEA580C) : null,
-                onTap: () => context.go('${Routes.adminStudents}?filter=Due Soon'),
+                onTap: () => context.go(Uri(path: Routes.adminStudents, queryParameters: {'filter': 'Due Soon'}).toString()),
               ),
             ),
           ],

@@ -94,6 +94,7 @@ class StudentProvisioningService {
         final planId = (studentData['planId'] ?? data['planId'] as String?)?.toString();
         DateTime? planStartDate;
         DateTime? planEndDate;
+        double? planSecurityDeposit;
         if (planId != null && planId.isNotEmpty) {
           try {
             final planDoc = await _firestore
@@ -104,6 +105,9 @@ class StudentProvisioningService {
                 .get();
             if (planDoc.exists && planDoc.data() != null) {
               final plan = PlanModel.fromJson({...planDoc.data()!, 'id': planDoc.id});
+              if (plan.hasSecurityDeposit && plan.securityDepositAmount != null) {
+                planSecurityDeposit = plan.securityDepositAmount;
+              }
               planStartDate = DateTime.now();
               final smartCalc = PlanCalculatorService.calculateSmartPlan(
                 plan: plan,
@@ -217,6 +221,7 @@ class StudentProvisioningService {
             planEndDate: isPaid ? planEndDate : null,
             membershipStatus: isPaid ? MembershipStatus.active : MembershipStatus.inactive,
             customFields: extractedCustomFields,
+            securityDepositAmount: planSecurityDeposit,
             notes: isPaid
                 ? 'Registered & Approved via App ($requestId)'
                 : 'Admission Approved via App ($requestId) — Pending Fee Payment',
@@ -453,7 +458,70 @@ class StudentProvisioningService {
               });
             }
 
-            // Update student document to active status and new plan validity
+            // Zero-Click Auto-Seat Allocation & Retention Engine
+            final bool retainSeatRequested = data['retainSeat'] ?? true;
+            final String? requestedDesk = (data['currentSeatId'] ??
+                    data['requestedSeatId'] ??
+                    data['seatId'] ??
+                    sData['seatId'] ??
+                    sData['previousSeatId'])
+                ?.toString();
+
+            String? assignedSeatId;
+            String? assignedSectionId;
+
+            if (retainSeatRequested && requestedDesk != null && requestedDesk.trim().isNotEmpty) {
+              String? targetSecId = (data['sectionId'] ??
+                      data['requestedSectionId'] ??
+                      sData['sectionId'] ??
+                      sData['previousSectionId'])
+                  ?.toString();
+
+              try {
+                if (targetSecId == null || targetSecId.trim().isEmpty) {
+                  final sectionsSnap = await _firestore
+                      .collection('libraries')
+                      .doc(libraryId)
+                      .collection('sections')
+                      .get();
+
+                  for (final sec in sectionsSnap.docs) {
+                    final seatSnap = await sec.reference.collection('seats').doc(requestedDesk).get();
+                    if (seatSnap.exists) {
+                      targetSecId = sec.id;
+                      break;
+                    }
+                  }
+                }
+
+                if (targetSecId != null && targetSecId.isNotEmpty) {
+                  final seatRef = _firestore
+                      .collection('libraries')
+                      .doc(libraryId)
+                      .collection('sections')
+                      .doc(targetSecId)
+                      .collection('seats')
+                      .doc(requestedDesk);
+
+                  final seatDoc = await seatRef.get();
+                  if (seatDoc.exists) {
+                    final seatData = seatDoc.data() ?? {};
+                    final occupant = (seatData['studentId'] ?? '').toString();
+                    final seatStatus = (seatData['status'] ?? 'available').toString();
+
+                    if (occupant.isEmpty || occupant == targetStudentId || seatStatus == 'available') {
+                      await _seatRepo.assignStudent(libraryId, targetSecId, requestedDesk, targetStudentId);
+                      assignedSeatId = requestedDesk;
+                      assignedSectionId = targetSecId;
+                    }
+                  }
+                }
+              } catch (seatErr) {
+                if (kDebugMode) debugPrint('[StudentProvisioningService] Error auto-retaining seat during renewal: $seatErr');
+              }
+            }
+
+            // Update student document to active status and new plan validity with restored seat
             final Map<String, dynamic> studentUpdates = {
               'membershipStatus': 'active',
               'status': 'active',
@@ -461,6 +529,17 @@ class StudentProvisioningService {
               'planEndDate': Timestamp.fromDate(newEndDate),
               'updatedAt': FieldValue.serverTimestamp(),
             };
+            if (assignedSeatId != null) {
+              studentUpdates['seatId'] = assignedSeatId;
+              studentUpdates['sectionId'] = assignedSectionId;
+              studentUpdates['previousSeatId'] = assignedSeatId;
+              studentUpdates['previousSectionId'] = assignedSectionId;
+            } else if (requestedDesk != null && requestedDesk.trim().isNotEmpty) {
+              studentUpdates['previousSeatId'] = requestedDesk;
+              if (sData['previousSectionId'] != null) {
+                studentUpdates['previousSectionId'] = sData['previousSectionId'];
+              }
+            }
             if (requestedPlanId.isNotEmpty) {
               studentUpdates['planId'] = requestedPlanId;
             }

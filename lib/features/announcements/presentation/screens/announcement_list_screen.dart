@@ -51,6 +51,35 @@ class AnnouncementListScreen extends ConsumerWidget {
     return DateFormat('MMM d, yyyy • h:mm a').format(date);
   }
 
+  Widget _buildPriorityBadge(BuildContext context, AnnouncementPriority priority) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: priority.containerColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            priority.icon,
+            size: 13,
+            color: priority.onContainerColor,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            priority.label,
+            style: TextStyle(
+              color: priority.onContainerColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTypeBadge(BuildContext context, AnnouncementType type) {
     final theme = Theme.of(context);
     final isBroadcast = type == AnnouncementType.broadcast;
@@ -280,7 +309,20 @@ class AnnouncementListScreen extends ConsumerWidget {
                         children: [
                           Row(
                             children: [
+                              _buildPriorityBadge(context, announcement.priority),
+                              const SizedBox(width: 6),
                               _buildTypeBadge(context, announcement.type),
+                              if (announcement.isExpired) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade100,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text('EXPIRED', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
                               const Spacer(),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -384,6 +426,25 @@ class AnnouncementListScreen extends ConsumerWidget {
                                         : FontWeight.normal,
                                   ),
                                 ),
+                                if (announcement.expiresAt != null) ...[
+                                  const Spacer(),
+                                  Icon(
+                                    Icons.timer_outlined,
+                                    size: 14,
+                                    color: announcement.isExpired ? Colors.red : theme.colorScheme.outline,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    announcement.isExpired
+                                        ? 'Expired'
+                                        : 'Expires: ${DateFormat("MMM d, yyyy").format(announcement.expiresAt!)}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: announcement.isExpired ? Colors.red : theme.colorScheme.outline,
+                                      fontWeight: announcement.isExpired ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ],
@@ -478,6 +539,8 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
   late final TextEditingController _titleController;
   late final TextEditingController _messageController;
   late AnnouncementType _selectedType;
+  late AnnouncementPriority _selectedPriority;
+  DateTime? _expiresAt;
   late bool _isActive;
   bool _isSaving = false;
 
@@ -491,6 +554,8 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
     _messageController =
         TextEditingController(text: widget.announcement?.message ?? '');
     _selectedType = widget.announcement?.type ?? AnnouncementType.broadcast;
+    _selectedPriority = widget.announcement?.priority ?? AnnouncementPriority.general;
+    _expiresAt = widget.announcement?.expiresAt;
     _isActive = widget.announcement?.isActive ?? true;
   }
 

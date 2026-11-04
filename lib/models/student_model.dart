@@ -142,6 +142,9 @@ class StudentModel {
   final String? blockedReason;
   final double? pendingDueBalance;
   final bool pinResetByAdmin;
+  final double? securityDepositAmount; // Optional refundable deposit held
+  final bool isDepositRefunded;
+  final DateTime? depositRefundedAt;
 
   StudentModel({
     required this.id,
@@ -188,6 +191,9 @@ class StudentModel {
     this.blockedReason,
     this.pendingDueBalance,
     this.pinResetByAdmin = false,
+    this.securityDepositAmount,
+    this.isDepositRefunded = false,
+    this.depositRefundedAt,
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
@@ -256,6 +262,9 @@ class StudentModel {
       blockedReason: json['blockedReason'] as String?,
       pendingDueBalance: (json['pendingDueBalance'] as num?)?.toDouble(),
       pinResetByAdmin: json['pinResetByAdmin'] == true,
+      securityDepositAmount: (json['securityDepositAmount'] as num?)?.toDouble() ?? (json['securityDeposit'] as num?)?.toDouble(),
+      isDepositRefunded: json['isDepositRefunded'] == true,
+      depositRefundedAt: _parseDate(json['depositRefundedAt']),
     );
   }
 
@@ -305,6 +314,9 @@ class StudentModel {
       if (blockedReason != null) 'blockedReason': blockedReason,
       if (pendingDueBalance != null) 'pendingDueBalance': pendingDueBalance,
       if (pinResetByAdmin) 'pinResetByAdmin': true,
+      if (securityDepositAmount != null) 'securityDepositAmount': securityDepositAmount,
+      if (isDepositRefunded) 'isDepositRefunded': true,
+      if (depositRefundedAt != null) 'depositRefundedAt': depositRefundedAt!.toIso8601String(),
     };
   }
 
@@ -353,6 +365,9 @@ class StudentModel {
     String? blockedReason,
     double? pendingDueBalance,
     bool? pinResetByAdmin,
+    double? securityDepositAmount,
+    bool? isDepositRefunded,
+    DateTime? depositRefundedAt,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -399,6 +414,9 @@ class StudentModel {
       blockedReason: blockedReason ?? this.blockedReason,
       pendingDueBalance: pendingDueBalance ?? this.pendingDueBalance,
       pinResetByAdmin: pinResetByAdmin ?? this.pinResetByAdmin,
+      securityDepositAmount: securityDepositAmount ?? this.securityDepositAmount,
+      isDepositRefunded: isDepositRefunded ?? this.isDepositRefunded,
+      depositRefundedAt: depositRefundedAt ?? this.depositRefundedAt,
     );
   }
 

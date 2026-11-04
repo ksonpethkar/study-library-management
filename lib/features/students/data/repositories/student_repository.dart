@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -498,7 +499,25 @@ class StudentRepository {
           
       return snapshot.docs.map((doc) => _parseStudentDoc(doc, libraryId)).toList();
     } catch (e) {
-      throw Exception('Failed to fetch expiring students.');
+      if (kDebugMode) debugPrint('getExpiringStudents query error: $e, using local filter fallback');
+      try {
+        final allSnap = await _firestore
+            .collection(FirestorePaths.libraries)
+            .doc(libraryId)
+            .collection(FirestorePaths.students)
+            .get();
+        final now = DateTime.now();
+        final targetDate = now.add(Duration(days: daysAhead));
+        return allSnap.docs
+            .map((doc) => _parseStudentDoc(doc, libraryId))
+            .where((s) =>
+                (s.membershipStatus == MembershipStatus.active || s.membershipStatus == MembershipStatus.grace) &&
+                s.planEndDate != null &&
+                s.planEndDate!.isBefore(targetDate))
+            .toList();
+      } catch (_) {
+        return [];
+      }
     }
   }
 

@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 
 class PrivacyPolicyScreen extends ConsumerStatefulWidget {
   const PrivacyPolicyScreen({super.key});
 
-  static String defaultPrivacyPolicy(String libraryName) => '''
+  static String defaultPrivacyPolicy(String libraryName) =>
+      '''
 1. Information We Collect
 When you register and use the facilities at $libraryName, we collect the following categories of information:
 • Identity & Contact Details: Full name, mobile number, email address, address, and emergency contact details.
@@ -38,13 +42,19 @@ You have the right to review your registered profile data, request corrections, 
 ''';
 
   @override
-  ConsumerState<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
+  ConsumerState<PrivacyPolicyScreen> createState() =>
+      _PrivacyPolicyScreenState();
 }
 
 class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
   bool _isSaving = false;
 
-  void _openEditor(BuildContext context, String libraryId, String initialText, String libraryName) {
+  void _openEditor(
+    BuildContext context,
+    String libraryId,
+    String initialText,
+    String libraryName,
+  ) {
     final controller = TextEditingController(text: initialText);
     final theme = Theme.of(context);
 
@@ -53,7 +63,9 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
       barrierDismissible: false,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
           contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
           title: Row(
@@ -86,22 +98,40 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                   children: [
                     Text(
                       'Custom Library Privacy Guidelines',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                       ),
                       icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                      label: const Text('Load Standard', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      label: const Text(
+                        'Load Standard',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       onPressed: () {
                         setDialogState(() {
-                          controller.text = PrivacyPolicyScreen.defaultPrivacyPolicy(libraryName);
+                          controller.text =
+                              PrivacyPolicyScreen.defaultPrivacyPolicy(
+                                libraryName,
+                              );
                         });
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Standard privacy policy template loaded'),
+                            content: Text(
+                              'Standard privacy policy template loaded',
+                            ),
                             duration: Duration(seconds: 1),
                           ),
                         );
@@ -142,7 +172,10 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.check_rounded, size: 18),
               label: Text(_isSaving ? 'Saving…' : 'Save & Publish'),
@@ -159,16 +192,20 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                             .collection('settings')
                             .doc('legal')
                             .set({
-                          'privacyPolicy': controller.text.trim(),
-                          'privacyUpdatedAt': FieldValue.serverTimestamp(),
-                          'privacyUpdatedBy': FirebaseAuth.instance.currentUser?.email ?? 'Admin',
-                        }, SetOptions(merge: true));
+                              'privacyPolicy': controller.text.trim(),
+                              'privacyUpdatedAt': FieldValue.serverTimestamp(),
+                              'privacyUpdatedBy':
+                                  FirebaseAuth.instance.currentUser?.email ??
+                                  'Admin',
+                            }, SetOptions(merge: true));
 
                         if (context.mounted) {
                           Navigator.pop(dialogCtx);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Privacy Policy published successfully!'),
+                              content: Text(
+                                'Privacy Policy published successfully!',
+                              ),
                               behavior: SnackBarBehavior.floating,
                             ),
                           );
@@ -176,7 +213,9 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Failed to save policy: $e')),
+                            SnackBar(
+                              content: Text('Failed to save policy: $e'),
+                            ),
                           );
                         }
                       } finally {
@@ -197,22 +236,48 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
     final isAdmin = role == AppUserRole.admin;
     final libraryId = ref.watch(currentLibraryIdProvider);
     final lib = ref.watch(currentLibraryProvider).value;
-    final libraryName = lib?.name.isNotEmpty == true ? lib!.name : 'Study Centre';
+    final libraryName = lib?.name.isNotEmpty == true
+        ? lib!.name
+        : 'Study Centre';
 
     if (libraryId == null || libraryId.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Privacy Policy')),
-        body: SelectionArea(
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(24),
-            children: [
-              Text(
-                PrivacyPolicyScreen.defaultPrivacyPolicy(libraryName),
-                style: const TextStyle(fontSize: 14, height: 1.6),
-              ),
-            ],
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : (Navigator.canPop(context) ? Navigator.pop(context) : context.go(Routes.login)),
           ),
+          title: const Text('Privacy Policy'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.copy_rounded, size: 20),
+              tooltip: 'Copy Policy',
+              onPressed: () {
+                Clipboard.setData(
+                  ClipboardData(
+                    text: PrivacyPolicyScreen.defaultPrivacyPolicy(libraryName),
+                  ),
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Privacy Policy copied to clipboard'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        body: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text(
+              PrivacyPolicyScreen.defaultPrivacyPolicy(libraryName),
+              style: const TextStyle(fontSize: 14, height: 1.6),
+            ),
+          ],
         ),
       );
     }
@@ -234,99 +299,150 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
 
         return Scaffold(
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Back',
+              onPressed: () => context.canPop() ? context.pop() : (Navigator.canPop(context) ? Navigator.pop(context) : context.go(Routes.login)),
+            ),
             title: const Text('Privacy Policy'),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.copy_rounded, size: 20),
+                tooltip: 'Copy Policy',
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: displayPolicy));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Privacy Policy copied to clipboard'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
               if (isAdmin)
                 IconButton(
                   icon: const Icon(Icons.edit_note_rounded),
                   tooltip: 'Edit Privacy Policy',
-                  onPressed: () => _openEditor(context, libraryId, displayPolicy, libraryName),
+                  onPressed: () => _openEditor(
+                    context,
+                    libraryId,
+                    displayPolicy,
+                    libraryName,
+                  ),
                 ),
             ],
           ),
-          body: SelectionArea(
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 60),
-              children: [
-                // Header Badge
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+          body: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 60),
+            children: [
+              // Header Badge
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.35,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.shield_outlined, color: theme.colorScheme.primary, size: 22),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  libraryName,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                ),
-                                Text(
-                                  updatedAt != null
-                                      ? 'Last Updated: ${DateFormat('dd MMM yyyy, hh:mm a').format(updatedAt.toDate())}'
-                                      : 'Data Protection & Member Privacy Standards',
-                                  style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (isAdmin)
-                            FilledButton.tonalIcon(
-                              style: FilledButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(horizontal: 10),
-                              ),
-                              icon: const Icon(Icons.edit_rounded, size: 14),
-                              label: const Text('Edit Policy', style: TextStyle(fontSize: 12)),
-                              onPressed: () => _openEditor(context, libraryId, displayPolicy, libraryName),
-                            ),
-                        ],
-                      ),
-                      if (isAdmin) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Admin Note: You can customize data retention, CCTV clauses, and student information policies for your library.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Policy Content
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
-                  ),
-                  child: Text(
-                    displayPolicy,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontSize: 14,
-                      height: 1.65,
-                      color: theme.colorScheme.onSurface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.5,
                     ),
                   ),
                 ),
-              ],
-            ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.shield_outlined,
+                          color: theme.colorScheme.primary,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                libraryName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Text(
+                                updatedAt != null
+                                    ? 'Last Updated: ${DateFormat('dd MMM yyyy, hh:mm a').format(updatedAt.toDate())}'
+                                    : 'Data Protection & Member Privacy Standards',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isAdmin)
+                          FilledButton.tonalIcon(
+                            style: FilledButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                            ),
+                            icon: const Icon(Icons.edit_rounded, size: 14),
+                            label: const Text(
+                              'Edit Policy',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onPressed: () => _openEditor(
+                              context,
+                              libraryId,
+                              displayPolicy,
+                              libraryName,
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (isAdmin) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Admin Note: You can customize data retention, CCTV clauses, and student information policies for your library.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Policy Content
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.4,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  displayPolicy,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: 14,
+                    height: 1.65,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

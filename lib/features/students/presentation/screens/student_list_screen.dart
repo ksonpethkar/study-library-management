@@ -72,14 +72,14 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
       case 'All':
         return true;
       case 'Due Soon':
+        // Students in grace period are immediately due for renewal
+        if (s.membershipStatus == MembershipStatus.grace) return true;
+        if (s.membershipStatus != MembershipStatus.active) return false;
         final e = s.planEndDate;
-        // Include active AND grace-period students expiring within next 14 days
-        final isNearExpiry = (s.membershipStatus == MembershipStatus.active ||
-                s.membershipStatus == MembershipStatus.grace) &&
-            e != null &&
-            e.isAfter(now.subtract(const Duration(days: 1))) &&
+        if (e == null) return false;
+        // Include active students expiring within next 14 days
+        return !e.isBefore(now.subtract(const Duration(days: 1))) &&
             e.isBefore(now.add(const Duration(days: 14)));
-        return isNearExpiry;
       case 'Has Dues':
         return (s.pendingDueBalance ?? 0) > 0;
       case 'Active':
@@ -312,11 +312,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           Expanded(
             child: Builder(
               builder: (context) {
-                // Resolve students with stream fallback to prevent false errors
+                // Prefer full real-time stream for accurate filtering across all students; fallback to paginated
                 final streamStudents = ref.watch(studentsStreamProvider).value;
-                final students = studentState.students.isNotEmpty
-                    ? studentState.students
-                    : (streamStudents ?? []);
+                final students = (streamStudents != null && streamStudents.isNotEmpty)
+                    ? streamStudents
+                    : (studentState.students.isNotEmpty ? studentState.students : (streamStudents ?? []));
 
                 if (studentState.isLoading && students.isEmpty && !_isSearching) {
                   return const StudentListSkeleton(count: 6);

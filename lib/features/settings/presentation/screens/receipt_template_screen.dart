@@ -44,6 +44,7 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
     'Valid To': true,
     'Next Due Date': false,
     'Payment Method': true,
+    'Security Deposit': true,
   };
 
   final TextEditingController _prefixController = TextEditingController(text: 'REC');

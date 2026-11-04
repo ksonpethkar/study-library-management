@@ -14,6 +14,8 @@ import 'package:study_library/features/settings/presentation/screens/id_card_cus
 import 'package:study_library/core/widgets/brand_color_picker_dialog.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class IdCardPreviewScreen extends ConsumerStatefulWidget {
   final StudentModel student;
@@ -241,6 +243,11 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : (isStudentMode ? context.go(Routes.studentHome) : context.go(Routes.adminHome)),
+        ),
         title: Text(isStudentMode ? 'Digital Student Pass' : '${widget.student.name} — Digital ID Card'),
         actions: [
           if (!isStudentMode) ...[

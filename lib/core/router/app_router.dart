@@ -337,7 +337,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state: state, child: SectionDetailScreen(sectionId: state.pathParameters['id'] ?? ''),
         ),
       ),
-      GoRoute(path: Routes.adminSeatsAddSection, pageBuilder: (context, state) {
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminSeatsAddSection, pageBuilder: (context, state) {
         return AppPageTransitions.slideUp(state: state, child: Consumer(builder: (ctx, ref, _) {
           final libId = ref.watch(currentLibraryIdProvider) ?? '';
           return AddSectionScreen(libraryId: libId);
@@ -380,13 +380,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      GoRoute(path: Routes.adminPlans, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminPlans, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const PlanListScreen(),
       )),
-      GoRoute(path: Routes.adminPlanAdd, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminPlanAdd, pageBuilder: (context, state) => AppPageTransitions.slideUp(
         state: state, child: const AddPlanScreen(),
       )),
-      GoRoute(path: Routes.adminPlanEdit, pageBuilder: (context, state) {
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminPlanEdit, pageBuilder: (context, state) {
         final planId = state.pathParameters['id'] ?? '';
         return AppPageTransitions.slideUp(state: state, child: Consumer(builder: (ctx, ref, _) {
           final libraryId = ref.watch(currentLibraryIdProvider);
@@ -408,19 +408,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         }));
       }),
-      GoRoute(path: Routes.adminRecordPayment, pageBuilder: (context, state) {
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminRecordPayment, pageBuilder: (context, state) {
         final studentId = state.pathParameters['studentId'] ?? '';
         return AppPageTransitions.slideRight(state: state, child: Consumer(builder: (ctx, ref, _) {
           return _PaymentRouteWrapper(studentId: studentId);
         }));
       }),
-      GoRoute(path: Routes.adminReceipts, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminReceipts, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const ReceiptListScreen(),
       )),
-      GoRoute(path: Routes.adminRevenue, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminRevenue, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const RevenueDashboardScreen(),
       )),
-      GoRoute(path: Routes.adminExpenses, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminExpenses, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const ExpenseListScreen(),
       )),
       GoRoute(
@@ -456,10 +456,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           }));
         },
       ),
-      GoRoute(path: Routes.adminReceiptTemplate, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminReceiptTemplate, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const ReceiptTemplateScreen(),
       )),
-      GoRoute(path: Routes.adminIdCardTemplate, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminIdCardTemplate, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const IdCardCustomizerScreen(),
       )),
       GoRoute(
@@ -468,31 +468,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state: state, child: ReceiptPreviewScreen(receiptId: state.pathParameters['id'] ?? ''),
         ),
       ),
-      GoRoute(path: Routes.adminRequests, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminRequests, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const RequestListScreen(),
       )),
-      GoRoute(path: Routes.adminRequestDetail, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminRequestDetail, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: RequestDetailScreen(requestId: state.pathParameters['id'] ?? ''),
       )),
-      GoRoute(path: Routes.adminAnnouncements, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminAnnouncements, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const AnnouncementListScreen(),
       )),
-      GoRoute(path: Routes.adminHolidays, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminHolidays, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const HolidayCalendarScreen(),
       )),
-      GoRoute(path: Routes.adminFeedback, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminFeedback, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const FeedbackListScreen(),
       )),
-      GoRoute(path: Routes.adminSettings, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminSettings, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const SettingsScreen(),
       )),
-      GoRoute(path: Routes.adminLibraryProfile, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminLibraryProfile, pageBuilder: (context, state) => AppPageTransitions.slideUp(
         state: state, child: const LibraryProfileScreen(),
       )),
-      GoRoute(path: Routes.adminFormCustomizer, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminFormCustomizer, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const FormCustomizerScreen(),
       )),
-      GoRoute(path: Routes.adminPaymentMethods, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminPaymentMethods, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const PaymentMethodsScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminCommunications, pageBuilder: (context, state) => AppPageTransitions.slideRight(
@@ -504,37 +504,37 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminMessaging, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const CommunicationsHubScreen(),
       )),
-      GoRoute(path: Routes.adminBackup, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminBackup, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const BackupRestoreScreen(),
       )),
-      GoRoute(path: Routes.adminDataExport, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminDataExport, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const DataExportScreen(),
       )),
-      GoRoute(path: Routes.adminAuditLog, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminAuditLog, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const AuditLogScreen(),
       )),
-      GoRoute(path: Routes.adminRecycleBin, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminRecycleBin, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const RecycleBinScreen(),
       )),
-      GoRoute(path: Routes.adminRules, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminRules, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const RulesEditorScreen(),
       )),
-      GoRoute(path: Routes.adminWaitingList, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminWaitingList, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const WaitingListScreen(initialTab: 1),
       )),
-      GoRoute(path: Routes.adminWaitingQueue, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminWaitingQueue, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const WaitingListScreen(),
       )),
-      GoRoute(path: Routes.adminWhitelist, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminWhitelist, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const AdminWhitelistScreen(),
       )),
-      GoRoute(path: Routes.adminStaff, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminStaff, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const StaffListScreen(),
       )),
-      GoRoute(path: Routes.adminGracePeriod, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminGracePeriod, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const GracePeriodScreen(),
       )),
-      GoRoute(path: Routes.adminQrShare, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminQrShare, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const QrShareScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminQrScanner, pageBuilder: (context, state) => AppPageTransitions.slideUp(
@@ -585,22 +585,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       
       // Student Sub-routes
-      GoRoute(path: Routes.studentRegister, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.studentRegister, pageBuilder: (context, state) => AppPageTransitions.slideUp(
         state: state, child: const StudentRegistrationWizard(),
       )),
-      GoRoute(path: Routes.studentSeatMap, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.studentSeatMap, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const StudentSeatMapScreen(),
       )),
-      GoRoute(path: Routes.studentFeedback, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.studentFeedback, pageBuilder: (context, state) => AppPageTransitions.slideUp(
         state: state, child: const StudentFeedbackScreen(),
       )),
-      GoRoute(path: Routes.studentRenew, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.studentRenew, pageBuilder: (context, state) => AppPageTransitions.slideUp(
         state: state, child: const RenewPlanScreen(),
       )),
-      GoRoute(path: Routes.studentIdCard, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.studentIdCard, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const MyIdCardScreen(),
       )),
-      GoRoute(path: Routes.accountDeletion, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.accountDeletion, pageBuilder: (context, state) => AppPageTransitions.slideUp(
         state: state, child: const AccountDeletionScreen(),
       )),
     ],

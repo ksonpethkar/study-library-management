@@ -2,6 +2,49 @@ import 'package:flutter/services.dart';
 import 'package:study_library/core/constants/regex_patterns.dart';
 import 'package:study_library/models/student_model.dart';
 
+/// Custom TextInputFormatter to force uppercase as user types.
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    );
+  }
+}
+
+/// Custom TextInputFormatter to automatically format 12-digit Aadhaar with standard 4-4-4 spacing: XXXX XXXX XXXX
+class AadhaarInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text;
+    final digits = text.replaceAll(RegExp(r'\D'), '');
+    if (digits.length > 12) {
+      return oldValue;
+    }
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i > 0 && i % 4 == 0) {
+        buffer.write(' ');
+      }
+      buffer.write(digits[i]);
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
 /// Centralized Real-Time Validator & Input Formatter for all Indian Government IDs.
 /// Handles: Aadhaar, PAN, Driving Licence, Voter ID (EPIC), Passport, College ID, Other.
 class GovIdValidator {
@@ -24,7 +67,7 @@ class GovIdValidator {
           return 'Aadhaar must contain only numbers';
         }
         if (digitsOnly.length != 12) {
-          return 'Aadhaar must be exactly 12 digits (currently ${digitsOnly.length})';
+          return 'Aadhaar must be 12 digits (e.g. 5482 1234 5678)';
         }
         if (digitsOnly.startsWith('0') || digitsOnly.startsWith('1')) {
           return 'Aadhaar cannot begin with 0 or 1';
@@ -34,17 +77,17 @@ class GovIdValidator {
       case GovIdType.pan:
         final pan = clean.toUpperCase().replaceAll(RegExp(r'\s+'), '');
         if (pan.length != 10) {
-          return 'PAN must be exactly 10 characters (e.g. ABCDE1234F)';
+          return 'Enter 10-character PAN (e.g. ABCDE1234F)';
         }
         if (!RegExp(RegexPatterns.pan).hasMatch(pan)) {
-          return 'Invalid PAN format. Must be 5 letters, 4 numbers, 1 letter';
+          return 'Invalid PAN format. Expected 5 letters, 4 numbers, 1 letter (e.g. ABCDE1234F)';
         }
         return null;
 
       case GovIdType.drivingLicence:
         final dl = clean.toUpperCase().replaceAll(RegExp(r'[\s\-]+'), '');
         if (dl.length < 10 || dl.length > 18) {
-          return 'Driving Licence must be 10-18 characters';
+          return 'Enter valid Driving Licence (e.g. MH12 20210001234)';
         }
         if (!RegExp(r'^[A-Z]{2}[0-9A-Z]{8,16}$').hasMatch(dl)) {
           return 'Invalid Driving Licence format (e.g. MH12 20210001234)';
@@ -54,20 +97,20 @@ class GovIdValidator {
       case GovIdType.voterId:
         final epic = clean.toUpperCase().replaceAll(RegExp(r'\s+'), '');
         if (epic.length != 10) {
-          return 'Voter ID (EPIC) must be 10 characters (e.g. ABC1234567)';
+          return 'Enter 10-character Voter ID (e.g. ABC1234567)';
         }
         if (!RegExp(RegexPatterns.voterId).hasMatch(epic)) {
-          return 'Invalid Voter ID format. Expected 3 letters + 7 digits';
+          return 'Invalid Voter ID. Expected 3 letters + 7 numbers (e.g. ABC1234567)';
         }
         return null;
 
       case GovIdType.passport:
         final passport = clean.toUpperCase().replaceAll(RegExp(r'\s+'), '');
         if (passport.length != 8) {
-          return 'Passport must be 8 characters (e.g. A1234567)';
+          return 'Enter 8-character Passport number (e.g. A1234567)';
         }
         if (!RegExp(RegexPatterns.passport).hasMatch(passport)) {
-          return 'Invalid Passport format. Expected 1 letter + 7 digits';
+          return 'Invalid Passport. Expected 1 letter + 7 numbers (e.g. A1234567)';
         }
         return null;
 
@@ -126,8 +169,8 @@ class GovIdValidator {
     switch (type) {
       case GovIdType.aadhaar:
         return [
-          FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(12),
+          AadhaarInputFormatter(),
+          LengthLimitingTextInputFormatter(14), // 12 digits + 2 spaces
         ];
 
       case GovIdType.pan:
@@ -187,19 +230,5 @@ class GovIdValidator {
       default:
         return TextCapitalization.none;
     }
-  }
-}
-
-/// Custom TextInputFormatter to force uppercase as user types.
-class UpperCaseTextFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    return TextEditingValue(
-      text: newValue.text.toUpperCase(),
-      selection: newValue.selection,
-    );
   }
 }

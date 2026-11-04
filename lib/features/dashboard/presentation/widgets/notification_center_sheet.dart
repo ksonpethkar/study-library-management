@@ -475,7 +475,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                               ref.read(systemAlertsProvider(widget.libraryId).notifier)
                                   .acknowledgeRenewals(widget.renewalsDueCount);
                               Navigator.pop(context);
-                              context.go('${Routes.adminStudents}?filter=Due Soon');
+                              context.go(Uri(path: Routes.adminStudents, queryParameters: {'filter': 'Due Soon'}).toString());
                             },
                           ),
                       ],
@@ -729,7 +729,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
       label = isAdmin ? 'Review Due Pass' : '1-Tap Renew';
       icon = Icons.autorenew_rounded;
       color = const Color(0xFFF59E0B);
-      defaultRoute = isAdmin ? '${Routes.adminStudents}?filter=Due Soon' : Routes.studentRenew;
+      defaultRoute = isAdmin ? Uri(path: Routes.adminStudents, queryParameters: {'filter': 'Due Soon'}).toString() : Routes.studentRenew;
     } else if (type == 'admission' || type == 'new_registration') {
       label = isAdmin ? 'Review Request' : 'View ID Pass';
       icon = isAdmin ? Icons.assignment_ind_rounded : Icons.badge_rounded;

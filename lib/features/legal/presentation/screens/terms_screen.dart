@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 
 class TermsScreen extends ConsumerStatefulWidget {
@@ -263,18 +266,35 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
 
     if (libraryId == null || libraryId.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Terms of Service')),
-        body: SelectionArea(
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(24),
-            children: [
-              Text(
-                TermsScreen.defaultTerms(libraryName),
-                style: const TextStyle(fontSize: 14, height: 1.6),
-              ),
-            ],
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : (Navigator.canPop(context) ? Navigator.pop(context) : context.go(Routes.login)),
           ),
+          title: const Text('Terms of Service'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.copy_rounded, size: 20),
+              tooltip: 'Copy Terms',
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: TermsScreen.defaultTerms(libraryName)));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Terms copied to clipboard'), behavior: SnackBarBehavior.floating),
+                );
+              },
+            ),
+          ],
+        ),
+        body: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text(
+              TermsScreen.defaultTerms(libraryName),
+              style: const TextStyle(fontSize: 14, height: 1.6),
+            ),
+          ],
         ),
       );
     }
@@ -296,8 +316,23 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
 
         return Scaffold(
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Back',
+              onPressed: () => context.canPop() ? context.pop() : (Navigator.canPop(context) ? Navigator.pop(context) : context.go(Routes.login)),
+            ),
             title: const Text('Terms of Service'),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.copy_rounded, size: 20),
+                tooltip: 'Copy Terms',
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: displayTerms));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Terms copied to clipboard'), behavior: SnackBarBehavior.floating),
+                  );
+                },
+              ),
               if (isAdmin)
                 IconButton(
                   icon: const Icon(Icons.edit_note_rounded),
@@ -306,11 +341,10 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                 ),
             ],
           ),
-          body: SelectionArea(
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 60),
-              children: [
+          body: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 60),
+            children: [
                 // Header Badge
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -389,7 +423,6 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                 ),
               ],
             ),
-          ),
         );
       },
     );

@@ -18,6 +18,7 @@ import 'package:study_library/services/student_provisioning_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
+import '../widgets/admin_document_studio_dialog.dart';
 
 class RequestDetailScreen extends ConsumerStatefulWidget {
   final String requestId;
@@ -1819,18 +1820,60 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ),
 
               if (frontUrl.isNotEmpty || backUrl.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(Icons.document_scanner_rounded, size: 16, color: Colors.blue),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Government ID Documents',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () {
+                        AdminDocumentStudioDialog.show(
+                          context,
+                          documentTitle: 'Govt ID Document Studio',
+                          imageUrl: frontUrl.isNotEmpty ? frontUrl : backUrl,
+                          backImageUrl: backUrl.isNotEmpty ? backUrl : null,
+                          initialGovIdType: govIdType,
+                          initialGovIdNumber: govIdNum,
+                          libraryId: widget.libraryId,
+                          requestId: widget.requestId,
+                          onDocumentUpdated: _loadRequest,
+                        );
+                      },
+                      icon: const Icon(Icons.auto_fix_high_rounded, size: 14),
+                      label: const Text('Open Document Studio', style: TextStyle(fontSize: 11.5)),
+                      style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     if (frontUrl.isNotEmpty)
                       Expanded(
-                        child: _buildDocPreview(title: 'Front ID', imageUrl: frontUrl),
+                        child: _buildDocPreview(
+                          title: 'Front ID (Tap to Inspect / Edit)',
+                          imageUrl: frontUrl,
+                          backUrl: backUrl,
+                          govIdType: govIdType,
+                          govIdNum: govIdNum,
+                        ),
                       ),
                     if (frontUrl.isNotEmpty && backUrl.isNotEmpty)
                       const SizedBox(width: 12),
                     if (backUrl.isNotEmpty)
                       Expanded(
-                        child: _buildDocPreview(title: 'Back ID (Optional)', imageUrl: backUrl),
+                        child: _buildDocPreview(
+                          title: 'Back ID (Tap to Inspect / Edit)',
+                          imageUrl: backUrl,
+                          backUrl: backUrl,
+                          govIdType: govIdType,
+                          govIdNum: govIdNum,
+                        ),
                       ),
                   ],
                 ),
@@ -1851,13 +1894,26 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     );
   }
 
-  Widget _buildDocPreview({required String title, required String imageUrl}) {
+  Widget _buildDocPreview({
+    required String title,
+    required String imageUrl,
+    String? backUrl,
+    required String govIdType,
+    required String govIdNum,
+  }) {
     return InkWell(
+      borderRadius: BorderRadius.circular(8),
       onTap: () {
-        ImageService.showImageViewer(
+        AdminDocumentStudioDialog.show(
           context,
+          documentTitle: title,
           imageUrl: imageUrl,
-          title: title,
+          backImageUrl: backUrl,
+          initialGovIdType: govIdType,
+          initialGovIdNumber: govIdNum,
+          libraryId: widget.libraryId,
+          requestId: widget.requestId,
+          onDocumentUpdated: _loadRequest,
         );
       },
       child: Container(
@@ -1886,12 +1942,22 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               left: 0,
               right: 0,
               child: Container(
-                color: Colors.black54,
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                color: Colors.black.withValues(alpha: 0.65),
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.touch_app_rounded, color: Colors.white70, size: 12),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

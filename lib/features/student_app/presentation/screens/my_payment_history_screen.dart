@@ -1,3 +1,5 @@
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +29,11 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back to Home',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.studentHome),
+        ),
         title: const Text('Payment History'),
         centerTitle: true,
       ),
