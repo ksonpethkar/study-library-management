@@ -58,8 +58,10 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
     required RenewalCalculation renewalCalc,
     required double? origPrice,
     required bool hasDiscount,
+    RenewalPaymentMode? activePaymentMode,
   }) async {
-    if (_paymentMode == RenewalPaymentMode.upi) {
+    final mode = activePaymentMode ?? _paymentMode;
+    if (mode == RenewalPaymentMode.upi) {
       final utr = _transactionRefController.text.trim();
       if (utr.isEmpty) {
         HapticFeedback.lightImpact();
@@ -83,7 +85,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
         );
         return;
       }
-    } else if (_paymentMode == RenewalPaymentMode.bank && _transactionRefController.text.trim().isEmpty) {
+    } else if (mode == RenewalPaymentMode.bank && _transactionRefController.text.trim().isEmpty) {
       HapticFeedback.lightImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -105,18 +107,18 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
       final isContinuousGrace = renewalCalc.type == RenewalType.backdatedGrace;
       final isGapRenewal = renewalCalc.type == RenewalType.gapRenewal;
 
-      final paymentMethodStr = _paymentMode == RenewalPaymentMode.upi
+      final paymentMethodStr = mode == RenewalPaymentMode.upi
           ? 'upi'
-          : (_paymentMode == RenewalPaymentMode.bank ? 'bank' : 'desk_cash');
-      final paymentLabelStr = _paymentMode == RenewalPaymentMode.upi
+          : (mode == RenewalPaymentMode.bank ? 'bank' : 'desk_cash');
+      final paymentLabelStr = mode == RenewalPaymentMode.upi
           ? 'UPI / QR Code'
-          : (_paymentMode == RenewalPaymentMode.bank
+          : (mode == RenewalPaymentMode.bank
               ? 'Direct Bank Transfer (NEFT/IMPS)'
               : 'Pay at Desk / Reception');
-      final refNumberStr = _paymentMode == RenewalPaymentMode.deskCash
+      final refNumberStr = mode == RenewalPaymentMode.deskCash
           ? 'Desk Cash Payment Requested'
           : _transactionRefController.text.trim();
-      final statusStr = _paymentMode == RenewalPaymentMode.deskCash
+      final statusStr = mode == RenewalPaymentMode.deskCash
           ? 'desk_payment_pending'
           : 'pending';
 
@@ -173,9 +175,9 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
 
       if (mounted) {
         HapticFeedback.heavyImpact();
-        final successMsg = _paymentMode == RenewalPaymentMode.deskCash
+        final successMsg = mode == RenewalPaymentMode.deskCash
             ? 'Desk payment renewal registered! Please deposit fee at the reception counter to activate.'
-            : (_paymentMode == RenewalPaymentMode.bank
+            : (mode == RenewalPaymentMode.bank
                 ? 'Bank transfer renewal request submitted! Library admin will verify your payment and activate your seat.'
                 : 'Renewal request submitted! Library admin will verify your payment and activate your membership.');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -789,47 +791,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                     ),
                   const SizedBox(height: 20),
 
-                  // Section Header: Payment Mode Selection
-                  Row(
-                    children: [
-                      Icon(Icons.payments_rounded, color: theme.colorScheme.primary, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Payment Option',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Payment Method Switcher (UPI vs Bank vs Pay at Desk)
-                  SegmentedButton<RenewalPaymentMode>(
-                    segments: const [
-                      ButtonSegment(
-                        value: RenewalPaymentMode.upi,
-                        icon: Icon(Icons.qr_code_2_rounded),
-                        label: Text('UPI / QR'),
-                      ),
-                      ButtonSegment(
-                        value: RenewalPaymentMode.bank,
-                        icon: Icon(Icons.account_balance_rounded),
-                        label: Text('Bank Transfer'),
-                      ),
-                      ButtonSegment(
-                        value: RenewalPaymentMode.deskCash,
-                        icon: Icon(Icons.storefront_rounded),
-                        label: Text('Pay at Desk'),
-                      ),
-                    ],
-                    selected: {_paymentMode},
-                    onSelectionChanged: (newSelection) {
-                      HapticFeedback.selectionClick();
-                      setState(() => _paymentMode = newSelection.first);
-                    },
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Dynamic Payment Data Stream
+                  // Dynamic Payment Data Stream & Capability-Gated Payment Switcher
                   StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                     stream: FirebaseFirestore.instance
                         .collection('libraries')
@@ -856,11 +818,11 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                       final bankDetails = payData['bankDetails'] is Map
                           ? Map<String, dynamic>.from(payData['bankDetails'] as Map)
                           : <String, dynamic>{};
-                      final bankName = bankDetails['bankName']?.toString() ?? '';
-                      final accNo = bankDetails['accountNumber']?.toString() ?? '';
-                      final ifsc = bankDetails['ifscCode']?.toString() ?? '';
-                      final accHolder = bankDetails['accountHolder']?.toString() ?? (library?.name ?? 'Study Library');
-                      final branch = bankDetails['branch']?.toString() ?? '';
+                      final bankName = bankDetails['bankName']?.toString().trim() ?? '';
+                      final accNo = bankDetails['accountNumber']?.toString().trim() ?? '';
+                      final ifsc = bankDetails['ifscCode']?.toString().trim() ?? '';
+                      final accHolder = bankDetails['accountHolder']?.toString().trim() ?? (library?.name ?? 'Study Library');
+                      final branch = bankDetails['branch']?.toString().trim() ?? '';
                       final hasBankConfigured = bankName.isNotEmpty && accNo.isNotEmpty;
 
                       // Cash details map
@@ -880,8 +842,50 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                           : <String, dynamic>{};
                       final refundPolicy = policies['refundPolicy']?.toString() ?? '';
 
-                      if (_paymentMode == RenewalPaymentMode.deskCash) {
-                        return Card(
+                      // UPI checks
+                      final customUpi = payData['upiId']?.toString().trim();
+                      final libUpi = library?.upiId?.trim();
+                      final upiId = (customUpi != null && customUpi.isNotEmpty)
+                          ? customUpi
+                          : ((libUpi != null && libUpi.isNotEmpty)
+                              ? libUpi
+                              : (rawContactPhone.isNotEmpty ? '$rawContactPhone@upi' : 'library@upi'));
+                      final hasUpiConfigured = upiId.isNotEmpty;
+
+                      // Methods list from Admin Settings
+                      final methodsList = (payData['methods'] is List)
+                          ? (payData['methods'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList()
+                          : <Map<String, dynamic>>[];
+
+                      // Dynamic active status evaluation
+                      final isUpiActive = methodsList.isEmpty
+                          ? true
+                          : (methodsList.firstWhere((m) => m['id'] == 'upi', orElse: () => {'active': true})['active'] == true && hasUpiConfigured);
+
+                      final isBankActive = methodsList.isEmpty
+                          ? false
+                          : ((methodsList.firstWhere((m) => m['id'] == 'bank', orElse: () => {'active': false})['active'] == true) && hasBankConfigured);
+
+                      final isCashActive = methodsList.isEmpty
+                          ? true
+                          : (methodsList.firstWhere((m) => m['id'] == 'cash', orElse: () => {'active': true})['active'] == true);
+
+                      final availableModes = <RenewalPaymentMode>[];
+                      if (isUpiActive) availableModes.add(RenewalPaymentMode.upi);
+                      if (isBankActive) availableModes.add(RenewalPaymentMode.bank);
+                      if (isCashActive) availableModes.add(RenewalPaymentMode.deskCash);
+
+                      final effectiveAvailable = availableModes.isNotEmpty
+                          ? availableModes
+                          : [RenewalPaymentMode.deskCash];
+
+                      final activeMode = effectiveAvailable.contains(_paymentMode)
+                          ? _paymentMode
+                          : effectiveAvailable.first;
+
+                      Widget paymentCard;
+                      if (activeMode == RenewalPaymentMode.deskCash) {
+                        paymentCard = Card(
                           elevation: 1,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           child: Padding(
@@ -941,10 +945,8 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                             ),
                           ),
                         );
-                      }
-
-                      if (_paymentMode == RenewalPaymentMode.bank) {
-                        return Card(
+                      } else if (activeMode == RenewalPaymentMode.bank) {
+                        paymentCard = Card(
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           elevation: 1,
                           child: Padding(
@@ -1136,24 +1138,23 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                             ),
                           ),
                         );
-                      }
+                      } else {
+                        // Default: RenewalPaymentMode.upi
+                        final customUpi = payData['upiId']?.toString();
+                        final libUpi = library?.upiId;
+                        final upiId = (customUpi != null && customUpi.isNotEmpty)
+                            ? customUpi
+                            : ((libUpi != null && libUpi.isNotEmpty)
+                                ? libUpi
+                                : (rawContactPhone.isNotEmpty ? '$rawContactPhone@upi' : 'library@upi'));
 
-                      // Default: RenewalPaymentMode.upi
-                      final customUpi = payData['upiId']?.toString();
-                      final libUpi = library?.upiId;
-                      final upiId = (customUpi != null && customUpi.isNotEmpty)
-                          ? customUpi
-                          : ((libUpi != null && libUpi.isNotEmpty)
-                              ? libUpi
-                              : (rawContactPhone.isNotEmpty ? '$rawContactPhone@upi' : 'library@upi'));
+                        final payeeName = payData['payeeName']?.toString().isNotEmpty == true
+                            ? payData['payeeName'].toString()
+                            : (library?.name.isNotEmpty == true ? library!.name : 'Study Library');
 
-                      final payeeName = payData['payeeName']?.toString().isNotEmpty == true
-                          ? payData['payeeName'].toString()
-                          : (library?.name.isNotEmpty == true ? library!.name : 'Study Library');
+                        final upiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}&am=$planPriceStr&cu=INR&tn=${Uri.encodeComponent("Renewal - ${student.name}")}';
 
-                      final upiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}&am=$planPriceStr&cu=INR&tn=${Uri.encodeComponent("Renewal - ${student.name}")}';
-
-                      return Card(
+                        paymentCard = Card(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 1,
                         child: Padding(
@@ -1320,77 +1321,165 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                               ],
                             ],
                           ),
-                        ),
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Section Header: Payment Mode Selection
+                          Row(
+                            children: [
+                              Icon(Icons.payments_rounded, color: theme.colorScheme.primary, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Payment Option',
+                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+
+                          if (effectiveAvailable.length > 1)
+                            SegmentedButton<RenewalPaymentMode>(
+                              segments: [
+                                if (effectiveAvailable.contains(RenewalPaymentMode.upi))
+                                  const ButtonSegment(
+                                    value: RenewalPaymentMode.upi,
+                                    icon: Icon(Icons.qr_code_2_rounded),
+                                    label: Text('UPI / QR'),
+                                  ),
+                                if (effectiveAvailable.contains(RenewalPaymentMode.bank))
+                                  const ButtonSegment(
+                                    value: RenewalPaymentMode.bank,
+                                    icon: Icon(Icons.account_balance_rounded),
+                                    label: Text('Bank Transfer'),
+                                  ),
+                                if (effectiveAvailable.contains(RenewalPaymentMode.deskCash))
+                                  const ButtonSegment(
+                                    value: RenewalPaymentMode.deskCash,
+                                    icon: Icon(Icons.storefront_rounded),
+                                    label: Text('Pay at Desk'),
+                                  ),
+                              ],
+                              selected: {activeMode},
+                              onSelectionChanged: (newSelection) {
+                                HapticFeedback.selectionClick();
+                                setState(() => _paymentMode = newSelection.first);
+                              },
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    activeMode == RenewalPaymentMode.upi
+                                        ? Icons.qr_code_2_rounded
+                                        : (activeMode == RenewalPaymentMode.bank
+                                            ? Icons.account_balance_rounded
+                                            : Icons.storefront_rounded),
+                                    color: theme.colorScheme.primary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      activeMode == RenewalPaymentMode.upi
+                                          ? 'Accepted Payment Mode: UPI / QR Code'
+                                          : (activeMode == RenewalPaymentMode.bank
+                                              ? 'Accepted Payment Mode: Direct Bank Transfer'
+                                              : 'Accepted Payment Mode: Pay at Reception Desk'),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: theme.colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 14),
+
+                          paymentCard,
+                          const SizedBox(height: 16),
+
+                          // Special Note / Desk Request
+                          TextField(
+                            controller: _notesController,
+                            maxLines: 2,
+                            decoration: InputDecoration(
+                              labelText: activeMode == RenewalPaymentMode.deskCash
+                                  ? 'Note for Reception Desk (Optional)'
+                                  : 'Special Note / Requests (Optional)',
+                              hintText: 'e.g. Prefer morning shift, paid cash at desk, etc.',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Submit Button
+                          PressableScale(
+                            scaleFactor: 0.96,
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                icon: _isSubmitting
+                                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                    : const Icon(Icons.send_rounded),
+                                label: _isSubmitting
+                                    ? const Text('Submitting...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            activeMode == RenewalPaymentMode.deskCash
+                                                ? 'Submit Desk Renewal ('
+                                                : (activeMode == RenewalPaymentMode.bank
+                                                    ? 'Submit Bank Renewal ('
+                                                    : 'Submit Renewal ('),
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                          ),
+                                          AnimatedRollingPrice(
+                                            targetPrice: effectivePrice,
+                                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.white),
+                                          ),
+                                          const Text(')', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                        ],
+                                      ),
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: _isSubmitting || selectedPlan == null || renewalCalc == null
+                                    ? null
+                                    : () {
+                                        final origPrice = selectedPlan.getEffectiveOriginalPrice(baseMonthlyPrice: baseMonthly);
+                                        final hasDiscount = origPrice != null && origPrice > selectedPlan.price;
+                                        _submitRenewal(
+                                          libraryId: libraryId,
+                                          student: student,
+                                          selectedPlan: selectedPlan,
+                                          renewalCalc: renewalCalc,
+                                          origPrice: origPrice,
+                                          hasDiscount: hasDiscount,
+                                          activePaymentMode: activeMode,
+                                        );
+                                      },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
                       );
                     },
                   ),
-                  const SizedBox(height: 16),
-
-                  // Special Note / Desk Request
-                  TextField(
-                    controller: _notesController,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      labelText: _paymentMode == RenewalPaymentMode.deskCash
-                          ? 'Note for Reception Desk (Optional)'
-                          : 'Special Note / Requests (Optional)',
-                      hintText: 'e.g. Prefer morning shift, paid cash at desk, etc.',
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Submit Button
-                  PressableScale(
-                    scaleFactor: 0.96,
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        icon: _isSubmitting
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.send_rounded),
-                        label: _isSubmitting
-                            ? const Text('Submitting...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    _paymentMode == RenewalPaymentMode.deskCash
-                                        ? 'Submit Desk Renewal ('
-                                        : (_paymentMode == RenewalPaymentMode.bank
-                                            ? 'Submit Bank Renewal ('
-                                            : 'Submit Renewal ('),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                  ),
-                                  AnimatedRollingPrice(
-                                    targetPrice: effectivePrice,
-                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.white),
-                                  ),
-                                  const Text(')', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                ],
-                              ),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: _isSubmitting || selectedPlan == null || renewalCalc == null
-                            ? null
-                            : () {
-                                final origPrice = selectedPlan.getEffectiveOriginalPrice(baseMonthlyPrice: baseMonthly);
-                                final hasDiscount = origPrice != null && origPrice > selectedPlan.price;
-                                _submitRenewal(
-                                  libraryId: libraryId,
-                                  student: student,
-                                  selectedPlan: selectedPlan,
-                                  renewalCalc: renewalCalc,
-                                  origPrice: origPrice,
-                                  hasDiscount: hasDiscount,
-                                );
-                              },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
                 ],
               );
             },

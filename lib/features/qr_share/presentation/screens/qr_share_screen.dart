@@ -10,6 +10,7 @@ import 'package:study_library/features/qr_share/presentation/widgets/entrance_po
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/services/poster_config_service.dart';
 import 'package:study_library/services/a4_entrance_poster_pdf_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class QrShareScreen extends ConsumerStatefulWidget {
   const QrShareScreen({super.key});
@@ -67,13 +68,7 @@ class _QrShareScreenState extends ConsumerState<QrShareScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to save image: $e'),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'receipt');
     } finally {
       if (mounted) {
         setState(() => _isSavingImage = false);
@@ -97,13 +92,7 @@ class _QrShareScreenState extends ConsumerState<QrShareScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to print poster: $e'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'receipt');
       }
     } finally {
       if (mounted) setState(() => _isPrintingPdf = false);
@@ -139,13 +128,7 @@ class _QrShareScreenState extends ConsumerState<QrShareScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to download PDF: $e'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'receipt');
       }
     } finally {
       if (mounted) setState(() => _isDownloadingPdf = false);

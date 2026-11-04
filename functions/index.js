@@ -213,6 +213,24 @@ exports.dailyMembershipExpiryCheck = onSchedule(
               studentUpdate.previousSeatId = s.seatId;
               studentUpdate.previousSectionId = s.sectionId;
 
+              // Record to library audit trail for full operational traceability
+              const auditRef = db.collection(`libraries/${libraryId}/audit_log`).doc();
+              batch.set(auditRef, {
+                action: 'expired_seat_release',
+                entityType: 'seat',
+                entityId: s.seatId,
+                entityName: seatLabel,
+                actor: 'System Automation (Cron)',
+                performedBy: 'System Cron (8:00 AM IST)',
+                createdAt: nowTs,
+                details: {
+                  studentId: studentDoc.id,
+                  studentName: s.name || 'Student',
+                  graceEndDate: graceEnd.toISOString(),
+                  releasedSeatId: s.seatId,
+                },
+              });
+
               // Check and hold seat for #1 waiting list candidate (Phase 3)
               triggerWaitlistHoldForFreedSeat(libraryId, s.sectionId, s.seatId, seatLabel, libName).catch(e => {
                 logger.warn('Waitlist hold trigger error:', e);
@@ -524,6 +542,22 @@ exports.hourlyWaitingListCascadeCheck = onSchedule(
                   offerExpiredAt: now,
                 })
                 .catch(() => {});
+
+              // Record hold expiry to library audit trail
+              await db.collection(`libraries/${libraryId}/audit_log`).add({
+                action: 'waitlist_hold_expired',
+                entityType: 'waitlist',
+                entityId: prevCandidateId,
+                entityName: seatLabel,
+                actor: 'System Automation (Hourly Cron)',
+                performedBy: 'System Cascade Cron',
+                createdAt: admin.firestore.Timestamp.fromDate(now),
+                details: {
+                  seatId: seatDoc.id,
+                  sectionId,
+                  candidateId: prevCandidateId,
+                },
+              }).catch(() => {});
             }
 
             // Cascade to next candidate
@@ -885,6 +919,37 @@ exports.onNotificationCreated = onDocumentCreated(
             });
           } catch (_) {}
         }
+      }
+
+      // 3. Dispatch to Custom Webhook if configured
+      try {
+        const commsDoc = await db.collection(`libraries/${libraryId}/settings`).doc('communications').get();
+        const commsData = commsDoc.data() || {};
+        const channels = commsData.channels || {};
+        const webhookEnabled = channels.customWebhookEnabled || commsData.customWebhookEnabled;
+        const webhookUrl = channels.customWebhookUrl || commsData.customWebhookUrl;
+
+        if (webhookEnabled && webhookUrl && typeof webhookUrl === 'string' && webhookUrl.startsWith('http')) {
+          await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'notification',
+              notificationId,
+              libraryId,
+              libraryName: libData.name || 'Cozy Corner',
+              title,
+              body,
+              type,
+              targetRole,
+              targetUserId: targetUserId || null,
+              timestamp: new Date().toISOString(),
+            }),
+            signal: AbortSignal.timeout(5000),
+          });
+        }
+      } catch (webhookErr) {
+        logger.warn('Failed to dispatch custom webhook:', webhookErr.message);
       }
     } catch (err) {
       logger.error('Error dispatching notification alerts:', err);

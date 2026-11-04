@@ -8,8 +8,11 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/widgets/empty_state_widget.dart';
 import 'package:study_library/features/announcements/presentation/screens/announcement_list_screen.dart';
+import 'package:study_library/features/holidays/presentation/screens/holiday_calendar_screen.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/models/announcement_model.dart';
+import 'package:study_library/models/holiday_model.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class StudentAnnouncementsScreen extends ConsumerStatefulWidget {
   const StudentAnnouncementsScreen({super.key});
@@ -166,11 +169,34 @@ class _StudentAnnouncementsScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final libraryId = ref.watch(currentLibraryIdProvider) ?? '';
+    final rawLibraryId = ref.watch(currentLibraryIdProvider) ?? '';
     final studentAsync = ref.watch(currentStudentProvider);
     final student = studentAsync.value;
     final studentId = student?.id ?? '';
+    final libraryId = rawLibraryId.isNotEmpty ? rawLibraryId : (student?.libraryId ?? '');
     final announcementsAsync = ref.watch(announcementsStreamProvider);
+    final holidaysAsync = ref.watch(holidaysStreamProvider);
+    final holidays = holidaysAsync.value ?? [];
+
+    // Synthesize holiday circulars from official library calendar
+    final holidayCirculars = holidays.map((h) {
+      final dateStr = DateFormat('EEEE, MMMM d, yyyy').format(h.date);
+      final extText = h.membershipExtended
+          ? '\n\n✓ Active student memberships have been automatically extended by +${h.extensionDays > 0 ? h.extensionDays : 1} day.'
+          : '\n\nPlease plan your study schedule accordingly.';
+
+      return AnnouncementModel(
+        id: 'holiday_${h.id}',
+        libraryId: h.libraryId,
+        title: 'Holiday Closure: ${h.reason}',
+        message: '${h.reason} ($dateStr) — The library will be ${h.isFullDay ? "closed for the full day" : "partially open"}.$extText',
+        type: AnnouncementType.broadcast,
+        priority: AnnouncementPriority.holiday,
+        isActive: true,
+        createdAt: h.createdAt,
+        expiresAt: DateTime(h.date.year, h.date.month, h.date.day, 23, 59, 59),
+      );
+    }).toList();
 
     return PopScope(
       canPop: false,
@@ -195,10 +221,32 @@ class _StudentAnnouncementsScreenState
         ),
         body: announcementsAsync.when(
           data: (allAnnouncements) {
+            // Merge announcements and library holidays (prevent duplicate holiday announcements)
+            final existingIds = allAnnouncements.map((a) => a.id).toSet();
+            final mergedAnnouncements = [
+              ...allAnnouncements,
+              ...holidayCirculars.where((h) => !existingIds.contains(h.id)),
+            ];
+
+            // Sort newest / upcoming first
+            mergedAnnouncements.sort((a, b) {
+              final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+              final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+              return bDate.compareTo(aDate);
+            });
+
             // Filter active notices and non-expired
-            final notices = allAnnouncements.where((a) {
+            final notices = mergedAnnouncements.where((a) {
               if (!a.isActive) return false;
-              if (a.isExpired) return false;
+
+              // For holidays, keep future dates and recent holidays (last 14 days)
+              if (a.priority == AnnouncementPriority.holiday) {
+                if (a.expiresAt != null && a.expiresAt!.isBefore(DateTime.now().subtract(const Duration(days: 14)))) {
+                  return false;
+                }
+              } else {
+                if (a.isExpired) return false;
+              }
 
               // Filter by category
               if (_selectedFilter != 'all' && a.priority.name != _selectedFilter) {
@@ -270,13 +318,30 @@ class _StudentAnnouncementsScreenState
                 Expanded(
                   child: notices.isEmpty
                       ? EmptyStateWidget(
-                          icon: Icons.campaign_outlined,
+                          icon: _selectedFilter == 'holiday'
+                              ? Icons.celebration_outlined
+                              : Icons.campaign_outlined,
                           title: _searchQuery.isNotEmpty
-                              ? 'No matching notices found'
-                              : 'No active circulars',
+                              ? 'No matching circulars found'
+                              : (_selectedFilter == 'holiday'
+                                  ? 'No library closures scheduled'
+                                  : 'No active circulars'),
                           message: _searchQuery.isNotEmpty
                               ? 'Try searching with different keywords.'
-                              : 'Library administration has not posted any active notices under this category.',
+                              : (_selectedFilter == 'holiday'
+                                  ? 'The study library is fully open on all standard calendar days. Any upcoming festival closures or maintenance breaks will be published here.'
+                                  : 'Library administration has not posted any active notices under this category.'),
+                          actionLabel: _searchQuery.isNotEmpty
+                              ? 'Clear Search'
+                              : (_selectedFilter != 'all' ? 'View All Circulars' : null),
+                          onAction: _searchQuery.isNotEmpty
+                              ? () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                }
+                              : (_selectedFilter != 'all'
+                                  ? () => setState(() => _selectedFilter = 'all')
+                                  : null),
                         )
                       : RefreshIndicator(
                           onRefresh: () async {
@@ -441,7 +506,16 @@ class _StudentAnnouncementsScreenState
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error loading notices: $e')),
+          error: (e, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Text(
+                AppErrorFormatter.toUserFriendly(e, actionContext: 'announcement'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
         ),
       ),
     );

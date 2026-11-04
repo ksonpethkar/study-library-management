@@ -2735,8 +2735,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       _loadStudent();
                     }
                   } catch (e) {
-                    if (this.mounted) {
-                      AppErrorFormatter.showErrorSnackBar(this.context, e, actionContext: 'student');
+                    if (mounted) {
+                      AppErrorFormatter.showErrorSnackBar(messenger.context, e, actionContext: 'student');
                     }
                   }
                 },
@@ -2766,8 +2766,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     _loadStudent();
                   }
                 } catch (e) {
-                  if (this.mounted) {
-                    AppErrorFormatter.showErrorSnackBar(this.context, e, actionContext: 'student');
+                  if (mounted) {
+                    AppErrorFormatter.showErrorSnackBar(messenger.context, e, actionContext: 'student');
                   }
                 }
               },

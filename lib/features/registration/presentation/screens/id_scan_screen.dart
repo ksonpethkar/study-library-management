@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../providers/registration_provider.dart';
 import '../../data/ocr_parser.dart';
 import 'package:study_library/services/ocr_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class IdScanScreen extends ConsumerStatefulWidget {
   const IdScanScreen({super.key});
@@ -131,15 +132,11 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            action: SnackBarAction(
-              label: 'Enter Manually',
-              textColor: Colors.amber,
-              onPressed: () => ref.read(registrationStepProvider.notifier).goTo(2),
-            ),
-          ),
+        AppErrorFormatter.showErrorSnackBar(
+          context,
+          e,
+          actionContext: 'camera',
+          onRetry: () => ref.read(registrationStepProvider.notifier).goTo(2),
         );
       }
     }

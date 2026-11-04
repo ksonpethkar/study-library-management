@@ -7,6 +7,7 @@ import 'package:study_library/models/section_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
 import '../providers/registration_provider.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class SeatSelectionScreen extends ConsumerStatefulWidget {
   const SeatSelectionScreen({super.key});
@@ -261,7 +262,11 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
             children: [
               const Icon(Icons.error_outline_rounded, color: Colors.red, size: 40),
               const SizedBox(height: 12),
-              Text('Failed to load sections: $err'),
+              Text(
+                AppErrorFormatter.toUserFriendly(err, actionContext: 'section'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => ref.refresh(sectionsProvider),
@@ -670,7 +675,13 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
       ),
       error: (e, _) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 30),
-        child: Center(child: Text('Error loading desks: $e')),
+        child: Center(
+          child: Text(
+            AppErrorFormatter.toUserFriendly(e, actionContext: 'seat'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
       ),
       data: (seats) {
         if (seats.isEmpty) {

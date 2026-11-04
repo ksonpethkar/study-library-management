@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class PrivacyPolicyScreen extends ConsumerStatefulWidget {
   const PrivacyPolicyScreen({super.key});
@@ -212,11 +213,7 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                         }
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to save policy: $e'),
-                            ),
-                          );
+                          AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
                         }
                       } finally {
                         if (mounted) setState(() => _isSaving = false);

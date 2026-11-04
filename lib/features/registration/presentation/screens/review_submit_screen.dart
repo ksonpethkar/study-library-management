@@ -17,6 +17,7 @@ import 'package:study_library/services/form_config_service.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class ReviewSubmitScreen extends ConsumerStatefulWidget {
   const ReviewSubmitScreen({super.key});
@@ -85,9 +86,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                 if (ctx.mounted) Navigator.pop(ctx, true);
               } catch (e) {
                 if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Sign in failed: $e')),
-                  );
+                  AppErrorFormatter.showErrorSnackBar(ctx, e, actionContext: 'auth');
                 }
               }
             },

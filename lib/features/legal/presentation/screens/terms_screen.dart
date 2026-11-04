@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class TermsScreen extends ConsumerStatefulWidget {
   const TermsScreen({super.key});
@@ -235,9 +236,7 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                                   }
                                 } catch (e) {
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Failed to save terms: $e')),
-                                    );
+                                    AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
                                   }
                                 } finally {
                                   if (mounted) setState(() => _isSaving = false);

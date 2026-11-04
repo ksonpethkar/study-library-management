@@ -17,6 +17,7 @@ import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/error/error_handler.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class MyReceiptsScreen extends ConsumerStatefulWidget {
   const MyReceiptsScreen({super.key});
@@ -94,13 +95,7 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load receipt: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'receipt');
       }
     } finally {
       if (mounted) setState(() => _isGenerating = false);

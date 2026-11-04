@@ -8,6 +8,7 @@ import 'package:study_library/features/students/presentation/providers/student_p
 import '../providers/seat_providers.dart';
 import 'seat_tile.dart';
 import 'seat_detail_sheet.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class SeatGridWidget extends ConsumerStatefulWidget {
   final String libraryId;
@@ -657,8 +658,16 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
               );
             },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) =>
-                  Center(child: Text('Error loading seats: $err')),
+              error: (err, stack) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    AppErrorFormatter.toUserFriendly(err, actionContext: 'seat'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ),
             ),
           ],
         );

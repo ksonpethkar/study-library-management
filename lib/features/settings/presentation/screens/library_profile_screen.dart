@@ -12,6 +12,7 @@ import 'package:study_library/features/auth/presentation/providers/auth_provider
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/image_transparency_service.dart';
 import 'package:study_library/services/message_template_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class LibraryProfileScreen extends ConsumerStatefulWidget {
   const LibraryProfileScreen({super.key});
@@ -165,7 +166,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
       }
     }
 
@@ -256,12 +257,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Upload failed: ${e.toString().replaceAll("Exception:", "").trim()}'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'camera');
       }
     } finally {
       if (mounted) setState(() => _isUploadingLogo = false);
@@ -374,13 +370,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update library profile: $e'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

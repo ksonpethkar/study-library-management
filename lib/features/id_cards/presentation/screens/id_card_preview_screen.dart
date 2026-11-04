@@ -16,6 +16,7 @@ import 'package:study_library/features/auth/presentation/providers/auth_provider
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class IdCardPreviewScreen extends ConsumerStatefulWidget {
   final StudentModel student;
@@ -180,13 +181,7 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save default theme: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
       }
     } finally {
       if (mounted) setState(() => _isSavingTheme = false);

@@ -1527,7 +1527,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     final bool hasPendingChange = pendingSeatChange != null;
 
     final String targetSeatLabel = hasPendingChange
-        ? SeatHelper.formatSeatLabel(rawLabel: pendingSeatChange['targetSeatLabel'] as String?)
+        ? SeatHelper.formatSeatLabel(
+            seatId: pendingSeatChange['targetSeatId'] as String?,
+            rawLabel: pendingSeatChange['targetSeatLabel'] as String?,
+          )
         : '';
     final String targetSecName = hasPendingChange
         ? (pendingSeatChange['targetSectionName'] as String? ?? sectionName)

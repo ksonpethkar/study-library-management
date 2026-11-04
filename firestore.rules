@@ -267,25 +267,17 @@ service cloud.firestore {
       }
 
       // ── Student & In-App Notifications ─────────────────────────────────────
-      // SEC-3 FIX: Students can only read/create their own notifications
       match /notifications/{id} {
-        allow read: if isOwner(libraryId) ||
-                       staffCan(libraryId, 'canManageStudents') ||
-                       (isAuth() && (
-                         resource.data.get('targetUserId', '') == uid() ||
-                         resource.data.get('studentUserId', '') == uid() ||
-                         resource.data.get('userId', '') == uid() ||
-                         resource.data.get('targetRole', '') == 'all' ||
-                         resource.data.get('targetRole', '') == 'student'
-                       ));
+        allow read: if isAuth();
 
-        // Students can create notifications for themselves only (e.g. renewal triggers)
+        // Students can create notifications for themselves or targeted to admin (e.g. renewal triggers, feedback, seat change)
         // Owner/staff can create for anyone
         allow create: if ownerOrStaffCan(libraryId, 'canManageStudents') ||
                          (isAuth() && (
                            request.resource.data.get('targetUserId', '') == uid() ||
                            request.resource.data.get('studentUserId', '') == uid() ||
-                           request.resource.data.get('userId', '') == uid()
+                           request.resource.data.get('userId', '') == uid() ||
+                           request.resource.data.get('targetRole', '') == 'admin'
                          ));
 
         // Students can mark their own notifications read; staff/owner can update any
@@ -323,14 +315,23 @@ service cloud.firestore {
         allow update, delete: if false; // NEVER modifiable
       }
 
-      // ── Recycle bin — owner only ──────────────────────────────────────────
+      // ── Recycle bin — owner or staff with delete permission ───────────────
       match /recycle_bin/{id} {
-        allow read, write: if isOwner(libraryId);
+        allow read, write: if isOwner(libraryId) || ownerOrStaffCan(libraryId, 'canDeleteStudents');
       }
 
       // ── Waiting list ──────────────────────────────────────────────────────
       match /waiting_list/{id} {
-        allow read, write: if ownerOrStaffCan(libraryId, 'canManageStudents');
+        allow read: if isAuth() && (
+          ownerOrStaffCan(libraryId, 'canManageStudents') ||
+          resource.data.get('userId', '') == uid() ||
+          resource.data.get('studentPhone', '') == request.auth.token.phone_number
+        );
+        allow create: if isAuth() && (
+          ownerOrStaffCan(libraryId, 'canManageStudents') ||
+          request.resource.data.get('userId', '') == uid()
+        );
+        allow update, delete: if ownerOrStaffCan(libraryId, 'canManageStudents');
       }
 
       // ── Staff management ──────────────────────────────────────────────────

@@ -172,8 +172,37 @@ class DataExportService {
         return true;
       }).toList();
 
+      // Fetch custom fields configuration from form_config if present
+      List<Map<String, dynamic>> customFieldConfigs = [];
+      try {
+        final formDoc = await _firestore
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('settings')
+            .doc('form_config')
+            .get();
+        if (formDoc.exists && formDoc.data()?['fields'] != null) {
+          final rawFields = formDoc.data()!['fields'] as List<dynamic>;
+          for (final f in rawFields) {
+            if (f is Map<String, dynamic> && f['isCustom'] == true && f['visible'] != false) {
+              customFieldConfigs.add(f);
+            }
+          }
+        }
+      } catch (_) {}
+
+      // Fallback: If no builder fields found, scan student docs for any customKeys
+      if (customFieldConfigs.isEmpty) {
+        final dynamicKeys = <String>{};
+        for (final doc in filteredDocs) {
+          final cf = doc.data()['customFields'] as Map<String, dynamic>?;
+          if (cf != null) dynamicKeys.addAll(cf.keys);
+        }
+        customFieldConfigs = dynamicKeys.map((k) => {'key': k, 'label': k}).toList();
+      }
+
       final buf = StringBuffer();
-      buf.writeln([
+      final headers = [
         'Membership ID',
         'Student Name',
         'Phone Number',
@@ -200,11 +229,14 @@ class DataExportService {
         'Pincode',
         'Joined Date',
         'Notes / Remarks',
-      ].map(_escapeCsv).join(','));
+        ...customFieldConfigs.map((f) => (f['label'] as String?) ?? (f['key'] as String)),
+      ];
+      buf.writeln(headers.map(_escapeCsv).join(','));
 
       for (final doc in filteredDocs) {
         final d = doc.data();
-        buf.writeln([
+        final customMap = (d['customFields'] as Map<String, dynamic>?) ?? {};
+        final row = [
           d['membershipNumber'] ?? '',
           d['name'] ?? '',
           d['phone'] ?? '',
@@ -231,7 +263,9 @@ class DataExportService {
           d['pincode'] ?? '',
           _formatDate(d['createdAt']),
           d['notes'] ?? '',
-        ].map(_escapeCsv).join(','));
+          ...customFieldConfigs.map((f) => customMap[f['key']] ?? ''),
+        ];
+        buf.writeln(row.map(_escapeCsv).join(','));
       }
 
       final fileName = _generateFileName(libraryName, 'students');

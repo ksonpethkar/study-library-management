@@ -13,6 +13,7 @@ import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class WaitingListScreen extends ConsumerStatefulWidget {
   final int initialTab;
@@ -499,7 +500,16 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
               Expanded(
                 child: waitingListAsync.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, _) => Center(child: Text('Error loading queue: $err')),
+                  error: (err, _) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Text(
+                        AppErrorFormatter.toUserFriendly(err, actionContext: 'request'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
                   data: (_) {
                     if (filteredEntries.isEmpty) {
                       return RefreshIndicator(
@@ -1173,13 +1183,7 @@ class _WaitingListSeatAssignSheetState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to assign seat: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -1256,8 +1260,16 @@ class _WaitingListSeatAssignSheetState
                 child: sectionsAsync.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (err, _) =>
-                      Center(child: Text('Error loading sections: $err')),
+                  error: (err, _) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        AppErrorFormatter.toUserFriendly(err, actionContext: 'section'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
                   data: (sections) {
                     if (sections.isEmpty) {
                       return const Center(
@@ -1324,7 +1336,13 @@ class _AvailableSeatsSectionTile extends ConsumerWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
-              error: (err, _) => Text('Failed to load seats: $err'),
+              error: (err, _) => Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  AppErrorFormatter.toUserFriendly(err, actionContext: 'seat'),
+                  style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                ),
+              ),
               data: (seats) {
                 final availableSeats = seats
                     .where((s) =>

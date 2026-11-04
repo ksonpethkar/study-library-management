@@ -7,6 +7,7 @@ import 'package:study_library/core/widgets/empty_state_widget.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class RecycleBinScreen extends ConsumerStatefulWidget {
   const RecycleBinScreen({super.key});
@@ -64,6 +65,51 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
     restoreData.remove('expiresAt');
     restoreData.remove('deletedBy');
 
+    // Prevent double-booking / seat collision if restoring a student
+    if (type == 'student' && restoreData['seatId'] != null) {
+      final seatId = restoreData['seatId'] as String;
+      final occupiedCheck = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .where('seatId', isEqualTo: seatId)
+          .where('membershipStatus', isEqualTo: 'active')
+          .get();
+
+      if (occupiedCheck.docs.isNotEmpty) {
+        final otherStudent = occupiedCheck.docs.first.data()['name'] ?? 'another student';
+        if (!mounted) return;
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                SizedBox(width: 8),
+                Text('Seat Already Occupied'),
+              ],
+            ),
+            content: Text(
+              'Desk "$seatId" is currently assigned to active student "$otherStudent".\n\nTo prevent a double-booking collision, would you like to restore this student with an unassigned seat status?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Restore Without Seat'),
+              ),
+            ],
+          ),
+        );
+
+        if (proceed != true) return;
+        restoreData['seatId'] = null;
+      }
+    }
+
     try {
       final batch = FirebaseFirestore.instance.batch();
       final targetRef = FirebaseFirestore.instance
@@ -112,9 +158,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to restore: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
       }
     }
   }
@@ -255,9 +299,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to empty recycle bin: $e')),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
       }
     }
   }

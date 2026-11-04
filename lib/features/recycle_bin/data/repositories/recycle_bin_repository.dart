@@ -34,12 +34,27 @@ class RecycleBinRepository {
       final collectionPath = _getCollectionPath(data.type);
       
       if (collectionPath.isNotEmpty) {
+        final restorePayload = Map<String, dynamic>.from(data.originalData);
+        if (data.type == 'student' && restorePayload['seatId'] != null) {
+          final seatId = restorePayload['seatId'] as String;
+          final occupied = await _firestore
+              .collection(FirestorePaths.libraries)
+              .doc(libraryId)
+              .collection(FirestorePaths.students)
+              .where('seatId', isEqualTo: seatId)
+              .where('membershipStatus', isEqualTo: 'active')
+              .get();
+          if (occupied.docs.isNotEmpty) {
+            restorePayload['seatId'] = null;
+          }
+        }
+
         await _firestore
             .collection(FirestorePaths.libraries)
             .doc(libraryId)
             .collection(collectionPath)
             .doc(data.id)
-            .set(data.originalData);
+            .set(restorePayload);
             
         await docRef.delete();
       }

@@ -22,6 +22,7 @@ import 'package:study_library/features/auth/presentation/providers/auth_provider
 import 'package:study_library/core/providers/theme_provider.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   const MyProfileScreen({super.key});
@@ -1330,9 +1331,7 @@ Future<void> _showEditProfileSheet(BuildContext context, WidgetRef ref, StudentM
                     } catch (e) {
                       setSheetState(() => saving = false);
                       if (ctx.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          SnackBar(content: Text('Request failed: $e'), backgroundColor: Colors.red),
-                        );
+                        AppErrorFormatter.showErrorSnackBar(ctx, e, actionContext: 'student');
                       }
                     }
                   },

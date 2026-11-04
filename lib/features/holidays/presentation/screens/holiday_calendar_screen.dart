@@ -86,6 +86,15 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
           .collection('holidays');
       await ref.doc(holidayId).delete();
 
+      // Also clean up synced notice board announcement if present
+      FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('announcements')
+          .doc('holiday_$holidayId')
+          .delete()
+          .catchError((_) {});
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
