@@ -424,15 +424,33 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
                       ),
                       if (displayReceiptNum != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: theme.colorScheme.surface,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+                            border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            displayReceiptNum,
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.receipt_long_rounded, size: 14, color: theme.colorScheme.primary),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Receipt: $displayReceiptNum',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                     ],
