@@ -11,6 +11,7 @@ import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 enum DocumentFilterMode { original, highContrast, grayscale }
 
@@ -220,9 +221,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update document: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'camera');
       }
     } finally {
       if (mounted) setState(() => _isUploadingNewImage = false);
@@ -293,9 +292,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save ID: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'camera');
       }
     } finally {
       if (mounted) setState(() => _isSavingDetails = false);

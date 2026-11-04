@@ -10,6 +10,7 @@ import 'package:study_library/models/seat_model.dart';
 import '../providers/seat_providers.dart';
 import '../widgets/seat_grid_widget.dart';
 import 'add_section_screen.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class SectionDetailScreen extends ConsumerStatefulWidget {
   final String sectionId;
@@ -90,12 +91,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'section');
       }
     } finally {
       if (mounted) setState(() => _isDeleting = false);
@@ -161,12 +157,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'section');
       }
     } finally {
       if (mounted) setState(() => _isDeleting = false);
@@ -195,12 +186,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'section');
       }
     } finally {
       if (mounted) setState(() => _isDeleting = false);
@@ -339,8 +325,16 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
               : seatsAsync.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (e, _) =>
-                      Center(child: Text('Error loading seats: $e')),
+                  error: (e, _) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Text(
+                        AppErrorFormatter.toUserFriendly(e, actionContext: 'seat'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
                   data: (seats) {
                     final totalSeats = seats.length;
                     final occupied = seats

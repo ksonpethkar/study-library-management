@@ -11,6 +11,7 @@ import 'package:study_library/services/badge_service.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/student_provisioning_service.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 /// Data representation of a student request from raw Firestore data.
 class StudentRequestItem {
@@ -1210,13 +1211,7 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update request: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'request');
       }
     }
   }
@@ -1445,13 +1440,7 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete request: $e'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'request');
         }
       }
     }
