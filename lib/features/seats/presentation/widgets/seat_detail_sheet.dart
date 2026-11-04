@@ -316,9 +316,7 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to assign seat: $e')),
-                  );
+                  AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
                 }
               }
             },
@@ -738,9 +736,7 @@ class _SeatTransferSheetState extends ConsumerState<_SeatTransferSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Transfer failed: $e')),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
       }
     } finally {
       if (mounted) setState(() => _isTransferring = false);
