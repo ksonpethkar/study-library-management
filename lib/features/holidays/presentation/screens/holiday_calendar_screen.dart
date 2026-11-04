@@ -6,6 +6,7 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/holiday_model.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 /// Stream of holidays for the current library, sorted by date in Dart.
 final holidaysStreamProvider = StreamProvider.autoDispose<List<HolidayModel>>((ref) {
@@ -94,13 +95,7 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete holiday: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'holiday');
       }
     }
   }
@@ -740,12 +735,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
         setState(() {
           _isSaving = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save holiday: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'holiday');
       }
     }
   }

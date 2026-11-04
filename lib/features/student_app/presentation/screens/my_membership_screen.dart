@@ -156,9 +156,9 @@ class MyMembershipScreen extends ConsumerWidget {
                       BoxShadow(
                         color: const Color(0xFF312E81).withValues(alpha: 0.3),
                         blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
+                        offset: const Offset(0, 6
+                      ],
+                    ),
                   ),
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -510,6 +510,9 @@ class MyMembershipScreen extends ConsumerWidget {
                             ),
                           ),
                         ],
+                      ),
+                      
+                        ),
                       ),
                     ],
                   ),

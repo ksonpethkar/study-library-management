@@ -20,6 +20,7 @@ import 'package:study_library/core/widgets/pressable_scale.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 enum RenewalTiming { advance, continuousGrace, immediate }
 enum RenewalPaymentMode { upi, bank, deskCash }
@@ -188,12 +189,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to submit renewal request: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'request');
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -1275,9 +1271,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                     }
                                   } catch (e) {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('UPI payment notice: $e')),
-                                      );
+                                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'payment');
                                     }
                                   }
                                 },

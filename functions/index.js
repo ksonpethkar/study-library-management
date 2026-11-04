@@ -2,6 +2,7 @@
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 
@@ -569,11 +570,20 @@ async function triggerWaitlistHoldForFreedSeat(libraryId, sectionId, seatId, sea
       .doc(seatId);
 
     if (candidate) {
-      // 2-hour reservation hold
-      const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      // Dynamic reservation hold (read from library settings, default 24 hours)
+      let holdingHours = 24;
+      try {
+        const libDoc = await db.collection('libraries').doc(libraryId).get();
+        const lData = libDoc.data() || {};
+        if (typeof lData.waitingListHoldingHours === 'number' && lData.waitingListHoldingHours > 0) {
+          holdingHours = lData.waitingListHoldingHours;
+        }
+      } catch (_) {}
+
+      const expiresAt = new Date(Date.now() + holdingHours * 60 * 60 * 1000);
       const expiresAtTs = admin.firestore.Timestamp.fromDate(expiresAt);
 
-      // 1. Put seat on 2-hour hold
+      // 1. Put seat on reservation hold
       await seatRef.update({
         status: 'reserved',
         reservationType: 'waitlist_hold',
@@ -597,7 +607,7 @@ async function triggerWaitlistHoldForFreedSeat(libraryId, sectionId, seatId, sea
       const expTimeStr = expiresAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
       await db.collection(`libraries/${libraryId}/notifications`).add({
         title: `⏳ Seat #${seatLabel} Held for ${candidate.studentName}`,
-        body: `2-Hour reservation active until ${expTimeStr}. Tap to assign or message candidate via WhatsApp.`,
+        body: `${holdingHours}-Hour reservation active until ${expTimeStr}. Tap to assign or message candidate via WhatsApp.`,
         targetRole: 'admin',
         type: 'waitlist_hold',
         createdAt: admin.firestore.Timestamp.now(),
@@ -610,6 +620,7 @@ async function triggerWaitlistHoldForFreedSeat(libraryId, sectionId, seatId, sea
           seatId,
           seatLabel,
           sectionId,
+          holdingHours,
           offerExpiresAt: expiresAt.toISOString(),
         },
       });
@@ -877,6 +888,72 @@ exports.onNotificationCreated = onDocumentCreated(
       }
     } catch (err) {
       logger.error('Error dispatching notification alerts:', err);
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FUNCTION 9: Real Remote Session Revocation
+// 1. Triggered on users/{userId} update when revokeSessionsRequestedAt changes
+// 2. Or invoked directly via onCall
+// Revokes all refresh tokens for that UID in Firebase Auth.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.onUserSessionRevocation = onDocumentUpdated(
+  'users/{userId}',
+  async (event) => {
+    const beforeData = event.data?.before?.data() || {};
+    const afterData = event.data?.after?.data() || {};
+    const userId = event.params.userId;
+
+    const beforeTs = beforeData.revokeSessionsRequestedAt?.toMillis ? beforeData.revokeSessionsRequestedAt.toMillis() : 0;
+    const afterTs = afterData.revokeSessionsRequestedAt?.toMillis ? afterData.revokeSessionsRequestedAt.toMillis() : 0;
+
+    if (afterTs > beforeTs) {
+      logger.info(`Revoking refresh tokens for user ${userId}`);
+      try {
+        await admin.auth().revokeRefreshTokens(userId);
+        const userRecord = await admin.auth().getUser(userId);
+        const validAfterMillis = new Date(userRecord.tokensValidAfterTime).getTime();
+
+        await event.data.after.ref.update({
+          tokensValidAfterMillis: validAfterMillis,
+          sessionsRevokedSuccess: true,
+        });
+        logger.info(`Successfully revoked all sessions for user ${userId}, valid after: ${validAfterMillis}`);
+      } catch (err) {
+        logger.error(`Failed to revoke sessions for user ${userId}:`, err);
+      }
+    }
+  }
+);
+
+exports.revokeAllOtherSessions = onCall(
+  { region: 'us-central1' },
+  async (request) => {
+    if (!request.auth || !request.auth.uid) {
+      throw new HttpsError('unauthenticated', 'User must be authenticated to revoke sessions.');
+    }
+
+    const uid = request.auth.uid;
+    try {
+      await admin.auth().revokeRefreshTokens(uid);
+      const userRecord = await admin.auth().getUser(uid);
+      const validAfterMillis = new Date(userRecord.tokensValidAfterTime).getTime();
+
+      await db.collection('users').doc(uid).set({
+        tokensValidAfterMillis: validAfterMillis,
+        sessionsRevokedSuccess: true,
+        lastSessionRevokedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      return {
+        success: true,
+        message: 'All other refresh tokens revoked successfully.',
+        tokensValidAfterMillis: validAfterMillis,
+      };
+    } catch (err) {
+      logger.error(`Error in revokeAllOtherSessions for ${uid}:`, err);
+      throw new HttpsError('internal', err.message);
     }
   }
 );

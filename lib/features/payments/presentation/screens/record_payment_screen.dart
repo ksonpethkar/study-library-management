@@ -23,6 +23,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:study_library/services/ocr_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/upi_ocr_parser.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
@@ -310,9 +311,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('OCR Scan error: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'camera');
       }
     } finally {
       if (mounted) setState(() => _isScanningScreenshot = false);
@@ -870,7 +869,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         FirebaseCrashlytics.instance.recordError(e, stack, reason: 'record_payment_failed', fatal: false);
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error recording payment: $e')));
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'payment');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

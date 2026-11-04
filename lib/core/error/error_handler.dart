@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 import 'app_exception.dart';
 
 class ErrorHandler {
@@ -52,13 +53,9 @@ class ErrorHandler {
               : "A network error occurred. Please try again.";
       }
     } else if (error is Exception) {
-      var raw = error.toString().replaceFirst('Exception: ', '').trim();
-      if (raw.startsWith('[') && raw.contains('] ')) {
-        raw = raw.substring(raw.indexOf('] ') + 2);
-      }
-      userMessage = raw.isNotEmpty ? raw : "An unexpected issue occurred. Please try again.";
+      userMessage = AppErrorFormatter.toUserFriendly(error);
     } else if (error is String) {
-      userMessage = error;
+      userMessage = AppErrorFormatter.toUserFriendly(error);
     }
 
     // Log the error

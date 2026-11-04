@@ -16,6 +16,7 @@ import 'package:flutter/services.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/services/form_config_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class AddStudentScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initialData;
@@ -395,12 +396,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString().replaceAll("Exception: ", "")}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

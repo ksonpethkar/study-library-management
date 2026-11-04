@@ -151,54 +151,66 @@ final studentPendingSeatChangeProvider = StreamProvider<Map<String, dynamic>?>((
   final studentEmail = student?.email.toLowerCase().trim() ?? '';
   final studentPhone = student?.phone.replaceAll(RegExp(r'\D'), '') ?? '';
 
-  if (curUid.isEmpty && studentId.isEmpty && studentUserId.isEmpty) {
+  final effectiveUserId = curUid.isNotEmpty
+      ? curUid
+      : (studentUserId.isNotEmpty ? studentUserId : studentId);
+
+  if (effectiveUserId.isEmpty) {
     yield null;
     return;
   }
 
-  final queryStream = FirebaseFirestore.instance
-      .collection('libraries')
-      .doc(libraryId)
-      .collection('requests')
-      .where('type', isEqualTo: 'seat_change')
-      .snapshots();
+  try {
+    // SEC-5 Guard: Firestore security rules enforce (resource.data.userId == uid).
+    // Filtering by userId ensures the query matches the security rule without permission-denied.
+    final queryStream = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('requests')
+        .where('userId', isEqualTo: effectiveUserId)
+        .where('type', isEqualTo: 'seat_change')
+        .snapshots();
 
-  await for (final snap in queryStream) {
-    final docs = snap.docs.where((d) {
-      final data = d.data();
-      final status = (data['status'] ?? 'pending').toString().toLowerCase();
-      if (status != 'pending') return false;
+    await for (final snap in queryStream) {
+      final docs = snap.docs.where((d) {
+        final data = d.data();
+        final status = (data['status'] ?? 'pending').toString().toLowerCase();
+        if (status != 'pending') return false;
 
-      final sId = (data['studentId'] ?? '').toString();
-      final sUid = (data['studentUserId'] ?? data['userId'] ?? '').toString();
-      final sEmail = (data['studentEmail'] ?? '').toString().toLowerCase().trim();
-      final sPhone = (data['studentPhone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+        final sId = (data['studentId'] ?? '').toString();
+        final sUid = (data['studentUserId'] ?? data['userId'] ?? '').toString();
+        final sEmail = (data['studentEmail'] ?? '').toString().toLowerCase().trim();
+        final sPhone = (data['studentPhone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
 
-      if (studentId.isNotEmpty && sId == studentId) return true;
-      if (curUid.isNotEmpty && (sUid == curUid || sId == curUid)) return true;
-      if (studentUserId.isNotEmpty && (sUid == studentUserId || sId == studentUserId)) return true;
-      if (curEmail.isNotEmpty && sEmail.isNotEmpty && curEmail == sEmail) return true;
-      if (studentEmail.isNotEmpty && sEmail.isNotEmpty && studentEmail == sEmail) return true;
-      if (studentPhone.isNotEmpty && sPhone.isNotEmpty &&
-          (studentPhone == sPhone || studentPhone.endsWith(sPhone) || sPhone.endsWith(studentPhone))) {
-        return true;
+        if (studentId.isNotEmpty && sId == studentId) return true;
+        if (curUid.isNotEmpty && (sUid == curUid || sId == curUid)) return true;
+        if (studentUserId.isNotEmpty && (sUid == studentUserId || sId == studentUserId)) return true;
+        if (curEmail.isNotEmpty && sEmail.isNotEmpty && curEmail == sEmail) return true;
+        if (studentEmail.isNotEmpty && sEmail.isNotEmpty && studentEmail == sEmail) return true;
+        if (studentPhone.isNotEmpty && sPhone.isNotEmpty &&
+            (studentPhone == sPhone || studentPhone.endsWith(sPhone) || sPhone.endsWith(studentPhone))) {
+          return true;
+        }
+
+        return false;
+      }).toList();
+
+      if (docs.isEmpty) {
+        yield null;
+      } else {
+        docs.sort((a, b) {
+          final tA = a.data()['createdAt'] as Timestamp?;
+          final tB = b.data()['createdAt'] as Timestamp?;
+          if (tA != null && tB != null) return tB.compareTo(tA);
+          return 0;
+        });
+        final d = docs.first;
+        yield {'id': d.id, ...d.data()};
       }
-
-      return false;
-    }).toList();
-
-    if (docs.isEmpty) {
-      yield null;
-    } else {
-      docs.sort((a, b) {
-        final tA = a.data()['createdAt'] as Timestamp?;
-        final tB = b.data()['createdAt'] as Timestamp?;
-        if (tA != null && tB != null) return tB.compareTo(tA);
-        return 0;
-      });
-      final d = docs.first;
-      yield {'id': d.id, ...d.data()};
     }
+  } catch (e) {
+    debugPrint('studentPendingSeatChangeProvider stream error: $e');
+    yield null;
   }
 });
 

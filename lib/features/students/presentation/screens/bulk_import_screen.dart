@@ -12,6 +12,7 @@ import 'package:study_library/core/utils/app_validators.dart';
 import 'package:study_library/core/utils/file_download_helper.dart';
 import 'package:study_library/core/utils/sequence_counter.dart';
 import 'package:study_library/core/security/audit_logger.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/models/student_model.dart';
 
 enum ImportRowStatus {
@@ -128,12 +129,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not download sample CSV: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'receipt');
       }
     }
   }
@@ -188,7 +184,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
 
       await _processAndValidateCsv(csvTable);
     } catch (e) {
-      _showError('Failed to parse CSV file: $e');
+      _showError('Failed to parse CSV file: ${AppErrorFormatter.toUserFriendly(e, actionContext: "import")}');
     } finally {
       if (mounted) {
         setState(() => _isAnalyzing = false);
@@ -492,7 +488,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
         _importDone = true;
       });
     } catch (e) {
-      _showError('Batch import encountered an error: $e');
+      _showError('Batch import could not be completed: ${AppErrorFormatter.toUserFriendly(e, actionContext: "import")}');
     } finally {
       if (mounted) {
         setState(() => _isImporting = false);

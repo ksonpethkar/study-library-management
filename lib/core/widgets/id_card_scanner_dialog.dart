@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:study_library/features/registration/data/ocr_parser.dart';
 import 'package:study_library/services/ocr_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 /// Data returned when the user completes an ID scan
 class IdScanResult {
@@ -174,12 +175,7 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
         setState(() {
           _isScanning = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Scan note: ${e.toString().replaceAll("Exception: ", "")}'),
-            backgroundColor: Colors.orange.shade800,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'camera');
       }
     }
   }

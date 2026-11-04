@@ -12,6 +12,7 @@ import 'package:study_library/services/notification_service.dart';
 import 'package:study_library/services/owner_digest_service.dart';
 import 'package:study_library/services/waiting_list_promotion_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class CommunicationsHubScreen extends ConsumerStatefulWidget {
   const CommunicationsHubScreen({super.key});
@@ -251,9 +252,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error triggering prompt: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
       }
     }
   }
@@ -350,13 +349,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save settings: $e'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -433,12 +426,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error triggering notification: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
       }
     }
   }
@@ -1809,9 +1797,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to open WhatsApp: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
       }
     } finally {
       if (mounted) {

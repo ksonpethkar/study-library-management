@@ -8,6 +8,7 @@ import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 /// Stream provider for library student feedback, sorted in Dart (newest first).
 final feedbackStreamProvider = StreamProvider.autoDispose<List<FeedbackModel>>((ref) {
@@ -363,12 +364,7 @@ class FeedbackListScreen extends ConsumerWidget {
                                       }
                                     } catch (e) {
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Failed to send reply: $e'),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
+                                        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'feedback');
                                       }
                                     }
                                   },
@@ -460,12 +456,7 @@ class FeedbackListScreen extends ConsumerWidget {
                                 }
                               } catch (e) {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Failed to process reply: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
+                                  AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'feedback');
                                 }
                               }
                             },
@@ -529,13 +520,7 @@ class FeedbackListScreen extends ConsumerWidget {
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete feedback: $e'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'feedback');
         }
       }
     }

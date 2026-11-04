@@ -10,6 +10,7 @@ import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/features/recycle_bin/data/repositories/recycle_bin_repository.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 /// Stream provider for announcements of the current library, sorted by createdAt descending.
 final announcementsStreamProvider =
@@ -337,11 +338,7 @@ class _AnnouncementListScreenState extends ConsumerState<AnnouncementListScreen>
                       return true;
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Failed to delete announcement: $e'),
-                          ),
-                        );
+                        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
                       }
                       return false;
                     }
@@ -414,14 +411,7 @@ class _AnnouncementListScreenState extends ConsumerState<AnnouncementListScreen>
                                             .update({'isActive': val});
                                       } catch (e) {
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Failed to update status: $e',
-                                              ),
-                                            ),
-                                          );
+                                          AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
                                         }
                                       }
                                     },
@@ -733,9 +723,7 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save announcement: $e')),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'announcement');
       }
     }
   }

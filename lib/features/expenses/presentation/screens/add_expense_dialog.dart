@@ -9,6 +9,7 @@ import 'package:study_library/features/expenses/presentation/providers/expense_p
 import 'package:study_library/models/expense_model.dart';
 import 'package:study_library/services/ocr_service.dart';
 import 'package:study_library/services/expense_ocr_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class AddExpenseDialog extends ConsumerStatefulWidget {
   final ExpenseModel? existingExpense;
@@ -178,9 +179,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bill scan error: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'camera');
       }
     } finally {
       if (mounted) setState(() => _isScanningBill = false);
@@ -239,9 +238,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save expense: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'expense');
       }
     }
   }

@@ -251,6 +251,42 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             renewalPlanId = requestedPlanId;
           }
         }
+      } else if (type == 'freeze') {
+        final studentId = (data['studentId'] ?? '').toString();
+        final rawProjectedEnd = data['projectedEndDate'];
+        final freezeDays = (data['freezeDays'] as num?)?.toInt() ?? 0;
+        final freezeStartStr = data['freezeStartDate'];
+        final freezeEndStr = data['freezeEndDate'];
+
+        if (studentId.isNotEmpty && rawProjectedEnd != null) {
+          final newEnd = DateTime.parse(rawProjectedEnd.toString());
+          await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('students')
+              .doc(studentId)
+              .update({
+            'planEndDate': Timestamp.fromDate(newEnd),
+            'validTo': Timestamp.fromDate(newEnd),
+            'lastFreezeDays': freezeDays,
+            'lastFreezeStartDate': freezeStartStr != null ? Timestamp.fromDate(DateTime.parse(freezeStartStr.toString())) : null,
+            'lastFreezeEndDate': freezeEndStr != null ? Timestamp.fromDate(DateTime.parse(freezeEndStr.toString())) : null,
+            'freezeStatus': 'approved',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          AuditLogger().log(
+            action: AuditAction.updated,
+            entityType: AuditEntity.student,
+            libraryId: libraryId,
+            entityId: studentId,
+            details: {
+              'action': 'study_freeze_approved',
+              'freezeDays': freezeDays,
+              'extendedEndDate': newEnd.toIso8601String(),
+            },
+          ).ignore();
+        }
       }
 
       // Mark request approved
@@ -281,9 +317,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             ? 'Profile update approved and applied successfully!'
             : (type == 'seat_change' || type == 'seatchange'
                 ? 'Seat change approved and allocated successfully!'
-                : (type == 'renewal'
-                    ? 'Renewal approved! Please record payment to extend validity.'
-                    : 'Request approved! Please record payment to activate pass.'));
+                : (type == 'freeze'
+                    ? 'Study vacation freeze approved! Plan validity extended.'
+                    : (type == 'renewal'
+                        ? 'Renewal approved! Please record payment to extend validity.'
+                        : 'Request approved! Please record payment to activate pass.')));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMsg), backgroundColor: Colors.green),
         );
@@ -602,6 +640,12 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                         const SizedBox(height: 16),
                       ],
 
+                      // 6.2 Study Vacation / Freeze Details Card
+                      if (type == 'freeze') ...[
+                        _buildFreezeDetailsCard(theme: theme, data: data),
+                        const SizedBox(height: 16),
+                      ],
+
                       // 6.5 Requested Study Desk Allocation Card
                       if (hasRequestedSeat || isRegistration) ...[
                         _buildRequestedSeatCard(
@@ -723,7 +767,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         ? 'Membership Renewal'
         : (type == 'seat_change' || type == 'seatchange'
             ? 'Seat Relocation'
-            : (type == 'profile_update' ? 'Profile Update' : 'New Registration'));
+            : (type == 'freeze'
+                ? 'Study Vacation / Freeze'
+                : (type == 'profile_update' ? 'Profile Update' : 'New Registration')));
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1521,6 +1567,96 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 return _buildDiffRow(e.key.toString(), curVal, e.value);
               }),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFreezeDetailsCard({required ThemeData theme, required Map<String, dynamic> data}) {
+    final freezeStart = data['freezeStartDate'] != null ? DateTime.tryParse(data['freezeStartDate'].toString()) : null;
+    final freezeEnd = data['freezeEndDate'] != null ? DateTime.tryParse(data['freezeEndDate'].toString()) : null;
+    final projEnd = data['projectedEndDate'] != null ? DateTime.tryParse(data['projectedEndDate'].toString()) : null;
+    final currentEnd = data['currentPlanEndDate'] != null ? DateTime.tryParse(data['currentPlanEndDate'].toString()) : null;
+    final freezeDays = data['freezeDays'] ?? 0;
+    final reason = data['reason']?.toString() ?? 'None provided';
+    final fmt = DateFormat('dd MMM yyyy');
+
+    return Card(
+      elevation: 0,
+      color: Colors.blue.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.blue.shade300.withValues(alpha: 0.5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.ac_unit_rounded, color: Colors.blue, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Requested Study Vacation / Freeze',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Temporary pause to extend membership validity',
+                        style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.blue.shade700, borderRadius: BorderRadius.circular(12)),
+                  child: Text('$freezeDays Days', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            if (freezeStart != null && freezeEnd != null)
+              _buildDiffRow(
+                'Vacation Period',
+                null,
+                '${fmt.format(freezeStart)} – ${fmt.format(freezeEnd)}',
+              ),
+            if (currentEnd != null) ...[
+              const SizedBox(height: 8),
+              _buildDiffRow(
+                'Current Expiry',
+                null,
+                fmt.format(currentEnd),
+              ),
+            ],
+            if (projEnd != null) ...[
+              const SizedBox(height: 8),
+              _buildDiffRow(
+                'Projected Extended Expiry',
+                null,
+                fmt.format(projEnd),
+              ),
+            ],
+            const SizedBox(height: 8),
+            _buildDiffRow(
+              'Student Reason',
+              null,
+              reason,
+            ),
           ],
         ),
       ),

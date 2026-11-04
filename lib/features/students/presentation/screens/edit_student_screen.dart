@@ -13,6 +13,7 @@ import 'package:study_library/core/security/audit_logger.dart';
 import 'package:flutter/services.dart';
 import 'package:study_library/core/utils/app_validators.dart';
 import 'package:study_library/services/form_config_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class EditStudentScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -276,12 +277,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString().replaceAll("Exception: ", "")}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

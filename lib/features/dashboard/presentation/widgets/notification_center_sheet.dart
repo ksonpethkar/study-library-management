@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class NotificationCenterSheet extends ConsumerStatefulWidget {
   final String libraryId;
@@ -514,7 +515,16 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, _) => Center(child: Text('Error: $err')),
+                error: (err, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Text(
+                      AppErrorFormatter.toUserFriendly(err, actionContext: 'announcement'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],

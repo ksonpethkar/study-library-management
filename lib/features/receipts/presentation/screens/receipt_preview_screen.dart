@@ -15,6 +15,7 @@ import 'package:study_library/core/utils/file_download_helper.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class ReceiptPreviewScreen extends ConsumerStatefulWidget {
   final String receiptId;
@@ -435,13 +436,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to download receipt: $e'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'receipt');
       }
     }
   }
@@ -470,13 +465,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
       await Printing.sharePdf(bytes: bytes, filename: filename);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to share receipt: $e'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'receipt');
       }
     }
   }
@@ -532,13 +521,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to print receipt: $e'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'receipt');
       }
     }
   }

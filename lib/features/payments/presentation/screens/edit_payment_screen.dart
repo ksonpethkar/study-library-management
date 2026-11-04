@@ -7,6 +7,7 @@ import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/models/payment_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/student_model.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class EditPaymentScreen extends ConsumerStatefulWidget {
   final PaymentModel payment;
@@ -293,13 +294,7 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update payment: $e'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'payment');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

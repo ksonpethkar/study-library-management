@@ -12,6 +12,7 @@ import 'package:study_library/core/utils/file_download_helper.dart';
 import 'package:study_library/services/backup_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class BackupRestoreScreen extends ConsumerStatefulWidget {
   const BackupRestoreScreen({super.key});
@@ -71,9 +72,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Backup export failed: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'backup');
       }
     } finally {
       if (mounted) {
@@ -107,9 +106,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Snapshot failed: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'backup');
       }
     } finally {
       if (mounted) {
@@ -227,9 +224,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restore failed: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'backup');
       }
     } finally {
       if (mounted) {
@@ -299,9 +294,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restore failed: $e'), backgroundColor: Colors.red),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'backup');
       }
     } finally {
       if (mounted) {

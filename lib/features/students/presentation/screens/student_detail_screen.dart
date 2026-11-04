@@ -28,6 +28,7 @@ import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/sms_service.dart';
 import 'package:study_library/services/telegram_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/messaging_hub_service.dart';
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
@@ -296,9 +297,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
       _loadStudent();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to assign ID: $e'), backgroundColor: Colors.red),
-      );
+      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
     }
   }
 
@@ -590,9 +589,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Failed to freeze membership: $e'), backgroundColor: Colors.red),
-                            );
+                            AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
                           }
                         }
                       },
@@ -859,9 +856,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to process exit: $e'), backgroundColor: Colors.red),
-                      );
+                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
                     }
                   }
                 },
@@ -1276,9 +1271,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           if (mounted) context.go('/admin/students');
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to delete: $e')),
-            );
+            AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
           }
         }
       }
@@ -2743,9 +2736,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     }
                   } catch (e) {
                     if (mounted) {
-                      messenger.showSnackBar(
-                        SnackBar(content: Text('Failed to clear note: $e'), backgroundColor: Colors.red),
-                      );
+                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
                     }
                   }
                 },
@@ -2776,9 +2767,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   }
                 } catch (e) {
                   if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(content: Text('Failed to update notes: $e'), backgroundColor: Colors.red),
-                    );
+                    AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
                   }
                 }
               },
@@ -2853,9 +2842,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating statement: $e')),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'receipt');
       }
     }
   }

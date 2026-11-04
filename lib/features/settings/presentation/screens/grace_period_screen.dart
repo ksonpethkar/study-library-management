@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/services/membership_automation_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class GracePeriodScreen extends ConsumerStatefulWidget {
   const GracePeriodScreen({super.key});
@@ -124,13 +125,7 @@ class _GracePeriodScreenState extends ConsumerState<GracePeriodScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save settings: $e'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

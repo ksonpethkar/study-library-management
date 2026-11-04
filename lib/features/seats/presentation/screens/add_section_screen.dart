@@ -8,6 +8,7 @@ import '../providers/seat_providers.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class AddSectionScreen extends ConsumerStatefulWidget {
   final String libraryId;
@@ -354,12 +355,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'section');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

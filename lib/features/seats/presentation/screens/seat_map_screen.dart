@@ -5,6 +5,7 @@ import 'package:study_library/services/seat_allocation_pdf_service.dart';
 import 'package:study_library/core/widgets/loading_skeleton.dart';
 import 'package:study_library/core/widgets/staggered_list_item.dart';
 import 'package:study_library/core/error/error_handler.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 import '../providers/seat_providers.dart';
 import '../widgets/seat_grid_widget.dart';
@@ -403,8 +404,28 @@ class SeatMapScreen extends ConsumerWidget {
     );
         },
         loading: () => const SeatGridSkeleton(count: 12),
-        error: (err, stack) =>
-            Center(child: Text('Error loading sections: $err')),
+        error: (err, stack) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.meeting_room_outlined, size: 48, color: Colors.orange),
+                const SizedBox(height: 12),
+                Text(
+                  AppErrorFormatter.toUserFriendly(err, actionContext: 'section'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.tonal(
+                  onPressed: () => ref.invalidate(sectionsProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       floatingActionButton: (isAdminView && !isSelecting && MediaQuery.of(context).size.width >= 700)
           ? FloatingActionButton.extended(
@@ -923,12 +944,7 @@ class SeatMapScreen extends ConsumerWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(e.toString().replaceAll('Exception: ', '')),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'section');
                 }
               }
             },
@@ -962,12 +978,7 @@ class SeatMapScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'section');
       }
     }
   }
@@ -1013,12 +1024,7 @@ class SeatMapScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'section');
       }
     }
   }
@@ -1147,12 +1153,7 @@ class SeatMapScreen extends ConsumerWidget {
                         }
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to save order: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+                          AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'section');
                         }
                       }
                     },

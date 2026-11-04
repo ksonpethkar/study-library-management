@@ -17,6 +17,7 @@ import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class StudentSeatMapScreen extends ConsumerStatefulWidget {
   const StudentSeatMapScreen({super.key});
@@ -220,12 +221,7 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to cancel request: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
         }
       }
     }
@@ -679,12 +675,7 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                     }
                                   } catch (e) {
                                     if (mounted) {
-                                      ScaffoldMessenger.of(this.context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Failed to submit request: $e'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
+                                      AppErrorFormatter.showErrorSnackBar(this.context, e, actionContext: 'seat');
                                     }
                                   } finally {
                                     if (dialogCtx.mounted) {
@@ -1156,11 +1147,29 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, _) => Center(child: Text('Error loading sections: $err')),
+            error: (err, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  AppErrorFormatter.toUserFriendly(err, actionContext: 'section'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error loading student profile: $err')),
+        error: (err, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              AppErrorFormatter.toUserFriendly(err, actionContext: 'student'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+        ),
       ),
     );
   }

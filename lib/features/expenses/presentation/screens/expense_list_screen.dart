@@ -8,6 +8,7 @@ import 'package:study_library/features/expenses/presentation/screens/add_expense
 import 'package:study_library/models/expense_model.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class ExpenseListScreen extends ConsumerStatefulWidget {
   const ExpenseListScreen({super.key});
@@ -239,7 +240,15 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                 height: 120,
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (err, _) => Text('Error loading Net Profit: $err'),
+              error: (err, _) => Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Center(
+                  child: Text(
+                    AppErrorFormatter.toUserFriendly(err, actionContext: 'expense'),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+              ),
             ),
           ),
 
@@ -420,7 +429,16 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Error: $err')),
+              error: (err, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Text(
+                    AppErrorFormatter.toUserFriendly(err, actionContext: 'expense'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ),
             ),
           ),
         ],

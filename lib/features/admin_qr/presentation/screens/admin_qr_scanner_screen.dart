@@ -103,12 +103,7 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not restart camera: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'camera');
       }
     }
   }
@@ -414,7 +409,16 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
                             );
                           },
                           loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (e, _) => Center(child: Text('Error loading students: $e')),
+                          error: (e, _) => Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Text(
+                                AppErrorFormatter.toUserFriendly(e, actionContext: 'student'),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],

@@ -1144,7 +1144,14 @@ class SettingsScreen extends ConsumerWidget {
                             );
 
                             if (confirm == true) {
-                              await FirebaseAuth.instance.currentUser?.getIdToken(true);
+                              final user = FirebaseAuth.instance.currentUser;
+                              if (user != null) {
+                                await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                                  'revokeSessionsRequestedAt': FieldValue.serverTimestamp(),
+                                  'lastSessionRevokedAt': FieldValue.serverTimestamp(),
+                                }, SetOptions(merge: true));
+                                await user.getIdToken(true);
+                              }
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -2069,12 +2076,12 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showCancellationPolicyDialog(BuildContext context, WidgetRef ref) async {
-    final theme = Theme.of(context);
     final user = FirebaseAuth.instance.currentUser;
     final libraryId = ref.read(currentLibraryIdProvider);
     if (libraryId == null || libraryId.isEmpty) return;
 
     double fee = 100.0;
+    int minFreezeDays = 10;
     bool autoRelease = true;
 
     try {
@@ -2087,6 +2094,7 @@ class SettingsScreen extends ConsumerWidget {
       if (doc.exists && doc.data() != null) {
         final d = doc.data()!;
         fee = (d['cancellationFee'] as num?)?.toDouble() ?? 100.0;
+        minFreezeDays = (d['minFreezeDays'] as num?)?.toInt() ?? 10;
         autoRelease = d['autoReleaseSeat'] as bool? ?? true;
       }
     } catch (_) {}
@@ -2094,6 +2102,7 @@ class SettingsScreen extends ConsumerWidget {
     if (!context.mounted) return;
 
     final feeCtrl = TextEditingController(text: fee.toStringAsFixed(0));
+    final minFreezeCtrl = TextEditingController(text: minFreezeDays.toString());
 
     await showDialog(
       context: context,
@@ -2140,35 +2149,18 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.colorScheme.outlineVariant),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.ac_unit_rounded, size: 16, color: Colors.blue),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Study Vacation / Freeze Threshold',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Enforced rule: Memberships can only be frozen for 10 or more consecutive days. Breaks of less than 10 days do not extend validity or cycle ends.',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                        ],
+                    TextField(
+                      controller: minFreezeCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Minimum Study Freeze Days',
+                        hintText: 'e.g. 10',
+                        prefixIcon: const Icon(Icons.ac_unit_rounded),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        helperText: 'Minimum consecutive vacation days required to extend validity',
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Auto-release seat on exit', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
@@ -2194,6 +2186,7 @@ class SettingsScreen extends ConsumerWidget {
                 label: const Text('Save Policy'),
                 onPressed: () async {
                   final newFee = double.tryParse(feeCtrl.text.trim()) ?? fee;
+                  final newMinFreeze = int.tryParse(minFreezeCtrl.text.trim()) ?? minFreezeDays;
                   try {
                     await FirebaseFirestore.instance
                         .collection('libraries')
@@ -2202,7 +2195,7 @@ class SettingsScreen extends ConsumerWidget {
                         .doc('cancellation_policy')
                         .set({
                       'cancellationFee': newFee,
-                      'minFreezeDays': 10,
+                      'minFreezeDays': newMinFreeze,
                       'autoReleaseSeat': autoRelease,
                       'updatedAt': FieldValue.serverTimestamp(),
                       'updatedBy': user?.email ?? 'admin',
