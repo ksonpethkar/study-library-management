@@ -1,9 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/student_model.dart';
+import 'package:study_library/services/image_service.dart';
+import 'package:study_library/services/ocr_service.dart';
+import '../../data/ocr_parser.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/utils/app_validators.dart';
 import '../providers/registration_provider.dart';
@@ -38,6 +44,8 @@ class _RegistrationFormScreenState
 
   String _gender = 'male';
   GovIdType _selectedGovIdType = GovIdType.aadhaar;
+  bool _isScanningId = false;
+  String _scanStatusMessage = '';
 
   // Tracks which fields were auto-filled from OCR
   final Set<String> _autoFilledKeys = {};
@@ -50,6 +58,7 @@ class _RegistrationFormScreenState
     super.initState();
     final reg = ref.read(registrationNotifierProvider);
     final ocr = ref.read(ocrResultProvider);
+    final currentUser = FirebaseAuth.instance.currentUser;
     final hasGenuineOcr = ocr.isNotEmpty &&
         ocr.entries.any((e) => e.key != 'confidence' && e.value != null && e.value!.trim().isNotEmpty);
 
@@ -66,7 +75,10 @@ class _RegistrationFormScreenState
     }
 
     final nameVal = pick('name');
-    _nameController = TextEditingController(text: nameVal);
+    final finalName = nameVal.isNotEmpty
+        ? nameVal
+        : (currentUser?.displayName ?? '');
+    _nameController = TextEditingController(text: finalName);
     trackIfFilled('name', nameVal);
 
     final fatherVal = pick('fatherName');
@@ -81,7 +93,11 @@ class _RegistrationFormScreenState
     _phoneController = TextEditingController(text: phoneVal);
     trackIfFilled('phone', phoneVal);
 
-    _emailController = TextEditingController(text: pick('email'));
+    final initialEmail = pick('email');
+    final emailVal = initialEmail.isNotEmpty
+        ? initialEmail
+        : (currentUser?.email ?? '');
+    _emailController = TextEditingController(text: emailVal);
 
     final idVal = pick('govIdNumber');
     _idNumberController = TextEditingController(text: idVal);
@@ -237,6 +253,190 @@ class _RegistrationFormScreenState
       c.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _pickSourceAndScan({bool isBack = false}) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Text(
+                isBack
+                    ? 'Attach Back Side of ID (Address)'
+                    : 'Attach ${_selectedGovIdType.displayName}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFE0E7FF),
+                  child: Icon(Icons.camera_alt_rounded, color: Color(0xFF4338CA)),
+                ),
+                title: const Text('Take Photo with Camera'),
+                subtitle: const Text('Ensure bright lighting and readable text'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFECFDF5),
+                  child: Icon(Icons.photo_library_rounded, color: Color(0xFF059669)),
+                ),
+                title: const Text('Choose from Gallery / Files'),
+                subtitle: const Text('Upload clear existing photo or document'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source != null) {
+      await _scanOrAttachGovId(source, isBackSide: isBack);
+    }
+  }
+
+  Future<void> _scanOrAttachGovId(ImageSource source, {bool isBackSide = false}) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    final bytes = await picked.readAsBytes();
+    if (bytes.isEmpty || !mounted) return;
+
+    final dataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+
+    setState(() {
+      _isScanningId = true;
+      _scanStatusMessage = isBackSide
+          ? 'Reading address from document...'
+          : 'Scanning ${_selectedGovIdType.displayName} card...';
+    });
+
+    try {
+      final ocrService = OcrService();
+      final rawText = await ocrService.processImageBytes(bytes);
+
+      if (isBackSide) {
+        final backResult = OcrParser.parseByType(_selectedGovIdType, rawText);
+        final updates = <String, dynamic>{
+          'govIdBackDataUrl': dataUrl,
+          'govIdBackImageUrl': dataUrl,
+          'govIdBackImagePath': dataUrl,
+        };
+        if (backResult.address != null && backResult.address!.trim().isNotEmpty) {
+          updates['address'] = backResult.address!.trim();
+          _addressController.text = backResult.address!.trim();
+          _autoFilledKeys.add('address');
+        }
+        if (backResult.pinCode != null && backResult.pinCode!.trim().isNotEmpty) {
+          updates['pinCode'] = backResult.pinCode!.trim();
+          _pinCodeController.text = backResult.pinCode!.trim();
+          _autoFilledKeys.add('pinCode');
+        }
+        ref.read(registrationNotifierProvider.notifier).updateFields(updates);
+      } else {
+        final detectedType = OcrParser.detectGovIdType(rawText);
+        final finalType = detectedType != GovIdType.other ? detectedType : _selectedGovIdType;
+        final result = OcrParser.parseByType(finalType, rawText);
+
+        final updates = <String, dynamic>{
+          'govIdType': finalType.name,
+          'govIdDataUrl': dataUrl,
+          'govIdImageUrl': dataUrl,
+          'govIdImagePath': dataUrl,
+        };
+
+        setState(() {
+          _selectedGovIdType = finalType;
+          if (result.idNumber != null && result.idNumber!.trim().isNotEmpty) {
+            final formatted = GovIdValidator.format(finalType, result.idNumber!.trim());
+            _idNumberController.text = formatted;
+            _autoFilledKeys.add('govIdNumber');
+            updates['govIdNumber'] = formatted;
+          }
+          if (result.name != null && result.name!.trim().isNotEmpty) {
+            _nameController.text = result.name!.trim();
+            _autoFilledKeys.add('name');
+            updates['name'] = result.name!.trim();
+          }
+          if (result.fatherName != null && result.fatherName!.trim().isNotEmpty) {
+            _fatherNameController.text = result.fatherName!.trim();
+            _autoFilledKeys.add('fatherName');
+            updates['fatherName'] = result.fatherName!.trim();
+          }
+          if (result.dob != null && result.dob!.trim().isNotEmpty) {
+            _dobController.text = result.dob!.trim();
+            _autoFilledKeys.add('dob');
+            updates['dob'] = result.dob!.trim();
+          }
+          if (result.gender != null && result.gender!.trim().isNotEmpty) {
+            final g = result.gender!.toLowerCase();
+            if (g.contains('female')) {
+              _gender = 'female';
+            } else if (g.contains('male')) {
+              _gender = 'male';
+            }
+            updates['gender'] = _gender;
+          }
+        });
+
+        ref.read(registrationNotifierProvider.notifier).updateFields(updates);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.greenAccent),
+                const SizedBox(width: 8),
+                Text(isBackSide
+                    ? 'Address captured and pre-filled!'
+                    : 'ID details scanned and filled successfully!'),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1E293B),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not read card clearly. Please ensure good lighting or enter details manually.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isScanningId = false);
+      }
+    }
   }
 
   void _onNext() {

@@ -1839,7 +1839,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                           backImageUrl: backUrl.isNotEmpty ? backUrl : null,
                           initialGovIdType: govIdType,
                           initialGovIdNumber: govIdNum,
-                          libraryId: widget.libraryId,
+                          libraryId: ref.read(currentLibraryIdProvider) ?? '',
                           requestId: widget.requestId,
                           onDocumentUpdated: _loadRequest,
                         );
@@ -1911,7 +1911,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           backImageUrl: backUrl,
           initialGovIdType: govIdType,
           initialGovIdNumber: govIdNum,
-          libraryId: widget.libraryId,
+          libraryId: ref.read(currentLibraryIdProvider) ?? '',
           requestId: widget.requestId,
           onDocumentUpdated: _loadRequest,
         );

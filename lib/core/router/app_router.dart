@@ -72,6 +72,7 @@ import '../../features/student_app/presentation/screens/student_feedback_screen.
 import '../../features/student_app/presentation/screens/renew_plan_screen.dart';
 import '../../features/student_app/presentation/screens/my_id_card_screen.dart';
 import '../../features/student_app/presentation/screens/student_seat_map_screen.dart';
+import '../../features/student_app/presentation/screens/student_announcements_screen.dart';
 import '../../features/id_cards/presentation/screens/id_card_preview_screen.dart';
 import '../../features/students/presentation/providers/student_providers.dart';
 import '../../features/settings/presentation/screens/account_deletion_screen.dart';
@@ -159,6 +160,7 @@ class Routes {
   static const studentFeedback = '/student/feedback';
   static const studentRenew = '/student/renew';
   static const studentIdCard = '/student/id-card';
+  static const studentAnnouncements = '/student/announcements';
   static const accountDeletion = '/student/account-deletion';
 }
 
@@ -599,6 +601,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.studentIdCard, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const MyIdCardScreen(),
+      )),
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.studentAnnouncements, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const StudentAnnouncementsScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.accountDeletion, pageBuilder: (context, state) => AppPageTransitions.slideUp(
         state: state, child: const AccountDeletionScreen(),

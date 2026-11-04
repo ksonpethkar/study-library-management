@@ -130,6 +130,7 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
         'studentEmail': authUser?.email ?? student?.email ?? '',
         'studentName': student?.name ?? authUser?.displayName ?? 'Student',
         'studentPhone': student?.phone ?? '',
+        'seatNumber': student?.seatId ?? '',
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });

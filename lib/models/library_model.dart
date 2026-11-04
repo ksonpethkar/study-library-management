@@ -42,6 +42,7 @@ class LibraryModel {
   final String managerName;
   final String managerContact;
   final String adminContact;
+  final String googleMapsUrl;
 
   LibraryModel({
     required this.id,
@@ -85,6 +86,7 @@ class LibraryModel {
     this.managerName = '',
     this.managerContact = '',
     this.adminContact = '',
+    this.googleMapsUrl = '',
   });
 
   factory LibraryModel.fromJson(Map<String, dynamic> json) {
@@ -135,6 +137,7 @@ class LibraryModel {
       managerName: json['managerName'] as String? ?? '',
       managerContact: json['managerContact'] as String? ?? '',
       adminContact: json['adminContact'] as String? ?? '',
+      googleMapsUrl: json['googleMapsUrl'] as String? ?? json['mapsUrl'] as String? ?? (json['socialLinks'] is Map ? (json['socialLinks']['maps'] as String? ?? '') : ''),
     );
   }
 
@@ -175,6 +178,7 @@ class LibraryModel {
       'managerName': managerName,
       'managerContact': managerContact,
       'adminContact': adminContact,
+      'googleMapsUrl': googleMapsUrl,
     };
   }
 
@@ -213,6 +217,7 @@ class LibraryModel {
     String? managerName,
     String? managerContact,
     String? adminContact,
+    String? googleMapsUrl,
   }) {
     return LibraryModel(
       id: id ?? this.id,
@@ -249,6 +254,7 @@ class LibraryModel {
       managerName: managerName ?? this.managerName,
       managerContact: managerContact ?? this.managerContact,
       adminContact: adminContact ?? this.adminContact,
+      googleMapsUrl: googleMapsUrl ?? this.googleMapsUrl,
     );
   }
 

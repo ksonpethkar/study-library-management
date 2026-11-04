@@ -32,6 +32,7 @@ import 'package:study_library/services/messaging_hub_service.dart';
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
+import 'package:study_library/features/requests/presentation/widgets/admin_document_studio_dialog.dart';
 
 class StudentDetailScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -1717,6 +1718,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     _buildDetailRow(context, 'Gender', s.gender.name.toUpperCase(), Icons.people_outline_rounded),
                     if (s.govIdNumber.isNotEmpty)
                       _buildGovIdRow(context, s.govIdType.name.toUpperCase(), s.govIdNumber),
+                    _buildGovIdDocCard(context, s),
                     if (s.college.isNotEmpty)
                       _buildDetailRow(context, 'College / Institute', s.college, Icons.school_outlined),
                     if (s.course.isNotEmpty)
@@ -2419,6 +2421,138 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGovIdDocCard(BuildContext context, StudentModel s) {
+    final front = s.govIdImageUrl;
+    final back = s.govIdBackImageUrl ?? "";
+    final hasDoc = front.isNotEmpty || back.isNotEmpty;
+    final effectiveLibId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.blue.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.document_scanner_rounded, size: 16, color: Colors.blue),
+                const SizedBox(width: 6),
+                Text(
+                  hasDoc ? '${s.govIdType.displayName} Document Attached' : 'Government ID Document',
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () {
+                    AdminDocumentStudioDialog.show(
+                      context,
+                      documentTitle: '${s.name} - ${s.govIdType.displayName}',
+                      imageUrl: front.isNotEmpty ? front : (back.isNotEmpty ? back : ""),
+                      backImageUrl: back.isNotEmpty ? back : null,
+                      initialGovIdType: s.govIdType.name,
+                      initialGovIdNumber: s.govIdNumber,
+                      libraryId: effectiveLibId,
+                      studentId: s.id,
+                      onDocumentUpdated: _loadStudent,
+                    );
+                  },
+                  icon: Icon(hasDoc ? Icons.auto_fix_high_rounded : Icons.add_photo_alternate_rounded, size: 14),
+                  label: Text(hasDoc ? 'Document Studio' : 'Scan / Attach ID', style: const TextStyle(fontSize: 11.5)),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                ),
+              ],
+            ),
+            if (hasDoc) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (front.isNotEmpty)
+                    InkWell(
+                      onTap: () {
+                        AdminDocumentStudioDialog.show(
+                          context,
+                          documentTitle: '${s.name} - Front ID',
+                          imageUrl: front,
+                          backImageUrl: back.isNotEmpty ? back : null,
+                          initialGovIdType: s.govIdType.name,
+                          initialGovIdNumber: s.govIdNumber,
+                          libraryId: effectiveLibId,
+                          studentId: s.id,
+                          onDocumentUpdated: _loadStudent,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        width: 70,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image(
+                            image: ImageService.getImageProvider(front) ?? const AssetImage("assets/images/app_logo.png"),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (front.isNotEmpty && back.isNotEmpty) const SizedBox(width: 8),
+                  if (back.isNotEmpty)
+                    InkWell(
+                      onTap: () {
+                        AdminDocumentStudioDialog.show(
+                          context,
+                          documentTitle: '${s.name} - Back ID',
+                          imageUrl: back.isNotEmpty ? back : "",
+                          backImageUrl: back,
+                          initialGovIdType: s.govIdType.name,
+                          initialGovIdNumber: s.govIdNumber,
+                          libraryId: effectiveLibId,
+                          studentId: s.id,
+                          onDocumentUpdated: _loadStudent,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        width: 70,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image(
+                            image: ImageService.getImageProvider(back)!,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Tap thumbnail to view, rotate, filter, crop or replace document.',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

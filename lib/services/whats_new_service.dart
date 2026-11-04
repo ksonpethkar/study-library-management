@@ -116,7 +116,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.47+55';
+  static const String currentVersionIdentifier = '1.5.48+56';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -125,8 +125,24 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.47)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.48)
   static final List<ReleaseChange> adminChanges = [
+    const ReleaseChange(
+      icon: Icons.campaign_rounded,
+      rawIconName: 'campaign',
+      badge: 'Broadcast Hub',
+      title: 'Priority Announcements & Expiration Control',
+      description:
+          'Create prioritized announcements (Urgent, Holiday, Maintenance, General) with optional auto-expiry dates, live read receipt metrics, and automatic sync to student notification centers.',
+    ),
+    const ReleaseChange(
+      icon: Icons.arrow_back_rounded,
+      rawIconName: 'navigation',
+      badge: 'Smart Back',
+      title: 'Leading-App Navigation & Accidental Exit Prevention',
+      description:
+          'Secondary bottom navigation tabs (Seats, Students, Settings) now smoothly navigate back to Home on back press. Accidental app closure is prevented with a 2-second double-tap exit guard.',
+    ),
     const ReleaseChange(
       icon: Icons.verified_user_rounded,
       rawIconName: 'approval',
@@ -177,8 +193,24 @@ class WhatsNewService {
     ),
   ];
 
-  /// Student-Friendly Highlights (v1.5.47)
+  /// Student-Friendly Highlights (v1.5.48)
   static final List<ReleaseChange> studentChanges = [
+    const ReleaseChange(
+      icon: Icons.campaign_rounded,
+      rawIconName: 'campaign',
+      badge: 'Notice Board',
+      title: 'Multi-Notice Carousel & Dedicated Notice Board',
+      description:
+          'Browse library announcements in a swipeable dashboard carousel with instant dismiss and view full historical circulars in the new Notice Board & Circulars hub.',
+    ),
+    const ReleaseChange(
+      icon: Icons.arrow_back_rounded,
+      rawIconName: 'navigation',
+      badge: 'Seamless Nav',
+      title: 'Smart Back Navigation & Zero Accidental Exits',
+      description:
+          'Pressing back from your Profile, Receipts, or Membership smoothly returns to your Home dashboard. Explicit back buttons added across all pages with double-tap exit protection.',
+    ),
     const ReleaseChange(
       icon: Icons.badge_rounded,
       rawIconName: 'badge',

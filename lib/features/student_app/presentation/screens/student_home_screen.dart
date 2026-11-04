@@ -1672,7 +1672,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           children: [
             Text('Quick Services', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             Text(
-              '6 Services',
+              '7 Services',
               style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
@@ -1710,13 +1710,21 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           ),
         ],
         const SizedBox(height: 10),
+        // Secondary Action: Dedicated Notice Board & Circulars Hub
+        _SecondaryQuickAction(
+          icon: Icons.campaign_rounded,
+          label: 'Notice Board & Circulars',
+          color: const Color(0xFF2563EB),
+          onTap: () => context.push(Routes.studentAnnouncements),
+        ),
+        const SizedBox(height: 10),
         // Secondary 2-column slim row
         Row(
           children: [
             Expanded(
               child: _SecondaryQuickAction(
                 icon: Icons.gavel_rounded,
-                label: 'Library Rules & Conduct',
+                label: 'Rules & Conduct',
                 color: const Color(0xFF7C3AED),
                 onTap: () => _showRulesDialog(
                   context,

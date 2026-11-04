@@ -161,6 +161,7 @@ class FeedbackListScreen extends ConsumerWidget {
                   feedback: item,
                   onReply: () => _showReplyDialog(context, libraryId, item),
                   onDelete: () => _confirmDelete(context, libraryId, item.id),
+                  onWhatsApp: () => _replyViaWhatsAppQuick(context, libraryId, item),
                 );
               },
             ),
@@ -539,17 +540,70 @@ class FeedbackListScreen extends ConsumerWidget {
       }
     }
   }
+
+  Future<void> _replyViaWhatsAppQuick(
+    BuildContext context,
+    String? libraryId,
+    FeedbackModel feedback,
+  ) async {
+    String phone = feedback.studentPhone ?? '';
+    if (phone.isEmpty && feedback.studentId.isNotEmpty && libraryId != null && libraryId.isNotEmpty) {
+      try {
+        final sDoc = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('students')
+            .doc(feedback.studentId)
+            .get();
+        phone = sDoc.data()?['phone'] as String? ?? '';
+      } catch (_) {}
+    }
+
+    if (phone.trim().isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Student contact number not available for WhatsApp.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    final studentName = feedback.studentName ?? 'Student';
+    final seatText = (feedback.seatNumber != null && feedback.seatNumber!.trim().isNotEmpty)
+        ? ' (Seat ${feedback.seatNumber})'
+        : '';
+    final message = 'Hello $studentName$seatText,\n\n'
+        'We received your feedback regarding:\n'
+        '*"${feedback.message}"*\n\n'
+        'Our library team is looking into this immediately. Thank you for notifying us!\n\n'
+        'Best regards,\n'
+        'Cozy Corner Admin';
+
+    if (context.mounted) {
+      await WhatsAppService().sendMessage(
+        phone,
+        message,
+        context: context,
+        title: 'WhatsApp Response',
+      );
+    }
+  }
 }
 
 class _FeedbackCard extends StatelessWidget {
   final FeedbackModel feedback;
   final VoidCallback onReply;
   final VoidCallback onDelete;
+  final VoidCallback onWhatsApp;
 
   const _FeedbackCard({
     required this.feedback,
     required this.onReply,
     required this.onDelete,
+    required this.onWhatsApp,
   });
 
   String _formatDate(DateTime? date) {
@@ -607,11 +661,43 @@ class _FeedbackCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        displayName,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              displayName,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (feedback.seatNumber != null && feedback.seatNumber!.trim().isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.secondaryContainer,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.chair_outlined, size: 12, color: theme.colorScheme.onSecondaryContainer),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Seat ${feedback.seatNumber}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.onSecondaryContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Row(
@@ -767,16 +853,29 @@ class _FeedbackCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.tonalIcon(
-                onPressed: onReply,
-                icon: Icon(hasReply ? Icons.edit_rounded : Icons.reply_rounded, size: 16),
-                label: Text(hasReply ? 'Edit Reply' : 'Reply to Student'),
-                style: FilledButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF25D366),
+                    side: const BorderSide(color: Color(0xFF25D366)),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.chat_rounded, size: 15),
+                  label: const Text('WhatsApp'),
+                  onPressed: onWhatsApp,
                 ),
-              ),
+                const SizedBox(width: 8),
+                FilledButton.tonalIcon(
+                  onPressed: onReply,
+                  icon: Icon(hasReply ? Icons.edit_rounded : Icons.reply_rounded, size: 16),
+                  label: Text(hasReply ? 'Edit Reply' : 'Reply'),
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

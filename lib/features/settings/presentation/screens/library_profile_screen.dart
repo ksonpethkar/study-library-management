@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
@@ -33,6 +34,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
   final _whatsappController = TextEditingController();
   final _emailController = TextEditingController();
   final _addressController = TextEditingController();
+  final _googleMapsController = TextEditingController();
   bool _sameAsWhatsApp = true;
 
   // 3. Personnel & Administration
@@ -135,6 +137,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
           _selectedFacilities = (data['facilities'] as List).map((e) => e.toString()).toList();
         }
         _addressController.text = data['address'] ?? '';
+        _googleMapsController.text = data['googleMapsUrl'] ?? data['mapsUrl'] ?? (data['socialLinks'] is Map ? (data['socialLinks']['maps'] ?? '') : '');
 
         final primaryPhone = data['contact'] ?? data['phone'] ?? data['helplineNumber'] ?? data['ownerContact'] ?? '';
         _phoneController.text = primaryPhone;
@@ -301,6 +304,8 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         'managerContact': _showManagerDetails ? _managerContactController.text.trim() : '',
         'facilities': _selectedFacilities,
         'address': _addressController.text.trim(),
+        'googleMapsUrl': _googleMapsController.text.trim(),
+        'mapsUrl': _googleMapsController.text.trim(),
         'contact': primaryPhone,
         'phone': primaryPhone,
         'helplineNumber': primaryPhone,
@@ -435,6 +440,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
     _whatsappController.dispose();
     _emailController.dispose();
     _addressController.dispose();
+    _googleMapsController.dispose();
     _adminNameController.dispose();
     _ownerNameController.dispose();
     _managerNameController.dispose();
@@ -943,6 +949,24 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                               helperText: 'Displayed on the entrance QR poster and student admission passes',
                             ),
                           ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              for (final preset in [
+                                '06:00 AM – 11:00 PM',
+                                '24 Hours Open (24x7)',
+                                '07:00 AM – 10:00 PM',
+                                '05:00 AM – 12:00 AM',
+                              ])
+                                ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  label: Text(preset, style: const TextStyle(fontSize: 11)),
+                                  onPressed: () => setState(() => _hoursController.text = preset),
+                                ),
+                            ],
+                          ),
                         ],
                       ),
 
@@ -1064,6 +1088,32 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                             ),
                             maxLines: 2,
                             validator: (v) => AppValidators.address(v, required: false, label: 'Address'),
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _googleMapsController,
+                            decoration: InputDecoration(
+                              labelText: 'Google Maps Navigation Link',
+                              hintText: 'e.g. https://maps.app.goo.gl/...',
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.map_outlined),
+                              suffixIcon: _googleMapsController.text.trim().isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.open_in_new_rounded),
+                                      tooltip: 'Test Navigation Link',
+                                      onPressed: () async {
+                                        final raw = _googleMapsController.text.trim();
+                                        final uri = Uri.tryParse(raw);
+                                        if (uri != null) {
+                                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                        }
+                                      },
+                                    )
+                                  : null,
+                              helperText: 'Used for 1-tap student directions, WhatsApp location messages, & portal sharing',
+                            ),
+                            keyboardType: TextInputType.url,
+                            onChanged: (_) => setState(() {}),
                           ),
                         ],
                       ),

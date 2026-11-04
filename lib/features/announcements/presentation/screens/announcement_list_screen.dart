@@ -43,8 +43,15 @@ final announcementsStreamProvider =
   });
 });
 
-class AnnouncementListScreen extends ConsumerWidget {
+class AnnouncementListScreen extends ConsumerStatefulWidget {
   const AnnouncementListScreen({super.key});
+
+  @override
+  ConsumerState<AnnouncementListScreen> createState() => _AnnouncementListScreenState();
+}
+
+class _AnnouncementListScreenState extends ConsumerState<AnnouncementListScreen> {
+  String _selectedFilter = 'Active';
 
   String _formatDate(DateTime? date) {
     if (date == null) return '';
@@ -118,7 +125,7 @@ class AnnouncementListScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final libraryId = ref.watch(currentLibraryIdProvider);
     final theme = Theme.of(context);
 
@@ -147,32 +154,88 @@ class AnnouncementListScreen extends ConsumerWidget {
         ),
         title: const Text('Announcements'),
       ),
-      body: announcementsAsync.when(
-        data: (announcements) {
-          if (announcements.isEmpty) {
-            return EmptyStateWidget(
-              icon: Icons.campaign_outlined,
-              title: 'No announcements yet',
-              message:
-                  'Keep your students informed by posting library announcements and banners.',
-              actionLabel: 'Add Announcement',
-              onAction: () => _showAnnouncementDialog(
-                context,
-                libraryId: libraryId,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final f in ['Active', 'Urgent', 'All', 'Expired']) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(f),
+                        selected: _selectedFilter == f,
+                        onSelected: (val) {
+                          if (val) setState(() => _selectedFilter = f);
+                        },
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            );
-          }
+            ),
+          ),
+          Expanded(
+            child: announcementsAsync.when(
+              data: (announcements) {
+                if (announcements.isEmpty) {
+                  return EmptyStateWidget(
+                    icon: Icons.campaign_outlined,
+                    title: 'No announcements yet',
+                    message:
+                        'Keep your students informed by posting library announcements and banners.',
+                    actionLabel: 'Add Announcement',
+                    onAction: () => _showAnnouncementDialog(
+                      context,
+                      libraryId: libraryId,
+                    ),
+                  );
+                }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(announcementsStreamProvider);
-              await Future.delayed(const Duration(milliseconds: 500));
-            },
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: announcements.length,
-              itemBuilder: (context, index) {
-                final announcement = announcements[index];
+                final filtered = announcements.where((a) {
+                  if (_selectedFilter == 'Active') return a.isActive && !a.isExpired;
+                  if (_selectedFilter == 'Urgent') return a.priority == AnnouncementPriority.urgent;
+                  if (_selectedFilter == 'Expired') return a.isExpired || !a.isActive;
+                  return true; // 'All'
+                }).toList();
+
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.filter_list_off_rounded, size: 48, color: theme.colorScheme.outline),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No $_selectedFilter announcements found',
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () => setState(() => _selectedFilter = 'All'),
+                            child: const Text('Show all announcements'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(announcementsStreamProvider);
+                    await Future.delayed(const Duration(milliseconds: 500));
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final announcement = filtered[index];
 
               return Dismissible(
                 key: ValueKey(announcement.id),
@@ -481,6 +544,9 @@ class AnnouncementListScreen extends ConsumerWidget {
           ),
         ),
       ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAnnouncementDialog(
           context,
@@ -582,7 +648,9 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
           'title': _titleController.text.trim(),
           'message': _messageController.text.trim(),
           'type': _selectedType.name,
+          'priority': _selectedPriority.name,
           'isActive': _isActive,
+          'expiresAt': _expiresAt?.toIso8601String(),
         };
         await ref.doc(widget.announcement!.id).update(data);
       } else {
@@ -593,8 +661,10 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
           title: _titleController.text.trim(),
           message: _messageController.text.trim(),
           type: _selectedType,
+          priority: _selectedPriority,
           isActive: _isActive,
           createdAt: DateTime.now(),
+          expiresAt: _expiresAt,
         );
         await docRef.set(newAnnouncement.toJson());
 
@@ -603,20 +673,33 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
           entityType: AuditEntity.announcement,
           libraryId: widget.libraryId,
           entityId: docRef.id,
-          details: {'title': _titleController.text.trim(), 'type': _selectedType.name},
+          details: {
+            'title': _titleController.text.trim(),
+            'type': _selectedType.name,
+            'priority': _selectedPriority.name,
+          },
         ).ignore();
 
-        // Broadcast in-app notification to all members
+        // Broadcast in-app notification to all members with student route
         if (_isActive) {
           try {
+            final prefix = _selectedPriority == AnnouncementPriority.urgent
+                ? '🚨 [URGENT] '
+                : (_selectedPriority == AnnouncementPriority.holiday
+                    ? '🎉 [HOLIDAY] '
+                    : (_selectedPriority == AnnouncementPriority.maintenance ? '🛠️ ' : '📢 '));
+
             await AppNotificationService.sendNotification(
               libraryId: widget.libraryId,
-              title: '📢 ${_titleController.text.trim()}',
+              title: '$prefix${_titleController.text.trim()}',
               body: _messageController.text.trim(),
               type: 'announcement',
               targetRole: 'all',
-              actionRoute: Routes.adminAnnouncements,
-              metadata: {'announcementId': docRef.id},
+              actionRoute: '/student/announcements',
+              metadata: {
+                'announcementId': docRef.id,
+                'priority': _selectedPriority.name,
+              },
             );
 
             await FirebaseFirestore.instance
@@ -624,9 +707,10 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
                 .doc(widget.libraryId)
                 .collection('push_queue')
                 .add({
-              'title': _titleController.text.trim(),
+              'title': '$prefix${_titleController.text.trim()}',
               'body': _messageController.text.trim(),
               'type': 'announcement',
+              'priority': _selectedPriority.name,
               'topic': 'lib-${widget.libraryId}', // FCM topic to send to
               'libraryId': widget.libraryId,
               'createdAt': FieldValue.serverTimestamp(),
@@ -708,20 +792,47 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
+                DropdownButtonFormField<AnnouncementPriority>(
+                  initialValue: _selectedPriority,
+                  decoration: const InputDecoration(
+                    labelText: 'Priority / Category *',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: AnnouncementPriority.values.map((p) {
+                    return DropdownMenuItem(
+                      value: p,
+                      child: Row(
+                        children: [
+                          Icon(p.icon, size: 18, color: p.color),
+                          const SizedBox(width: 8),
+                          Text(p.label, style: TextStyle(fontWeight: FontWeight.w600, color: p.color)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: _isSaving
+                      ? null
+                      : (val) {
+                          if (val != null) {
+                            setState(() => _selectedPriority = val);
+                          }
+                        },
+                ),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<AnnouncementType>(
                   initialValue: _selectedType,
                   decoration: const InputDecoration(
-                    labelText: 'Type',
+                    labelText: 'Format',
                     border: OutlineInputBorder(),
                   ),
                   items: const [
                     DropdownMenuItem(
                       value: AnnouncementType.broadcast,
-                      child: Text('Broadcast'),
+                      child: Text('Broadcast Notice'),
                     ),
                     DropdownMenuItem(
                       value: AnnouncementType.banner,
-                      child: Text('Banner'),
+                      child: Text('Dashboard Banner'),
                     ),
                   ],
                   onChanged: _isSaving
@@ -731,6 +842,81 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
                             setState(() => _selectedType = val);
                           }
                         },
+                ),
+                const SizedBox(height: 16),
+                // Expiration Date Picker
+                InkWell(
+                  onTap: _isSaving
+                      ? null
+                      : () async {
+                          final pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: _expiresAt ?? DateTime.now().add(const Duration(days: 7)),
+                            firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (!context.mounted || pickedDate == null) return;
+                          final pickedTime = await showTimePicker(
+                            context: context,
+                            initialTime: _expiresAt != null
+                                ? TimeOfDay.fromDateTime(_expiresAt!)
+                                : const TimeOfDay(hour: 23, minute: 59),
+                          );
+                          if (!context.mounted) return;
+                          final time = pickedTime ?? const TimeOfDay(hour: 23, minute: 59);
+                          setState(() {
+                            _expiresAt = DateTime(
+                              pickedDate.year,
+                              pickedDate.month,
+                              pickedDate.day,
+                              time.hour,
+                              time.minute,
+                            );
+                          });
+                        },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.event_busy_rounded, color: theme.colorScheme.primary, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Expiry Date (Optional)',
+                                style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                              Text(
+                                _expiresAt == null
+                                    ? 'Never expires (Permanent)'
+                                    : DateFormat('EEE, MMM d, yyyy • h:mm a').format(_expiresAt!),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: _expiresAt != null ? FontWeight.w600 : FontWeight.normal,
+                                  color: _expiresAt != null ? theme.colorScheme.primary : theme.colorScheme.outline,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_expiresAt != null)
+                          IconButton(
+                            icon: const Icon(Icons.clear_rounded, size: 18),
+                            tooltip: 'Clear expiry',
+                            onPressed: () => setState(() => _expiresAt = null),
+                          )
+                        else
+                          Icon(Icons.edit_calendar_rounded, size: 18, color: theme.colorScheme.outline),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 SwitchListTile.adaptive(

@@ -1676,9 +1676,9 @@ void main() {
 
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.47+55'));
-      expect(AppConstants.appVersion, equals('1.5.47'));
-      expect(AppConstants.buildNumber, equals(55));
+      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.48+56'));
+      expect(AppConstants.appVersion, equals('1.5.48'));
+      expect(AppConstants.buildNumber, equals(56));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -2852,6 +2852,57 @@ void main() {
       expect(sessionProfile['role'], equals('student'));
       expect(sessionProfile['libraryId'], equals(defaultLibraryId));
       expect(sessionProfile['isOwner'], isFalse);
+    });
+
+    test('87. PRIORITY ANNOUNCEMENTS & LEADING-APP 3-LAYER NAVIGATION ARCHITECTURE', () {
+      // 1. Verify AnnouncementPriority serialization & visual mapping
+      final urgentAnnouncement = AnnouncementModel.fromJson({
+        'id': 'ann_001',
+        'libraryId': 'lib_test_parli',
+        'title': 'Library Closed for Diwali',
+        'message': 'Study halls will remain closed on Diwali.',
+        'type': 'broadcast',
+        'priority': 'urgent',
+        'isActive': true,
+        'readBy': ['student_1', 'student_2'],
+        'expiresAt': DateTime.now().add(const Duration(days: 3)).toIso8601String(),
+      });
+
+      expect(urgentAnnouncement.priority, equals(AnnouncementPriority.urgent));
+      expect(urgentAnnouncement.isExpired, isFalse);
+      expect(urgentAnnouncement.isReadBy('student_1'), isTrue);
+      expect(urgentAnnouncement.isReadBy('student_3'), isFalse);
+      expect(urgentAnnouncement.priority.label, equals('Urgent'));
+
+      // 2. Verify Expiration Logic
+      final expiredAnnouncement = AnnouncementModel.fromJson({
+        'id': 'ann_002',
+        'libraryId': 'lib_test_parli',
+        'title': 'Maintenance Notice',
+        'message': 'AC maintenance in Cozy Hall.',
+        'type': 'banner',
+        'priority': 'maintenance',
+        'isActive': true,
+        'expiresAt': DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
+      });
+
+      expect(expiredAnnouncement.priority, equals(AnnouncementPriority.maintenance));
+      expect(expiredAnnouncement.isExpired, isTrue);
+
+      // 3. Verify Route Constants for Leading App Navigation
+      expect(Routes.studentAnnouncements, equals('/student/announcements'));
+      expect(Routes.studentHome, equals('/student/home'));
+      expect(Routes.adminAnnouncements, equals('/admin/announcements'));
+
+      // 4. Default priority fallback
+      final defaultAnnouncement = AnnouncementModel.fromJson({
+        'id': 'ann_003',
+        'libraryId': 'lib_test_parli',
+        'title': 'Regular Notice',
+        'message': 'Please maintain silence.',
+      });
+      expect(defaultAnnouncement.priority, equals(AnnouncementPriority.general));
+      expect(defaultAnnouncement.targetAudience, equals('all'));
     });
   });
 }

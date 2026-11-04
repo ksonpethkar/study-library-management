@@ -6,6 +6,7 @@ class FeedbackModel {
   final String studentId;
   final String? studentName;
   final String? studentPhone;
+  final String? seatNumber;
   final String message;
   final String? category;
   final String? feedbackType; // 'feedback', 'suggestion', 'issue'
@@ -21,6 +22,7 @@ class FeedbackModel {
     required this.studentId,
     this.studentName,
     this.studentPhone,
+    this.seatNumber,
     required this.message,
     this.category,
     this.feedbackType,
@@ -38,6 +40,7 @@ class FeedbackModel {
       studentId: json['studentId'] as String? ?? '',
       studentName: json['studentName'] as String?,
       studentPhone: json['studentPhone'] as String?,
+      seatNumber: json['seatNumber'] as String?,
       message: json['message'] as String? ?? '',
       category: json['category'] as String?,
       feedbackType: json['feedbackType'] as String?,
@@ -56,6 +59,7 @@ class FeedbackModel {
       'studentId': studentId,
       if (studentName != null) 'studentName': studentName,
       if (studentPhone != null) 'studentPhone': studentPhone,
+      if (seatNumber != null) 'seatNumber': seatNumber,
       'message': message,
       if (category != null) 'category': category,
       if (feedbackType != null) 'feedbackType': feedbackType,
@@ -73,6 +77,7 @@ class FeedbackModel {
     String? studentId,
     String? studentName,
     String? studentPhone,
+    String? seatNumber,
     String? message,
     String? category,
     int? rating,
@@ -87,6 +92,7 @@ class FeedbackModel {
       studentId: studentId ?? this.studentId,
       studentName: studentName ?? this.studentName,
       studentPhone: studentPhone ?? this.studentPhone,
+      seatNumber: seatNumber ?? this.seatNumber,
       message: message ?? this.message,
       category: category ?? this.category,
       rating: rating ?? this.rating,

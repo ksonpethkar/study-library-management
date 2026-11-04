@@ -1,6 +1,6 @@
+import 'dart:ui' as ui;
 import 'dart:convert';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -124,11 +124,12 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
 
     // Audit log document inspection
     AuditLogger().log(
-      action: 'VIEW_GOV_ID_DOCUMENT',
-      targetType: widget.requestId != null ? 'request' : 'student',
-      targetId: widget.requestId ?? widget.studentId ?? 'unknown',
+      action: AuditAction.updated,
+      entityType: widget.requestId != null ? AuditEntity.request : AuditEntity.student,
+      libraryId: widget.libraryId,
+      entityId: widget.requestId ?? widget.studentId ?? 'unknown',
       details: {
-        'libraryId': widget.libraryId,
+        'action': 'VIEW_GOV_ID_DOCUMENT',
         'docType': _selectedType.name,
       },
     ).ignore();
@@ -241,7 +242,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
     setState(() => _isSavingDetails = true);
 
     try {
-      final encryptedId = EncryptionService.safeEncryptGovId(clean, widget.libraryId);
+      final encryptedId = clean.isNotEmpty ? EncryptionService.encryptGovId(clean, widget.libraryId) : '';
 
       if (widget.requestId != null) {
         await FirebaseFirestore.instance
@@ -573,7 +574,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                         isDense: true,
                         prefixIcon: const Icon(Icons.credit_card_rounded, size: 20),
                       ),
-                      capitalization: GovIdValidator.textCapitalization(_selectedType),
+                      textCapitalization: GovIdValidator.textCapitalization(_selectedType),
                       keyboardType: GovIdValidator.keyboardType(_selectedType),
                       inputFormatters: GovIdValidator.inputFormatters(_selectedType),
                     ),
@@ -602,20 +603,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
   }
 
   Widget _buildFilteredImage(String url) {
-    Widget imageWidget = ImageService.buildImage(
-      url,
-      fit: BoxFit.contain,
-      errorWidget: const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.broken_image_rounded, size: 48, color: Colors.grey),
-            SizedBox(height: 8),
-            Text('Could not load ID image'),
-          ],
-        ),
-      ),
-    );
+    Widget imageWidget = ImageService.buildImageWidget(url, fit: BoxFit.contain);
 
     if (_filterMode == DocumentFilterMode.highContrast) {
       return ColorFiltered(
@@ -650,7 +638,7 @@ class _SecurityWatermarkPainter extends CustomPainter {
     final textSpan = TextSpan(text: text, style: textStyle);
     final textPainter = TextPainter(
       text: textSpan,
-      textDirection: TextDirection.ltr,
+      textDirection: ui.TextDirection.ltr,
     )..layout();
 
     canvas.save();
