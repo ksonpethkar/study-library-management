@@ -12,6 +12,7 @@ import 'package:study_library/features/seats/presentation/providers/seat_provide
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import '../providers/registration_provider.dart';
 import 'package:study_library/services/form_config_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 import 'id_scan_screen.dart';
 import 'registration_form_screen.dart';
 import 'photo_upload_screen.dart';
@@ -120,13 +121,7 @@ class _StudentRegistrationWizardState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to join waiting list: $e'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'request');
       }
     } finally {
       if (mounted) setState(() => _isSubmittingWaitlist = false);

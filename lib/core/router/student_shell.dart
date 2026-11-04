@@ -24,10 +24,34 @@ class StudentShell extends ConsumerStatefulWidget {
   ConsumerState<StudentShell> createState() => _StudentShellState();
 }
 
-class _StudentShellState extends ConsumerState<StudentShell> {
+class _StudentShellState extends ConsumerState<StudentShell> with WidgetsBindingObserver {
   DateTime? _shellStartTime;
   DateTime? _lastBackPressTime;
   final Set<String> _seenNotificationIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    InactivityLockService.initialize(
+      onLock: () {
+        if (mounted) context.go(Routes.biometricLock);
+      },
+      checkLockEnabled: () => BiometricService.isLockEnabled(isAdmin: false),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    InactivityLockService.onAppLifecycleStateChanged(state);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    InactivityLockService.dispose();
+    super.dispose();
+  }
 
   bool _isMainTab(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
@@ -135,7 +159,7 @@ class _StudentShellState extends ConsumerState<StudentShell> {
       },
       child: Scaffold(
         extendBody: isMainTab,
-        body: widget.child,
+        body: InactivityDetectorWrapper(child: widget.child),
         bottomNavigationBar: isMainTab
             ? SafeArea(
                 top: false,
