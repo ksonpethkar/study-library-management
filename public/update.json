@@ -1,28 +1,11 @@
 {
-  "android": {
-    "versionCode": 56,
-    "versionName": "1.5.48+56",
-    "apkSize": "51.8 MB",
-    "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.48/StudyLibrary.apk",
-    "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.48/StudyLibrary.apk",
-    "mandatory": false,
-    "forceUpdate": false,
-    "minVersionCode": 1,
-    "releasedAt": "2026-11-04T02:21:20Z",
-    "releaseNotes": "v1.5.48: Priority announcements system with multi-notice carousel, dedicated Notice Board, auto-expiry, and live read receipts. Seamless leading-app back navigation with zero accidental app exits."
-  },
-  "web": {
-    "version": "1.5.48",
-    "buildNumber": 56,
-    "buildDate": "2026-11-04"
-  },
   "versionCode": 56,
   "latestVersionCode": 56,
   "latestBuild": 56,
   "latestVersion": "1.5.48",
   "versionName": "1.5.48+56",
   "apkSize": "51.8 MB",
-  "releaseNotes": "v1.5.48: Priority announcements system with multi-notice carousel, dedicated Notice Board, auto-expiry, and live read receipts. Seamless leading-app back navigation with zero accidental app exits.",
+  "releaseNotes": "v1.5.48: Priority announcements system with multi-notice carousel, dedicated Notice Board, auto-expiry, and live read receipts. Seamless leading-app back navigation with zero accidental app exits. Hardened student profile photo updates.",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.48/StudyLibrary.apk",
   "mandatory": false,
   "organization": {
@@ -36,6 +19,18 @@
   },
   "studentFeatures": [
     {
+      "icon": "campaign",
+      "badge": "Notice Board",
+      "title": "Multi-Notice Carousel & Dedicated Notice Board",
+      "description": "Browse library announcements in a swipeable dashboard carousel with instant dismiss and view full historical circulars in the new Notice Board & Circulars hub."
+    },
+    {
+      "icon": "navigation",
+      "badge": "Seamless Nav",
+      "title": "Smart Back Navigation & Zero Accidental Exits",
+      "description": "Pressing back from your Profile, Receipts, or Membership smoothly returns to your Home dashboard. Explicit back buttons added across all pages with double-tap exit protection."
+    },
+    {
       "icon": "badge",
       "badge": "Smart Pass",
       "title": "Real-Time Pass Validity & Dynamic Status",
@@ -44,40 +39,28 @@
     {
       "icon": "event_seat",
       "badge": "Seat Radar",
-      "title": "Dynamic Seat Radar Card Status",
-      "description": "Your allocated desk card alerts you with clear guidance when your membership is in grace or expired, with direct action to renew."
-    },
-    {
-      "icon": "qr_code_2",
-      "badge": "Tap to Zoom",
-      "title": "Larger QR Code & Instant Tap-to-Zoom",
-      "description": "Your pass QR code is now bigger, sharper, and can be tapped to open a full-screen high-contrast view for easy desk scanning."
+      "title": "Dynamic Seat Radar & Change In Progress Tracking",
+      "description": "Your allocated desk card alerts you with clear guidance when your membership is in grace or expired, and tracks pending desk change requests in real time."
     },
     {
       "icon": "edit_note",
       "badge": "Smooth Edit",
-      "title": "Pinned Edit Profile Dialog & Photo Upload",
-      "description": "The Edit Profile dialog now pins the Submit button cleanly above your keyboard and navigation bar. Updating your profile photo is instant and error-free."
-    },
-    {
-      "icon": "notifications_active",
-      "badge": "Direct Alerts",
-      "title": "Instant Notifications & Seat Requests",
-      "description": "The Notifications Center and Seat Change request features now load seamlessly without any permission or access blocks."
+      "title": "Instant Profile Photo Upload & Hardened Permissions",
+      "description": "Updating your profile photo and details is now instant and error-free, backed by hardened cloud security rules."
     }
   ],
   "adminFeatures": [
+    {
+      "icon": "campaign",
+      "badge": "Announcements",
+      "title": "Priority Circulars, Auto-Expiry & Read Receipts",
+      "description": "Publish urgent, maintenance, or holiday circulars with auto-expiry dates, broadcast them to notifications, and see real-time student read counts."
+    },
     {
       "icon": "verified_user",
       "badge": "Real-Time Sync",
       "title": "Dynamic Student Validity & Expiration Engine",
       "description": "Student membership evaluation runs dynamically in real time. Expired passes are automatically flagged with instant check-in verification."
-    },
-    {
-      "icon": "qr_code_scanner",
-      "badge": "Scanner CTA",
-      "title": "Instant QR Scan Expiration & 1-Tap Payment",
-      "description": "Scanning a student QR instantly displays valid, grace, or expired states with instant action to record renewal payments directly from the check-in sheet."
     },
     {
       "icon": "security",

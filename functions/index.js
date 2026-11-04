@@ -43,6 +43,29 @@ exports.dailyMembershipExpiryCheck = onSchedule(
           .where('membershipStatus', 'in', ['active', 'grace'])
           .get();
 
+        // Load Grace Period Settings & Plan Overrides
+        let globalGraceDays = libData.defaultGraceDays || 3;
+        let planGraceOverrides = {};
+        try {
+          const graceDoc = await db.collection(`libraries/${libraryId}/settings`).doc('grace_period').get();
+          if (graceDoc.exists) {
+            const gData = graceDoc.data() || {};
+            if (typeof gData.defaultDays === 'number' && gData.defaultDays > 0) {
+              globalGraceDays = gData.defaultDays;
+            }
+            if (gData.planOverrides && typeof gData.planOverrides === 'object') {
+              planGraceOverrides = gData.planOverrides;
+            }
+          }
+        } catch (_) {}
+
+        // Load Plan definitions to check plan.gracePeriodDays
+        const plansMap = {};
+        try {
+          const plansSnap = await db.collection(`libraries/${libraryId}/plans`).get();
+          plansSnap.forEach(p => { plansMap[p.id] = p.data(); });
+        } catch (_) {}
+
         const batch = db.batch();
         let batchCount = 0;
 
@@ -114,12 +137,20 @@ exports.dailyMembershipExpiryCheck = onSchedule(
           }
 
           // ── STAGE 3: Plan Ended ➔ Transition to Grace ─────────────────────
-          const graceDays = libData.defaultGraceDays || 3;
+          let studentGraceDays = globalGraceDays;
+          if (s.planId) {
+            if (typeof planGraceOverrides[s.planId] === 'number') {
+              studentGraceDays = planGraceOverrides[s.planId];
+            } else if (plansMap[s.planId] && typeof plansMap[s.planId].gracePeriodDays === 'number') {
+              studentGraceDays = plansMap[s.planId].gracePeriodDays;
+            }
+          }
+
           let graceEnd = null;
           if (s.graceEndDate) {
             graceEnd = s.graceEndDate.toDate ? s.graceEndDate.toDate() : new Date(s.graceEndDate);
           } else {
-            graceEnd = new Date(planEnd.getTime() + graceDays * 24 * 60 * 60 * 1000);
+            graceEnd = new Date(planEnd.getTime() + studentGraceDays * 24 * 60 * 60 * 1000);
           }
 
           if (now > planEnd && now < graceEnd && currentStatus === 'active') {

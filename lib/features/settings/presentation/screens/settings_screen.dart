@@ -13,6 +13,8 @@ import '../../../../core/providers/theme_provider.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/features/auth/services/auth_role_service.dart';
 import 'package:study_library/features/settings/presentation/screens/security_settings_dialog.dart';
+import 'package:study_library/core/utils/web_reload_helper.dart';
+import 'package:study_library/core/widgets/update_reminder_dialog.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/force_update_service.dart';
 import 'package:study_library/services/image_service.dart';
@@ -571,12 +573,7 @@ class SettingsScreen extends ConsumerWidget {
                 iconColor: const Color(0xFF059669),
                 title: 'Check for Updates',
                 subtitle: 'Check for the latest version and features',
-                onTap: () {
-                  ref.read(updateServiceProvider.notifier).checkForUpdate(manualCheck: true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Checking for updates…'), behavior: SnackBarBehavior.floating),
-                  );
-                },
+                onTap: () => _onCheckForUpdates(context, ref),
               ),
               const Divider(height: 1, indent: 56),
               _buildSettingsTile(
@@ -1257,6 +1254,67 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _onCheckForUpdates(BuildContext context, WidgetRef ref) async {
+    HapticFeedback.lightImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 12),
+            Text('Checking for updates…'),
+          ],
+        ),
+        duration: Duration(milliseconds: 1400),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    await ref.read(updateServiceProvider.notifier).checkForUpdate(manualCheck: true);
+
+    if (!context.mounted) return;
+    final updateState = ref.read(updateServiceProvider);
+
+    if (updateState.status == UpdateStatus.optionalUpdate ||
+        updateState.status == UpdateStatus.forceUpdate) {
+      if (kIsWeb) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✨ A newer web version is available!'),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Reload',
+              textColor: Colors.amberAccent,
+              onPressed: () => reloadAppWeb(),
+            ),
+          ),
+        );
+      } else {
+        UpdateReminderDialog.checkAndShow(context, ref);
+      }
+    } else if (updateState.status == UpdateStatus.checkFailed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(updateState.errorMessage ?? 'Could not reach update server. Check your connection.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(updateState.errorMessage ?? (kIsWeb ? 'Web portal is running the latest version.' : 'Your Android app is on the latest version!')),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    }
   }
 
   void _showAboutAppDialog(BuildContext context, WidgetRef ref, String ver, String build) {

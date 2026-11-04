@@ -8,11 +8,45 @@ class InactivityLockService {
   InactivityLockService._();
 
   static DateTime _lastInteraction = DateTime.now();
+  static DateTime? _pausedAt;
   static Timer? _idleCheckTimer;
   static VoidCallback? _onLockTriggered;
   static Future<bool> Function()? _checkLockEnabledCallback;
   static bool _isEnabled = true;
   static bool _isLocked = false;
+
+  /// Handle OS-level application lifecycle changes (background/foreground)
+  static void onAppLifecycleStateChanged(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _pausedAt = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      if (_pausedAt != null) {
+        final backgroundDuration = DateTime.now().difference(_pausedAt!);
+        _pausedAt = null;
+        _checkInactivityWithDuration(backgroundDuration);
+      } else {
+        _checkInactivity();
+      }
+    }
+  }
+
+  static Future<void> _checkInactivityWithDuration(Duration backgroundDuration) async {
+    if (!_isEnabled || _isLocked) return;
+
+    final bool lockEnabled;
+    if (_checkLockEnabledCallback != null) {
+      lockEnabled = await _checkLockEnabledCallback!();
+    } else {
+      lockEnabled = await BiometricService.isLockEnabled();
+    }
+    if (!lockEnabled) return;
+
+    final timeoutMinutes = await BiometricService.getAutoLockTimeoutMinutes();
+    if (backgroundDuration.inMinutes >= timeoutMinutes) {
+      _isLocked = true;
+      _onLockTriggered?.call();
+    }
+  }
 
   /// Initialize the idle timer with a callback to invoke when timeout is reached.
   static void initialize({

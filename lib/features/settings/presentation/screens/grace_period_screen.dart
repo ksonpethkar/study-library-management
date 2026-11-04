@@ -101,6 +101,13 @@ class _GracePeriodScreenState extends ConsumerState<GracePeriodScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
+      // Also sync defaultGraceDays to root library document for backward compatibility
+      final libRef = FirebaseFirestore.instance.collection('libraries').doc(libraryId);
+      batch.update(libRef, {
+        'defaultGraceDays': defaultDays,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
       await batch.commit();
 
       // Trigger instant automation recalculation with new settings

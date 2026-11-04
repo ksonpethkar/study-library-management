@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
+
 /// Formats raw technical exceptions into friendly, non-technical human language
-/// inspired by leading apps (Stripe, Airbnb, Uber, Apple) so users and admins
+/// inspired by leading apps (Stripe, Airbnb, Google Pay) so users and admins
 /// never see raw stack traces, database codes like [cloud_firestore/permission-denied], or system jargon.
 class AppErrorFormatter {
   static String toUserFriendly(dynamic error, {String? actionContext}) {
@@ -7,9 +9,22 @@ class AppErrorFormatter {
     final str = error.toString().toLowerCase();
 
     // Context-specific friendly handling:
+    if (actionContext == 'auth' || actionContext == 'login') {
+      if (str.contains('user-not-found') || str.contains('invalid-credential') || str.contains('wrong-password')) {
+        return 'Account not recognized. If you are a new student, please complete registration or speak to the library desk.';
+      }
+      if (str.contains('popup_closed') || str.contains('cancelled') || str.contains('canceled')) {
+        return 'Sign-in cancelled. Please choose your Google account to proceed.';
+      }
+      if (str.contains('network') || str.contains('socket') || str.contains('timeout')) {
+        return 'Network error during sign-in. Please check your connection and try again.';
+      }
+      return 'Sign-in could not be completed. Please try again or contact the study centre administrator.';
+    }
+
     if (actionContext == 'feedback' || actionContext == 'suggestion' || actionContext == 'issue') {
       if (str.contains('permission-denied') || str.contains('unauthorized')) {
-        return 'Unable to submit your feedback right now. Please ensure you are signed in or contact the library desk.';
+        return 'Unable to submit feedback right now. Please ensure you are signed in or contact the library desk.';
       }
       if (str.contains('network') || str.contains('socket') || str.contains('offline') || str.contains('timeout')) {
         return 'Network issue. Your feedback could not be sent. Please check your internet connection and try again.';
@@ -17,12 +32,15 @@ class AppErrorFormatter {
       return 'Unable to submit your feedback right now. Please try again shortly or speak to library staff.';
     }
 
-    if (actionContext == 'seat' || actionContext == 'request') {
+    if (actionContext == 'seat' || actionContext == 'request' || actionContext == 'section') {
       if (str.contains('permission-denied') || str.contains('unauthorized')) {
-        return 'Unable to submit seat request. Please ensure your student pass is active or visit the library desk.';
+        return 'Unable to update seat details. Please ensure your pass is active or visit the library desk.';
       }
       if (str.contains('occupied') || str.contains('already')) {
         return 'This study desk was just assigned to another student. Please select an available seat.';
+      }
+      if (actionContext == 'section') {
+        return 'Unable to save section layout. Please check the rows and columns and try again.';
       }
     }
 
@@ -31,6 +49,40 @@ class AppErrorFormatter {
         return 'You do not have permission to record payments. Please check with the library owner.';
       }
       return 'Payment could not be recorded. Please verify the amount and payment details and try again.';
+    }
+
+    if (actionContext == 'receipt') {
+      if (str.contains('network') || str.contains('socket') || str.contains('lookup') || str.contains('clientexception')) {
+        return 'Network connection dropped while generating receipt. Please check your internet connection.';
+      }
+      return 'Unable to generate receipt PDF. Please try again or download from your payment history.';
+    }
+
+    if (actionContext == 'student') {
+      if (str.contains('permission-denied') || str.contains('unauthorized')) {
+        return 'Permission denied. Only authorized staff can update student profiles.';
+      }
+      return 'Unable to save student details. Please verify that all required fields are filled and try again.';
+    }
+
+    if (actionContext == 'announcement') {
+      return 'Unable to update announcements. Please check your connection and try again.';
+    }
+
+    if (actionContext == 'plan') {
+      return 'Unable to save membership plan. Please verify the price and duration.';
+    }
+
+    if (actionContext == 'expense') {
+      return 'Unable to save expense entry. Please check the amount and category.';
+    }
+
+    if (actionContext == 'backup') {
+      return 'Backup or restore operation could not be completed. Please check your network and try again.';
+    }
+
+    if (actionContext == 'holiday') {
+      return 'Unable to update holiday schedule. Please try again.';
     }
 
     if (actionContext == 'camera' || str.contains('notreadableerror') || str.contains('video source') || str.contains('camera')) {
@@ -107,5 +159,42 @@ class AppErrorFormatter {
     }
 
     return 'Action could not be completed. Please try again or contact the study centre desk.';
+  }
+
+  /// Displays an empathetic floating error SnackBar with an optional Retry button
+  static void showErrorSnackBar(
+    BuildContext context,
+    dynamic error, {
+    String? actionContext,
+    VoidCallback? onRetry,
+  }) {
+    if (!context.mounted) return;
+    final message = toUserFriendly(error, actionContext: actionContext);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontSize: 13.5),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        action: onRetry != null
+            ? SnackBarAction(
+                label: 'Retry',
+                textColor: Colors.amber,
+                onPressed: onRetry,
+              )
+            : null,
+      ),
+    );
   }
 }

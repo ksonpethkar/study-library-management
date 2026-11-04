@@ -15,6 +15,7 @@ import 'package:study_library/services/notification_service.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -405,12 +406,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await _showAccountNotFoundDialog(user);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'auth');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -571,9 +567,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Sign in failed: $e')),
-          );
+          AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'auth');
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);

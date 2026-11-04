@@ -109,13 +109,36 @@ class BackupService {
             .doc(libraryId)
             .collection(col)
             .get();
-        // Include doc ID as '__docId__' and encode Firestore timestamps safely
-        data[col] = snapshot.docs.map((doc) {
-          final rawData = Map<String, dynamic>.from(doc.data());
-          final encoded = _encodeValue(rawData) as Map<String, dynamic>;
-          encoded['__docId__'] = doc.id;
-          return encoded;
-        }).toList();
+
+        if (col == 'sections') {
+          final sectionsList = <Map<String, dynamic>>[];
+          for (final doc in snapshot.docs) {
+            final rawData = Map<String, dynamic>.from(doc.data());
+            final encoded = _encodeValue(rawData) as Map<String, dynamic>;
+            encoded['__docId__'] = doc.id;
+            try {
+              final seatsSnap = await doc.reference.collection('seats').get();
+              encoded['__sub_seats__'] = seatsSnap.docs.map((sDoc) {
+                final sRaw = Map<String, dynamic>.from(sDoc.data());
+                final sEnc = _encodeValue(sRaw) as Map<String, dynamic>;
+                sEnc['__docId__'] = sDoc.id;
+                return sEnc;
+              }).toList();
+            } catch (e) {
+              if (kDebugMode) debugPrint('Backup: could not read seats for section ${doc.id} — $e');
+            }
+            sectionsList.add(encoded);
+          }
+          data[col] = sectionsList;
+        } else {
+          // Include doc ID as '__docId__' and encode Firestore timestamps safely
+          data[col] = snapshot.docs.map((doc) {
+            final rawData = Map<String, dynamic>.from(doc.data());
+            final encoded = _encodeValue(rawData) as Map<String, dynamic>;
+            encoded['__docId__'] = doc.id;
+            return encoded;
+          }).toList();
+        }
       } catch (e) {
         if (kDebugMode) debugPrint('Backup: could not read collection $col — $e');
         data[col] = []; // Partial backup: empty list for failed collection
@@ -162,7 +185,15 @@ class BackupService {
       int totalOperations = 0;
       for (final col in _supportedCollections) {
         if (data[col] != null) {
-          totalOperations += (data[col] as List).length;
+          final list = data[col] as List<dynamic>;
+          totalOperations += list.length;
+          if (col == 'sections') {
+            for (final secItem in list) {
+              if (secItem is Map && secItem['__sub_seats__'] is List) {
+                totalOperations += (secItem['__sub_seats__'] as List).length;
+              }
+            }
+          }
         }
       }
       if (totalOperations == 0) return;
@@ -184,9 +215,10 @@ class BackupService {
               (docData['id'] as String?);
           if (docId == null || docId.isEmpty) continue;
 
-          // Remove helper key and decode timestamps back into native Firestore types
+          // Remove helper keys and decode timestamps back into native Firestore types
           final cleanData = Map<String, dynamic>.from(docData)
-            ..remove('__docId__');
+            ..remove('__docId__')
+            ..remove('__sub_seats__');
           final decodedData = _decodeValue(cleanData) as Map<String, dynamic>;
 
           final docRef = _firestore
@@ -197,6 +229,38 @@ class BackupService {
           batch.set(docRef, decodedData, SetOptions(merge: true));
           batchCount++;
           completedOperations++;
+
+          // Restore subcollection seats if present (preserves section layout & desks)
+          if (col == 'sections' && docData['__sub_seats__'] is List) {
+            final subSeats = docData['__sub_seats__'] as List<dynamic>;
+            for (final seatItem in subSeats) {
+              if (seatItem is! Map<String, dynamic>) continue;
+              final seatDocId = (seatItem['__docId__'] as String?) ?? (seatItem['id'] as String?);
+              if (seatDocId == null || seatDocId.isEmpty) continue;
+
+              final cleanSeat = Map<String, dynamic>.from(seatItem)..remove('__docId__');
+              final decodedSeat = _decodeValue(cleanSeat) as Map<String, dynamic>;
+
+              final seatRef = _firestore
+                  .collection('libraries')
+                  .doc(libraryId)
+                  .collection('sections')
+                  .doc(docId)
+                  .collection('seats')
+                  .doc(seatDocId);
+
+              batch.set(seatRef, decodedSeat, SetOptions(merge: true));
+              batchCount++;
+              completedOperations++;
+
+              if (batchCount >= 450) {
+                await batch.commit();
+                batch = _firestore.batch();
+                batchCount = 0;
+                onProgress?.call(completedOperations / totalOperations);
+              }
+            }
+          }
 
           // Firestore batches are limited to 500 operations
           if (batchCount >= 450) {

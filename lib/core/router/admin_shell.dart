@@ -37,7 +37,7 @@ class AdminShell extends ConsumerStatefulWidget {
   ConsumerState<AdminShell> createState() => _AdminShellState();
 }
 
-class _AdminShellState extends ConsumerState<AdminShell> {
+class _AdminShellState extends ConsumerState<AdminShell> with WidgetsBindingObserver {
   DateTime? _shellStartTime;
   DateTime? _lastBackPressTime;
   final Set<String> _seenNotificationIds = {};
@@ -45,6 +45,7 @@ class _AdminShellState extends ConsumerState<AdminShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     InactivityLockService.initialize(
       onLock: () {
         if (mounted) context.go(Routes.biometricLock);
@@ -54,7 +55,13 @@ class _AdminShellState extends ConsumerState<AdminShell> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    InactivityLockService.onAppLifecycleStateChanged(state);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     InactivityLockService.dispose();
     super.dispose();
   }

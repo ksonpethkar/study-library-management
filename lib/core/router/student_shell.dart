@@ -10,6 +10,8 @@ import 'package:study_library/features/students/presentation/providers/student_p
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/in_app_notification_toast.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
+import 'package:study_library/services/biometric_service.dart';
 import 'app_router.dart';
 
 /// Student shell with PopScope exit-app dialog so back never closes the app silently,
