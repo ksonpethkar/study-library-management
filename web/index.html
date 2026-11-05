@@ -16,6 +16,17 @@
   -->
   <base href="$FLUTTER_BASE_HREF">
 
+  <!-- Force purge old Service Worker caches -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (var i = 0; i < registrations.length; i++) {
+          registrations[i].unregister();
+        }
+      });
+    }
+  </script>
+
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">

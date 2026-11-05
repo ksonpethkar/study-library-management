@@ -16,6 +16,7 @@ import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
+import 'package:study_library/features/student_app/presentation/widgets/silent_reception_help_sheet.dart';
 
 class MyMembershipScreen extends ConsumerWidget {
   const MyMembershipScreen({super.key});
@@ -599,7 +600,13 @@ class MyMembershipScreen extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _buildDynamicPerksGrid(context, theme, library?.facilities ?? const [], library: library),
+                      _buildDynamicPerksGrid(
+                        context,
+                        theme,
+                        library?.facilities ?? const [],
+                        library: library,
+                        student: student,
+                      ),
                     ],
                   ),
                 ),
@@ -702,7 +709,13 @@ class MyMembershipScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDynamicPerksGrid(BuildContext context, ThemeData theme, List<String> facilities, {LibraryModel? library}) {
+  Widget _buildDynamicPerksGrid(
+    BuildContext context,
+    ThemeData theme,
+    List<String> facilities, {
+    LibraryModel? library,
+    StudentModel? student,
+  }) {
     final items = facilities.isNotEmpty
         ? facilities
         : const [
@@ -723,7 +736,7 @@ class MyMembershipScreen extends ConsumerWidget {
       } else if (lower.contains('water') || lower.contains('ro')) {
         return {'icon': Icons.water_drop_rounded, 'color': const Color(0xFF2563EB), 'sub': 'Chilled & Normal RO'};
       } else if (lower.contains('silent') || lower.contains('zone')) {
-        return {'icon': Icons.volume_off_rounded, 'color': const Color(0xFF059669), 'sub': 'Pin-Drop Acoustic Focus'};
+        return {'icon': Icons.volume_off_rounded, 'color': const Color(0xFF059669), 'sub': 'Pin-Drop Focus • Tap for Help'};
       } else if (lower.contains('cctv') || lower.contains('security')) {
         return {'icon': Icons.videocam_rounded, 'color': const Color(0xFF7C3AED), 'sub': '24x7 Security Surveillance'};
       } else if (lower.contains('chair') || lower.contains('ergonomic')) {
@@ -753,6 +766,7 @@ class MyMembershipScreen extends ConsumerWidget {
           children: items.map((facility) {
             final meta = getPerkMeta(facility);
             final isWifi = facility.toLowerCase().contains('wi-fi') || facility.toLowerCase().contains('wifi');
+            final isSilent = facility.toLowerCase().contains('silent') || facility.toLowerCase().contains('zone');
 
             return SizedBox(
               width: itemWidth,
@@ -783,7 +797,15 @@ class MyMembershipScreen extends ConsumerWidget {
                             ),
                           );
                         }
-                      : null,
+                      : (isSilent
+                          ? () {
+                              SilentReceptionHelpSheet.show(
+                                context,
+                                libraryId: library?.id ?? '',
+                                student: student,
+                              );
+                            }
+                          : null),
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(

@@ -526,6 +526,118 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                     const AppUpdateBanner(),
                     const SizedBox(height: 12),
 
+                    // Phase 4: Real-time Silent Reception Assistance Alert Stream
+                    if (libId != null && libId.isNotEmpty) ...[
+                      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: FirebaseFirestore.instance
+                            .collection('libraries')
+                            .doc(libId)
+                            .collection('feedback')
+                            .where('feedbackType', isEqualTo: 'silent_alert')
+                            .where('status', isEqualTo: 'unread')
+                            .snapshots(),
+                        builder: (context, alertSnap) {
+                          final unreadAlerts = alertSnap.data?.docs ?? [];
+                          if (unreadAlerts.isEmpty) return const SizedBox.shrink();
+
+                          final topAlert = unreadAlerts.first.data();
+                          final alertCategory = topAlert['category'] as String? ?? 'Quiet Assistance';
+                          final desk = topAlert['seatNumber'] as String? ?? 'Study Hall';
+                          final count = unreadAlerts.length;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: InkWell(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                context.push(Routes.adminFeedback);
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: theme.brightness == Brightness.dark
+                                      ? const Color(0xFF3F1D1D)
+                                      : const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: const Color(0xFFEF4444).withValues(alpha: 0.5),
+                                    width: 1.4,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.notifications_active_rounded, size: 20, color: Color(0xFFDC2626)),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  '$count Active Quiet Desk Alert${count > 1 ? "s" : ""}',
+                                                  style: TextStyle(
+                                                    fontSize: 13.5,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: theme.brightness == Brightness.dark
+                                                        ? const Color(0xFFFCA5A5)
+                                                        : const Color(0xFF991B1B),
+                                                  ),
+                                                ),
+                                              ),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFDC2626),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: const Text(
+                                                  'ACTION NEEDED',
+                                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '$alertCategory at $desk • Tap to review & attend',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              color: theme.brightness == Brightness.dark
+                                                  ? const Color(0xFFE2E8F0)
+                                                  : const Color(0xFF475569),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFFDC2626)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+
                     // Contextual Intelligence Renewal Alert
                     if (effectiveRenewalsDue > 0) ...[
                       InkWell(

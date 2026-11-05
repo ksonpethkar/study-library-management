@@ -10,6 +10,7 @@ import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/models/feedback_model.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/features/student_app/presentation/widgets/silent_reception_help_sheet.dart';
 
 class StudentFeedbackScreen extends ConsumerStatefulWidget {
   const StudentFeedbackScreen({super.key});
@@ -243,6 +244,64 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
             child: ListView(
               padding: const EdgeInsets.all(20.0),
               children: [
+                // Phase 4: Silent Reception Help Action Card
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F766E).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF14B8A6).withValues(alpha: 0.35)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D9488).withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.volume_off_rounded, color: Color(0xFF0D9488), size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Need Immediate Quiet Help?',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F766E)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Send a discrete silent alert to Reception for noise, AC, Wi-Fi or water.',
+                              style: TextStyle(fontSize: 11.5, color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.tonal(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF0D9488),
+                          foregroundColor: Colors.white,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () {
+                          SilentReceptionHelpSheet.show(
+                            context,
+                            libraryId: libraryId ?? '',
+                            student: student,
+                          );
+                        },
+                        child: const Text('Quiet Alert', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+
                 // Star Rating Header Card
                 Card(
                   elevation: 0,

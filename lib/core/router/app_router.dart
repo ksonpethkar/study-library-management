@@ -51,6 +51,7 @@ import '../../features/settings/presentation/screens/form_customizer_screen.dart
 import '../../features/settings/presentation/screens/payment_methods_screen.dart';
 import '../../features/settings/presentation/screens/communications_hub_screen.dart';
 import '../../features/backup/presentation/screens/backup_restore_screen.dart';
+import '../../features/maintenance/presentation/screens/maintenance_diagnostics_screen.dart';
 import '../../features/audit_log/presentation/screens/audit_log_screen.dart';
 import '../../features/recycle_bin/presentation/screens/recycle_bin_screen.dart';
 import '../../features/settings/presentation/screens/rules_editor_screen.dart';
@@ -148,6 +149,7 @@ class Routes {
   static const adminStaff = '/admin/settings/staff';
   
   static const adminBackup = '/admin/backup';
+  static const adminMaintenance = '/admin/maintenance';
   static const adminDataExport = '/admin/data-export';
   static const adminAuditLog = '/admin/audit-log';
   static const adminRecycleBin = '/admin/recycle-bin';
@@ -182,42 +184,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: Routes.splash,
-    errorPageBuilder: (context, state) {
-      final loc = state.uri.toString();
-      // Auto-recover seamlessly if path has /app/ prefix
-      if (loc.startsWith('/app/')) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final stripped = loc.substring(4);
-          GoRouter.of(context).go(stripped);
-        });
-        return AppPageTransitions.fadeThrough(
-          state: state,
-          child: const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          ),
-        );
-      }
-      return AppPageTransitions.fadeThrough(
-        state: state,
-        child: NotFoundScreen(
-          uri: state.uri,
-          error: state.error,
-        ),
-      );
-    },
+    errorBuilder: (context, state) => NotFoundScreen(
+      uri: state.uri,
+      error: state.error,
+    ),
     // ── Security: Role-based redirect guard ─────────────────────────────────
     redirect: (context, state) {
       final uri = state.uri;
       final rawPath = uri.path;
 
-      // Normalize if path starts with '/app' (e.g. '/app/admin/students/...' -> '/admin/students/...')
+      // Normalize if path starts with root or '/app'
+      if (rawPath == '/' || rawPath.isEmpty || rawPath == '/app' || rawPath == '/app/') {
+        return Routes.splash;
+      }
       if (rawPath.startsWith('/app/')) {
         final stripped = rawPath.substring(4);
         final query = uri.hasQuery ? '?${uri.query}' : '';
         return '$stripped$query';
-      }
-      if (rawPath == '/app') {
-        return Routes.splash;
       }
 
       final path = uri.toString();
@@ -286,7 +269,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       // ── Web Base Path Normalization & Wildcard Aliases ─────────────────────
-      // Transparently maps /app and /app/* into the application route hierarchy
+      // Transparently maps '/', '/app', and '/app/*' into the application route hierarchy
+      GoRoute(
+        path: '/',
+        redirect: (context, state) => Routes.splash,
+      ),
       GoRoute(
         path: '/app',
         redirect: (context, state) => Routes.splash,
@@ -573,6 +560,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminBackup, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const BackupRestoreScreen(),
+      )),
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminMaintenance, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const MaintenanceDiagnosticsScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminDataExport, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const DataExportScreen(),

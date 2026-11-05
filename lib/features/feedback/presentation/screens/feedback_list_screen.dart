@@ -163,6 +163,7 @@ class FeedbackListScreen extends ConsumerWidget {
                   onReply: () => _showReplyDialog(context, libraryId, item),
                   onDelete: () => _confirmDelete(context, libraryId, item.id),
                   onWhatsApp: () => _replyViaWhatsAppQuick(context, libraryId, item),
+                  onResolve: () => _markResolved(context, libraryId, item),
                 );
               },
             ),
@@ -184,6 +185,10 @@ class FeedbackListScreen extends ConsumerWidget {
     final studentDisplayName = feedback.studentName ?? 'Student';
 
     final cannedResponses = [
+      {
+        'label': '🤫 Quiet Silence',
+        'text': 'Dear $studentDisplayName, our floor supervisor has personally inspected your section and reminded students to observe pin-drop library silence. Thank you for alerting us!',
+      },
       {
         'label': '❄️ AC / Cooling',
         'text': 'Dear $studentDisplayName, thank you for alerting us! Our team has adjusted the AC temperature and airflow in your section to ensure a comfortable study environment. Please inform the reception desk if further adjustment is needed.',
@@ -576,6 +581,54 @@ class FeedbackListScreen extends ConsumerWidget {
       );
     }
   }
+
+  Future<void> _markResolved(
+    BuildContext context,
+    String? libraryId,
+    FeedbackModel feedback,
+  ) async {
+    if (libraryId == null || libraryId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('feedback')
+          .doc(feedback.id)
+          .update({
+        'status': 'resolved',
+        'adminReply': 'Attended and resolved by floor supervisor.',
+        'repliedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (feedback.studentId.isNotEmpty) {
+        AppNotificationService.sendNotification(
+          libraryId: libraryId,
+          title: 'Quiet Help Resolved ✅',
+          body: 'Floor supervisor attended to ${feedback.category ?? "your request"} at Seat ${feedback.seatNumber ?? "your desk"}. Thank you!',
+          type: 'silent_alert_resolved',
+          targetRole: 'student',
+          targetUserId: feedback.studentId,
+          actionRoute: Routes.studentFeedback,
+        ).ignore();
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Marked "${feedback.category ?? "Alert"}" as resolved.'),
+            backgroundColor: const Color(0xFF0F766E),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 }
 
 class _FeedbackCard extends StatelessWidget {
@@ -583,12 +636,14 @@ class _FeedbackCard extends StatelessWidget {
   final VoidCallback onReply;
   final VoidCallback onDelete;
   final VoidCallback onWhatsApp;
+  final VoidCallback onResolve;
 
   const _FeedbackCard({
     required this.feedback,
     required this.onReply,
     required this.onDelete,
     required this.onWhatsApp,
+    required this.onResolve,
   });
 
   String _formatDate(DateTime? date) {
@@ -687,7 +742,28 @@ class _FeedbackCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          if (feedback.feedbackType == 'issue' || (feedback.rating != null && feedback.rating! <= 2)) ...[
+                          if (feedback.feedbackType == 'silent_alert') ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              margin: const EdgeInsets.only(right: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.volume_off_rounded, size: 10, color: Color(0xFFDC2626)),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    'QUIET DESK ALERT',
+                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else if (feedback.feedbackType == 'issue' || (feedback.rating != null && feedback.rating! <= 2)) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               margin: const EdgeInsets.only(right: 6),
@@ -841,6 +917,19 @@ class _FeedbackCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                if (feedback.feedbackType == 'silent_alert' && feedback.status != 'resolved') ...[
+                  FilledButton.tonalIcon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.15),
+                      foregroundColor: const Color(0xFF0F766E),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.check_circle_outline_rounded, size: 15),
+                    label: const Text('Resolve'),
+                    onPressed: onResolve,
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF25D366),

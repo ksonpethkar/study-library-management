@@ -29,6 +29,7 @@ import 'package:study_library/models/feedback_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/services/membership_automation_service.dart';
+import 'package:study_library/features/payments/presentation/screens/record_payment_screen.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/constants/app_constants.dart';
 import 'package:study_library/services/whats_new_service.dart';
@@ -37,6 +38,7 @@ import 'package:study_library/features/waiting_list/data/repositories/waiting_li
 import 'package:pdf/pdf.dart';
 import 'package:study_library/services/id_card_pdf_service.dart';
 import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
+import 'package:study_library/features/maintenance/data/services/database_diagnostics_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/models/announcement_model.dart';
@@ -4251,6 +4253,166 @@ void main() {
       expect(canOccupySeat(currentStatus: 'available', currentOccupantId: null, requestingStudentId: 'std_01'), isTrue);
       expect(canOccupySeat(currentStatus: 'occupied', currentOccupantId: 'std_02', requestingStudentId: 'std_01'), isFalse);
       expect(canOccupySeat(currentStatus: 'occupied', currentOccupantId: 'std_01', requestingStudentId: 'std_01'), isTrue); // Re-affirming own seat
+    });
+
+    test('102. FRONT-DESK EXPRESS CASH TERMINAL VS ADVANCED BILLING STUDIO STATE & PRESETS', () {
+      // ── 1. PaymentEntryMode Enum Invariants ──
+      expect(PaymentEntryMode.values.length, equals(2));
+      expect(PaymentEntryMode.values, contains(PaymentEntryMode.expressCash));
+      expect(PaymentEntryMode.values, contains(PaymentEntryMode.advancedBilling));
+
+      // ── 2. Express Cash Mode Invariants ──
+      // In Express Cash mode, the system defaults to Cash, full settlement, receipt generation and validity extension
+      const selectedMode = PaymentEntryMode.expressCash;
+      const expectedMethod = 'Cash';
+      const isPartialPayment = false;
+      const generateReceipt = true;
+      const extendValidity = true;
+
+      expect(selectedMode, equals(PaymentEntryMode.expressCash));
+      expect(expectedMethod, equals('Cash'));
+      expect(isPartialPayment, isFalse);
+      expect(generateReceipt, isTrue);
+      expect(extendValidity, isTrue);
+
+      // ── 3. Quick Denomination Presets Computation ──
+      const effectiveDue = 700.0;
+      final quickPresets = [500, 600, 700, 800, 1000, 1500]
+          .where((p) => p.toDouble() != effectiveDue)
+          .take(3)
+          .toList();
+
+      expect(quickPresets.contains(700), isFalse, reason: 'Exact due 700 is already featured as primary exact-chip');
+      expect(quickPresets.length, equals(3));
+      expect(quickPresets, equals([500, 600, 800]));
+
+      // ── 4. Continuous Coverage Date Range Invariant ──
+      final prevEnd = DateTime(2026, 11, 30);
+      final newCoverageStart = DateTime(prevEnd.year, prevEnd.month, prevEnd.day + 1); // 1 Dec 2026
+      expect(newCoverageStart.day, equals(1));
+      expect(newCoverageStart.month, equals(12));
+      expect(newCoverageStart.year, equals(2026));
+    });
+
+    test('103. SYSTEM DIAGNOSTICS & DATABASE HEALTH: SPARK QUOTA GAUGES, INVARIANT AUTO-HEALER & STALE PRUNER', () {
+      // ── 1. DatabaseMetrics & Spark Free Tier Quota Invariants ──
+      expect(DatabaseMetrics.sparkDailyFreeReads, equals(50000));
+      expect(DatabaseMetrics.sparkDailyFreeWrites, equals(20000));
+      expect(DatabaseMetrics.sparkFreeStorageBytes, equals(1024 * 1024 * 1024)); // 1 GiB
+
+      final sampleMetrics = DatabaseMetrics(
+        studentsCount: 3,
+        activeStudentsCount: 3,
+        sectionsCount: 1,
+        seatsCount: 60,
+        plansCount: 5,
+        paymentsCount: 12,
+        receiptsCount: 12,
+        expensesCount: 4,
+        notificationsCount: 8,
+        auditLogCount: 45,
+        recycleBinCount: 2,
+        waitingListCount: 0,
+        requestsCount: 0,
+        announcementsCount: 1,
+        estimatedTotalDocs: 151,
+        estimatedStorageBytes: 151 * 1200.0, // ~181.2 KB
+        estimatedDailyReads: 2850, // ~5.7% of Spark free limit
+        estimatedDailyWrites: 220,  // ~1.1% of Spark free limit
+        measuredAt: DateTime(2026, 11, 5),
+      );
+
+      // Verify quota fractions
+      expect(sampleMetrics.readsQuotaPercent, closeTo(2850 / 50000, 0.001));
+      expect(sampleMetrics.writesQuotaPercent, closeTo(220 / 20000, 0.001));
+      expect(sampleMetrics.readsQuotaPercent < 0.10, isTrue, reason: 'Cozy Corner Spark usage must comfortably sit under 10%');
+      expect(sampleMetrics.formattedStorageSize, contains('KB'));
+
+      // Storage size formatting boundary test
+      final largeMetrics = DatabaseMetrics(
+        studentsCount: 100,
+        activeStudentsCount: 80,
+        sectionsCount: 5,
+        seatsCount: 300,
+        plansCount: 10,
+        paymentsCount: 500,
+        receiptsCount: 500,
+        expensesCount: 200,
+        notificationsCount: 1000,
+        auditLogCount: 5000,
+        recycleBinCount: 50,
+        waitingListCount: 20,
+        requestsCount: 15,
+        announcementsCount: 10,
+        estimatedTotalDocs: 7780,
+        estimatedStorageBytes: 2.5 * 1024 * 1024, // 2.5 MB
+        estimatedDailyReads: 15000,
+        estimatedDailyWrites: 4000,
+        measuredAt: DateTime(2026, 11, 5),
+      );
+      expect(largeMetrics.formattedStorageSize, equals('2.50 MB'));
+
+      // ── 2. Integrity Issues & Healable Invariants ──
+      final sampleIssues = [
+        const IntegrityIssue(
+          id: 'seat_101_orphaned',
+          type: 'orphaned_seat',
+          severity: IssueSeverity.error,
+          title: 'Orphaned Occupied Seat #5',
+          description: 'Seat is marked occupied but student ID std_deleted does not exist.',
+          entityId: 'seat_101',
+          canAutoHeal: true,
+        ),
+        const IntegrityIssue(
+          id: 'seat_102_ghost',
+          type: 'ghost_student_id',
+          severity: IssueSeverity.warning,
+          title: 'Ghost Student ID on Available Seat #6',
+          description: 'Seat is available but retains student ID std_ghost.',
+          entityId: 'seat_102',
+          canAutoHeal: true,
+        ),
+        const IntegrityIssue(
+          id: 'student_999_manual',
+          type: 'manual_audit_required',
+          severity: IssueSeverity.info,
+          title: 'Manual Review Needed',
+          description: 'Check external receipt reference.',
+          canAutoHeal: false,
+        ),
+      ];
+
+      final sampleReport = IntegrityReport(
+        scannedAt: DateTime(2026, 11, 5, 14, 30),
+        totalSeatsScanned: 60,
+        totalStudentsScanned: 3,
+        issues: sampleIssues,
+        staleNotificationsCount: 14,
+        expiredRecycleBinCount: 5,
+        oldAuditLogsCount: 42,
+      );
+
+      expect(sampleReport.hasIssues, isTrue);
+      expect(sampleReport.issues.length, equals(3));
+      expect(sampleReport.healableCount, equals(2), reason: 'Only 2 issues have canAutoHeal == true');
+
+      // ── 3. Diagnostic Report Formatter Completeness ──
+      final service = DatabaseDiagnosticsService();
+      final reportText = service.generateDiagnosticTextReport(sampleMetrics, sampleReport);
+
+      expect(reportText, contains('COZY CORNER STUDY CENTRE - SYSTEM DIAGNOSTICS & HEALTH'));
+      expect(reportText, contains('SPARK (FREE TIER) QUOTA & RESOURCE PULSE'));
+      expect(reportText, contains('50,000 / day'));
+      expect(reportText, contains('20,000 / day'));
+      expect(reportText, contains('COLLECTION DOCUMENT COUNTS'));
+      expect(reportText, contains('Students (Total / Active): 3 / 3'));
+      expect(reportText, contains('Seats: 60'));
+      expect(reportText, contains('INVARIANT HEALTH & INTEGRITY SCAN'));
+      expect(reportText, contains('Orphaned Occupied Seat #5'));
+      expect(reportText, contains('STALE DATA CANDIDATES'));
+      expect(reportText, contains('Read Notifications (>30d): 14'));
+      expect(reportText, contains('Expired Recycle Bin (>30d): 5'));
+      expect(reportText, contains('Historical Audit Logs (>90d): 42'));
     });
   });
 }

@@ -48,6 +48,8 @@ class RecordPaymentScreen extends ConsumerStatefulWidget {
   ConsumerState<RecordPaymentScreen> createState() => _RecordPaymentScreenState();
 }
 
+enum PaymentEntryMode { expressCash, advancedBilling }
+
 class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
@@ -60,6 +62,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   final _discountReasonController = TextEditingController();
   bool _isStickyCustomPrice = false;
 
+  PaymentEntryMode _entryMode = PaymentEntryMode.expressCash;
   String _paymentMethod = 'Cash';
   bool _isLoading = false;
   bool _isScanningScreenshot = false;
@@ -1121,6 +1124,46 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Front-Desk Mode Switcher: Express 10-Second Cash vs Advanced Custom Billing
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(top: 2, bottom: 16),
+                      child: SegmentedButton<PaymentEntryMode>(
+                        segments: const [
+                          ButtonSegment<PaymentEntryMode>(
+                            value: PaymentEntryMode.expressCash,
+                            icon: Icon(Icons.flash_on_rounded, color: Colors.green),
+                            label: Text('⚡ Express Cash', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                          ButtonSegment<PaymentEntryMode>(
+                            value: PaymentEntryMode.advancedBilling,
+                            icon: Icon(Icons.tune_rounded),
+                            label: Text('⚙️ Advanced Billing'),
+                          ),
+                        ],
+                        selected: {_entryMode},
+                        onSelectionChanged: (newSelection) {
+                          setState(() {
+                            _entryMode = newSelection.first;
+                            if (_entryMode == PaymentEntryMode.expressCash) {
+                              _paymentMethod = 'Cash';
+                              _isPartialPayment = false;
+                              _generateReceipt = true;
+                              _extendValidity = true;
+                              final fee = _effectiveTotalFee;
+                              if (fee > 0) {
+                                _amountController.text = fee.toStringAsFixed(0);
+                                _totalFeeController.text = fee.toStringAsFixed(0);
+                              }
+                            }
+                          });
+                        },
+                      ),
+                    ),
+
+                    if (_entryMode == PaymentEntryMode.expressCash)
+                      _buildExpressCashTerminal(context, theme, plans)
+                    else ...[
                     // Plan Selector Dropdown
                     Builder(
                       builder: (ctx) {
@@ -2179,10 +2222,278 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                         ),
                       ),
                     ),
+                    ],
                   ],
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildExpressCashTerminal(
+    BuildContext context,
+    ThemeData theme,
+    List<PlanModel> plans,
+  ) {
+    final effectiveStart = _getEffectiveStartDate();
+    final effectiveEnd = _calculateNewExpiryDate(plans);
+    final isDark = theme.brightness == Brightness.dark;
+    final seatLabel = SeatHelper.formatSeatLabel(seatId: _studentSeatId ?? 'pool');
+    final dueAmount = _effectiveTotalFee;
+
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.green.withValues(alpha: 0.4), width: 1.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Mode Header Badge
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.flash_on_rounded, size: 14, color: Colors.green),
+                      SizedBox(width: 4),
+                      Text(
+                        '10-SECOND CHECKOUT',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                const Text(
+                  '💵 Cash at Reception Desk',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Big Cash Collection Display
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF132E23) : const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.green.shade400.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'COLLECT CASH AMOUNT',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: isDark ? Colors.green.shade300 : Colors.green.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '₹',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.green.shade300 : Colors.green.shade800,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IntrinsicWidth(
+                        child: TextFormField(
+                          controller: _amountController,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 38,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? Colors.green.shade300 : Colors.green.shade800,
+                          ),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onChanged: (val) {
+                            setState(() {
+                              _totalFeeController.text = val;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Quick Preset Chips
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      if (dueAmount > 0)
+                        ActionChip(
+                          avatar: const Icon(Icons.check_rounded, size: 14),
+                          label: Text('Exact Due: ₹${dueAmount.toStringAsFixed(0)}'),
+                          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              _amountController.text = dueAmount.toStringAsFixed(0);
+                              _totalFeeController.text = dueAmount.toStringAsFixed(0);
+                            });
+                          },
+                        ),
+                      ...[500, 600, 700, 800, 1000, 1500]
+                          .where((p) => p.toDouble() != dueAmount)
+                          .take(3)
+                          .map(
+                            (p) => ActionChip(
+                              label: Text('₹$p'),
+                              labelStyle: const TextStyle(fontSize: 11.5),
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  _amountController.text = p.toString();
+                                  _totalFeeController.text = p.toString();
+                                });
+                              },
+                            ),
+                          ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Breakdown / Execution Summary
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _expressRow(
+                    Icons.chair_rounded,
+                    'Desk Allocation',
+                    seatLabel,
+                    Colors.teal,
+                  ),
+                  const Divider(height: 16),
+                  _expressRow(
+                    Icons.date_range_rounded,
+                    'Continuous Pass Validity',
+                    '${DateFormat('dd MMM').format(effectiveStart)} → ${DateFormat('dd MMM yyyy').format(effectiveEnd)}',
+                    Colors.blue,
+                  ),
+                  const Divider(height: 16),
+                  _expressRow(
+                    Icons.receipt_long_rounded,
+                    'Official GST / PDF Receipt',
+                    'Auto-Generated with QR',
+                    Colors.orange,
+                  ),
+                  const Divider(height: 16),
+                  _expressRow(
+                    Icons.chat_bubble_outline_rounded,
+                    'Instant WhatsApp Dispatch',
+                    widget.studentPhone.isNotEmpty ? widget.studentPhone : 'On Record',
+                    Colors.green,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Instant 1-Tap Action Button
+            SizedBox(
+              height: 54,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.green.shade700,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 2,
+                ),
+                onPressed: _isLoading ? null : () => _save(plans),
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.flash_on_rounded, size: 22),
+                label: Text(
+                  _isLoading
+                      ? 'Issuing Official Receipt...'
+                      : '⚡ Collect ₹${_payingAmount.toStringAsFixed(0)} Cash & Issue Receipt',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Switch to Advanced Mode text button
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  setState(() => _entryMode = PaymentEntryMode.advancedBilling);
+                },
+                icon: const Icon(Icons.tune_rounded, size: 16),
+                label: const Text('Need UPI screenshot, partial dues or custom dates? Open Advanced Billing Studio'),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.primary,
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _expressRow(IconData icon, String label, String value, Color iconColor) {
+    return Row(
+      children: [
+        Icon(icon, size: 17, color: iconColor),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 

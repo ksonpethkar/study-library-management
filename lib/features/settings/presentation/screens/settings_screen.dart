@@ -441,6 +441,14 @@ class SettingsScreen extends ConsumerWidget {
             title: 'DATA & MAINTENANCE',
             children: [
               _buildSettingsTile(
+                icon: Icons.monitor_heart_rounded,
+                iconColor: const Color(0xFF059669),
+                title: 'System Diagnostics & Health',
+                subtitle: 'Firebase Spark quota monitor, integrity auto-healer & cleanup',
+                onTap: () => context.push(Routes.adminMaintenance),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
                 icon: Icons.cloud_sync_rounded,
                 iconColor: const Color(0xFF2563EB),
                 title: 'Database Backup & Restore',

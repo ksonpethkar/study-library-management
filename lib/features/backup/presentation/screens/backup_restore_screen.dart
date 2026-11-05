@@ -319,6 +319,13 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
           onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
         ),
         title: const Text('Backup & Restore'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.monitor_heart_rounded),
+            tooltip: 'System Diagnostics & Health',
+            onPressed: () => context.push(Routes.adminMaintenance),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),

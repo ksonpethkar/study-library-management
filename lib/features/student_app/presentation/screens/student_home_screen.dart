@@ -34,6 +34,7 @@ import 'package:study_library/services/quick_actions_service.dart';
 import 'package:study_library/core/widgets/update_reminder_dialog.dart';
 import 'package:study_library/core/widgets/facility_tour_sheet.dart';
 import 'package:study_library/core/error/error_handler.dart';
+import 'package:study_library/features/student_app/presentation/widgets/silent_reception_help_sheet.dart';
 
 /// Real-time stream of the current student's pending registration request.
 /// Returns the request document if status == 'pending', null otherwise.
@@ -627,7 +628,14 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 const SizedBox(height: 16),
 
                 // 4. Ergonomic Quick Services Dock (4-column primary + 2-item secondary)
-                _buildQuickServicesDock(context, theme, library),
+                _buildQuickServicesDock(
+                  context,
+                  theme,
+                  library,
+                  student: student,
+                  seatLabel: seatLabel,
+                  libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
+                ),
                 const SizedBox(height: 20),
 
                 // 5. Compact Manager & Helpline Contact Dock
@@ -1824,9 +1832,17 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     );
   }
 
-  Widget _buildQuickServicesDock(BuildContext context, ThemeData theme, dynamic library) {
+  Widget _buildQuickServicesDock(
+    BuildContext context,
+    ThemeData theme,
+    dynamic library, {
+    StudentModel? student,
+    String? seatLabel,
+    String? libraryId,
+  }) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isVerySmall = screenWidth < 360;
+    final isDark = theme.brightness == Brightness.dark;
 
     final primaryActions = [
       _CompactQuickAction(
@@ -1863,7 +1879,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           children: [
             Text('Quick Services', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             Text(
-              '7 Services',
+              '8 Services',
               style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
@@ -1901,6 +1917,108 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           ),
         ],
         const SizedBox(height: 10),
+
+        // Phase 4: Silent Reception Help & Quiet Study Environment Card
+        InkWell(
+          onTap: () {
+            SilentReceptionHelpSheet.show(
+              context,
+              libraryId: libraryId ?? '',
+              student: student,
+              deskLabel: seatLabel,
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [const Color(0xFF132E2B), const Color(0xFF0F172A)]
+                    : [const Color(0xFFF0FDFA), const Color(0xFFF8FAFC)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF14B8A6).withValues(alpha: isDark ? 0.45 : 0.35),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0D9488).withValues(alpha: isDark ? 0.12 : 0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D9488).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.volume_off_rounded,
+                    color: Color(0xFF0D9488),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Quiet Desk Assistance',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0D9488).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Discrete',
+                              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF0D9488)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '1-Tap silent alert to Reception • Noise, AC, Wi-Fi, Water or Desk help',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 13,
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+
         // Secondary Action: Dedicated Notice Board & Circulars Hub
         _SecondaryQuickAction(
           icon: Icons.campaign_rounded,
