@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:study_library/services/message_template_service.dart';
 
 enum WaitingListMode { waitingList, noSeatsMessage, contactAdmin }
 
@@ -32,6 +33,10 @@ class LibraryModel {
   final String membershipPrefix;
   final String tagline;
   final String whatsappWelcomeTemplate;
+  final String whatsappReceiptTemplate;
+  final String whatsappDueReminderTemplate;
+  final String whatsappExpiryReminderTemplate;
+  final String templateLanguage;
   final String receiptFooterText;
   final int renewalReminderDays;
   final String upiId;
@@ -50,6 +55,31 @@ class LibraryModel {
       wifiSsid.trim().isNotEmpty ? wifiSsid.trim() : '${name.trim().isNotEmpty ? name.trim() : "Cozy Corner"} 5G';
   String get effectiveWifiPassword =>
       wifiPassword.trim().isNotEmpty ? wifiPassword.trim() : 'Study@Cozy2026';
+
+  String get effectiveWelcomeTemplate =>
+      whatsappWelcomeTemplate.trim().isNotEmpty
+          ? whatsappWelcomeTemplate.trim()
+          : MessageTemplateService.getTemplate(type: 'welcome', language: templateLanguage);
+
+  String get effectiveReceiptTemplate =>
+      whatsappReceiptTemplate.trim().isNotEmpty
+          ? whatsappReceiptTemplate.trim()
+          : MessageTemplateService.getTemplate(type: 'receipt', language: templateLanguage);
+
+  String get effectiveDueReminderTemplate =>
+      whatsappDueReminderTemplate.trim().isNotEmpty
+          ? whatsappDueReminderTemplate.trim()
+          : MessageTemplateService.getTemplate(type: 'dueReminder', language: templateLanguage);
+
+  String get effectiveExpiryReminderTemplate =>
+      whatsappExpiryReminderTemplate.trim().isNotEmpty
+          ? whatsappExpiryReminderTemplate.trim()
+          : MessageTemplateService.getTemplate(type: 'expiryReminder', language: templateLanguage);
+
+  String get effectiveWaitlistTemplate =>
+      waitingListNotificationTemplate.trim().isNotEmpty
+          ? waitingListNotificationTemplate.trim()
+          : MessageTemplateService.getTemplate(type: 'waitlistOffer', language: templateLanguage);
 
   LibraryModel({
     required this.id,
@@ -76,6 +106,10 @@ class LibraryModel {
     this.membershipPrefix = 'CC',
     this.tagline = '',
     this.whatsappWelcomeTemplate = '',
+    this.whatsappReceiptTemplate = '',
+    this.whatsappDueReminderTemplate = '',
+    this.whatsappExpiryReminderTemplate = '',
+    this.templateLanguage = 'en',
     this.receiptFooterText = '',
     this.renewalReminderDays = 7,
     this.upiId = '',
