@@ -741,6 +741,75 @@ class WhatsAppService {
       title: 'Exit Settlement Preview',
     );
   }
+
+  /// Sends an official Mid-Cycle Plan Upgrade / Tier Change confirmation to the student.
+  Future<bool> sendPlanUpgradeConfirmation({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    required String oldPlanName,
+    required String newPlanName,
+    required String receiptNumber,
+    required int remainingDays,
+    required double unusedCredit,
+    required double newProratedFee,
+    required double netPaid,
+    required String paymentMethod,
+    required DateTime newExpiryDate,
+    String? referenceNumber,
+    String? libraryHelpline,
+    BuildContext? context,
+  }) async {
+    final buffer = StringBuffer()
+      ..writeln('🚀 *Membership Plan Upgrade Confirmation*')
+      ..writeln()
+      ..writeln('Dear *$studentName*,')
+      ..writeln('Your study membership tier at *$libraryName* has been successfully upgraded!')
+      ..writeln()
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('📦 *PLAN UPGRADE DETAILS*')
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('🔄 *Upgrade:* $oldPlanName ➔ *$newPlanName*')
+      ..writeln('🧾 *Receipt Voucher:* $receiptNumber')
+      ..writeln('⏳ *Remaining Cycle:* $remainingDays days');
+
+    if (unusedCredit > 0) {
+      buffer.writeln('💳 *Unused Credit Applied:* -₹${unusedCredit.toStringAsFixed(0)}');
+    }
+
+    if (netPaid > 0) {
+      buffer.writeln('💵 *Net Upgrade Surcharge Paid:* *₹${netPaid.toStringAsFixed(0)}* ($paymentMethod)');
+      if (referenceNumber != null && referenceNumber.isNotEmpty) {
+        buffer.writeln('🔖 *Reference / UTR:* $referenceNumber');
+      }
+    } else {
+      buffer.writeln('💵 *Net Surcharge Paid:* ₹0 (Fully Covered by Unused Credit)');
+    }
+
+    final formattedExpiry = '${newExpiryDate.day.toString().padLeft(2, '0')}/${newExpiryDate.month.toString().padLeft(2, '0')}/${newExpiryDate.year}';
+    buffer
+      ..writeln('📅 *Valid Through:* *$formattedExpiry*')
+      ..writeln()
+      ..writeln('Your upgraded amenities, timings, and privileges are active immediately. Have a productive study session! 📚⚡');
+
+    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('📞 *Helpline / Admin Desk:* $libraryHelpline');
+    }
+
+    buffer
+      ..writeln()
+      ..writeln('— *Management, $libraryName*');
+
+    return await sendMessage(
+      phone,
+      buffer.toString(),
+      context: context,
+      recipientName: studentName,
+      title: 'Plan Upgrade Confirmation Preview',
+    );
+  }
 }
 
 /// Provider for WhatsAppService

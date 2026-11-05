@@ -1380,6 +1380,471 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     );
   }
 
+  Future<void> _showPlanUpgradeDialog(
+    BuildContext context,
+    StudentModel s,
+    PlanModel targetPlan,
+    String libraryId,
+  ) async {
+    final now = DateTime.now();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // 1. Resolve current plan model
+    final curPlanName = s.customPlanName?.isNotEmpty == true
+        ? s.customPlanName!
+        : (planName.isNotEmpty ? planName : 'Current Active Plan');
+    final curPlanPrice = s.customPlanFee ?? (planPrice > 0 ? planPrice : 700.0);
+    final curStartDate = s.planStartDate ?? now.subtract(const Duration(days: 15));
+    final curEndDate = s.planEndDate ?? now.add(const Duration(days: 15));
+
+    final curPlan = PlanModel(
+      id: s.planId ?? 'current',
+      libraryId: libraryId,
+      name: curPlanName,
+      price: curPlanPrice,
+      duration: 1,
+      durationUnit: DurationUnit.months,
+      description: '',
+      gracePeriodDays: 0,
+      isActive: true,
+      isFeatured: false,
+      displayOrder: 0,
+    );
+
+    // 2. Compute pro-rata settlement
+    final settlement = PlanCalculatorService.calculatePlanChangeSettlement(
+      currentPlan: curPlan,
+      targetPlan: targetPlan,
+      currentStartDate: curStartDate,
+      currentEndDate: curEndDate,
+      totalPaidForCurrent: curPlanPrice,
+    );
+
+    int upgradeMode = 0; // 0 = Mid-Cycle Pro-rata (keep expiry), 1 = Fresh Cycle with Credit
+    String paymentMethod = 'UPI';
+    bool recordAsPaid = true;
+    final refController = TextEditingController();
+    bool isProcessing = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: !isProcessing,
+      builder: (dlgContext) {
+        return StatefulBuilder(
+          builder: (ctx, setDlgState) {
+            // Mode 0: Keep current expiry, pay mid-cycle pro-rata difference
+            final mode0Amount = settlement.payableByStudent;
+            final mode0EndDate = curEndDate;
+
+            // Mode 1: Fresh full cycle from today, subtract unused credit
+            final targetSmart = PlanCalculatorService.calculateSmartPlan(plan: targetPlan, fromDate: now);
+            final mode1Amount = (targetPlan.price - settlement.unusedCredit).clamp(0.0, double.infinity);
+            final mode1EndDate = targetSmart.endDate;
+
+            final effectiveAmount = upgradeMode == 0 ? mode0Amount : mode1Amount;
+            final effectiveEndDate = upgradeMode == 0 ? mode0EndDate : mode1EndDate;
+            final effectiveStartDate = upgradeMode == 0 ? curStartDate : now;
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.upgrade_rounded, color: theme.colorScheme.primary, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Plan Upgrade & Settlement', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('Fair Pro-Rata Credit Adjustment', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 480,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Overview Comparison Card
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.6)),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('CURRENT PLAN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.colorScheme.outline)),
+                                      Text(curPlanName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
+                                      Text('₹${curPlanPrice.toStringAsFixed(0)} • ${settlement.remainingDays}d left', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(Icons.arrow_forward_rounded, size: 16, color: theme.colorScheme.primary),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text('NEW TARGET TIER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                                      Text(targetPlan.displayName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.primary), overflow: TextOverflow.ellipsis),
+                                      Text('₹${targetPlan.price.toStringAsFixed(0)} catalog rate', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Unused Credit (${settlement.remainingDays} days):', style: const TextStyle(fontSize: 12)),
+                                Text('₹${settlement.unusedCredit.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF10B981))),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      Text('Choose Upgrade Mode:', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+
+                      // Mode 0: Mid-Cycle Pro-rata
+                      InkWell(
+                        onTap: () => setDlgState(() => upgradeMode = 0),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: upgradeMode == 0 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
+                            border: Border.all(
+                              color: upgradeMode == 0 ? theme.colorScheme.primary : theme.dividerColor,
+                              width: upgradeMode == 0 ? 1.8 : 1.0,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                upgradeMode == 0 ? Icons.radio_button_checked : Icons.radio_button_off,
+                                color: upgradeMode == 0 ? theme.colorScheme.primary : Colors.grey,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Text('Mid-Cycle Upgrade', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        SizedBox(width: 6),
+                                        Text('(Recommended)', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                    Text(
+                                      'Keep current expiry (${DateFormat('dd MMM').format(curEndDate)}). Pay ₹${mode0Amount.toStringAsFixed(0)} difference for remaining ${settlement.remainingDays} days.',
+                                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text('₹${mode0Amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Mode 1: Fresh Full Cycle with Credit
+                      InkWell(
+                        onTap: () => setDlgState(() => upgradeMode = 1),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: upgradeMode == 1 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
+                            border: Border.all(
+                              color: upgradeMode == 1 ? theme.colorScheme.primary : theme.dividerColor,
+                              width: upgradeMode == 1 ? 1.8 : 1.0,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                upgradeMode == 1 ? Icons.radio_button_checked : Icons.radio_button_off,
+                                color: upgradeMode == 1 ? theme.colorScheme.primary : Colors.grey,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Fresh Cycle (Credit Applied)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                    Text(
+                                      'Valid for full new month (till ${DateFormat('dd MMM').format(mode1EndDate)}). ₹${settlement.unusedCredit.toStringAsFixed(0)} credit deducted.',
+                                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text('₹${mode1Amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Payment Details
+                      if (effectiveAmount > 0) ...[
+                        Text('Payment & Collection Method:', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: ['UPI', 'Cash', 'Card', 'Bank Transfer'].map((m) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ChoiceChip(
+                                label: Text(m, style: const TextStyle(fontSize: 12)),
+                                selected: paymentMethod == m,
+                                onSelected: (val) {
+                                  if (val) setDlgState(() => paymentMethod = m);
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: refController,
+                          decoration: const InputDecoration(
+                            labelText: 'Reference / UTR / Note (Optional)',
+                            hintText: 'e.g. UPI/20261105/982123',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          value: recordAsPaid,
+                          title: const Text('Mark Surcharge as Paid Now', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Turn off to add ₹ difference to pending student dues instead', style: TextStyle(fontSize: 11)),
+                          onChanged: (v) => setDlgState(() => recordAsPaid = v),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isProcessing ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: isProcessing
+                      ? null
+                      : () async {
+                          setDlgState(() => isProcessing = true);
+                          try {
+                            // 1. Generate receipt if paid > 0
+                            String? receiptNumber;
+                            if (effectiveAmount > 0 && recordAsPaid) {
+                              final receiptRepo = ReceiptRepository();
+                              receiptNumber = await receiptRepo.getNextReceiptNumber(libraryId);
+
+                              await receiptRepo.generateReceipt(
+                                libraryId,
+                                ReceiptModel(
+                                  id: '',
+                                  libraryId: libraryId,
+                                  receiptNumber: receiptNumber,
+                                  studentId: s.id,
+                                  studentUserId: s.userId,
+                                  planId: targetPlan.id,
+                                  amount: effectiveAmount,
+                                  paymentMethod: paymentMethod,
+                                  validFrom: effectiveStartDate,
+                                  validTo: effectiveEndDate,
+                                  customFields: {
+                                    'isPlanUpgrade': true,
+                                    'previousPlanName': curPlanName,
+                                    'unusedCredit': settlement.unusedCredit,
+                                    'proratedDays': settlement.remainingDays,
+                                    'note': 'Plan Upgrade: $curPlanName ➔ ${targetPlan.displayName}',
+                                  },
+                                  status: ReceiptStatus.active,
+                                ),
+                              );
+
+                              // Record ledger payment
+                              final paymentDoc = FirebaseFirestore.instance
+                                  .collection('libraries')
+                                  .doc(libraryId)
+                                  .collection('payments')
+                                  .doc();
+
+                              await paymentDoc.set({
+                                'studentId': s.id,
+                                'studentName': s.name,
+                                'planId': targetPlan.id,
+                                'planName': targetPlan.displayName,
+                                'amount': effectiveAmount,
+                                'paymentMethod': paymentMethod,
+                                'paymentDate': Timestamp.fromDate(now),
+                                'receiptNumber': receiptNumber,
+                                'reference': refController.text.trim(),
+                                'status': PaymentStatus.paid.name,
+                                'notes': 'Mid-Cycle Plan Upgrade from $curPlanName to ${targetPlan.displayName}',
+                                'createdAt': FieldValue.serverTimestamp(),
+                              });
+
+                              // Increment library revenue aggregate
+                              await FirebaseFirestore.instance
+                                  .collection('libraries')
+                                  .doc(libraryId)
+                                  .collection('aggregates')
+                                  .doc('revenue')
+                                  .set({
+                                'totalRevenue': FieldValue.increment(effectiveAmount),
+                                'lastUpdated': FieldValue.serverTimestamp(),
+                              }, SetOptions(merge: true));
+                            }
+
+                            // 2. Update Student Profile
+                            final double newDueBalance = (!recordAsPaid && effectiveAmount > 0)
+                                ? ((s.pendingDueBalance ?? 0.0) + effectiveAmount)
+                                : (s.pendingDueBalance ?? 0.0);
+
+                            final upgradeNote = '[Plan Upgrade] $curPlanName ➔ ${targetPlan.displayName} (${DateFormat('dd MMM yyyy').format(now)}): '
+                                '₹${effectiveAmount.toStringAsFixed(0)} ${recordAsPaid ? 'paid via $paymentMethod' : 'added to pending due'}'
+                                '${receiptNumber != null ? ' • Receipt: $receiptNumber' : ''}';
+
+                            final updatedNotes = s.notes != null && s.notes!.isNotEmpty
+                                ? '${s.notes}\n$upgradeNote'
+                                : upgradeNote;
+
+                            await FirebaseFirestore.instance
+                                .collection('libraries')
+                                .doc(libraryId)
+                                .collection('students')
+                                .doc(s.id)
+                                .update({
+                              'planId': targetPlan.id,
+                              'customPlanName': FieldValue.delete(),
+                              'customPlanFee': FieldValue.delete(),
+                              'planStartDate': Timestamp.fromDate(effectiveStartDate),
+                              'planEndDate': Timestamp.fromDate(effectiveEndDate),
+                              'membershipStatus': MembershipStatus.active.name,
+                              'pendingDueBalance': newDueBalance,
+                              'notes': updatedNotes,
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            });
+
+                            // 3. Audit Log
+                            AuditLogger().log(
+                              action: AuditAction.updated,
+                              entityType: AuditEntity.student,
+                              libraryId: libraryId,
+                              entityId: s.id,
+                              details: {
+                                'planUpgrade': true,
+                                'previousPlan': curPlanName,
+                                'newPlan': targetPlan.displayName,
+                                'amount': effectiveAmount,
+                                'receiptNumber': receiptNumber,
+                              },
+                            ).ignore();
+
+                            // 4. WhatsApp confirmation
+                            try {
+                              final libModel = ref.read(currentLibraryProvider).value;
+                              await WhatsAppService().sendPlanUpgradeConfirmation(
+                                phone: s.phone,
+                                studentName: s.name,
+                                libraryName: libModel?.name ?? 'The Cozy Corner Study Centre',
+                                oldPlanName: curPlanName,
+                                newPlanName: targetPlan.displayName,
+                                receiptNumber: receiptNumber ?? 'N/A',
+                                remainingDays: settlement.remainingDays,
+                                unusedCredit: settlement.unusedCredit,
+                                newProratedFee: settlement.newPlanProratedFee,
+                                netPaid: recordAsPaid ? effectiveAmount : 0.0,
+                                paymentMethod: paymentMethod,
+                                newExpiryDate: effectiveEndDate,
+                                referenceNumber: refController.text.trim().isNotEmpty ? refController.text.trim() : null,
+                                libraryHelpline: libModel?.phone,
+                                context: context.mounted ? context : null,
+                              );
+                            } catch (e) {
+                              debugPrint('Could not send WhatsApp upgrade message: $e');
+                            }
+
+                            if (context.mounted) {
+                              Navigator.pop(ctx);
+                              Navigator.pop(context); // Close assign plan sheet
+                              _loadStudent();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Plan successfully upgraded to ${targetPlan.displayName} ✓${receiptNumber != null ? ' Receipt #$receiptNumber' : ''}'),
+                                  backgroundColor: const Color(0xFF10B981),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDlgState(() => isProcessing = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error upgrading plan: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                  icon: isProcessing
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.check_circle_rounded, size: 18),
+                  label: Text(isProcessing ? 'Processing…' : 'Confirm Upgrade (₹${effectiveAmount.toStringAsFixed(0)})'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showAssignPlanSheet() {
     showModalBottomSheet(
       context: context,
@@ -1437,32 +1902,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             final libraryId = ref.read(currentLibraryIdProvider);
                             if (libraryId == null) return;
 
-                            // C2: Warn if student already has an active plan
+                            // Mid-Cycle Plan Upgrade Wizard if student already has an active plan
                             if (student != null &&
                                 student!.planId != null &&
                                 student!.membershipStatus == MembershipStatus.active) {
-                              final replace = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Replace Active Plan?'),
-                                  content: Text(
-                                    'This student already has an active plan.\n\n'
-                                    'Assigning "${plan.name}" will override the current plan '
-                                    'and reset the validity period.\n\nContinue?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    FilledButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: const Text('Replace Plan'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (replace != true) return;
+                              await _showPlanUpgradeDialog(context, student!, plan, libraryId);
+                              return;
                             }
 
                             final now = DateTime.now();

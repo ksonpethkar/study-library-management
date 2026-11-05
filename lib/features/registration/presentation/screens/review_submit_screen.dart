@@ -1028,6 +1028,45 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                     ],
                                   ),
                                 ),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(40, 0, 8, 8),
+                                  child: Wrap(
+                                    spacing: 6,
+                                    runSpacing: 2,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    children: [
+                                      Text(
+                                        'By submitting, you also agree to our',
+                                        style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                                      ),
+                                      InkWell(
+                                        onTap: () => context.push(Routes.terms),
+                                        child: Text(
+                                          'Terms of Service',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                            decoration: TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ),
+                                      Text('&', style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
+                                      InkWell(
+                                        onTap: () => context.push(Routes.privacyPolicy),
+                                        child: Text(
+                                          'Privacy Policy',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                            decoration: TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
                           );

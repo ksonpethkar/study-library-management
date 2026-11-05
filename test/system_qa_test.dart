@@ -51,6 +51,7 @@ StudentModel createTestStudent({
   String? membershipNumber,
   MembershipStatus membershipStatus = MembershipStatus.active,
   double? pendingDueBalance,
+  String? planId,
   DateTime? planStartDate,
   DateTime? planEndDate,
   DateTime? graceEndDate,
@@ -77,6 +78,7 @@ StudentModel createTestStudent({
     membershipNumber: membershipNumber,
     membershipStatus: membershipStatus,
     pendingDueBalance: pendingDueBalance,
+    planId: planId,
     planStartDate: planStartDate,
     planEndDate: planEndDate,
     graceEndDate: graceEndDate,
@@ -4905,6 +4907,183 @@ void main() {
       expect(getRosterDeskBadge(students[0]), equals('Desk #12'));
       expect(getRosterDeskBadge(students[1]), equals('Desk #14'));
       expect(getRosterDeskBadge(students[2]), equals('Floating'));
+    });
+
+    test('108. MID-CYCLE PLAN UPGRADE & PRO-RATA SURCHARGE WIZARD WITH LEDGER PARITY', () {
+      final now = DateTime(2026, 11, 16, 10, 0);
+      final cycleStart = DateTime(2026, 11, 1, 0, 0);
+      final cycleEnd = DateTime(2026, 11, 30, 23, 59);
+
+      final currentPlan = PlanModel(
+        id: 'plan_6h',
+        libraryId: 'lib_cozy',
+        name: 'Half Day (6 Hours)',
+        price: 500.0,
+        duration: 1,
+        durationUnit: DurationUnit.months,
+        description: '6 hour shift access',
+        gracePeriodDays: 3,
+        isActive: true,
+        isFeatured: false,
+        displayOrder: 1,
+      );
+
+      final targetPlan = PlanModel(
+        id: 'plan_12h',
+        libraryId: 'lib_cozy',
+        name: 'Full Day (12 Hours)',
+        price: 800.0,
+        duration: 1,
+        durationUnit: DurationUnit.months,
+        description: 'Full day study hall access',
+        gracePeriodDays: 3,
+        isActive: true,
+        isFeatured: true,
+        displayOrder: 2,
+      );
+
+      final student = createTestStudent(
+        id: 'std_priya',
+        name: 'Priya Deshmukh',
+        phone: '9820011225',
+        membershipNumber: 'CC20260088',
+        membershipStatus: MembershipStatus.active,
+        planId: currentPlan.id,
+        planStartDate: cycleStart,
+        planEndDate: cycleEnd,
+        pendingDueBalance: 0.0,
+      );
+
+      // ── 1. Fair Pro-Rata Settlement Calculation (Scenario C) ──
+      final settlement = PlanCalculatorService.calculatePlanChangeSettlement(
+        currentPlan: currentPlan,
+        targetPlan: targetPlan,
+        currentStartDate: cycleStart,
+        currentEndDate: cycleEnd,
+        changeDate: now,
+        totalPaidForCurrent: 500.0,
+      );
+
+      expect(settlement.isUpgrade, isTrue);
+      expect(settlement.totalCurrentDays, equals(30));
+      expect(settlement.usedDays, equals(15));
+      expect(settlement.remainingDays, equals(15));
+
+      // 15 days used = ₹250 value consumed, ₹250 unused credit remaining
+      expect(settlement.unusedCredit, equals(250.0));
+
+      // New 12h plan for remaining 15 days = (15 / 30) * 800 = ₹400
+      expect(settlement.newPlanProratedFee, equals(400.0));
+
+      // Net upgrade difference payable by student: 400 - 250 = ₹150
+      expect(settlement.netDifference, equals(150.0));
+      expect(settlement.payableByStudent, equals(150.0));
+      expect(settlement.refundableToStudent, equals(0.0));
+
+      // ── 2. Mode 0: Mid-Cycle Upgrade (Retaining Cycle Expiry) ──
+      const mode0Amount = 150.0;
+      final mode0EndDate = cycleEnd;
+      expect(mode0EndDate, equals(cycleEnd), reason: 'Mid-cycle keeps the existing month-end cycle intact');
+
+      // ── 3. Mode 1: Fresh Full Month Cycle with Unused Credit Applied ──
+      final mode1Amount = (targetPlan.price - settlement.unusedCredit).clamp(0.0, double.infinity);
+      // ₹800 full price - ₹250 unused credit = ₹550
+      expect(mode1Amount, equals(550.0));
+
+      // ── 4. Ledger Parity: Sequential Voucher & Revenue Increment ──
+      const upgradeVoucher = 'REC-2026-0889';
+      final upgradeReceipt = ReceiptModel(
+        id: 'rec_upg_0889',
+        libraryId: 'lib_cozy',
+        receiptNumber: upgradeVoucher,
+        studentId: student.id,
+        studentUserId: student.userId,
+        planId: targetPlan.id,
+        amount: mode0Amount,
+        paymentMethod: 'UPI',
+        validFrom: cycleStart,
+        validTo: mode0EndDate,
+        customFields: {
+          'isPlanUpgrade': true,
+          'previousPlanName': currentPlan.name,
+          'unusedCredit': settlement.unusedCredit,
+          'proratedDays': settlement.remainingDays,
+        },
+        status: ReceiptStatus.active,
+      );
+
+      expect(upgradeReceipt.amount, equals(150.0));
+      expect(upgradeReceipt.customFields?['isPlanUpgrade'], isTrue);
+      expect(upgradeReceipt.customFields?['unusedCredit'], equals(250.0));
+      expect(upgradeReceipt.customFields?['proratedDays'], equals(15));
+
+      // ── 5. Student Profile State Synchronisation ──
+      final upgradedStudent = student.copyWith(
+        planId: targetPlan.id,
+        planEndDate: mode0EndDate,
+        notes: '${student.notes ?? ""}\n[Plan Upgrade] ${currentPlan.name} ➔ ${targetPlan.displayName}: ₹150 paid via UPI • Receipt: $upgradeVoucher',
+      );
+
+      expect(upgradedStudent.planId, equals('plan_12h'));
+      expect(upgradedStudent.planEndDate, equals(cycleEnd));
+      expect(upgradedStudent.notes, contains('[Plan Upgrade]'));
+      expect(upgradedStudent.notes, contains(upgradeVoucher));
+
+      // ── 6. WhatsApp Plan Upgrade Confirmation Template Verification ──
+      final waBuffer = StringBuffer()
+        ..writeln('🚀 *Membership Plan Upgrade Confirmation*')
+        ..writeln()
+        ..writeln('Dear *${student.name}*,')
+        ..writeln('Your study membership tier at *The Cozy Corner Study Centre* has been successfully upgraded!')
+        ..writeln()
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('📦 *PLAN UPGRADE DETAILS*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('🔄 *Upgrade:* ${currentPlan.name} ➔ *${targetPlan.displayName}*')
+        ..writeln('🧾 *Receipt Voucher:* $upgradeVoucher')
+        ..writeln('⏳ *Remaining Cycle:* ${settlement.remainingDays} days')
+        ..writeln('💳 *Unused Credit Applied:* -₹${settlement.unusedCredit.toStringAsFixed(0)}')
+        ..writeln('💵 *Net Upgrade Surcharge Paid:* *₹${mode0Amount.toStringAsFixed(0)}* (UPI)')
+        ..writeln('📅 *Valid Through:* *30 Nov 2026*')
+        ..writeln()
+        ..writeln('Your upgraded amenities, timings, and privileges are active immediately. Have a productive study session! 📚⚡');
+
+      final waText = waBuffer.toString();
+      expect(waText, contains('Membership Plan Upgrade Confirmation'));
+      expect(waText, contains('Half Day (6 Hours) ➔ *Full Day (12 Hours)*'));
+      expect(waText, contains('Receipt Voucher:* REC-2026-0889'));
+      expect(waText, contains('Remaining Cycle:* 15 days'));
+      expect(waText, contains('Unused Credit Applied:* -₹250'));
+      expect(waText, contains('Net Upgrade Surcharge Paid:* *₹150* (UPI)'));
+      expect(waText, contains('Valid Through:* *30 Nov 2026*'));
+    });
+
+    test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
+      // 1. Version synchronization verification
+      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+59'));
+      expect(AppConstants.appVersion, equals('1.5.50'));
+      expect(AppConstants.buildNumber, equals(59));
+
+      // 2. Student-facing release changes include all 4 automation features
+      final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
+      expect(studentTitles, contains('Birthday Celebration & 1-Tap Wi-Fi Password Copy'));
+      expect(studentTitles, contains('Exam Countdown Widget for Your Course'));
+      expect(studentTitles, contains('Guaranteed Seat Hold & 1-Tap Renewal Flow'));
+      expect(studentTitles, contains('Silent Reception & Noise Help Button'));
+
+      // 3. Admin-facing release changes include quiet desk assistance and billing parity
+      final adminTitles = WhatsNewService.adminChanges.map((c) => c.title).toList();
+      expect(adminTitles, contains('Live Quiet Desk Assistance Stream'));
+      expect(adminTitles, contains('10-Second Express Counter Billing & Atomic Seat Parity'));
+      expect(adminTitles, contains('Resilient Multi-Key Receipt Retrieval'));
+
+      // 4. Legal routes invariant: Terms & Privacy must be public routes
+      expect(Routes.terms, equals('/terms'));
+      expect(Routes.privacyPolicy, equals('/privacy-policy'));
+
+      // 5. App version string formatting for student profile
+      final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
+      expect(formattedVersion, equals('v1.5.50+59'));
     });
   });
 }

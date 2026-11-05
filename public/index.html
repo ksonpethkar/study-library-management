@@ -655,8 +655,22 @@
     </div>
   </div>
 
-  <footer id="pageFooter">
-    The Cozy Corner Study Centre &bull; v1.5.44+52 &bull; Android Official Release
+  <footer id="pageFooter" style="text-align: center; padding: 2.5rem 1rem 3.5rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 2rem;">
+    <div id="footerBrand" style="margin-bottom: 0.75rem; font-weight: 600; color: var(--text-main);">
+      The Cozy Corner Study Centre &bull; v1.5.50+59 &bull; Official Release
+    </div>
+    <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+      <a href="/app/#/terms" style="color: var(--primary); text-decoration: none; font-weight: 500;">Terms of Service</a>
+      <span style="opacity: 0.5;">&bull;</span>
+      <a href="/app/#/privacy-policy" style="color: var(--primary); text-decoration: none; font-weight: 500;">Privacy Policy</a>
+      <span style="opacity: 0.5;">&bull;</span>
+      <a href="/app/#/student/register" style="color: var(--student); text-decoration: none; font-weight: 600;">Student Admission</a>
+      <span style="opacity: 0.5;">&bull;</span>
+      <a href="/app/#/login" style="color: var(--primary); text-decoration: none; font-weight: 500;">Member Sign In</a>
+    </div>
+    <div style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.8;">
+      &copy; 2026 The Cozy Corner Study Centre. All rights reserved.
+    </div>
   </footer>
 
   <script>
@@ -754,8 +768,8 @@
           var heading = document.getElementById('whatsNewHeading');
           if (heading) heading.textContent = '🔥 What\'s New in v' + ver;
 
-          var footer = document.getElementById('pageFooter');
-          if (footer) footer.innerHTML = 'The Cozy Corner Study Centre &bull; v' + ver + ' &bull; Android Official Release';
+          var footerBrand = document.getElementById('footerBrand');
+          if (footerBrand) footerBrand.innerHTML = 'The Cozy Corner Study Centre &bull; v' + ver + ' &bull; Official Release';
         }
 
         if (size) {
@@ -858,8 +872,8 @@
           if (lib.name) {
             document.getElementById('appName').textContent = lib.name;
             document.title = lib.name + ' — Smart Study Library';
-            var footer = document.getElementById('pageFooter');
-            if (footer) footer.innerHTML = lib.name + ' &bull; Android Official Release';
+            var footerBrand = document.getElementById('footerBrand');
+            if (footerBrand) footerBrand.innerHTML = lib.name + ' &bull; Official Release';
           }
 
           // 2. Library Tagline / Subtitle (Deduping)
