@@ -12,7 +12,6 @@ import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/services/image_service.dart';
-import 'package:study_library/services/message_template_service.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/services/student_provisioning_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
@@ -20,6 +19,7 @@ import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import '../widgets/admin_document_studio_dialog.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/services/whatsapp_service.dart';
 
 class RequestDetailScreen extends ConsumerStatefulWidget {
   final String requestId;
@@ -162,6 +162,41 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           requestId: widget.requestId,
           preloadedData: data,
         );
+
+        // Fetch newly provisioned student data to resolve exact plan dates
+        if (_newCreatedStudentId != null) {
+          try {
+            final sDoc = await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('students')
+                .doc(_newCreatedStudentId!)
+                .get();
+            if (sDoc.exists && sDoc.data() != null) {
+              final sData = sDoc.data()!;
+              finalPlanStartDate = StudentModel.parseDateStatic(sData['planStartDate']) ?? DateTime.now();
+              finalPlanEndDate = StudentModel.parseDateStatic(sData['planEndDate']);
+            }
+          } catch (_) {}
+        }
+
+        // Guaranteed fallback calculation if student plan dates were not yet committed
+        if (finalPlanEndDate == null) {
+          finalPlanStartDate ??= DateTime.now();
+          final planId = (data['planId'] ?? (data['studentData'] as Map?)?['planId'])?.toString();
+          if (planId != null && planId.isNotEmpty) {
+            final plans = ref.read(plansStreamProvider).value ?? [];
+            final matchedPlan = plans.where((p) => p.id == planId).firstOrNull;
+            if (matchedPlan != null) {
+              if (matchedPlan.durationUnit == DurationUnit.months) {
+                finalPlanEndDate = DateTime(finalPlanStartDate.year, finalPlanStartDate.month + matchedPlan.duration, finalPlanStartDate.day);
+              } else {
+                finalPlanEndDate = finalPlanStartDate.add(Duration(days: matchedPlan.duration));
+              }
+            }
+          }
+          finalPlanEndDate ??= finalPlanStartDate.add(const Duration(days: 30));
+        }
       } else if (type == 'seat_change' || type == 'seatchange') {
         _newCreatedStudentId = await StudentProvisioningService.approveAndProvisionRequest(
           libraryId: libraryId,
@@ -2351,8 +2386,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               onPressed: () async {
                 final amount = double.tryParse(amountController.text.trim()) ?? defaultAmount;
                 Navigator.of(ctx).pop();
+                DateTime? recordedEnd = planEndDate;
                 if (amount > 0) {
-                  await _recordPaymentAndReceipt(
+                  recordedEnd = await _recordPaymentAndReceipt(
                     libraryId,
                     studentId,
                     studentUserId,
@@ -2366,7 +2402,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   );
                 }
                 if (mounted && studentPhone.isNotEmpty) {
-                  _offerWhatsAppWelcome(studentId, studentName, studentPhone, amount, paymentMethod, planEndDate: planEndDate);
+                  _offerWhatsAppWelcome(studentId, studentName, studentPhone, amount, paymentMethod, planEndDate: recordedEnd ?? planEndDate);
                 }
               },
               child: const Text('Confirm & Generate Receipt'),
@@ -2481,8 +2517,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               onPressed: () async {
                 final amount = double.tryParse(amountController.text.trim()) ?? renewalAmount;
                 Navigator.of(ctx).pop();
+                DateTime? recordedEnd = planEndDate;
                 if (amount > 0) {
-                  await _recordPaymentAndReceipt(
+                  recordedEnd = await _recordPaymentAndReceipt(
                     libraryId,
                     studentId,
                     studentUserId,
@@ -2495,6 +2532,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                     planEndDate: planEndDate,
                   );
                 }
+                if (mounted && studentPhone.isNotEmpty) {
+                  _offerWhatsAppWelcome(studentId, studentName, studentPhone, amount, paymentMethod, planEndDate: recordedEnd ?? planEndDate);
+                }
               },
               child: const Text('Record Payment & Receipt'),
             ),
@@ -2504,7 +2544,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     );
   }
 
-  Future<void> _recordPaymentAndReceipt(
+  Future<DateTime?> _recordPaymentAndReceipt(
     String libraryId,
     String studentId,
     String studentUserId,
@@ -2729,72 +2769,160 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           behavior: SnackBarBehavior.floating,
         ));
       }
+      return effectiveEndDate;
     } catch (e) {
       if (mounted) {
         AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'payment');
       }
+      return planEndDate;
     }
   }
 
-  void _offerWhatsAppWelcome(
+  String _formatFriendlySeatLabel(String? rawLabel, String? rawSeatId) {
+    String label = (rawLabel ?? '').trim();
+    if (label.isEmpty || label.toLowerCase() == 'null' || label.toLowerCase().contains('auto')) {
+      if (rawSeatId != null && rawSeatId.isNotEmpty) {
+        label = rawSeatId.trim();
+      }
+    }
+
+    if (label.contains('_r') && label.contains('_c')) {
+      // E.g. "1790647291016_r0_c6" -> row 0, col 6 -> Desk #7
+      final colPart = label.split('_c').last;
+      final colNum = int.tryParse(colPart);
+      if (colNum != null) {
+        return 'Desk #${colNum + 1}';
+      }
+    }
+
+    if (label.isNotEmpty && !label.toLowerCase().startsWith('desk') && !label.toLowerCase().startsWith('seat')) {
+      final isDigits = RegExp(r'^\d+$').hasMatch(label);
+      if (isDigits) {
+        return 'Desk #$label';
+      }
+    }
+
+    return label.isNotEmpty ? label : 'To be assigned';
+  }
+
+  Future<void> _offerWhatsAppWelcome(
     String studentId,
     String studentName,
     String studentPhone,
     double amount,
     String paymentMethod, {
     DateTime? planEndDate,
-  }) {
+  }) async {
     if (!mounted) return;
 
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
     final library = ref.read(currentLibraryProvider).value;
-    final rawTemplate = library?.whatsappWelcomeTemplate ?? '';
-    final template = rawTemplate.isNotEmpty ? rawTemplate : MessageTemplateService.defaultWelcomeTemplate;
 
     final data = _requestData ?? {};
     final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
-    final seatId = studentData['seatId'] ?? data['requestedSeatId'];
-    final planId = studentData['planId'] ?? data['planId'];
 
-    String planName = '';
-    if (planId != null) {
-      final plans = ref.read(plansStreamProvider).value ?? [];
-      planName = plans.where((p) => p.id == planId).firstOrNull?.name ?? '';
+    // 1. Resolve student record from Firestore if available
+    Map<String, dynamic> liveStudentData = {};
+    if (libraryId.isNotEmpty && studentId.isNotEmpty) {
+      try {
+        final sDoc = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('students')
+            .doc(studentId)
+            .get();
+        if (sDoc.exists && sDoc.data() != null) {
+          liveStudentData = sDoc.data()!;
+        }
+      } catch (_) {}
     }
 
-    final messageStr = MessageTemplateService.substitute(
-      template,
-      studentName: studentName,
-      planName: planName,
-      expiryDate: planEndDate != null ? DateFormat('dd MMM yyyy').format(planEndDate) : 'N/A',
-      membershipId: studentId,
-      seatLabel: seatId ?? 'To be assigned',
-      libraryName: library?.name ?? '',
-      amount: amount > 0 ? amount.toStringAsFixed(0) : '0',
-      paymentMethod: paymentMethod,
-      phone: studentPhone,
-    );
+    // 2. Resolve Admission / Member ID (prefer clean official membership number e.g. CC20260014)
+    final membershipId = (liveStudentData['membershipNumber'] ??
+            liveStudentData['rollNumber'] ??
+            studentData['membershipNumber'] ??
+            studentId)
+        .toString();
 
-    showDialog(
+    // 3. Resolve Human-Readable Seat Label (prevent raw Firestore database doc IDs)
+    final rawSeatLabel = (data['requestedSeatLabel'] ??
+            studentData['requestedSeatLabel'] ??
+            liveStudentData['seatNumber'] ??
+            liveStudentData['seatLabel'] ??
+            data['seatLabel'])
+        ?.toString();
+    final rawSeatId = (studentData['seatId'] ?? liveStudentData['seatId'] ?? data['requestedSeatId'])?.toString();
+    final friendlySeatLabel = _formatFriendlySeatLabel(rawSeatLabel, rawSeatId);
+
+    // 4. Resolve Plan Name
+    final rawPlanId = (studentData['planId'] ?? liveStudentData['planId'] ?? data['planId'])?.toString();
+    String resolvedPlanName = (liveStudentData['customPlanName'] ??
+            data['planName'] ??
+            studentData['planName'])
+        ?.toString()
+        .trim() ?? '';
+
+    if (resolvedPlanName.isEmpty && rawPlanId != null && rawPlanId.isNotEmpty) {
+      final plans = ref.read(plansStreamProvider).value ?? [];
+      resolvedPlanName = plans.where((p) => p.id == rawPlanId).firstOrNull?.name ?? '';
+      if (resolvedPlanName.isEmpty && libraryId.isNotEmpty) {
+        try {
+          final planDoc = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('plans')
+              .doc(rawPlanId)
+              .get();
+          if (planDoc.exists && planDoc.data() != null) {
+            resolvedPlanName = (planDoc.data()!['name'] ?? '').toString();
+          }
+        } catch (_) {}
+      }
+    }
+    if (resolvedPlanName.isEmpty) {
+      resolvedPlanName = 'Monthly Full-Day';
+    }
+
+    // 5. Resolve Expiry Date
+    DateTime? effectiveEnd = planEndDate;
+    if (effectiveEnd == null && liveStudentData['planEndDate'] != null) {
+      effectiveEnd = StudentModel.parseDateStatic(liveStudentData['planEndDate']);
+    }
+    if (effectiveEnd == null && liveStudentData['validTo'] != null) {
+      effectiveEnd = StudentModel.parseDateStatic(liveStudentData['validTo']);
+    }
+    effectiveEnd ??= DateTime.now().add(const Duration(days: 30));
+    final formattedExpiry = DateFormat('dd MMM yyyy').format(effectiveEnd);
+
+    // 6. Resolve Library Details
+    final libraryName = (library?.name != null && library!.name.trim().isNotEmpty)
+        ? library.name.trim()
+        : 'The Cozy Corner Study Centre';
+    final libraryAddress = (library?.address != null && library!.address.trim().isNotEmpty)
+        ? library.address.trim()
+        : 'Someshwar Nagar, Parli';
+    final libraryHelpline = (library?.helplineNumber != null && library!.helplineNumber.trim().isNotEmpty)
+        ? library.helplineNumber.trim()
+        : ((library?.contact != null && library!.contact.trim().isNotEmpty)
+            ? library.contact.trim()
+            : '+91 91569 44773');
+
+    // 7. Dispatch via WhatsAppService with interactive preview sheet and clean UTF-8
+    if (!mounted) return;
+    await WhatsAppService().sendWelcomeMessage(
+      studentPhone,
+      studentName,
+      libraryName,
+      membershipId: membershipId,
+      planName: resolvedPlanName,
+      seatLabel: friendlySeatLabel,
+      expiryDate: formattedExpiry,
+      amount: amount > 0 ? amount.toStringAsFixed(0) : '0',
+      paymentMethod: paymentMethod.isNotEmpty ? paymentMethod : 'Cash',
+      libraryAddress: libraryAddress,
+      libraryHelpline: libraryHelpline,
+      adminTemplate: library?.whatsappWelcomeTemplate ?? '',
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Send WhatsApp Welcome?'),
-        content: Text('Send a welcome message to $studentName via WhatsApp?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Skip')),
-          FilledButton.icon(
-            icon: const Icon(Icons.chat_rounded),
-            label: const Text('Send WhatsApp'),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366)),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              final cleanPhone = studentPhone.replaceAll(RegExp(r'[^0-9]'), '');
-              final fullPhone = cleanPhone.startsWith('91') ? cleanPhone : '91$cleanPhone';
-              final message = Uri.encodeComponent(messageStr);
-              launchUrl(Uri.parse('https://wa.me/$fullPhone?text=$message'), mode: LaunchMode.externalApplication);
-            },
-          ),
-        ],
-      ),
     );
   }
 }

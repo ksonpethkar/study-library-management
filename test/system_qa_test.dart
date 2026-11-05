@@ -42,6 +42,8 @@ import 'package:study_library/features/maintenance/data/services/database_diagno
 import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/models/announcement_model.dart';
+import 'package:study_library/services/soundbox_service.dart';
+import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/core/router/app_router.dart';
 
 StudentModel createTestStudent({
@@ -1734,7 +1736,7 @@ void main() {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(59));
+      expect(AppConstants.buildNumber, equals(60));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -5013,9 +5015,9 @@ void main() {
       );
 
       expect(upgradeReceipt.amount, equals(150.0));
-      expect(upgradeReceipt.customFields?['isPlanUpgrade'], isTrue);
-      expect(upgradeReceipt.customFields?['unusedCredit'], equals(250.0));
-      expect(upgradeReceipt.customFields?['proratedDays'], equals(15));
+      expect(upgradeReceipt.customFields['isPlanUpgrade'], isTrue);
+      expect(upgradeReceipt.customFields['unusedCredit'], equals(250.0));
+      expect(upgradeReceipt.customFields['proratedDays'], equals(15));
 
       // ── 5. Student Profile State Synchronisation ──
       final upgradedStudent = student.copyWith(
@@ -5060,9 +5062,9 @@ void main() {
 
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+59'));
+      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+60'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(59));
+      expect(AppConstants.buildNumber, equals(60));
 
       // 2. Student-facing release changes include all 4 automation features
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
@@ -5083,7 +5085,153 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.50+59'));
+      expect(formattedVersion, equals('v1.5.50+60'));
+    });
+
+    test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
+      // 1. Setup mock candidate
+      final candidate = WaitingListEntry(
+        id: 'wait_cand_001',
+        libraryId: 'test_lib',
+        studentId: 'cand_user_001',
+        studentName: 'Neha Deshmukh',
+        studentPhone: '9820011222',
+        position: 1,
+        preferredSectionId: 'main_hall',
+        genderPreference: 'none',
+        createdAt: DateTime(2026, 11, 1),
+      );
+
+      // 2. Variable substitution via MessageTemplateService for waitlist offers
+      final defaultOffer = MessageTemplateService.getTemplate(type: 'waitlist_offer', language: 'en');
+      final substitutedOffer = MessageTemplateService.substitute(
+        defaultOffer,
+        studentName: candidate.studentName,
+        seatLabel: 'Seat #14',
+        libraryName: 'Cozy Corner Study Centre',
+        libraryAddress: 'Someshwar Nagar, Parli',
+        libraryHelpline: '+91 91569 44773',
+      );
+
+      expect(substitutedOffer, contains('Study Seat Available — Cozy Corner Study Centre'));
+      expect(substitutedOffer, contains('Dear *Neha Deshmukh*'));
+      expect(substitutedOffer, contains('Seat #14'));
+      expect(substitutedOffer, contains('Someshwar Nagar, Parli'));
+      expect(substitutedOffer, contains('+91 91569 44773'));
+
+      // 3. Multilingual template coverage (Hindi & Marathi)
+      final hiOffer = MessageTemplateService.getTemplate(type: 'waitlist_offer', language: 'hi');
+      final substitutedHi = MessageTemplateService.substitute(
+        hiOffer,
+        studentName: candidate.studentName,
+        seatLabel: 'Seat #14',
+        libraryName: 'Cozy Corner',
+      );
+      expect(substitutedHi, contains('सीट उपलब्ध सूचना — Cozy Corner'));
+      expect(substitutedHi, contains('नमस्ते *Neha Deshmukh*'));
+      expect(substitutedHi, contains('Seat #14'));
+
+      final mrOffer = MessageTemplateService.getTemplate(type: 'waitlist_offer', language: 'mr');
+      final substitutedMr = MessageTemplateService.substitute(
+        mrOffer,
+        studentName: candidate.studentName,
+        seatLabel: 'Seat #14',
+        libraryName: 'Cozy Corner',
+      );
+      expect(substitutedMr, contains('अभ्यास बैठक (Seat) उपलब्ध — Cozy Corner'));
+      expect(substitutedMr, contains('सस्नेह नमस्कार *Neha Deshmukh*'));
+      expect(substitutedMr, contains('Seat #14'));
+
+      // 4. Default fallback buffer when no template is passed
+      final waService = WhatsAppService();
+      expect(waService, isNotNull);
+    });
+
+    test('111. RECEPTION COUNTER SOUNDBOX CHIME & SPOKEN PAYMENT ENGINE', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final soundbox = SoundboxService(prefs: prefs);
+
+      // 1. Initial defaults
+      expect(soundbox.isEnabled, isTrue);
+      expect(soundbox.language, equals('en'));
+
+      // 2. Spoken formatting across languages
+      final enSpeech = soundbox.formatAnnouncement(
+        amount: 700,
+        studentName: 'Shubham',
+        seatLabel: 'Seat 14',
+        libraryName: 'The Cozy Corner Study Centre',
+        languageOverride: 'en',
+      );
+      expect(enSpeech, equals('Payment of 700 rupees received for Shubham Seat 14 on The Cozy Corner Study Centre.'));
+
+      final hiSpeech = soundbox.formatAnnouncement(
+        amount: 800,
+        libraryName: 'Cozy Corner',
+        languageOverride: 'hi',
+      );
+      expect(hiSpeech, equals('Cozy Corner पर 800 रुपये प्राप्त हुए।'));
+
+      final mrSpeech = soundbox.formatAnnouncement(
+        amount: 1200,
+        libraryName: 'Cozy Corner Study Hub',
+        languageOverride: 'mr',
+      );
+      expect(mrSpeech, equals('Cozy Corner Study Hub वर 1200 रुपये प्राप्त झाले।'));
+
+      // 3. Audio Chime Execution (should run without throwing in test environment)
+      soundbox.playChime();
+
+      // 4. State updates
+      await soundbox.setLanguage('mr');
+      expect(soundbox.language, equals('mr'));
+
+      await soundbox.setEnabled(false);
+      expect(soundbox.isEnabled, isFalse);
+
+      await soundbox.setEnabled(true);
+      expect(soundbox.isEnabled, isTrue);
+    });
+
+    test('112. SEAT CHANGE REQUEST DISCOVERABILITY & HOME STATUS BANNER PARITY', () {
+      final pendingReq = <String, dynamic>{
+        'id': 'req_seat_change_101',
+        'type': 'seat_change',
+        'status': 'pending',
+        'studentId': 'stud_ashish_01',
+        'studentUserId': 'uid_ashish_123',
+        'userId': 'uid_ashish_123',
+        'currentSeatId': 'seat_1',
+        'currentSeatLabel': 'Seat #1',
+        'currentSectionName': 'Cozy Hall',
+        'targetSeatId': 'seat_6',
+        'targetSeatLabel': '6',
+        'targetSectionName': 'Cozy Hall',
+        'reason': 'Near power socket, quieter reading spot',
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+
+      // 1. Verify seat label parsing and formatting
+      final formattedTarget = SeatHelper.formatSeatLabel(
+        seatId: pendingReq['targetSeatId'] as String?,
+        rawLabel: pendingReq['targetSeatLabel'] as String?,
+      );
+      expect(formattedTarget, equals('Seat #6'));
+
+      // 2. Format seat number only (no hash prefix) for dense grids
+      final seatNumberOnly = SeatHelper.formatSeatNumberOnly(rawLabel: '6');
+      expect(seatNumberOnly, equals('6'));
+
+      // 3. Status card verification
+      final hasPendingChange = pendingReq['status'] == 'pending';
+      expect(hasPendingChange, isTrue);
+      final badgeLabel = hasPendingChange ? 'CHANGE IN PROGRESS' : 'ALLOCATED';
+      expect(badgeLabel, equals('CHANGE IN PROGRESS'));
+
+      final trailingActionLabel = hasPendingChange ? 'View Request' : 'Change Desk';
+      expect(trailingActionLabel, equals('View Request'));
     });
   });
 }

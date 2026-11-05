@@ -1,11 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/constants/firestore_paths.dart';
 import 'package:study_library/models/waiting_list_model.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/services/whatsapp_service.dart';
 
 class WaitingListPromotionService {
   final FirebaseFirestore _firestore;
@@ -325,26 +326,36 @@ class WaitingListPromotionService {
     return cascadedCount;
   }
 
-  /// Launch WhatsApp with candidate notification message
+  /// Launch WhatsApp with candidate notification message using the official WhatsAppService
+  /// and interactive preview sheet with custom admin template support.
   static Future<bool> launchWhatsAppNotification({
     required WaitingListEntry entry,
     required String seatLabel,
     required String libraryName,
     int holdHours = 2,
+    String sectionName = '',
+    String? planName,
+    String? libraryHelpline,
+    String? libraryAddress,
+    String? libraryUpiId,
+    String? adminTemplate,
+    BuildContext? context,
   }) async {
-    final cleanPhone = entry.studentPhone.replaceAll(RegExp(r'\D'), '');
-    final withCode = cleanPhone.startsWith('91') || cleanPhone.length > 10
-        ? cleanPhone
-        : '91$cleanPhone';
-
-    final message =
-        'Hello ${entry.studentName}, exciting news! 💺 Seat #$seatLabel has just become available for you at $libraryName! We have placed a priority $holdHours-hour reservation hold on this desk for you. Please confirm your admission within $holdHours hours to secure this desk.';
-
-    final uri = Uri.parse('https://wa.me/$withCode?text=${Uri.encodeComponent(message)}');
-    if (await canLaunchUrl(uri)) {
-      return await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-    return false;
+    final whatsapp = WhatsAppService();
+    return await whatsapp.sendWaitingListPromotion(
+      phone: entry.studentPhone,
+      studentName: entry.studentName,
+      libraryName: libraryName,
+      seatLabel: seatLabel,
+      sectionName: sectionName.isNotEmpty ? sectionName : (entry.preferredSectionId ?? 'Main Hall'),
+      planName: planName,
+      libraryHelpline: libraryHelpline,
+      libraryAddress: libraryAddress,
+      libraryUpiId: libraryUpiId,
+      adminTemplate: adminTemplate,
+      holdHours: holdHours,
+      context: context,
+    );
   }
 
   /// Automated background handler called when membership automation releases seats

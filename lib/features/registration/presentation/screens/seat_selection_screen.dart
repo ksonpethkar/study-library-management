@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -578,7 +579,114 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+
+                    // Dedicated Selected Desk Confirmation Card
+                    if (seatDetails.hasSelection && !seatDetails.isAutoAssign) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEDE9FE),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF6D28D9) : const Color(0xFF8B5CF6),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF7C3AED),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.event_seat_rounded, color: Colors.white, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Selected: Desk #${seatDetails.seatLabel}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: isDark ? const Color(0xFFDDD6FE) : const Color(0xFF4C1D95),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${currentSection.name} • ${(int.tryParse(seatDetails.seatLabel ?? '') ?? 0) > 50 ? "Girls Reserved Zone (51-60)" : "Boys Reserved Zone (1-50)"}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => _onAutoAssignTap(section: currentSection),
+                              icon: const Icon(Icons.bolt_rounded, size: 16),
+                              label: const Text('Auto-Assign', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ] else if (seatDetails.isAutoAssign) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFF59E0B),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFD97706),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Auto-Assign Mode Active',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Staff will allocate the optimal available desk upon registration review.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? Colors.amber.shade200 : Colors.brown.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    const SizedBox(height: 8),
 
                     // Action Buttons (Back & Continue)
                     Row(
@@ -692,12 +800,13 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
         }
 
         final screenWidth = MediaQuery.of(context).size.width;
-        // Dynamically compute columns to preserve clean square desks
-        final crossAxisCount = section.cols > 0
-            ? section.cols
-            : (screenWidth > 600 ? 10 : (screenWidth > 400 ? 8 : 6));
+        final crossAxisCount = section.cols > 0 ? section.cols : 10;
+        // On mobile phones (< 500px), a 10-column grid requires at least 44px per desk (440px total)
+        // so that desk numbers and tap targets are comfortable, readable, and meet touch-target guidelines.
+        final minGridWidth = math.max(360.0, crossAxisCount * 44.0);
+        final bool isSmallScreen = screenWidth < (minGridWidth + 48);
 
-        return GridView.builder(
+        final grid = GridView.builder(
           key: ValueKey('grid_${section.id}_${seats.length}'),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -706,7 +815,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
-            childAspectRatio: screenWidth < 440 ? 1.05 : 1.0,
+            childAspectRatio: 1.0,
           ),
           itemBuilder: (context, index) {
             final seat = seats[index];
@@ -722,7 +831,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
               seat: seat,
             );
 
-            // Gender icon tag
+            // Gender categorization matching Cozy Corner (1-50 Boys, 51-60 Girls)
             final labelNum = int.tryParse(seat.label.replaceAll(RegExp(r'\D'), ''));
             final isGirlSeat = seat.genderRestriction == GenderRestriction.female ||
                 (labelNum != null && labelNum >= 51 && labelNum <= 60);
@@ -747,30 +856,36 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                 ),
               ];
             } else if (isOccupied) {
-              bgColor = isDark ? const Color(0xFF262626) : const Color(0xFFF1F5F9);
-              borderColor = isDark ? const Color(0xFF3F3F46) : const Color(0xFFE2E8F0);
-              textColor = isDark ? const Color(0xFF71717A) : const Color(0xFF94A3B8);
+              bgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+              borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
+              textColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
             } else if (isMaintenance) {
               bgColor = isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7);
-              borderColor = const Color(0xFFD97706);
+              borderColor = const Color(0xFFF59E0B);
               textColor = const Color(0xFFB45309);
             } else if (!isGenderAllowed) {
-              bgColor = isDark ? const Color(0xFF1E1E24) : const Color(0xFFF3F4F6);
-              borderColor = isDark ? const Color(0xFF3F3F46) : const Color(0xFFE5E7EB);
-              textColor = isDark ? const Color(0xFF71717A) : const Color(0xFF9CA3AF);
+              bgColor = isDark ? const Color(0xFF18181B) : const Color(0xFFF8FAFC);
+              borderColor = isDark ? const Color(0xFF27272A) : const Color(0xFFE2E8F0);
+              textColor = isDark ? const Color(0xFF71717A) : const Color(0xFF94A3B8);
+            } else if (isGirlSeat) {
+              // Available & Eligible Girls Desk
+              bgColor = isDark ? const Color(0xFF371B28) : const Color(0xFFFDF2F8);
+              borderColor = const Color(0xFFF472B6);
+              textColor = isDark ? const Color(0xFFF472B6) : const Color(0xFFBE185D);
+              borderWidth = 1.4;
             } else {
-              // Available & Eligible
-              bgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5);
+              // Available & Eligible Boys / General Desk
+              bgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5);
               borderColor = const Color(0xFF10B981);
               textColor = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF065F46);
-              borderWidth = 1.2;
+              borderWidth = 1.4;
             }
 
-            final displayLabel = SeatHelper.formatSeatLabel(
+            // High-legibility seat number (NO '#' prefix inside tile to maximize size and clarity)
+            final seatNumber = SeatHelper.formatSeatNumberOnly(
               seatId: seat.id,
               rawLabel: seat.label,
               cols: section.cols,
-              includePrefix: false,
             );
 
             return PressableScale(
@@ -794,43 +909,122 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Desk number
-                    Text(
-                      displayLabel,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
+                    // Clean, prominent seat number (FittedBox ensures it scales down if 3 digits)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          seatNumber,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: textColor,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
                       ),
                     ),
 
-                    // Gender indicator dot/icon top-right
-                    Positioned(
-                      top: 3,
-                      right: 3,
-                      child: isSelected
-                          ? const Icon(Icons.check_circle_rounded, size: 12, color: Colors.white)
-                          : Icon(
-                              isGirlSeat ? Icons.female_rounded : Icons.male_rounded,
-                              size: 11,
-                              color: isGirlSeat
-                                  ? const Color(0xFFEC4899)
-                                  : const Color(0xFF3B82F6).withValues(alpha: 0.7),
-                            ),
-                    ),
-
-                    // Lock icon if occupied
-                    if (isOccupied)
+                    // Top-right corner indicator (small, unobtrusive, does not collide with number)
+                    if (isSelected)
                       Positioned(
-                        bottom: 3,
-                        right: 3,
-                        child: Icon(Icons.lock_rounded, size: 10, color: textColor),
+                        top: 2,
+                        right: 2,
+                        child: Container(
+                          padding: const EdgeInsets.all(1.5),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check_rounded,
+                            size: 8,
+                            color: Color(0xFF7C3AED),
+                          ),
+                        ),
+                      )
+                    else if (isOccupied)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Icon(Icons.lock_rounded, size: 9, color: textColor),
+                      )
+                    else if (isMaintenance)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Icon(Icons.build_rounded, size: 9, color: textColor),
+                      )
+                    else if (!isGenderAllowed)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Icon(
+                          isGirlSeat ? Icons.female_rounded : Icons.male_rounded,
+                          size: 9,
+                          color: isGirlSeat ? const Color(0xFFEC4899) : const Color(0xFF3B82F6),
+                        ),
+                      )
+                    else if (isGirlSeat)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Icon(
+                          Icons.female_rounded,
+                          size: 9,
+                          color: const Color(0xFFEC4899).withValues(alpha: 0.8),
+                        ),
                       ),
                   ],
                 ),
               ),
             );
           },
+        );
+
+        if (!isSmallScreen) {
+          return grid;
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.pinch_rounded, size: 14, color: theme.colorScheme.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Pinch or swipe horizontally to inspect all 60 desks',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            InteractiveViewer(
+              minScale: 0.7,
+              maxScale: 2.5,
+              clipBehavior: Clip.none,
+              boundaryMargin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: SizedBox(
+                width: minGridWidth,
+                child: grid,
+              ),
+            ),
+          ],
         );
       },
     );

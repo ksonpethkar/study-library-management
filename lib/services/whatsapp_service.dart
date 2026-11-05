@@ -38,11 +38,18 @@ class WhatsAppService {
     final withCode = sanitizedPhone.startsWith('91') || sanitizedPhone.length > 10
         ? sanitizedPhone
         : '91$sanitizedPhone';
-    final encodedMessage = Uri.encodeComponent(finalMessage);
-    final uri = Uri.parse('https://wa.me/$withCode?text=$encodedMessage');
+    
+    // Construct clean URI with Uri.https to ensure 100% accurate RFC-3986 UTF-8 encoding for emojis
+    final uri = Uri.https('wa.me', '/$withCode', {'text': finalMessage});
 
     if (await canLaunchUrl(uri)) {
       return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+
+    // Fallback to whatsapp:// protocol for installed mobile apps
+    final appUri = Uri.parse('whatsapp://send?phone=$withCode&text=${Uri.encodeComponent(finalMessage)}');
+    if (await canLaunchUrl(appUri)) {
+      return await launchUrl(appUri, mode: LaunchMode.externalApplication);
     }
     return false;
   }
@@ -625,6 +632,7 @@ class WhatsAppService {
   }
 
   /// Sends a notification when a seat opens up for a waitlisted student.
+  /// Supports custom admin templates with variable substitutions via MessageTemplateService.
   Future<bool> sendWaitingListPromotion({
     required String phone,
     required String studentName,
@@ -633,39 +641,63 @@ class WhatsAppService {
     required String sectionName,
     String? planName,
     String? libraryHelpline,
+    String? libraryAddress,
+    String? libraryUpiId,
+    String? adminTemplate,
+    int holdHours = 2,
     BuildContext? context,
   }) async {
-    final buffer = StringBuffer()
-      ..writeln('🎉 *Good News! Seat Available at $libraryName*')
-      ..writeln()
-      ..writeln('Dear *$studentName*,')
-      ..writeln('A study seat has become available for your preferred subscription!')
-      ..writeln()
-      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-      ..writeln('💺 *RESERVED SEAT OFFER*')
-      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-      ..writeln('🏛️ *Section:* $sectionName')
-      ..writeln('💺 *Seat:* *$seatLabel*');
+    String finalMessage;
+    if (adminTemplate != null && adminTemplate.trim().isNotEmpty) {
+      finalMessage = MessageTemplateService.substitute(
+        adminTemplate,
+        studentName: studentName,
+        libraryName: libraryName,
+        seatLabel: seatLabel,
+        planName: planName ?? sectionName,
+        libraryAddress: libraryAddress,
+        libraryHelpline: libraryHelpline,
+        libraryUpiId: libraryUpiId,
+      );
+    } else {
+      final buffer = StringBuffer()
+        ..writeln('🎉 *Good News! Seat Available at $libraryName*')
+        ..writeln()
+        ..writeln('Dear *$studentName*,')
+        ..writeln('A study seat has become available for your preferred subscription!')
+        ..writeln()
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💺 *RESERVED SEAT OFFER*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('🏛️ *Section:* $sectionName')
+        ..writeln('💺 *Seat:* *$seatLabel*');
 
-    if (planName != null && planName.isNotEmpty) {
-      buffer.writeln('📦 *Plan:* $planName');
+      if (planName != null && planName.isNotEmpty) {
+        buffer.writeln('📦 *Plan:* $planName');
+      }
+
+      buffer
+        ..writeln()
+        ..writeln('This seat is reserved for you for the next $holdHours hours. Kindly visit reception or confirm your admission to secure it.');
+
+      if (libraryAddress != null && libraryAddress.isNotEmpty) {
+        buffer.writeln('📍 *Address:* $libraryAddress');
+      }
+
+      if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+        buffer.writeln('📞 *Helpline / WhatsApp:* $libraryHelpline');
+      }
+
+      buffer
+        ..writeln()
+        ..writeln('— *Team $libraryName*');
+
+      finalMessage = buffer.toString();
     }
-
-    buffer
-      ..writeln()
-      ..writeln('This seat is reserved for you for the next 24 hours. Kindly visit reception or confirm your admission to secure it.');
-
-    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
-      buffer.writeln('📞 *Helpline / WhatsApp:* $libraryHelpline');
-    }
-
-    buffer
-      ..writeln()
-      ..writeln('— *Team $libraryName*');
 
     return await sendMessage(
       phone,
-      buffer.toString(),
+      finalMessage,
       context: context,
       recipientName: studentName,
       title: 'Waiting List Seat Offer Preview',

@@ -23,6 +23,26 @@ final libraryNotificationsStreamProvider =
       .map((snap) => snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList());
 });
 
+/// Helper to deduplicate notifications that share the same title, body, and timestamp window (5 mins)
+List<AppNotificationModel> _deduplicateNotifications(List<AppNotificationModel> list) {
+  final Map<String, AppNotificationModel> uniqueMap = {};
+  for (final n in list) {
+    // 5-minute bucket grouping for repeated identical dispatches
+    final timeBucket = n.createdAt.millisecondsSinceEpoch ~/ 300000;
+    final key = '${n.title.trim()}_${n.body.trim()}_$timeBucket';
+    if (!uniqueMap.containsKey(key)) {
+      uniqueMap[key] = n;
+    } else {
+      // If one duplicate is unread, preserve the unread entry
+      final existing = uniqueMap[key]!;
+      if (existing.read && !n.read) {
+        uniqueMap[key] = n;
+      }
+    }
+  }
+  return uniqueMap.values.toList();
+}
+
 /// Stream of admin-targeted notifications
 final adminNotificationsStreamProvider = StreamProvider<List<AppNotificationModel>>((ref) {
   final libraryId = ref.watch(currentLibraryIdProvider);
@@ -37,7 +57,8 @@ final adminNotificationsStreamProvider = StreamProvider<List<AppNotificationMode
       .snapshots()
       .map((snap) {
         final all = snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList();
-        return all.where((n) => n.targetRole == 'admin' || n.targetRole == 'all').toList();
+        final filtered = all.where((n) => n.targetRole == 'admin' || n.targetRole == 'all').toList();
+        return _deduplicateNotifications(filtered);
       });
 });
 
@@ -82,7 +103,7 @@ final studentNotificationsStreamProvider =
         // A student ONLY sees:
         // 1. Notifications explicitly addressed to THIS specific student (targetUserId == effectiveId or targetUserId == authUid)
         // 2. General public broadcasts intended for ALL users (type == 'announcement' with NO student-specific data)
-        return all.where((n) {
+        final filtered = all.where((n) {
           if (n.targetUserId != null && n.targetUserId!.trim().isNotEmpty) {
             return n.targetUserId == effectiveId ||
                 (authUid != null && n.targetUserId == authUid) ||
@@ -104,6 +125,7 @@ final studentNotificationsStreamProvider =
           }
           return n.targetRole == 'all' || n.targetRole == 'student' || n.type == 'announcement';
         }).toList();
+        return _deduplicateNotifications(filtered);
       });
 });
 

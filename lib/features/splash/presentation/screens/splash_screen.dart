@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -195,14 +196,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       await ref.read(updateServiceProvider.notifier).checkForUpdate();
     } catch (_) { /* intentionally silent */ }
 
+    // Check if returning from a Google Sign-In redirect on Web
+    User? user;
+    if (kIsWeb) {
+      try {
+        final redirectResult = await FirebaseAuth.instance.getRedirectResult();
+        if (redirectResult.user != null) {
+          user = redirectResult.user;
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('Redirect result on splash: $e');
+      }
+    }
+
     // Wait for Firebase Auth to restore session from local device storage
-    User? user = FirebaseAuth.instance.currentUser;
+    user ??= FirebaseAuth.instance.currentUser;
     if (user == null) {
       try {
         user = await FirebaseAuth.instance
             .authStateChanges()
             .first
-            .timeout(const Duration(milliseconds: 1500));
+            .timeout(const Duration(milliseconds: 2500));
       } catch (_) {
         user = FirebaseAuth.instance.currentUser;
       }

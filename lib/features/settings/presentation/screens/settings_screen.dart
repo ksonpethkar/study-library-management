@@ -21,6 +21,7 @@ import 'package:study_library/services/badge_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:study_library/services/remote_config_service.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
+import 'package:study_library/services/soundbox_service.dart';
 
 String _getSafePlatformName() {
   if (kIsWeb) return 'Web Browser';
@@ -393,6 +394,14 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Library Rules & Guidelines',
                 subtitle: 'Code of conduct displayed inside student apps',
                 onTap: () => context.push(Routes.adminRules),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.speaker_phone_rounded,
+                iconColor: const Color(0xFF059669),
+                title: 'Soundbox Counter Alerts',
+                subtitle: 'Paytm/PhonePe style voice announcement & chime on payment',
+                onTap: () => _showSoundboxSettingsDialog(context, ref),
               ),
             ],
           ),
@@ -2150,6 +2159,182 @@ class SettingsScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showSoundboxSettingsDialog(BuildContext context, WidgetRef ref) {
+    final soundbox = ref.read(soundboxServiceProvider);
+    final libName = ref.read(currentLibraryProvider).value?.name ?? 'Cozy Corner';
+    bool enabled = soundbox.isEnabled;
+    String activeLang = soundbox.language;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          title: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: const Color(0xFF059669).withValues(alpha: 0.15),
+                child: const Icon(Icons.speaker_phone_rounded, color: Color(0xFF059669), size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Soundbox Counter Alerts',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Paytm / PhonePe audio feedback',
+                      style: TextStyle(fontSize: 11.5, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Plays a melodic electronic chime and speaks a clear verbal confirmation whenever a fee is recorded at the reception desk.',
+                  style: TextStyle(fontSize: 12.5, color: Colors.black87, height: 1.35),
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile.adaptive(
+                  value: enabled,
+                  contentPadding: EdgeInsets.zero,
+                  activeTrackColor: const Color(0xFF059669),
+                  title: const Text('Enable Soundbox Audio', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                  subtitle: const Text('Plays chime & voice readout on payment', style: TextStyle(fontSize: 11)),
+                  onChanged: (val) async {
+                    setDlgState(() => enabled = val);
+                    await soundbox.setEnabled(val);
+                  },
+                ),
+                const Divider(height: 20),
+                const Text(
+                  'Announcement Language',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('English (en-IN)'),
+                      selected: activeLang == 'en',
+                      onSelected: enabled
+                          ? (sel) async {
+                              if (sel) {
+                                setDlgState(() => activeLang = 'en');
+                                await soundbox.setLanguage('en');
+                              }
+                            }
+                          : null,
+                    ),
+                    ChoiceChip(
+                      label: const Text('हिन्दी (Hindi)'),
+                      selected: activeLang == 'hi',
+                      onSelected: enabled
+                          ? (sel) async {
+                              if (sel) {
+                                setDlgState(() => activeLang = 'hi');
+                                await soundbox.setLanguage('hi');
+                              }
+                            }
+                          : null,
+                    ),
+                    ChoiceChip(
+                      label: const Text('मराठी (Marathi)'),
+                      selected: activeLang == 'mr',
+                      onSelected: enabled
+                          ? (sel) async {
+                              if (sel) {
+                                setDlgState(() => activeLang = 'mr');
+                                await soundbox.setLanguage('mr');
+                              }
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.record_voice_over_rounded, size: 16, color: Color(0xFF059669)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Live Spoken Preview ($activeLang):',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: Color(0xFF0F172A)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        soundbox.formatAnnouncement(
+                          amount: 700,
+                          studentName: 'Shubham',
+                          seatLabel: '14',
+                          libraryName: libName,
+                          languageOverride: activeLang,
+                        ),
+                        style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Color(0xFF334155)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.music_note_rounded, size: 16),
+                        label: const Text('Test Chime'),
+                        onPressed: () => soundbox.playChime(),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(backgroundColor: const Color(0xFF059669)),
+                        icon: const Icon(Icons.volume_up_rounded, size: 16),
+                        label: const Text('Test ₹500'),
+                        onPressed: () => soundbox.testAnnouncement(activeLang, libraryName: libName),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
       ),
     );
   }

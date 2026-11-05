@@ -14,6 +14,7 @@ import 'package:study_library/models/section_model.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/services/whatsapp_service.dart';
 
 class WaitingListScreen extends ConsumerStatefulWidget {
   final int initialTab;
@@ -290,39 +291,32 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
     final library = ref.read(currentLibraryProvider).value;
     final libraryName = library?.name.isNotEmpty == true ? library!.name : 'Study Library';
     final seatLabel = entry.suggestedSeatLabel ?? 'Available Desk';
+    final adminTemplate = library?.waitingListNotificationTemplate;
 
-    final cleanPhone = entry.studentPhone.replaceAll(RegExp(r'\D'), '');
-    final withCode = cleanPhone.startsWith('91') || cleanPhone.length > 10
-        ? cleanPhone
-        : '91$cleanPhone';
+    final sent = await ref.read(whatsappServiceProvider).sendWaitingListPromotion(
+      phone: entry.studentPhone,
+      studentName: entry.studentName,
+      libraryName: libraryName,
+      seatLabel: seatLabel,
+      sectionName: entry.preferredSectionId ?? 'Main Hall',
+      planName: null,
+      libraryHelpline: library?.phone,
+      libraryAddress: library?.address,
+      adminTemplate: adminTemplate,
+      context: context,
+    );
 
-    String template = library?.waitingListNotificationTemplate ?? '';
-    if (template.isEmpty) {
-      template = 'Hello {studentName}, exciting news! Seat {seatLabel} has just become available for you at {libraryName}. Your position on the waiting list has arrived! Please visit or contact us to confirm your admission.';
-    }
-
-    final message = template
-        .replaceAll('{studentName}', entry.studentName)
-        .replaceAll('{seatLabel}', seatLabel)
-        .replaceAll('{libraryName}', libraryName);
-
-    final uri = Uri.parse('https://wa.me/$withCode?text=${Uri.encodeComponent(message)}');
-
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-
-    if (libraryId != null) {
+    if (sent && libraryId != null) {
       await ref.read(waitingListRepositoryProvider).notifyEntry(libraryId, entry.id);
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Notified ${entry.studentName} via WhatsApp'),
-          backgroundColor: Colors.green.shade700,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Notified ${entry.studentName} via WhatsApp ✓'),
+            backgroundColor: Colors.green.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 

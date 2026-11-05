@@ -337,6 +337,8 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
       setState(() => _statusMessage = 'Sending registration request to admin...');
 
       final selectedPlanId = ref.read(selectedPlanProvider);
+      final plans = ref.read(plansStreamProvider).value ?? [];
+      final resolvedPlanName = plans.where((p) => p.id == selectedPlanId).firstOrNull?.name ?? 'Monthly Full-Day';
       final seatDetails = ref.read(selectedSeatDetailsProvider);
 
       // Create request doc in Firestore
@@ -371,6 +373,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         if (govIdBackImageUrl.isNotEmpty) 'govIdBackImageUrl': govIdBackImageUrl,
         'customFields': regData['customFields'] ?? {},
         'planId': selectedPlanId,
+        'planName': resolvedPlanName,
         'userId': currentUser.uid,
         'requestedSeatId': seatDetails.isAutoAssign ? null : seatDetails.seatId,
         'requestedSeatLabel': seatDetails.isAutoAssign ? 'Auto-Assign' : seatDetails.seatLabel,
@@ -389,6 +392,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'studentId': currentUser.uid,
         'studentData': studentData,
         'planId': selectedPlanId,
+        'planName': resolvedPlanName,
         'requestedSeatId': seatDetails.isAutoAssign ? null : seatDetails.seatId,
         'requestedSeatLabel': seatDetails.isAutoAssign ? 'Auto-Assign' : seatDetails.seatLabel,
         'requestedSectionId': seatDetails.sectionId,

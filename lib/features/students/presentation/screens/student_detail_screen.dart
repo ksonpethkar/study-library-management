@@ -25,6 +25,7 @@ import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/sms_service.dart';
 import 'package:study_library/services/telegram_service.dart';
@@ -1172,7 +1173,27 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                   'Early exit processed ✓ Net refund: ${exitCalc.formattedNetRefund}${voucherNumber != null ? ' (Voucher: $voucherNumber)' : ''}$seatMsg',
                                 ),
                                 backgroundColor: Colors.green,
-                                duration: const Duration(seconds: 4),
+                                duration: Duration(seconds: cascadedCandidate != null ? 8 : 4),
+                                action: cascadedCandidate != null
+                                    ? SnackBarAction(
+                                        label: 'WhatsApp Candidate',
+                                        textColor: Colors.amberAccent,
+                                        onPressed: () {
+                                          final libModel = ref.read(currentLibraryProvider).value;
+                                          ref.read(whatsappServiceProvider).sendWaitingListPromotion(
+                                            phone: cascadedCandidate!.studentPhone,
+                                            studentName: cascadedCandidate.studentName,
+                                            libraryName: libModel?.name ?? 'The Cozy Corner Study Centre',
+                                            seatLabel: formattedSeatLabel,
+                                            sectionName: s.sectionId ?? 'Main Hall',
+                                            libraryHelpline: libModel?.phone,
+                                            libraryAddress: libModel?.address,
+                                            adminTemplate: libModel?.waitingListNotificationTemplate,
+                                            context: context,
+                                          );
+                                        },
+                                      )
+                                    : null,
                               ),
                             );
                             _loadStudent();
@@ -1787,7 +1808,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               },
                             ).ignore();
 
-                            // 4. WhatsApp confirmation
+                            // 4. Soundbox Counter Announcement (if paid at counter)
+                            if (recordAsPaid && effectiveAmount > 0) {
+                              final libModel = ref.read(currentLibraryProvider).value;
+                              ref.read(soundboxServiceProvider).announcePayment(
+                                amount: effectiveAmount,
+                                studentName: s.name,
+                                seatLabel: s.seatId != null ? SeatHelper.formatSeatLabel(seatId: s.seatId) : null,
+                                libraryName: libModel?.name,
+                              );
+                            }
+
+                            // 5. WhatsApp confirmation
                             try {
                               final libModel = ref.read(currentLibraryProvider).value;
                               await WhatsAppService().sendPlanUpgradeConfirmation(

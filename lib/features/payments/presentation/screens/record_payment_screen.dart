@@ -27,6 +27,7 @@ import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/upi_ocr_parser.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/services/soundbox_service.dart';
 
 class RecordPaymentScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -753,6 +754,14 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       );
 
       HapticFeedback.heavyImpact();
+
+      // Soundbox Counter Melodic Chime & Spoken Announcement
+      ref.read(soundboxServiceProvider).announcePayment(
+        amount: amount,
+        studentName: widget.studentName,
+        seatLabel: _studentSeatId != null ? SeatHelper.formatSeatLabel(seatId: _studentSeatId) : null,
+        libraryName: libraryName,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
 
@@ -1947,26 +1956,47 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                     ),
                     const SizedBox(height: 6),
 
-                    // 1-Tap Quick Amount Chips
+                    // 1-Tap Quick Amount Chips (Clean whole-rupee rounding)
                     Wrap(
                       spacing: 8,
+                      runSpacing: 6,
                       children: [
                         ActionChip(
                           avatar: const Icon(Icons.done_all_rounded, size: 16),
                           label: Text('Full: ₹${_effectiveTotalFee.toStringAsFixed(0)}'),
                           onPressed: () {
                             setState(() {
-                              _amountController.text = _effectiveTotalFee.toStringAsFixed(0);
+                              _amountController.text = _effectiveTotalFee.round().toString();
                             });
                           },
                         ),
                         ActionChip(
                           avatar: const Icon(Icons.pie_chart_outline_rounded, size: 16),
-                          label: Text('50%: ₹${(_effectiveTotalFee / 2).toStringAsFixed(0)}'),
+                          label: Text('50%: ₹${(_effectiveTotalFee * 0.5).round()}'),
                           onPressed: () {
                             setState(() {
                               _isPartialPayment = true;
-                              _amountController.text = (_effectiveTotalFee / 2).toStringAsFixed(0);
+                              _amountController.text = (_effectiveTotalFee * 0.5).round().toString();
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.calendar_today_rounded, size: 16),
+                          label: Text('25%: ₹${(_effectiveTotalFee * 0.25).round()}'),
+                          onPressed: () {
+                            setState(() {
+                              _isPartialPayment = true;
+                              _amountController.text = (_effectiveTotalFee * 0.25).round().toString();
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.hourglass_top_rounded, size: 16),
+                          label: Text('75%: ₹${(_effectiveTotalFee * 0.75).round()}'),
+                          onPressed: () {
+                            setState(() {
+                              _isPartialPayment = true;
+                              _amountController.text = (_effectiveTotalFee * 0.75).round().toString();
                             });
                           },
                         ),

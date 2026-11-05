@@ -28,6 +28,7 @@ import 'package:study_library/core/providers/theme_provider.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/expiry_scheduler_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/services/quick_actions_service.dart';
@@ -610,6 +611,17 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
                 ),
                 const SizedBox(height: 16),
+
+                // Dedicated Seat Change In-Progress Card (Prominently informs student of pending move)
+                if (pendingSeatChange != null) ...[
+                  _buildPendingSeatChangeCard(
+                    context: context,
+                    theme: theme,
+                    libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
+                    pendingData: pendingSeatChange,
+                  ),
+                  const SizedBox(height: 14),
+                ],
 
                 // 3. High-Readability Seat Radar Card
                 _buildAssignedSeatCard(
@@ -1644,6 +1656,241 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     );
   }
 
+  Widget _buildPendingSeatChangeCard({
+    required BuildContext context,
+    required ThemeData theme,
+    required String libraryId,
+    required Map<String, dynamic> pendingData,
+  }) {
+    final isDark = theme.brightness == Brightness.dark;
+    final requestId = (pendingData['id'] ?? pendingData['requestId'] ?? '').toString();
+    final targetLabel = SeatHelper.formatSeatLabel(
+      seatId: pendingData['targetSeatId'] as String?,
+      rawLabel: pendingData['targetSeatLabel'] as String?,
+    );
+    final targetSec = (pendingData['targetSectionName'] as String?) ?? 'Cozy Hall';
+    final reason = (pendingData['reason'] as String?)?.trim();
+    final ts = pendingData['createdAt'] as Timestamp?;
+    final createdDate = ts?.toDate();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2E200C) : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.6 : 0.45),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.hourglass_top_rounded, color: Color(0xFFD97706), size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Seat Change Request In Progress',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14.5,
+                    color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF78350F),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF78350F) : const Color(0xFFFDE68A),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'WAITING FOR ADMIN',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF78350F),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Requested Desk: $targetLabel ($targetSec)',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+            ),
+          ),
+          if (reason != null && reason.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Reason: "$reason"',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Divider(height: 1, color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                createdDate != null
+                    ? 'Submitted: ${DateFormat("dd MMM, hh:mm a").format(createdDate)}'
+                    : 'Submitted to library admin',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      foregroundColor: theme.colorScheme.primary,
+                    ),
+                    icon: const Icon(Icons.map_rounded, size: 15),
+                    label: const Text('View Map', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      context.push(Routes.studentSeatMap);
+                    },
+                  ),
+                  if (requestId.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        foregroundColor: Colors.red.shade700,
+                      ),
+                      icon: const Icon(Icons.cancel_outlined, size: 15),
+                      label: const Text('Cancel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      onPressed: () => _confirmCancelSeatChange(context, libraryId, requestId),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmCancelSeatChange(
+    BuildContext context,
+    String libraryId,
+    String requestId,
+  ) async {
+    HapticFeedback.mediumImpact();
+    final confirm = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const CircleAvatar(
+                radius: 28,
+                backgroundColor: Color(0xFFFEE2E2),
+                child: Icon(Icons.cancel_outlined, size: 30, color: Colors.red),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Cancel Seat Change Request?',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Are you sure you want to cancel your pending seat change request? You can select another available desk at any time.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, height: 1.4, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 20),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  backgroundColor: Colors.red.shade700,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Cancel Request'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
+                ),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Keep Current Request'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('requests')
+            .doc(requestId)
+            .delete();
+        ref.invalidate(studentPendingSeatChangeProvider);
+        if (context.mounted) {
+          HapticFeedback.lightImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Seat change request cancelled.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
+        }
+      }
+    }
+  }
+
   Widget _buildAssignedSeatCard(
     BuildContext context,
     ThemeData theme,
@@ -1771,7 +2018,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                         ? 'Requested move to $targetSeatLabel ($targetSecName) • Waiting for admin approval'
                         : (isGrace
                             ? 'Desk temporarily reserved • Grace active'
-                            : (sectionName.isNotEmpty ? 'Section: $sectionName' : 'Reserved Study Desk'))),
+                            : (sectionName.isNotEmpty ? 'Section: $sectionName • Tap Change Desk to choose a new seat' : 'Reserved Study Desk • Tap Change Desk to choose a new seat'))),
                 style: TextStyle(
                   color: isExpired
                       ? const Color(0xFFEF4444)

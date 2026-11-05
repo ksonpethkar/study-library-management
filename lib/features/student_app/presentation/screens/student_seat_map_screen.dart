@@ -630,6 +630,13 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                       'createdAt': FieldValue.serverTimestamp(),
                                     });
 
+                                    // Industry Best Practice (Delta/BookMyShow/WeWork): Automatically close popup on submission success
+                                    if (sheetContext.mounted) {
+                                      Navigator.of(sheetContext).pop();
+                                    } else if (dialogCtx.mounted && Navigator.of(dialogCtx).canPop()) {
+                                      Navigator.of(dialogCtx).pop();
+                                    }
+
                                     // Dispatch admin in-app notification
                                     AppNotificationService.sendNotification(
                                       libraryId: libraryId,
@@ -639,11 +646,6 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                       targetRole: 'admin',
                                       actionRoute: Routes.adminRequests,
                                     ).ignore();
-
-                                    // Industry Best Practice (Delta/BookMyShow/WeWork): Automatically close popup on submission success
-                                    if (dialogCtx.mounted) {
-                                      Navigator.of(dialogCtx).pop();
-                                    }
 
                                     if (mounted) {
                                       HapticFeedback.heavyImpact();

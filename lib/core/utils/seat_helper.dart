@@ -1,6 +1,23 @@
 /// Utility helper to format and resolve human-friendly seat labels and numbers
 /// across the entire application (avoiding raw database IDs like `1790647291016_r0_c4`).
 class SeatHelper {
+  /// Formats strictly the numeric or code portion of a seat identifier without any
+  /// "Seat", "Desk", or "#" prefix (e.g. "7", "24", "60", "A-12").
+  /// Ideal for small desk tiles and dense seating matrices where horizontal width is constrained.
+  static String formatSeatNumberOnly({
+    String? seatId,
+    String? rawLabel,
+    int? cols,
+  }) {
+    final formatted = formatSeatLabel(
+      seatId: seatId,
+      rawLabel: rawLabel,
+      cols: cols,
+      includePrefix: false,
+    );
+    return formatted.replaceFirst(RegExp(r'^[#\s]+'), '');
+  }
+
   /// Converts a raw seat ID, database label, or composite coordinates into a clean human string.
   /// Examples:
   /// - `1790647291016_r0_c4` -> `Seat #5`

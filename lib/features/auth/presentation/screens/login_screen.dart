@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -43,6 +44,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.read(authRepositoryProvider).warmUpGoogleSignIn();
     _restoreCachedBranding(); // Show cached logo instantly
     _loadBranding();           // Then refresh from Firestore
+
+    // Handle return from Google Sign-In redirect on Web
+    if (kIsWeb) {
+      FirebaseAuth.instance.getRedirectResult().then((result) {
+        if (result.user != null && mounted) {
+          _handleSignIn();
+        }
+      }).catchError((e) {
+        if (kDebugMode) debugPrint('Redirect result on LoginScreen: $e');
+      });
+    }
   }
 
   /// Restore last-known branding from SharedPreferences (instant, no network).
@@ -331,7 +343,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
 
-      // Check Admission Request match (ONLY if request status is strictly 'pending')
+      // Check Admission Request match (covers pending, approved, desk_payment_pending, etc.)
       final matchedReqDoc = (reqByUid?.docs.isNotEmpty == true)
           ? reqByUid!.docs.first
           : ((reqByEmail?.docs.isNotEmpty == true)
@@ -339,23 +351,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               : null);
 
       final reqData = matchedReqDoc?.data() as Map<String, dynamic>?;
-      if (matchedReqDoc != null && reqData != null && reqData['status'] == 'pending') {
-        // Link studentId if it was submitted before Google Auth
-        if (reqData['studentId'] != user.uid) {
-          matchedReqDoc.reference.update({'studentId': user.uid}).ignore();
+      if (matchedReqDoc != null && reqData != null) {
+        final reqStatus = (reqData['status'] ?? '').toString().toLowerCase();
+        final createdStudentId = (reqData['createdStudentId'] ?? '').toString().trim();
+
+        // 1. If request was already approved and created a student record, link UID and admit immediately!
+        if (createdStudentId.isNotEmpty) {
+          final studentDocRef = FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(defaultLibId)
+              .collection('students')
+              .doc(createdStudentId);
+          final studentDocSnap = await studentDocRef.get();
+          if (studentDocSnap.exists) {
+            final sData = studentDocSnap.data() ?? {};
+            if (sData['userId'] != user.uid) {
+              await studentDocRef.update({'userId': user.uid}).catchError((_) {});
+            }
+            await _goStudent(user: user, libId: defaultLibId);
+            return;
+          }
         }
-        ref.read(currentLibraryIdProvider.notifier).set(defaultLibId);
-        ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
-        await persistUserRole(
-          uid: user.uid,
-          email: user.email ?? '',
-          displayName: user.displayName ?? '',
-          role: AppUserRole.student,
-          libraryId: defaultLibId,
-        );
-        if (!mounted) return;
-        context.go(Routes.studentHome);
-        return;
+
+        // 2. If request is active (pending, approved, or payment pending), admit student to portal
+        if (reqStatus == 'pending' ||
+            reqStatus == 'approved' ||
+            reqStatus == 'desk_payment_pending' ||
+            reqStatus == 'payment_pending' ||
+            reqStatus.contains('pending')) {
+          if (reqData['studentId'] != user.uid) {
+            matchedReqDoc.reference.update({'studentId': user.uid}).ignore();
+          }
+          await _goStudent(user: user, libId: defaultLibId);
+          return;
+        }
       }
 
       // ── Step 3: Fast Multi-Library Fallback (collectionGroup) only if not in default library ──

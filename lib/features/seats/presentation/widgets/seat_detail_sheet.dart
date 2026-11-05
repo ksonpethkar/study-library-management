@@ -286,6 +286,11 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                 entry: candidate,
                 seatLabel: widget.seat.label,
                 libraryName: libraryName,
+                sectionName: widget.sectionId,
+                libraryHelpline: libraryAsync.value?.phone,
+                libraryAddress: libraryAsync.value?.address,
+                adminTemplate: libraryAsync.value?.waitingListNotificationTemplate,
+                context: context,
               );
             },
           ),

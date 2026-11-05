@@ -605,21 +605,12 @@ class StudentProvisioningService {
           targetRole: 'student',
           targetUserId: primaryTarget,
           actionRoute: '/student/id-card',
+          metadata: {
+            'studentId': createdStudentId,
+            'studentUserId': studentUserId,
+            'isPaid': isPaid,
+          },
         ).ignore();
-
-        if (studentUserId.isNotEmpty && createdStudentId != null && createdStudentId != studentUserId) {
-          AppNotificationService.sendNotification(
-            libraryId: libraryId,
-            title: 'Admission Approved! 🎉',
-            body: isPaid
-                ? 'Hello $studentName! Your admission is confirmed$seatNotice and your membership is active. Digital ID Pass unlocked!'
-                : 'Hello $studentName! Your admission is approved$seatNotice. Complete your fee payment to activate your pass.',
-            type: 'admission',
-            targetRole: 'student',
-            targetUserId: createdStudentId,
-            actionRoute: '/student/id-card',
-          ).ignore();
-        }
       }
 
       // 6. Audit Logging

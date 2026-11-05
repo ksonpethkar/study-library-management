@@ -21,12 +21,28 @@ class AuthRepository {
     try {
       final UserCredential cred;
       if (kIsWeb) {
-        // Web: Use Firebase Auth popup directly
+        // Web: Use Firebase Auth popup, falling back gracefully to redirect if popups are suppressed on mobile browsers
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         googleProvider.addScope('email');
         googleProvider.addScope('profile');
         googleProvider.setCustomParameters({'prompt': 'select_account'});
-        cred = await _auth.signInWithPopup(googleProvider);
+
+        try {
+          cred = await _auth.signInWithPopup(googleProvider);
+        } catch (popupError) {
+          final errStr = popupError.toString().toLowerCase();
+          final isBlocked = errStr.contains('popup-blocked') ||
+              errStr.contains('popup_blocked') ||
+              errStr.contains('cancelled-popup-request') ||
+              errStr.contains('operation-not-supported');
+          if (isBlocked) {
+            if (kDebugMode) debugPrint('Popup blocked on mobile web, falling back to redirect: $popupError');
+            await _auth.signInWithRedirect(googleProvider);
+            throw Exception('Redirecting to Google for secure sign-in…');
+          } else {
+            rethrow;
+          }
+        }
       } else {
         // Mobile: Use google_sign_in v7 native flow
         cred = await _nativeGoogleSignIn();

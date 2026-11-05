@@ -13,6 +13,7 @@ import 'package:study_library/services/owner_digest_service.dart';
 import 'package:study_library/services/waiting_list_promotion_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/services/soundbox_service.dart';
 
 class CommunicationsHubScreen extends ConsumerStatefulWidget {
   const CommunicationsHubScreen({super.key});
@@ -852,6 +853,133 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                   ),
                 ],
               ],
+            ),
+          ),
+        ),
+
+        // Channel 7: Soundbox Counter Voice & Chime Alerts
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Consumer(
+              builder: (ctx, cRef, _) {
+                final soundbox = cRef.watch(soundboxServiceProvider);
+                final libName = cRef.watch(currentLibraryProvider).value?.name ?? 'Cozy Corner';
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: const Color(0xFF059669).withValues(alpha: 0.15),
+                          child: const Icon(Icons.speaker_phone_rounded, color: Color(0xFF059669)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Soundbox Counter Alerts (Paytm / PhonePe Simulation)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                              Text('Melodic electronic chime + instant vocal speech readout when cash or UPI fees are received', style: theme.textTheme.bodySmall),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: soundbox.isEnabled,
+                          activeTrackColor: const Color(0xFF059669),
+                          onChanged: (val) async {
+                            await soundbox.setEnabled(val);
+                            if (mounted) setState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+                    if (soundbox.isEnabled) ...[
+                      const Divider(height: 24),
+                      Text('Spoken Readout Language', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('English (en-IN)'),
+                            selected: soundbox.language == 'en',
+                            onSelected: (sel) async {
+                              if (sel) {
+                                await soundbox.setLanguage('en');
+                                if (mounted) setState(() {});
+                              }
+                            },
+                          ),
+                          ChoiceChip(
+                            label: const Text('हिन्दी (Hindi)'),
+                            selected: soundbox.language == 'hi',
+                            onSelected: (sel) async {
+                              if (sel) {
+                                await soundbox.setLanguage('hi');
+                                if (mounted) setState(() {});
+                              }
+                            },
+                          ),
+                          ChoiceChip(
+                            label: const Text('मराठी (Marathi)'),
+                            selected: soundbox.language == 'mr',
+                            onSelected: (sel) async {
+                              if (sel) {
+                                await soundbox.setLanguage('mr');
+                                if (mounted) setState(() {});
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.record_voice_over_rounded, size: 16, color: Color(0xFF059669)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                soundbox.formatAnnouncement(
+                                  amount: 700,
+                                  studentName: 'Shubham',
+                                  seatLabel: '14',
+                                  libraryName: libName,
+                                ),
+                                style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Color(0xFF334155)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.music_note_rounded, size: 16),
+                            label: const Text('Test Chime'),
+                            onPressed: () => soundbox.playChime(),
+                          ),
+                          const SizedBox(width: 10),
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF059669)),
+                            icon: const Icon(Icons.volume_up_rounded, size: 16),
+                            label: const Text('Test ₹500 Announcement'),
+                            onPressed: () => soundbox.testAnnouncement(soundbox.language, libraryName: libName),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
           ),
         ),

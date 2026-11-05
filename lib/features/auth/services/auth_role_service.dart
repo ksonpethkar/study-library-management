@@ -135,6 +135,41 @@ class AuthRoleService {
       } catch (_) {}
     }
 
+    // 3.5 Check admission requests for this user that already provisioned a student
+    try {
+      final reqByUid = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(defaultLibId)
+          .collection('requests')
+          .where('studentId', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+      QueryDocumentSnapshot? reqDoc = reqByUid.docs.isNotEmpty ? reqByUid.docs.first : null;
+      if (reqDoc == null && email.isNotEmpty) {
+        final reqByEmail = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(defaultLibId)
+            .collection('requests')
+            .where('email', isEqualTo: email)
+            .limit(1)
+            .get();
+        if (reqByEmail.docs.isNotEmpty) reqDoc = reqByEmail.docs.first;
+      }
+      if (reqDoc != null) {
+        final rData = reqDoc.data() as Map<String, dynamic>?;
+        final createdStudentId = (rData?['createdStudentId'] ?? '').toString().trim();
+        if (createdStudentId.isNotEmpty) {
+          final sDoc = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(defaultLibId)
+              .collection('students')
+              .doc(createdStudentId)
+              .get();
+          if (sDoc.exists) return sDoc;
+        }
+      }
+    } catch (_) {}
+
     // 4. Fallback search across collectionGroup('students')
     try {
       final groupUid = await FirebaseFirestore.instance
