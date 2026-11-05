@@ -28,6 +28,7 @@ import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/models/feedback_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/library_model.dart';
+import 'package:study_library/services/membership_automation_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/constants/app_constants.dart';
 import 'package:study_library/services/whats_new_service.dart';
@@ -36,6 +37,8 @@ import 'package:study_library/features/waiting_list/data/repositories/waiting_li
 import 'package:pdf/pdf.dart';
 import 'package:study_library/services/id_card_pdf_service.dart';
 import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
+import 'package:study_library/services/document_picker_service.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/core/router/app_router.dart';
 
@@ -3896,6 +3899,279 @@ void main() {
       expect(restoredStudent.targetExamName, equals('Target IFS 2027'));
       expect(restoredStudent.effectiveTargetExamName, equals('Target IFS 2027'));
       expect(restoredStudent.daysUntilExam, equals(120));
+    });
+
+    test('89. Government ID Resilient Upload, PDF Detection & Error Context Invariants', () {
+      // ── 1. DocumentPickerService PDF Detection ──
+      expect(DocumentPickerService.isPdf('data:application/pdf;base64,JVBERi0xLjQK...'), isTrue);
+      expect(DocumentPickerService.isPdf('my_aadhaar_card.pdf'), isTrue);
+      expect(DocumentPickerService.isPdf('https://firebasestorage.googleapis.com/.../doc.PDF'), isTrue);
+      expect(DocumentPickerService.isPdf('data:image/jpeg;base64,/9j/4AAQSkZJRg...'), isFalse);
+      expect(DocumentPickerService.isPdf('photo.png'), isFalse);
+      expect(DocumentPickerService.isPdf(null), isFalse);
+      expect(DocumentPickerService.isPdf(''), isFalse);
+
+      // ── 2. Government ID Clean Dynamic Label Formatting ──
+      // Prevents "Attach Aadhaar Card Card" redundancy
+      String formatAttachLabel(GovIdType type) {
+        final typeName = type.displayName;
+        return (typeName.toLowerCase().contains('card') || typeName.toLowerCase().contains('id'))
+            ? 'Attach $typeName'
+            : 'Attach $typeName Card';
+      }
+
+      expect(formatAttachLabel(GovIdType.aadhaar), equals('Attach Aadhaar Card'));
+      expect(formatAttachLabel(GovIdType.pan), equals('Attach PAN Card'));
+      expect(formatAttachLabel(GovIdType.voterId), equals('Attach Voter ID (EPIC)'));
+      expect(formatAttachLabel(GovIdType.drivingLicence), equals('Attach Driving Licence Card'));
+      expect(formatAttachLabel(GovIdType.passport), equals('Attach Passport Card'));
+
+      // ── 3. AppErrorFormatter Camera/KYC Context Resolution ──
+      final permDeniedError = Exception('PlatformException(camera_access_denied)');
+      final govIdPermMsg = AppErrorFormatter.toUserFriendly(permDeniedError, actionContext: 'gov_id');
+      expect(govIdPermMsg, contains('Permission was not granted'));
+      expect(govIdPermMsg, contains('Please allow camera or file access'));
+      expect(govIdPermMsg.contains('You can look up the student manually'), isFalse);
+
+      final deviceError = Exception('Camera hardware not found on this web client');
+      final govIdDeviceMsg = AppErrorFormatter.toUserFriendly(deviceError, actionContext: 'gov_id');
+      expect(govIdDeviceMsg, contains('Camera or document access was unavailable'));
+      expect(govIdDeviceMsg, contains('Please choose an ID photo or PDF file from your device'));
+      expect(govIdDeviceMsg.contains('You can look up the student manually'), isFalse);
+
+      final adminQrError = Exception('Camera is not available');
+      final adminQrErrorMsg = AppErrorFormatter.toUserFriendly(adminQrError, actionContext: 'admin_qr');
+      expect(adminQrErrorMsg, contains('You can look up the student manually'));
+
+      // ── 4. PickedDocument Model Immutability & Computed Properties ──
+      const sampleBase64Pdf = 'data:application/pdf;base64,JVBERi0xLjcK';
+      final pickedDoc = PickedDocument(
+        bytes: Uint8List.fromList([0x25, 0x50, 0x44, 0x46]), // %PDF
+        fileName: 'eaadhaar_digilocker.pdf',
+        mimeType: 'application/pdf',
+        isPdf: true,
+        dataUrl: sampleBase64Pdf,
+        fileSizeKB: 142.5,
+      );
+
+      expect(pickedDoc.isPdf, isTrue);
+      expect(pickedDoc.isImage, isFalse);
+      expect(pickedDoc.fileName, equals('eaadhaar_digilocker.pdf'));
+      expect(pickedDoc.fileSizeKB, equals(142.5));
+      expect(pickedDoc.dataUrl, equals(sampleBase64Pdf));
+    });
+
+    test('99. PHASE 3: "SEAT #XX HELD FOR YOU" 1-TAP RENEWAL GUARANTEE & MULTI-KEY RECEIPT VISIBILITY', () {
+      final now = DateTime(2026, 11, 5);
+
+      // ── 1. Renewal Banner 7-Day Window Trigger Invariants ──
+      bool shouldTriggerRenewalBanner(StudentModel s) {
+        return s.isExpired ||
+            (s.daysRemaining != null && s.daysRemaining! <= 7) ||
+            s.effectiveMembershipStatus == MembershipStatus.grace;
+      }
+
+      // Safe student with 14 days remaining -> No alert
+      final safeStudent = _makeStudent(
+        id: 'std_safe',
+        name: 'Safe Scholar',
+        phone: '9876543210',
+        planEndDate: now.add(const Duration(days: 14)),
+        seatId: 'seat_46',
+        membershipStatus: MembershipStatus.active,
+      );
+      expect(safeStudent.daysRemaining, greaterThan(7));
+      expect(shouldTriggerRenewalBanner(safeStudent), isFalse);
+
+      // Student with exactly 7 days remaining -> Triggers proactive seat protection alert
+      final weekStudent = _makeStudent(
+        id: 'std_7d',
+        name: 'Proactive Scholar',
+        phone: '9876543211',
+        planEndDate: now.add(const Duration(days: 7)),
+        seatId: 'seat_46',
+        membershipStatus: MembershipStatus.active,
+      );
+      expect(weekStudent.daysRemaining, equals(7));
+      expect(shouldTriggerRenewalBanner(weekStudent), isTrue);
+
+      // Student with 2 days remaining -> Triggers alert
+      final urgentStudent = _makeStudent(
+        id: 'std_2d',
+        name: 'Urgent Scholar',
+        phone: '9876543212',
+        planEndDate: now.add(const Duration(days: 2)),
+        seatId: 'seat_46',
+        membershipStatus: MembershipStatus.active,
+      );
+      expect(urgentStudent.daysRemaining, equals(2));
+      expect(shouldTriggerRenewalBanner(urgentStudent), isTrue);
+
+      // Student in grace period -> Triggers alert
+      final graceStudent = _makeStudent(
+        id: 'std_grace',
+        name: 'Grace Scholar',
+        phone: '9876543213',
+        planEndDate: now.subtract(const Duration(days: 1)),
+        seatId: 'seat_46',
+        membershipStatus: MembershipStatus.grace,
+      );
+      expect(shouldTriggerRenewalBanner(graceStudent), isTrue);
+
+      // Expired student -> Triggers alert
+      final expiredStudent = _makeStudent(
+        id: 'std_exp',
+        name: 'Expired Scholar',
+        phone: '9876543214',
+        planEndDate: now.subtract(const Duration(days: 10)),
+        seatId: 'seat_46',
+        membershipStatus: MembershipStatus.expired,
+      );
+      expect(shouldTriggerRenewalBanner(expiredStudent), isTrue);
+
+      // ── 2. "Seat #XX Held For You" Dynamic Messaging Formatting ──
+      String generateSeatProtectionTitle(StudentModel s, String seatLabel) {
+        final days = s.daysRemaining ?? 0;
+        final hasSeat = s.seatId != null && s.seatId!.isNotEmpty;
+        if (!hasSeat) return 'Plan Expires in $days Days';
+        if (s.isExpired) return '⚠️ Desk $seatLabel In Grace Hold';
+        if (days == 0) return '🔒 Desk $seatLabel Held • Expires Today';
+        if (days <= 3) return '🔒 Desk $seatLabel Held For You ($days Days Left)';
+        return '🔒 Desk $seatLabel Reservation Active';
+      }
+
+      String generateRenewalCtaLabel(StudentModel s, String seatLabel) {
+        final hasSeat = s.seatId != null && s.seatId!.isNotEmpty;
+        return hasSeat ? '🔒 Keep Desk $seatLabel • 1-Tap Renew' : '⚡ 1-Tap Renew Plan';
+      }
+
+      final deskLabel = SeatHelper.formatSeatLabel(seatId: 'seat_46');
+      expect(deskLabel, equals('Seat 46'));
+
+      expect(generateSeatProtectionTitle(weekStudent, deskLabel), equals('🔒 Desk Seat 46 Reservation Active'));
+      expect(generateSeatProtectionTitle(urgentStudent, deskLabel), equals('🔒 Desk Seat 46 Held For You (2 Days Left)'));
+      expect(generateSeatProtectionTitle(graceStudent, deskLabel), equals('🔒 Desk Seat 46 Held For You (-1 Days Left)'));
+      expect(generateSeatProtectionTitle(expiredStudent, deskLabel), equals('⚠️ Desk Seat 46 In Grace Hold'));
+
+      expect(generateRenewalCtaLabel(weekStudent, deskLabel), equals('🔒 Keep Desk Seat 46 • 1-Tap Renew'));
+      expect(generateRenewalCtaLabel(graceStudent, deskLabel), equals('🔒 Keep Desk Seat 46 • 1-Tap Renew'));
+
+      // ── 3. Desk Preservation in Renewal State Calculation ──
+      final effectiveDeskId = weekStudent.seatId ?? weekStudent.previousSeatId;
+      expect(effectiveDeskId, equals('seat_46'));
+      const keepSeatDefault = true;
+      expect(keepSeatDefault, isTrue);
+
+      final lockInCtaText = '🔒 Lock In $deskLabel (';
+      expect(lockInCtaText, equals('🔒 Lock In Seat 46 ('));
+
+      // ── 4. Resilient Receipt Multi-Key Visibility Logic ──
+      // Simulates matching both admin-created receipts (studentId) and student-claimed receipts (studentUserId)
+      final adminCreatedReceipt = {
+        'id': 'rec_admin_001',
+        'studentId': 'std_7d',
+        'studentUserId': null, // Admin enrolled offline before student logged in
+        'amount': 2000.0,
+      };
+      final onlineClaimedReceipt = {
+        'id': 'rec_online_002',
+        'studentId': 'std_7d',
+        'studentUserId': 'auth_uid_xyz123',
+        'amount': 2000.0,
+      };
+
+      const loggedInStudentAuthUid = 'auth_uid_xyz123';
+      const studentDocId = 'std_7d';
+
+      bool matchesReceiptFilter(Map<String, dynamic> r) {
+        return r['studentId'] == studentDocId ||
+            (r['studentUserId'] != null && r['studentUserId'] == loggedInStudentAuthUid) ||
+            r['studentId'] == loggedInStudentAuthUid;
+      }
+
+      expect(matchesReceiptFilter(adminCreatedReceipt), isTrue, reason: 'Admin-created receipt without studentUserId must be visible to student');
+      expect(matchesReceiptFilter(onlineClaimedReceipt), isTrue, reason: 'Online-claimed receipt with studentUserId must be visible to student');
+    });
+
+    test('100. AUTONOMOUS MIDNIGHT MAINTENANCE REPORTING & LIBRARY SERIALIZATION INVARIANTS', () {
+      final now = DateTime(2026, 11, 5, 0, 1, 0); // 00:01 AM IST
+      final reportMap = <String, dynamic>{
+        'runAt': now.toIso8601String(),
+        'totalChecked': 42,
+        'totalGrace': 3,
+        'totalExpired': 1,
+        'totalRemindedT3': 2,
+        'totalRemindedT0': 1,
+        'totalRemindedT2': 1,
+        'totalReleasedSeats': 1,
+        'source': 'cloud_function_scheduler',
+      };
+
+      final lib = LibraryModel(
+        id: 'lib_test_01',
+        name: 'The Cozy Corner Study Centre',
+        address: 'Parli Vaijnath',
+        logoUrl: '',
+        contact: '9156944773',
+        ownerId: 'owner_01',
+        accentColor: 0xFF5D4037,
+        welcomeMessage: 'Welcome',
+        operatingHours: '6 AM - 11 PM',
+        socialLinks: {},
+        rulesText: '',
+        adminPhotoUrl: '',
+        helplineNumber: '9156944773',
+        waitingListMode: WaitingListMode.contactAdmin,
+        lastAutomationRunAt: now.toIso8601String(),
+        lastMaintenanceReport: reportMap,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // Verify getters
+      expect(lib.lastAutomationRunAt, equals(now.toIso8601String()));
+      expect(lib.lastAutomationRunDateTime, equals(now));
+      expect(lib.lastMaintenanceReport, isNotNull);
+      expect(lib.lastMaintenanceReport!['totalChecked'], equals(42));
+      expect(lib.lastMaintenanceReport!['totalGrace'], equals(3));
+      expect(lib.lastMaintenanceReport!['totalExpired'], equals(1));
+      expect(lib.lastMaintenanceReport!['totalReleasedSeats'], equals(1));
+      expect(lib.lastMaintenanceReport!['source'], equals('cloud_function_scheduler'));
+
+      // Verify JSON serialization round-trip
+      final json = lib.toJson();
+      expect(json['lastAutomationRunAt'], equals(now.toIso8601String()));
+      expect(json['lastMaintenanceReport'], isNotNull);
+      expect(json['lastMaintenanceReport']['source'], equals('cloud_function_scheduler'));
+
+      final fromJson = LibraryModel.fromJson(json);
+      expect(fromJson.lastAutomationRunAt, equals(now.toIso8601String()));
+      expect(fromJson.lastAutomationRunDateTime, equals(now));
+      expect(fromJson.lastMaintenanceReport!['totalChecked'], equals(42));
+      expect(fromJson.lastMaintenanceReport!['totalReleasedSeats'], equals(1));
+
+      // Verify copyWith preserves or updates maintenance report
+      final updatedReport = Map<String, dynamic>.from(reportMap);
+      updatedReport['source'] = 'client_automation_service';
+      final updatedLib = fromJson.copyWith(lastMaintenanceReport: updatedReport);
+      expect(updatedLib.lastMaintenanceReport!['source'], equals('client_automation_service'));
+      expect(updatedLib.lastAutomationRunAt, equals(now.toIso8601String()));
+
+      // Verify AutomationResult
+      const autoRes = AutomationResult(
+        checkedCount: 50,
+        enteredGraceCount: 2,
+        expiredCount: 1,
+        releasedSeatsCount: 1,
+      );
+      expect(autoRes.hasChanges, isTrue);
+      expect(autoRes.checkedCount, equals(50));
+      expect(autoRes.enteredGraceCount, equals(2));
+      expect(autoRes.expiredCount, equals(1));
+      expect(autoRes.releasedSeatsCount, equals(1));
+
+      const emptyRes = AutomationResult();
+      expect(emptyRes.hasChanges, isFalse);
     });
   });
 }

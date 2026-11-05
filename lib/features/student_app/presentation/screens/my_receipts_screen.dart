@@ -157,20 +157,22 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
           final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
           final effectiveUid = student.userId?.isNotEmpty == true ? student.userId! : authUid;
 
+          final studentFilter = effectiveUid.isNotEmpty
+              ? Filter.or(
+                  Filter('studentId', isEqualTo: student.id),
+                  Filter('studentUserId', isEqualTo: effectiveUid),
+                  Filter('studentId', isEqualTo: effectiveUid),
+                )
+              : Filter('studentId', isEqualTo: student.id);
+
+          final receiptQuery = FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('receipts')
+              .where(studentFilter);
+
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: effectiveUid.isNotEmpty
-                ? FirebaseFirestore.instance
-                    .collection('libraries')
-                    .doc(libraryId)
-                    .collection('receipts')
-                    .where('studentUserId', isEqualTo: effectiveUid)
-                    .snapshots()
-                : FirebaseFirestore.instance
-                    .collection('libraries')
-                    .doc(libraryId)
-                    .collection('receipts')
-                    .where('studentId', isEqualTo: student.id)
-                    .snapshots(),
+            stream: receiptQuery.snapshots(),
             builder: (context, receiptSnapshot) {
               if (receiptSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());

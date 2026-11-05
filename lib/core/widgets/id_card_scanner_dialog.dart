@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:study_library/features/registration/data/ocr_parser.dart';
 import 'package:study_library/services/ocr_service.dart';
+import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 /// Data returned when the user completes an ID scan
@@ -68,7 +69,6 @@ class IdCardScannerDialog extends StatefulWidget {
 }
 
 class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
-  final ImagePicker _picker = ImagePicker();
   final OcrService _ocrService = OcrService();
 
   GovIdType? _selectedType; // null = Auto-Detect
@@ -103,15 +103,13 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
 
   Future<void> _captureImage(ImageSource source, {bool isBack = false}) async {
     try {
-      final picked = await _picker.pickImage(
-        source: source,
-        maxWidth: 1600,
-        imageQuality: 85,
+      final doc = await DocumentPickerService.pickDocument(
+        context: context,
+        preferredSource: source,
       );
-      if (picked == null || !mounted) return;
+      if (doc == null || !mounted) return;
 
-      final bytes = await picked.readAsBytes();
-      if (bytes.isEmpty || !mounted) return;
+      final bytes = doc.bytes;
 
       setState(() {
         _isScanning = true;
@@ -175,7 +173,7 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
         setState(() {
           _isScanning = false;
         });
-        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'camera');
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'gov_id');
       }
     }
   }

@@ -356,10 +356,20 @@ class MembershipAutomationService {
         }
       }
 
-      // Record last run time
-      batch.update(libRef, {
+      // Record last run time & operational summary report
+      final report = <String, dynamic>{
+        'runAt': now.toIso8601String(),
+        'totalChecked': checked,
+        'totalGrace': enteredGrace,
+        'totalExpired': expired,
+        'totalReleasedSeats': releasedSeats,
+        'source': 'client_automation_service',
+      };
+
+      batch.set(libRef, {
         'lastAutomationRunAt': now.toIso8601String(),
-      });
+        'lastMaintenanceReport': report,
+      }, SetOptions(merge: true));
 
       if (hasBatchOps) {
         await batch.commit();

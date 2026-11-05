@@ -80,6 +80,7 @@ import '../../features/settings/presentation/screens/account_deletion_screen.dar
 import 'package:study_library/features/legal/presentation/screens/onboarding_consent_screen.dart';
 import 'package:study_library/features/legal/presentation/screens/terms_screen.dart';
 import 'package:study_library/features/legal/presentation/screens/privacy_policy_screen.dart';
+import '../widgets/not_found_screen.dart';
 
 class Routes {
   static const splash = '/splash';
@@ -90,6 +91,7 @@ class Routes {
   static const accessRestricted = '/access-restricted';
   static const terms = '/terms';
   static const privacyPolicy = '/privacy-policy';
+  static const notFound = '/404';
 
   // Admin routes
   static const adminHome = '/admin/home';
@@ -188,39 +190,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final stripped = loc.substring(4);
           GoRouter.of(context).go(stripped);
         });
-        return const MaterialPage(
-          child: Scaffold(
+        return AppPageTransitions.fadeThrough(
+          state: state,
+          child: const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           ),
         );
       }
-      return MaterialPage(
-        child: Scaffold(
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.compass_calibration_outlined, size: 64, color: Colors.brown),
-                  const SizedBox(height: 16),
-                  const Text('Page Not Found', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(
-                    'The requested location ($loc) does not exist.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: () => GoRouter.of(context).go(Routes.splash),
-                    icon: const Icon(Icons.home_rounded),
-                    label: const Text('Return to Home'),
-                  ),
-                ],
-              ),
-            ),
-          ),
+      return AppPageTransitions.fadeThrough(
+        state: state,
+        child: NotFoundScreen(
+          uri: state.uri,
+          error: state.error,
         ),
       );
     },
@@ -251,6 +232,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         Routes.biometricLock,
         Routes.accessRestricted,
         Routes.studentRegister,
+        Routes.notFound,
       ];
       if (publicRoutes.any((r) => path == r || path.startsWith(r))) {
         return null; // allow
@@ -303,6 +285,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null; // allow
     },
     routes: [
+      // ── Web Base Path Normalization & Wildcard Aliases ─────────────────────
+      // Transparently maps /app and /app/* into the application route hierarchy
+      GoRoute(
+        path: '/app',
+        redirect: (context, state) => Routes.splash,
+      ),
+      GoRoute(
+        path: '/app/:subpath(.*)',
+        redirect: (context, state) {
+          final sub = state.pathParameters['subpath'] ?? '';
+          final q = state.uri.hasQuery ? '?${state.uri.query}' : '';
+          return '/$sub$q';
+        },
+      ),
+      GoRoute(
+        path: Routes.notFound,
+        pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+          state: state,
+          child: NotFoundScreen(uri: state.uri, error: state.error),
+        ),
+      ),
       GoRoute(
         path: Routes.splash,
         pageBuilder: (context, state) => AppPageTransitions.fadeThrough(

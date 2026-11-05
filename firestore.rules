@@ -145,11 +145,18 @@ service cloud.firestore {
 
       // ── Payments ─────────────────────────────────────────────────────────
       match /payments/{paymentId} {
-        // Students can read their OWN payment records via studentUserId field
+        // Students can read their OWN payment records via studentUserId or linked student document
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canRecordPayments') ||
                        staffCan(libraryId, 'canViewRevenue') ||
-                       (isAuth() && uid() == resource.data.get('studentUserId', ''));
+                       (isAuth() && (
+                         uid() == resource.data.get('studentUserId', '') ||
+                         uid() == resource.data.get('studentId', '') ||
+                         (resource.data.studentId is string &&
+                          resource.data.studentId.size() > 0 &&
+                          exists(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.studentId)) &&
+                          get(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.studentId)).data.get('userId', '') == uid())
+                       ));
 
         // SERVER-SIDE VALIDATION (ARCH-4):
         // - amount: positive number, max ₹10,00,000
@@ -164,10 +171,15 @@ service cloud.firestore {
                          ((request.resource.data.get('paymentMethod', '') is string && request.resource.data.get('paymentMethod', '').size() > 0) ||
                           (request.resource.data.get('method', '') is string && request.resource.data.get('method', '').size() > 0));
 
-        allow update: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
+        allow update: if (ownerOrStaffCan(libraryId, 'canRecordPayments') &&
                          request.resource.data.amount is number &&
                          request.resource.data.amount > 0 &&
-                         request.resource.data.amount < 1000000;
+                         request.resource.data.amount < 1000000) ||
+                        (isAuth() &&
+                         resource.data.studentId is string &&
+                         exists(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.studentId)) &&
+                         get(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.studentId)).data.get('userId', '') == uid() &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentUserId']));
 
         allow delete: if isOwner(libraryId);
       }
@@ -178,7 +190,14 @@ service cloud.firestore {
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canRecordPayments') ||
                        staffCan(libraryId, 'canViewRevenue') ||
-                       (isAuth() && uid() == resource.data.get('studentUserId', ''));
+                       (isAuth() && (
+                         uid() == resource.data.get('studentUserId', '') ||
+                         uid() == resource.data.get('studentId', '') ||
+                         (resource.data.studentId is string &&
+                          resource.data.studentId.size() > 0 &&
+                          exists(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.studentId)) &&
+                          get(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.studentId)).data.get('userId', '') == uid())
+                       ));
 
         // SEC-R1: Only owner/staff can create receipts (prevents payment bypass)
         allow create: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
@@ -187,9 +206,14 @@ service cloud.firestore {
                          request.resource.data.studentId is string &&
                          request.resource.data.studentId.size() > 0;
 
-        allow update: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
+        allow update: if (ownerOrStaffCan(libraryId, 'canRecordPayments') &&
                          request.resource.data.amount is number &&
-                         request.resource.data.amount > 0;
+                         request.resource.data.amount > 0) ||
+                        (isAuth() &&
+                         resource.data.studentId is string &&
+                         exists(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.studentId)) &&
+                         get(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.studentId)).data.get('userId', '') == uid() &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentUserId']));
 
         allow delete: if isOwner(libraryId);
       }

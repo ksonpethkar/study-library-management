@@ -18,243 +18,305 @@ const db = admin.firestore();
 // 3. T+2 Days: Grace period warning ("Seat released tomorrow")
 // 4. Past Grace: Auto-expire status & auto-release seat to waiting list
 // ─────────────────────────────────────────────────────────────────────────────
+// FUNCTION 1: Autonomous Midnight Daily Membership Expiry & Seat Maintenance
+// Runs every night at 00:01 AM IST (Asia/Kolkata)
+// Handles:
+// 1. T-3 Days: Push reminder to student ("Plan expires in 3 days")
+// 2. T-0 (Today): Urgent renewal notice + UPI payment link
+// 3. T+2 Days: Grace period warning ("Seat released tomorrow")
+// 4. Past Grace: Auto-expire status & auto-release seat to waiting list
+// 5. Updates lastMaintenanceReport & lastAutomationRunAt on library document
+// ─────────────────────────────────────────────────────────────────────────────
+async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
+  const nowTs = admin.firestore.Timestamp.fromDate(now);
+  const libName = libData?.name || 'Cozy Corner Centre';
+  const studentsRef = db.collection(`libraries/${libraryId}/students`);
+
+  let libraryExpired = 0;
+  let libraryGrace = 0;
+  let libraryRemindedT3 = 0;
+  let libraryRemindedT0 = 0;
+  let libraryRemindedT2 = 0;
+  let libraryReleasedSeats = 0;
+
+  // Query active and grace members
+  const studentsSnap = await studentsRef
+    .where('membershipStatus', 'in', ['active', 'grace'])
+    .get();
+
+  // Load Grace Period Settings & Plan Overrides
+  let globalGraceDays = libData?.defaultGraceDays || 3;
+  let planGraceOverrides = {};
+  try {
+    const graceDoc = await db.collection(`libraries/${libraryId}/settings`).doc('grace_period').get();
+    if (graceDoc.exists) {
+      const gData = graceDoc.data() || {};
+      if (typeof gData.defaultDays === 'number' && gData.defaultDays > 0) {
+        globalGraceDays = gData.defaultDays;
+      }
+      if (gData.planOverrides && typeof gData.planOverrides === 'object') {
+        planGraceOverrides = gData.planOverrides;
+      }
+    }
+  } catch (_) {}
+
+  // Load Plan definitions to check plan.gracePeriodDays
+  const plansMap = {};
+  try {
+    const plansSnap = await db.collection(`libraries/${libraryId}/plans`).get();
+    plansSnap.forEach(p => { plansMap[p.id] = p.data(); });
+  } catch (_) {}
+
+  const batch = db.batch();
+  let batchCount = 0;
+
+  for (const studentDoc of studentsSnap.docs) {
+    const s = studentDoc.data();
+    const rawEnd = s.planEndDate || s.validTo;
+    if (!rawEnd) continue;
+
+    let planEnd = null;
+    if (rawEnd.toDate) planEnd = rawEnd.toDate();
+    else if (typeof rawEnd === 'string') planEnd = new Date(rawEnd);
+    else if (typeof rawEnd === 'number') planEnd = new Date(rawEnd);
+
+    if (!planEnd || isNaN(planEnd.getTime())) continue;
+
+    // Normalize dates to midnight for consistent day-diff calculation
+    const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const planEndMid = new Date(planEnd.getFullYear(), planEnd.getMonth(), planEnd.getDate());
+    const diffMs = planEndMid.getTime() - todayMid.getTime();
+    const daysLeft = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+    const currentStatus = s.membershipStatus || 'active';
+    const remindedStages = Array.isArray(s.remindedStages) ? [...s.remindedStages] : [];
+    let updatedStages = false;
+
+    const seatLabel = s.seatLabel || s.seatId || '';
+    const seatText = seatLabel ? `Seat #${seatLabel}` : 'your study desk';
+
+    // ── STAGE 1: T-3 Days Reminder ────────────────────────────────────
+    if (daysLeft === 3 && currentStatus === 'active') {
+      if (!remindedStages.includes('T-3')) {
+        remindedStages.push('T-3');
+        updatedStages = true;
+        libraryRemindedT3++;
+
+        await db.collection(`libraries/${libraryId}/notifications`).add({
+          title: '📅 Membership Expiring in 3 Days',
+          body: `Hello ${s.name || 'Student'}, your membership for ${seatText} expires in 3 days. Renew now to retain your seat!`,
+          targetRole: 'student',
+          targetUserId: s.userId || studentDoc.id,
+          type: 'renewal_reminder',
+          stage: 'T-3',
+          createdAt: nowTs,
+          read: false,
+          actionRoute: '/app/student/membership',
+        });
+      }
+    }
+
+    // ── STAGE 2: T-0 (Expires Today) ──────────────────────────────────
+    if (daysLeft === 0 && currentStatus === 'active') {
+      if (!remindedStages.includes('T-0')) {
+        remindedStages.push('T-0');
+        updatedStages = true;
+        libraryRemindedT0++;
+
+        await db.collection(`libraries/${libraryId}/notifications`).add({
+          title: '⚡ Desk Membership Expires Today!',
+          body: `Today is the last day of your study plan for ${seatText}. Please renew your plan to continue using your desk.`,
+          targetRole: 'student',
+          targetUserId: s.userId || studentDoc.id,
+          type: 'renewal_reminder',
+          stage: 'T-0',
+          createdAt: nowTs,
+          read: false,
+          actionRoute: '/app/student/membership',
+        });
+      }
+    }
+
+    // ── STAGE 3: Plan Ended ➔ Transition to Grace ─────────────────────
+    let studentGraceDays = globalGraceDays;
+    if (s.planId) {
+      if (typeof planGraceOverrides[s.planId] === 'number') {
+        studentGraceDays = planGraceOverrides[s.planId];
+      } else if (plansMap[s.planId] && typeof plansMap[s.planId].gracePeriodDays === 'number') {
+        studentGraceDays = plansMap[s.planId].gracePeriodDays;
+      }
+    }
+
+    let graceEnd = null;
+    if (s.graceEndDate) {
+      graceEnd = s.graceEndDate.toDate ? s.graceEndDate.toDate() : new Date(s.graceEndDate);
+    } else {
+      graceEnd = new Date(planEnd.getTime() + studentGraceDays * 24 * 60 * 60 * 1000);
+    }
+
+    if (now > planEnd && now < graceEnd && currentStatus === 'active') {
+      batch.update(studentDoc.ref, {
+        membershipStatus: 'grace',
+        graceEndDate: admin.firestore.Timestamp.fromDate(graceEnd),
+        updatedAt: nowTs,
+      });
+      batchCount++;
+      libraryGrace++;
+    }
+
+    // ── STAGE 4: T+2 Days (Grace Warning - 1 Day Before Auto-Release) ─
+    const graceDiffMs = graceEnd.getTime() - now.getTime();
+    const graceHoursLeft = graceDiffMs / (1000 * 60 * 60);
+
+    if (currentStatus === 'grace' && graceHoursLeft <= 24 && graceHoursLeft > 0) {
+      if (!remindedStages.includes('T+2')) {
+        remindedStages.push('T+2');
+        updatedStages = true;
+        libraryRemindedT2++;
+
+        await db.collection(`libraries/${libraryId}/notifications`).add({
+          title: '⚠️ FINAL WARNING: Desk Release Tomorrow',
+          body: `Your grace period ends tomorrow! ${seatText} will be released to the waiting list unless renewed today.`,
+          targetRole: 'student',
+          targetUserId: s.userId || studentDoc.id,
+          type: 'renewal_reminder',
+          stage: 'T+2',
+          createdAt: nowTs,
+          read: false,
+          actionRoute: '/app/student/membership',
+        });
+      }
+    }
+
+    // ── STAGE 5: Past Grace ➔ Expire & Auto-Release Seat ──────────────
+    if (now >= graceEnd) {
+      libraryExpired++;
+      const studentUpdate = {
+        membershipStatus: 'expired',
+        updatedAt: nowTs,
+      };
+
+      // Auto-release seat if assigned
+      if (s.seatId && s.sectionId) {
+        libraryReleasedSeats++;
+        const seatRef = db
+          .collection(`libraries/${libraryId}/sections/${s.sectionId}/seats`)
+          .doc(s.seatId);
+
+        batch.update(seatRef, {
+          status: 'available',
+          studentId: null,
+          updatedAt: nowTs,
+        });
+
+        studentUpdate.seatId = null;
+        studentUpdate.sectionId = null;
+        studentUpdate.previousSeatId = s.seatId;
+        studentUpdate.previousSectionId = s.sectionId;
+
+        // Record to library audit trail for full operational traceability
+        const auditRef = db.collection(`libraries/${libraryId}/audit_log`).doc();
+        batch.set(auditRef, {
+          action: 'expired_seat_release',
+          entityType: 'seat',
+          entityId: s.seatId,
+          entityName: seatLabel,
+          actor: 'System Automation (Cloud Cron)',
+          performedBy: 'Autonomous Daily Maintenance (00:01 AM IST)',
+          createdAt: nowTs,
+          details: {
+            studentId: studentDoc.id,
+            studentName: s.name || 'Student',
+            graceEndDate: graceEnd.toISOString(),
+            releasedSeatId: s.seatId,
+          },
+        });
+
+        // Check and hold seat for #1 waiting list candidate (Phase 3)
+        triggerWaitlistHoldForFreedSeat(libraryId, s.sectionId, s.seatId, seatLabel, libName).catch(e => {
+          logger.warn('Waitlist hold trigger error:', e);
+        });
+      }
+
+      batch.update(studentDoc.ref, studentUpdate);
+      batchCount++;
+    } else if (updatedStages) {
+      batch.update(studentDoc.ref, { remindedStages });
+      batchCount++;
+    }
+  }
+
+  if (batchCount > 0) {
+    await batch.commit();
+  }
+
+  // Update library document with last maintenance summary report
+  const report = {
+    runAt: now.toISOString(),
+    totalChecked: studentsSnap.size,
+    totalGrace: libraryGrace,
+    totalExpired: libraryExpired,
+    totalRemindedT3: libraryRemindedT3,
+    totalRemindedT0: libraryRemindedT0,
+    totalRemindedT2: libraryRemindedT2,
+    totalReleasedSeats: libraryReleasedSeats,
+    source: 'cloud_function_scheduler',
+  };
+
+  await db.collection('libraries').doc(libraryId).set({
+    lastAutomationRunAt: now.toISOString(),
+    lastMaintenanceReport: report,
+  }, { merge: true });
+
+  return report;
+}
+
 exports.dailyMembershipExpiryCheck = onSchedule(
-  { schedule: '30 2 * * *', timeZone: 'Asia/Kolkata', region: 'us-central1' },
+  { schedule: '1 0 * * *', timeZone: 'Asia/Kolkata', region: 'us-central1' },
   async (event) => {
-    logger.info('Running daily membership expiry & multi-stage renewal check (8:00 AM IST)');
+    logger.info('Running autonomous midnight daily membership expiry & seat maintenance (00:01 AM IST)');
     const now = new Date();
-    const nowTs = admin.firestore.Timestamp.fromDate(now);
 
     try {
       const librariesSnap = await db.collection('libraries').get();
       let totalExpired = 0;
       let totalGrace = 0;
-      let totalRemindedT3 = 0;
-      let totalRemindedT0 = 0;
-      let totalRemindedT2 = 0;
+      let totalReleased = 0;
 
       for (const libraryDoc of librariesSnap.docs) {
-        const libraryId = libraryDoc.id;
-        const libData = libraryDoc.data() || {};
-        const libName = libData.name || 'Cozy Corner Centre';
-        const studentsRef = db.collection(`libraries/${libraryId}/students`);
-
-        // Query active and grace members
-        const studentsSnap = await studentsRef
-          .where('membershipStatus', 'in', ['active', 'grace'])
-          .get();
-
-        // Load Grace Period Settings & Plan Overrides
-        let globalGraceDays = libData.defaultGraceDays || 3;
-        let planGraceOverrides = {};
-        try {
-          const graceDoc = await db.collection(`libraries/${libraryId}/settings`).doc('grace_period').get();
-          if (graceDoc.exists) {
-            const gData = graceDoc.data() || {};
-            if (typeof gData.defaultDays === 'number' && gData.defaultDays > 0) {
-              globalGraceDays = gData.defaultDays;
-            }
-            if (gData.planOverrides && typeof gData.planOverrides === 'object') {
-              planGraceOverrides = gData.planOverrides;
-            }
-          }
-        } catch (_) {}
-
-        // Load Plan definitions to check plan.gracePeriodDays
-        const plansMap = {};
-        try {
-          const plansSnap = await db.collection(`libraries/${libraryId}/plans`).get();
-          plansSnap.forEach(p => { plansMap[p.id] = p.data(); });
-        } catch (_) {}
-
-        const batch = db.batch();
-        let batchCount = 0;
-
-        for (const studentDoc of studentsSnap.docs) {
-          const s = studentDoc.data();
-          const rawEnd = s.planEndDate || s.validTo;
-          if (!rawEnd) continue;
-
-          let planEnd = null;
-          if (rawEnd.toDate) planEnd = rawEnd.toDate();
-          else if (typeof rawEnd === 'string') planEnd = new Date(rawEnd);
-          else if (typeof rawEnd === 'number') planEnd = new Date(rawEnd);
-
-          if (!planEnd || isNaN(planEnd.getTime())) continue;
-
-          // Normalize dates to midnight for consistent day-diff calculation
-          const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          const planEndMid = new Date(planEnd.getFullYear(), planEnd.getMonth(), planEnd.getDate());
-          const diffMs = planEndMid.getTime() - todayMid.getTime();
-          const daysLeft = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-          const currentStatus = s.membershipStatus || 'active';
-          const remindedStages = Array.isArray(s.remindedStages) ? [...s.remindedStages] : [];
-          let updatedStages = false;
-
-          const seatLabel = s.seatLabel || s.seatId || '';
-          const seatText = seatLabel ? `Seat #${seatLabel}` : 'your study desk';
-
-          // ── STAGE 1: T-3 Days Reminder ────────────────────────────────────
-          if (daysLeft === 3 && currentStatus === 'active') {
-            if (!remindedStages.includes('T-3')) {
-              remindedStages.push('T-3');
-              updatedStages = true;
-              totalRemindedT3++;
-
-              await db.collection(`libraries/${libraryId}/notifications`).add({
-                title: '📅 Membership Expiring in 3 Days',
-                body: `Hello ${s.name || 'Student'}, your membership for ${seatText} expires in 3 days. Renew now to retain your seat!`,
-                targetRole: 'student',
-                targetUserId: s.userId || studentDoc.id,
-                type: 'renewal_reminder',
-                stage: 'T-3',
-                createdAt: nowTs,
-                read: false,
-                actionRoute: '/app/student/membership',
-              });
-            }
-          }
-
-          // ── STAGE 2: T-0 (Expires Today) ──────────────────────────────────
-          if (daysLeft === 0 && currentStatus === 'active') {
-            if (!remindedStages.includes('T-0')) {
-              remindedStages.push('T-0');
-              updatedStages = true;
-              totalRemindedT0++;
-
-              await db.collection(`libraries/${libraryId}/notifications`).add({
-                title: '⚡ Desk Membership Expires Today!',
-                body: `Today is the last day of your study plan for ${seatText}. Please renew your plan to continue using your desk.`,
-                targetRole: 'student',
-                targetUserId: s.userId || studentDoc.id,
-                type: 'renewal_reminder',
-                stage: 'T-0',
-                createdAt: nowTs,
-                read: false,
-                actionRoute: '/app/student/membership',
-              });
-            }
-          }
-
-          // ── STAGE 3: Plan Ended ➔ Transition to Grace ─────────────────────
-          let studentGraceDays = globalGraceDays;
-          if (s.planId) {
-            if (typeof planGraceOverrides[s.planId] === 'number') {
-              studentGraceDays = planGraceOverrides[s.planId];
-            } else if (plansMap[s.planId] && typeof plansMap[s.planId].gracePeriodDays === 'number') {
-              studentGraceDays = plansMap[s.planId].gracePeriodDays;
-            }
-          }
-
-          let graceEnd = null;
-          if (s.graceEndDate) {
-            graceEnd = s.graceEndDate.toDate ? s.graceEndDate.toDate() : new Date(s.graceEndDate);
-          } else {
-            graceEnd = new Date(planEnd.getTime() + studentGraceDays * 24 * 60 * 60 * 1000);
-          }
-
-          if (now > planEnd && now < graceEnd && currentStatus === 'active') {
-            batch.update(studentDoc.ref, {
-              membershipStatus: 'grace',
-              graceEndDate: admin.firestore.Timestamp.fromDate(graceEnd),
-              updatedAt: nowTs,
-            });
-            batchCount++;
-            totalGrace++;
-          }
-
-          // ── STAGE 4: T+2 Days (Grace Warning - 1 Day Before Auto-Release) ─
-          const graceDiffMs = graceEnd.getTime() - now.getTime();
-          const graceHoursLeft = graceDiffMs / (1000 * 60 * 60);
-
-          if (currentStatus === 'grace' && graceHoursLeft <= 24 && graceHoursLeft > 0) {
-            if (!remindedStages.includes('T+2')) {
-              remindedStages.push('T+2');
-              updatedStages = true;
-              totalRemindedT2++;
-
-              await db.collection(`libraries/${libraryId}/notifications`).add({
-                title: '⚠️ FINAL WARNING: Desk Release Tomorrow',
-                body: `Your grace period ends tomorrow! ${seatText} will be released to the waiting list unless renewed today.`,
-                targetRole: 'student',
-                targetUserId: s.userId || studentDoc.id,
-                type: 'renewal_reminder',
-                stage: 'T+2',
-                createdAt: nowTs,
-                read: false,
-                actionRoute: '/app/student/membership',
-              });
-            }
-          }
-
-          // ── STAGE 5: Past Grace ➔ Expire & Auto-Release Seat ──────────────
-          if (now >= graceEnd) {
-            totalExpired++;
-            const studentUpdate = {
-              membershipStatus: 'expired',
-              updatedAt: nowTs,
-            };
-
-            // Auto-release seat if assigned
-            if (s.seatId && s.sectionId) {
-              const seatRef = db
-                .collection(`libraries/${libraryId}/sections/${s.sectionId}/seats`)
-                .doc(s.seatId);
-
-              batch.update(seatRef, {
-                status: 'available',
-                studentId: null,
-                updatedAt: nowTs,
-              });
-
-              studentUpdate.seatId = null;
-              studentUpdate.sectionId = null;
-              studentUpdate.previousSeatId = s.seatId;
-              studentUpdate.previousSectionId = s.sectionId;
-
-              // Record to library audit trail for full operational traceability
-              const auditRef = db.collection(`libraries/${libraryId}/audit_log`).doc();
-              batch.set(auditRef, {
-                action: 'expired_seat_release',
-                entityType: 'seat',
-                entityId: s.seatId,
-                entityName: seatLabel,
-                actor: 'System Automation (Cron)',
-                performedBy: 'System Cron (8:00 AM IST)',
-                createdAt: nowTs,
-                details: {
-                  studentId: studentDoc.id,
-                  studentName: s.name || 'Student',
-                  graceEndDate: graceEnd.toISOString(),
-                  releasedSeatId: s.seatId,
-                },
-              });
-
-              // Check and hold seat for #1 waiting list candidate (Phase 3)
-              triggerWaitlistHoldForFreedSeat(libraryId, s.sectionId, s.seatId, seatLabel, libName).catch(e => {
-                logger.warn('Waitlist hold trigger error:', e);
-              });
-            }
-
-            batch.update(studentDoc.ref, studentUpdate);
-            batchCount++;
-          } else if (updatedStages) {
-            batch.update(studentDoc.ref, { remindedStages });
-            batchCount++;
-          }
-        }
-
-        if (batchCount > 0) {
-          await batch.commit();
-        }
+        const report = await performDailyMaintenanceForLibrary(libraryDoc.id, libraryDoc.data() || {}, now);
+        totalExpired += report.totalExpired;
+        totalGrace += report.totalGrace;
+        totalReleased += report.totalReleasedSeats;
       }
 
-      logger.info(`Daily check complete: Expired: ${totalExpired}, Grace: ${totalGrace}, T-3: ${totalRemindedT3}, T-0: ${totalRemindedT0}, T+2: ${totalRemindedT2}`);
+      logger.info(`Autonomous midnight maintenance complete: Expired: ${totalExpired}, Grace: ${totalGrace}, Seats Released: ${totalReleased}`);
     } catch (err) {
-      logger.error('Daily expiry check failed:', err);
+      logger.error('Autonomous daily maintenance failed:', err);
       throw err;
     }
+  }
+);
+
+// Callable function to allow admin console to trigger daily maintenance on-demand
+exports.triggerDailyMaintenance = onCall(
+  { region: 'us-central1' },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Admin authentication required.');
+    }
+    const libraryId = request.data?.libraryId;
+    if (!libraryId) {
+      throw new HttpsError('invalid-argument', 'libraryId is required.');
+    }
+
+    const libDoc = await db.collection('libraries').doc(libraryId).get();
+    if (!libDoc.exists) {
+      throw new HttpsError('not-found', 'Library not found.');
+    }
+
+    const report = await performDailyMaintenanceForLibrary(libraryId, libDoc.data() || {}, new Date());
+    return { success: true, report };
   }
 );
 
@@ -265,7 +327,7 @@ exports.dailyMembershipExpiryCheck = onSchedule(
 // to Telegram Bot and Admin Push Topic.
 // ─────────────────────────────────────────────────────────────────────────────
 exports.dailyMorningOwnerDigest = onSchedule(
-  { schedule: '30 2 * * *', timeZone: 'Asia/Kolkata', region: 'us-central1' },
+  { schedule: '0 8 * * *', timeZone: 'Asia/Kolkata', region: 'us-central1' },
   async (event) => {
     logger.info('Generating Owner Morning Briefing Digest (8:00 AM IST)');
     const now = new Date();
@@ -397,7 +459,7 @@ exports.dailyMorningOwnerDigest = onSchedule(
 // Sends a complete end-of-day revenue, cash vs UPI, and settlement report.
 // ─────────────────────────────────────────────────────────────────────────────
 exports.dailyNightlyOwnerDigest = onSchedule(
-  { schedule: '30 17 * * *', timeZone: 'Asia/Kolkata', region: 'us-central1' },
+  { schedule: '0 23 * * *', timeZone: 'Asia/Kolkata', region: 'us-central1' },
   async (event) => {
     logger.info('Generating Owner Nightly Financial Settlement Digest (11:00 PM IST)');
     const now = new Date();

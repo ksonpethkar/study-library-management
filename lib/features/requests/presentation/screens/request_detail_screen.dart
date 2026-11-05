@@ -1214,8 +1214,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                         child: SizedBox(
                           width: double.infinity,
                           height: double.infinity,
-                          child: Image(
-                            image: ImageService.getImageProvider(paymentProofUrl)!,
+                          child: ImageService.buildImageWidget(
+                            paymentProofUrl,
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -2063,8 +2063,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               child: SizedBox(
                 width: double.infinity,
                 height: double.infinity,
-                child: Image(
-                  image: ImageService.getImageProvider(imageUrl)!,
+                child: ImageService.buildImageWidget(
+                  imageUrl,
                   fit: BoxFit.cover,
                 ),
               ),

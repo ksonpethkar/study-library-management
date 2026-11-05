@@ -312,6 +312,43 @@ class ImageService {
     double? width,
     double? height,
   }) {
+    // Graceful handling for PDF documents (e-Aadhaar, DigiLocker certificates, scanned PDFs)
+    if (pathOrUrl.startsWith('data:application/pdf') || pathOrUrl.toLowerCase().endsWith('.pdf')) {
+      final isMini = height != null && height < 60;
+      return Container(
+        width: width,
+        height: height,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFFECACA)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.picture_as_pdf_rounded,
+              color: Colors.red.shade700,
+              size: isMini ? 22 : 32,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'PDF Document',
+              style: TextStyle(
+                color: Colors.red.shade800,
+                fontSize: isMini ? 9 : 11,
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      );
+    }
+
     if (pathOrUrl.startsWith('data:image') ||
         (!pathOrUrl.startsWith('http') && pathOrUrl.length > 200)) {
       try {

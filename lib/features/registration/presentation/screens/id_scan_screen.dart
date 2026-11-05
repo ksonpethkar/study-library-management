@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../providers/registration_provider.dart';
 import '../../data/ocr_parser.dart';
 import 'package:study_library/services/ocr_service.dart';
+import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 class IdScanScreen extends ConsumerStatefulWidget {
@@ -31,18 +31,51 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
       _selectedType == GovIdType.voterId;
 
   Future<void> _captureAndScan(ImageSource source, {bool isBackSide = false}) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: source,
-      maxWidth: 1600,
-      imageQuality: 85,
+    final doc = await DocumentPickerService.pickDocument(
+      context: context,
+      preferredSource: source,
     );
-    if (picked == null || !mounted) return;
+    if (doc == null || !mounted) return;
 
-    final bytes = await picked.readAsBytes();
-    if (bytes.isEmpty || !mounted) return;
+    final bytes = doc.bytes;
+    final dataUrl = doc.dataUrl;
 
-    final dataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+    if (doc.isPdf) {
+      final updates = <String, dynamic>{
+        if (isBackSide) ...{
+          'govIdBackDataUrl': dataUrl,
+          'govIdBackImageUrl': dataUrl,
+          'govIdBackImagePath': dataUrl,
+          'govIdBackFileName': doc.fileName,
+        } else ...{
+          'govIdType': _selectedType.name,
+          'govIdDataUrl': dataUrl,
+          'govIdImageUrl': dataUrl,
+          'govIdImagePath': dataUrl,
+          'govIdFileName': doc.fileName,
+        },
+      };
+      ref.read(registrationNotifierProvider.notifier).updateFields(updates);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.picture_as_pdf_rounded, color: Colors.amberAccent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('PDF Document (${doc.fileName}) attached! Review details in the form.'),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1E293B),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        ref.read(registrationStepProvider.notifier).goTo(2);
+      }
+      return;
+    }
 
     setState(() {
       if (isBackSide) {
@@ -53,27 +86,33 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
       _isProcessing = true;
       _statusMessage = isBackSide
           ? 'Reading back side for address...'
-          : 'Analyzing ID with OCR...';
+          : 'Analyzing ID with OCR & QR...';
     });
 
     try {
       final ocrService = OcrService();
+      final qrString = await ocrService.decodeQrBytes(bytes);
       final rawText = await ocrService.processImageBytes(bytes);
 
       if (isBackSide) {
         // For back side: only extract address/PIN — don't overwrite name/DOB
-        final backResult = OcrParser.parseByType(_selectedType, rawText);
+        final backResult = OcrParser.parseUnified(
+          qrString: qrString,
+          rawText: rawText,
+          preferredType: _selectedType,
+        );
 
         // Update address-related fields from the back scan
         final updates = <String, dynamic>{
           'govIdBackDataUrl': dataUrl,
           'govIdBackImageUrl': dataUrl,
           'govIdBackImagePath': dataUrl,
+          'govIdBackFileName': doc.fileName,
         };
-        if (backResult.address != null) updates['address'] = backResult.address;
-        if (backResult.pinCode != null) updates['pinCode'] = backResult.pinCode;
-        if (backResult.district != null) updates['district'] = backResult.district;
-        if (backResult.state != null) updates['state'] = backResult.state;
+        if (backResult.address != null && backResult.address!.trim().isNotEmpty) updates['address'] = backResult.address!.trim();
+        if (backResult.pinCode != null && backResult.pinCode!.trim().isNotEmpty) updates['pinCode'] = backResult.pinCode!.trim();
+        if (backResult.district != null && backResult.district!.trim().isNotEmpty) updates['district'] = backResult.district!.trim();
+        if (backResult.state != null && backResult.state!.trim().isNotEmpty) updates['state'] = backResult.state!.trim();
 
         ref.read(registrationNotifierProvider.notifier).updateFields(updates);
         final existing = ref.read(ocrResultProvider);
@@ -86,16 +125,23 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
         if (mounted) _showBackScanResult(backResult);
       } else {
         // Front side: full extraction
-        final detectedType = OcrParser.detectGovIdType(rawText);
-        setState(() => _selectedType = detectedType);
+        final qrParsed = QrIdParser.parseQrString(qrString);
+        final detectedType = qrParsed?.type ?? OcrParser.detectGovIdType(rawText);
+        final effectiveType = detectedType != GovIdType.other ? detectedType : _selectedType;
+        setState(() => _selectedType = effectiveType);
 
-        final result = OcrParser.parseByType(detectedType, rawText);
+        final result = OcrParser.parseUnified(
+          qrString: qrString,
+          rawText: rawText,
+          preferredType: effectiveType,
+        );
 
         ref.read(registrationNotifierProvider.notifier).updateFields({
-          'govIdType': detectedType.name,
+          'govIdType': effectiveType.name,
           'govIdDataUrl': dataUrl,
           'govIdImageUrl': dataUrl,
           'govIdImagePath': dataUrl,
+          'govIdFileName': doc.fileName,
           if (result.name != null) 'name': result.name,
           if (result.fatherName != null) 'fatherName': result.fatherName,
           if (result.dob != null) 'dob': result.dob,
@@ -135,7 +181,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
         AppErrorFormatter.showErrorSnackBar(
           context,
           e,
-          actionContext: 'camera',
+          actionContext: 'gov_id',
           onRetry: () => ref.read(registrationStepProvider.notifier).goTo(2),
         );
       }

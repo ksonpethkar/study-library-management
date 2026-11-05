@@ -580,8 +580,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   error: (_, _) => const SizedBox.shrink(),
                 ),
 
-                // Contextual Expiry / Renewal Alert Banner
-                if (student.isExpired || (student.daysRemaining != null && student.daysRemaining! <= 3)) ...[
+                // Phase 3: Contextual Seat Protection & Renewal Guarantee Alert Banner (7-day window & grace)
+                if (student.isExpired ||
+                    (student.daysRemaining != null && student.daysRemaining! <= 7) ||
+                    student.effectiveMembershipStatus == MembershipStatus.grace) ...[
                   _buildStudentExpiryAlertBanner(context, theme, student, seatLabel),
                   const SizedBox(height: 14),
                 ],
@@ -657,15 +659,68 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     String seatLabel,
   ) {
     final isExpired = student.isExpired;
+    final isInGrace = student.effectiveMembershipStatus == MembershipStatus.grace;
     final days = student.daysRemaining ?? 0;
+    final hasSeat = student.seatId != null && student.seatId!.isNotEmpty;
     final isDark = theme.brightness == Brightness.dark;
-    final color = isExpired ? const Color(0xFFEF4444) : const Color(0xFFD97706);
-    final bgColor = isExpired
-        ? (isDark ? const Color(0xFF3F1D1D) : const Color(0xFFFEF2F2))
-        : (isDark ? const Color(0xFF3B2D12) : const Color(0xFFFFFBEB));
-    final borderColor = isExpired
-        ? (isDark ? const Color(0xFFEF4444).withValues(alpha: 0.4) : const Color(0xFFFECACA))
-        : (isDark ? const Color(0xFFF59E0B).withValues(alpha: 0.4) : const Color(0xFFFDE68A));
+
+    // Palette: Red for expired, Amber for imminent (<3d), Emerald for 4-7d proactive protection
+    final Color color;
+    final Color bgColor;
+    final Color borderColor;
+
+    if (isExpired) {
+      color = const Color(0xFFEF4444);
+      bgColor = isDark ? const Color(0xFF3F1D1D) : const Color(0xFFFEF2F2);
+      borderColor = isDark ? const Color(0xFFEF4444).withValues(alpha: 0.4) : const Color(0xFFFECACA);
+    } else if (isInGrace || days <= 3) {
+      color = const Color(0xFFD97706);
+      bgColor = isDark ? const Color(0xFF3B2D12) : const Color(0xFFFFFBEB);
+      borderColor = isDark ? const Color(0xFFF59E0B).withValues(alpha: 0.45) : const Color(0xFFFDE68A);
+    } else {
+      // 4-7 days: Reassuring proactive hold guarantee
+      color = const Color(0xFF0D9488);
+      bgColor = isDark ? const Color(0xFF132E2B) : const Color(0xFFF0FDFA);
+      borderColor = isDark ? const Color(0xFF14B8A6).withValues(alpha: 0.45) : const Color(0xFFCCFBF1);
+    }
+
+    final String titleText;
+    final String bodyText;
+    final String buttonLabel;
+
+    if (hasSeat) {
+      if (isExpired) {
+        titleText = '⚠️ Desk $seatLabel In Grace Hold';
+        bodyText = 'Your membership has ended. Desk $seatLabel is reserved temporarily before reallocation. Renew now to retain your spot.';
+        buttonLabel = '🔒 Keep Desk $seatLabel • 1-Tap Renew';
+      } else if (days == 0) {
+        titleText = '🔒 Desk $seatLabel Held • Expires Today';
+        bodyText = 'Keep your personal study desk $seatLabel locked in with 1-tap instant renewal without interruption.';
+        buttonLabel = '🔒 Keep Desk $seatLabel • 1-Tap Renew';
+      } else if (days <= 3) {
+        titleText = '🔒 Desk $seatLabel Held For You ($days Days Left)';
+        bodyText = 'Your dedicated desk $seatLabel is protected. Renew online anytime to keep your spot guaranteed.';
+        buttonLabel = '🔒 Keep Desk $seatLabel • 1-Tap Renew';
+      } else {
+        titleText = '🔒 Desk $seatLabel Reservation Active';
+        bodyText = 'Valid until ${student.planEndDate != null ? DateFormat("dd MMM yyyy").format(student.planEndDate!) : "soon"} ($days days). Renew early to guarantee your desk stays locked.';
+        buttonLabel = '🔒 Keep Desk $seatLabel • 1-Tap Renew';
+      }
+    } else {
+      if (isExpired) {
+        titleText = 'Membership Expired';
+        bodyText = 'Your plan has ended. Renew online to immediately restore your digital library pass and facilities.';
+        buttonLabel = '⚡ 1-Tap Renew Membership';
+      } else if (days == 0) {
+        titleText = 'Plan Expires Today!';
+        bodyText = 'Renew today to maintain continuous access to high-speed Wi-Fi, air conditioning, and library perks.';
+        buttonLabel = '⚡ 1-Tap Renew Plan';
+      } else {
+        titleText = 'Plan Expires in $days Day${days > 1 ? "s" : ""}';
+        bodyText = 'Valid until ${student.planEndDate != null ? DateFormat("dd MMM yyyy").format(student.planEndDate!) : "soon"}. Renew now to enjoy uninterrupted library access.';
+        buttonLabel = '⚡ 1-Tap Renew Plan';
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -675,7 +730,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
         border: Border.all(color: borderColor, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: isDark ? 0.12 : 0.08),
+            color: color.withValues(alpha: isDark ? 0.15 : 0.08),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -691,7 +746,9 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
               shape: BoxShape.circle,
             ),
             child: Icon(
-              isExpired ? Icons.error_outline_rounded : Icons.schedule_rounded,
+              hasSeat
+                  ? Icons.lock_rounded
+                  : (isExpired ? Icons.error_outline_rounded : Icons.schedule_rounded),
               size: 20,
               color: color,
             ),
@@ -701,25 +758,40 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  isExpired
-                      ? 'Membership Expired'
-                      : (days == 0
-                          ? 'Plan Expires Today!'
-                          : 'Plan Expires in $days Day${days > 1 ? "s" : ""}'),
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.bold,
-                    color: isExpired
-                        ? (isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B))
-                        : (isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E)),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        titleText,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                          color: isExpired
+                              ? (isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B))
+                              : (days <= 3 || isInGrace
+                                  ? (isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E))
+                                  : (isDark ? const Color(0xFF5EEAD4) : const Color(0xFF0F766E))),
+                        ),
+                      ),
+                    ),
+                    if (hasSeat) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Seat Held',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
-                  isExpired
-                      ? 'Your plan has ended. Renew online to restore your digital pass & retain $seatLabel.'
-                      : 'Valid until ${student.planEndDate != null ? DateFormat("dd MMM yyyy").format(student.planEndDate!) : "soon"}. Renew now to keep your assigned desk $seatLabel.',
+                  bodyText,
                   style: TextStyle(
                     fontSize: 11.5,
                     color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
@@ -730,9 +802,11 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 FilledButton.tonal(
                   style: FilledButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    backgroundColor: isExpired ? const Color(0xFFDC2626) : const Color(0xFFD97706),
+                    backgroundColor: isExpired
+                        ? const Color(0xFFDC2626)
+                        : (days <= 3 || isInGrace ? const Color(0xFFD97706) : const Color(0xFF0D9488)),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: () {
@@ -742,10 +816,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.autorenew_rounded, size: 15),
+                      Icon(hasSeat ? Icons.lock_open_rounded : Icons.autorenew_rounded, size: 15),
                       const SizedBox(width: 6),
                       Text(
-                        isExpired ? 'Renew Membership' : 'Renew Plan Now',
+                        buttonLabel,
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ],

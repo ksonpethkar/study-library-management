@@ -482,6 +482,37 @@ class MyMembershipScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 14),
 
+                      // Phase 3: Seat Protection Active Guarantee Pill
+                      if ((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F766E).withValues(alpha: 0.22),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF14B8A6).withValues(alpha: 0.45)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.lock_rounded, size: 15, color: Color(0xFF2DD4BF)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  student.seatId != null && student.seatId!.isNotEmpty
+                                      ? '🔒 ${SeatHelper.formatSeatLabel(seatId: student.seatId)} is held for you • Renew to keep your spot'
+                                      : '🔒 Seat reservation held for you • Renew to lock in your spot',
+                                  style: const TextStyle(
+                                    color: Color(0xFFCCFBF1),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       // Quick Action Buttons
                       Row(
                         children: [
@@ -489,9 +520,18 @@ class MyMembershipScreen extends ConsumerWidget {
                             child: ElevatedButton.icon(
                               onPressed: () => context.push(Routes.studentRenew),
                               icon: const Icon(Icons.autorenew_rounded, size: 16),
-                              label: const Text('Extend / Renew', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              label: Text(
+                                ((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired) &&
+                                        student.seatId != null &&
+                                        student.seatId!.isNotEmpty
+                                    ? '🔒 Keep ${SeatHelper.formatSeatLabel(seatId: student.seatId)}'
+                                    : 'Extend / Renew',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF4F46E5),
+                                backgroundColor: ((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired)
+                                    ? const Color(0xFF059669)
+                                    : const Color(0xFF4F46E5),
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -826,36 +866,33 @@ class _StudentTransactionsSection extends StatelessWidget {
     final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final effectiveUid = student.userId?.isNotEmpty == true ? student.userId! : authUid;
 
+    final studentFilter = effectiveUid.isNotEmpty
+        ? Filter.or(
+            Filter('studentId', isEqualTo: student.id),
+            Filter('studentUserId', isEqualTo: effectiveUid),
+            Filter('studentId', isEqualTo: effectiveUid),
+          )
+        : Filter('studentId', isEqualTo: student.id);
+
+    // Resilient queries matching either studentId or studentUserId so all receipts/payments appear
+    final receiptQuery = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('receipts')
+        .where(studentFilter);
+
+    final paymentQuery = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('payments')
+        .where(studentFilter);
+
     // Stream both receipts and payments for the student
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: effectiveUid.isNotEmpty
-          ? FirebaseFirestore.instance
-              .collection('libraries')
-              .doc(libraryId)
-              .collection('receipts')
-              .where('studentUserId', isEqualTo: effectiveUid)
-              .snapshots()
-          : FirebaseFirestore.instance
-              .collection('libraries')
-              .doc(libraryId)
-              .collection('receipts')
-              .where('studentId', isEqualTo: student.id)
-              .snapshots(),
+      stream: receiptQuery.snapshots(),
       builder: (context, receiptSnap) {
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: effectiveUid.isNotEmpty
-              ? FirebaseFirestore.instance
-                  .collection('libraries')
-                  .doc(libraryId)
-                  .collection('payments')
-                  .where('studentUserId', isEqualTo: effectiveUid)
-                  .snapshots()
-              : FirebaseFirestore.instance
-                  .collection('libraries')
-                  .doc(libraryId)
-                  .collection('payments')
-                  .where('studentId', isEqualTo: student.id)
-                  .snapshots(),
+          stream: paymentQuery.snapshots(),
           builder: (context, paymentSnap) {
             if (receiptSnap.connectionState == ConnectionState.waiting &&
                 paymentSnap.connectionState == ConnectionState.waiting) {

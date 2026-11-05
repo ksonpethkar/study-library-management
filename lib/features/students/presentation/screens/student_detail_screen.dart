@@ -2635,8 +2635,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(6),
-                          child: Image(
-                            image: ImageService.getImageProvider(front) ?? const AssetImage("assets/images/app_logo.png"),
+                          child: ImageService.buildImageWidget(
+                            front,
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -2668,8 +2668,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(6),
-                          child: Image(
-                            image: ImageService.getImageProvider(back)!,
+                          child: ImageService.buildImageWidget(
+                            back,
                             fit: BoxFit.cover,
                           ),
                         ),

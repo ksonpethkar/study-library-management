@@ -50,6 +50,11 @@ class LibraryModel {
   final String googleMapsUrl;
   final String wifiSsid;
   final String wifiPassword;
+  final String? lastAutomationRunAt;
+  final Map<String, dynamic>? lastMaintenanceReport;
+
+  DateTime? get lastAutomationRunDateTime =>
+      lastAutomationRunAt != null ? DateTime.tryParse(lastAutomationRunAt!) : null;
 
   String get effectiveWifiSsid =>
       wifiSsid.trim().isNotEmpty ? wifiSsid.trim() : '${name.trim().isNotEmpty ? name.trim() : "Cozy Corner"} 5G';
@@ -130,6 +135,8 @@ class LibraryModel {
     this.googleMapsUrl = '',
     this.wifiSsid = '',
     this.wifiPassword = '',
+    this.lastAutomationRunAt,
+    this.lastMaintenanceReport,
   });
 
   factory LibraryModel.fromJson(Map<String, dynamic> json) {
@@ -187,6 +194,10 @@ class LibraryModel {
       googleMapsUrl: json['googleMapsUrl'] as String? ?? json['mapsUrl'] as String? ?? (json['socialLinks'] is Map ? (json['socialLinks']['maps'] as String? ?? '') : ''),
       wifiSsid: json['wifiSsid'] as String? ?? json['wifiName'] as String? ?? '',
       wifiPassword: json['wifiPassword'] as String? ?? json['wifiPass'] as String? ?? '',
+      lastAutomationRunAt: json['lastAutomationRunAt'] as String?,
+      lastMaintenanceReport: json['lastMaintenanceReport'] is Map
+          ? Map<String, dynamic>.from(json['lastMaintenanceReport'] as Map)
+          : null,
     );
   }
 
@@ -234,6 +245,8 @@ class LibraryModel {
       'googleMapsUrl': googleMapsUrl,
       'wifiSsid': wifiSsid,
       'wifiPassword': wifiPassword,
+      if (lastAutomationRunAt != null) 'lastAutomationRunAt': lastAutomationRunAt,
+      if (lastMaintenanceReport != null) 'lastMaintenanceReport': lastMaintenanceReport,
     };
   }
 
@@ -279,6 +292,8 @@ class LibraryModel {
     String? googleMapsUrl,
     String? wifiSsid,
     String? wifiPassword,
+    String? lastAutomationRunAt,
+    Map<String, dynamic>? lastMaintenanceReport,
   }) {
     return LibraryModel(
       id: id ?? this.id,
@@ -322,6 +337,8 @@ class LibraryModel {
       googleMapsUrl: googleMapsUrl ?? this.googleMapsUrl,
       wifiSsid: wifiSsid ?? this.wifiSsid,
       wifiPassword: wifiPassword ?? this.wifiPassword,
+      lastAutomationRunAt: lastAutomationRunAt ?? this.lastAutomationRunAt,
+      lastMaintenanceReport: lastMaintenanceReport ?? this.lastMaintenanceReport,
     );
   }
 

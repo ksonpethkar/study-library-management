@@ -1376,7 +1376,7 @@ class _RegistrationFormScreenState
                                           Builder(
                                             builder: (_) {
                                               final typeName = _selectedGovIdType.displayName;
-                                              final cleanLabel = typeName.toLowerCase().endsWith('card') || typeName.toLowerCase().endsWith('id')
+                                              final cleanLabel = typeName.toLowerCase().contains('card') || typeName.toLowerCase().contains('id')
                                                   ? 'Attach $typeName'
                                                   : 'Attach $typeName Card';
                                               return Text(

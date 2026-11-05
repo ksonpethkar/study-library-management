@@ -347,6 +347,72 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                       ],
                     ),
                   ),
+                  if (effectiveDeskId != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF0F766E).withValues(alpha: 0.12),
+                            const Color(0xFF0D9488).withValues(alpha: 0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF14B8A6).withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0D9488).withValues(alpha: 0.18),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.shield_rounded, color: Color(0xFF0D9488), size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '🔒 ${SeatHelper.formatSeatLabel(seatId: effectiveDeskId)} Held For You',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F766E)),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0D9488).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Guaranteed',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0D9488)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  isReclaiming
+                                      ? 'Reclaim your previous seat immediately upon renewal with zero disruption.'
+                                      : 'Your dedicated desk is protected. Renewing keeps this exact spot without paperwork.',
+                                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700, height: 1.3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
 
                   // Section Header: Available Plans
@@ -1542,11 +1608,13 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
-                                            activeMode == RenewalPaymentMode.deskCash
-                                                ? 'Submit Desk Renewal ('
-                                                : (activeMode == RenewalPaymentMode.bank
-                                                    ? 'Submit Bank Renewal ('
-                                                    : 'Submit Renewal ('),
+                                            effectiveDeskId != null && _keepSeat
+                                                ? '🔒 Lock In ${SeatHelper.formatSeatLabel(seatId: effectiveDeskId)} ('
+                                                : (activeMode == RenewalPaymentMode.deskCash
+                                                    ? 'Submit Desk Renewal ('
+                                                    : (activeMode == RenewalPaymentMode.bank
+                                                        ? 'Submit Bank Renewal ('
+                                                        : 'Submit Renewal (')),
                                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                           ),
                                           AnimatedRollingPrice(
@@ -1675,8 +1743,8 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                     child: SizedBox(
                       width: 52,
                       height: 52,
-                      child: Image(
-                        image: ImageService.getImageProvider(_paymentProofDataUrl)!,
+                      child: ImageService.buildImageWidget(
+                        _paymentProofDataUrl!,
                         fit: BoxFit.cover,
                       ),
                     ),

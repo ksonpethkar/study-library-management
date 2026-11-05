@@ -1,16 +1,15 @@
 import 'dart:ui' as ui;
-import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 enum DocumentFilterMode { original, highContrast, grayscale }
@@ -150,18 +149,12 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
   }
 
   Future<void> _reuploadDocument({bool isBackSide = false}) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1600,
-      imageQuality: 88,
+    final doc = await DocumentPickerService.pickDocument(
+      context: context,
     );
-    if (picked == null || !mounted) return;
+    if (doc == null || !mounted) return;
 
-    final bytes = await picked.readAsBytes();
-    if (bytes.isEmpty || !mounted) return;
-
-    final dataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+    final dataUrl = doc.dataUrl;
 
     setState(() => _isUploadingNewImage = true);
 
@@ -170,6 +163,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
       final fieldUpdates = <String, dynamic>{
         key: dataUrl,
         if (isBackSide) 'govIdBackDataUrl': dataUrl else 'govIdDataUrl': dataUrl,
+        if (isBackSide) 'govIdBackFileName': doc.fileName else 'govIdFileName': doc.fileName,
       };
 
       if (widget.requestId != null) {
@@ -221,7 +215,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
       }
     } catch (e) {
       if (mounted) {
-        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'camera');
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'gov_id');
       }
     } finally {
       if (mounted) setState(() => _isUploadingNewImage = false);
@@ -600,6 +594,37 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
   }
 
   Widget _buildFilteredImage(String url) {
+    if (DocumentPickerService.isPdf(url)) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF334155)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 64),
+              const SizedBox(height: 16),
+              const Text(
+                'PDF Document Attached',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This document was uploaded as a PDF file (e.g. e-Aadhaar / DigiLocker proof).',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     Widget imageWidget = ImageService.buildImageWidget(url, fit: BoxFit.contain);
 
     if (_filterMode == DocumentFilterMode.highContrast) {
