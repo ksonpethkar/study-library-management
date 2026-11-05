@@ -85,6 +85,13 @@ class AppErrorFormatter {
       return 'Unable to update holiday schedule. Please try again.';
     }
 
+    if (actionContext == 'gov_id' || actionContext == 'id_card' || actionContext == 'document') {
+      if (str.contains('permission') || str.contains('denied')) {
+        return 'Permission was not granted. Please allow camera or file access in your browser/device settings.';
+      }
+      return 'Camera or document access was unavailable. Please choose an ID photo or PDF file from your device.';
+    }
+
     if (actionContext == 'camera' || str.contains('notreadableerror') || str.contains('video source') || str.contains('camera')) {
       if (str.contains('notreadableerror') || str.contains('video source')) {
         return 'Camera is being used by another tab or app. Please close other camera tabs and tap Retry.';
@@ -92,7 +99,10 @@ class AppErrorFormatter {
       if (str.contains('permission') || str.contains('denied')) {
         return 'Camera permission was not granted. Please allow camera access in your browser or device settings.';
       }
-      return 'Camera is temporarily unavailable on this device. You can look up the student manually.';
+      if (actionContext == 'admin_qr') {
+        return 'Camera is temporarily unavailable on this device. You can look up the student manually.';
+      }
+      return 'Camera is temporarily unavailable on this device. Please select an image or document from your device.';
     }
 
     // Permissions & Authentication

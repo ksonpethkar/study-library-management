@@ -599,6 +599,15 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 ),
                 const SizedBox(height: 16),
 
+                // 2. Inspiring Exam Countdown & Daily Focus Widget
+                _buildExamCountdownWidget(
+                  context,
+                  theme,
+                  student,
+                  library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
+                ),
+                const SizedBox(height: 16),
+
                 // 3. High-Readability Seat Radar Card
                 _buildAssignedSeatCard(
                   context,
@@ -2548,6 +2557,423 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           onPressed: () {},
         ),
       ),
+    );
+  }
+
+  static const List<String> _studyQuotes = [
+    'Quiet hours at your desk today become proud moments tomorrow.',
+    'Consistency beats motivation every single day. Keep showing up!',
+    'The seat you occupy today is building the rank you celebrate tomorrow.',
+    'Focus on the daily process; the extraordinary result will follow.',
+    'Small daily disciplines compound into life-changing triumphs.',
+    'Discipline is choosing between what you want now and what you want most.',
+    'Silence in the study hall, absolute strength in your exam score.',
+  ];
+
+  String _getDailyStudyQuote() {
+    final now = DateTime.now();
+    final dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays;
+    return _studyQuotes[dayOfYear % _studyQuotes.length];
+  }
+
+  Widget _buildExamCountdownWidget(
+    BuildContext context,
+    ThemeData theme,
+    StudentModel student,
+    String libraryId,
+  ) {
+    final targetDate = student.effectiveTargetExamDate;
+    final examName = student.effectiveTargetExamName;
+    final daysLeft = student.daysUntilExam;
+    final isDark = theme.brightness == Brightness.dark;
+
+    if (targetDate == null) {
+      // Prompt banner to set target exam
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.track_changes_rounded, color: Color(0xFF6366F1), size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Target Exam Countdown',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Track days left for UPSC, NEET, CA, GATE or your custom degree.',
+                    style: TextStyle(fontSize: 11.5, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.tonal(
+              style: FilledButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                foregroundColor: const Color(0xFF6366F1),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () => _showEditTargetExamDialog(context, student, libraryId),
+              child: const Text('Set Goal 🎯', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Active Countdown Card
+    final formattedDate = DateFormat('dd MMM yyyy').format(targetDate);
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E1B4B), const Color(0xFF312E81)]
+              : [const Color(0xFFEEF2FF), const Color(0xFFE0E7FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.35 : 0.4),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => _showEditTargetExamDialog(context, student, libraryId),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.3 : 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.track_changes_rounded, size: 16, color: Color(0xFF6366F1)),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          examName.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                            color: isDark ? Colors.white : const Color(0xFF3730A3),
+                          ),
+                        ),
+                      ],
+                    ),
+                    InkWell(
+                      onTap: () => _showEditTargetExamDialog(context, student, libraryId),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_calendar_rounded, size: 14, color: isDark ? Colors.indigo.shade200 : const Color(0xFF4338CA)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Edit',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.indigo.shade200 : const Color(0xFF4338CA),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      '$daysLeft',
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1,
+                        color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'DAYS REMAINING',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                            color: isDark ? Colors.amberAccent : const Color(0xFFB45309),
+                          ),
+                        ),
+                        Text(
+                          'Target: $formattedDate',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.25)
+                        : Colors.white.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text('💬', style: TextStyle(fontSize: 12)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _getDailyStudyQuote(),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            color: isDark ? Colors.white.withValues(alpha: 0.85) : const Color(0xFF374151),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showEditTargetExamDialog(
+    BuildContext context,
+    StudentModel student,
+    String libraryId,
+  ) async {
+    final nameController = TextEditingController(text: student.effectiveTargetExamName);
+    DateTime selectedDate = student.effectiveTargetExamDate ?? DateTime.now().add(const Duration(days: 90));
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final theme = Theme.of(ctx);
+            return Container(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Row(
+                    children: [
+                      Icon(Icons.track_changes_rounded, color: Color(0xFF6366F1), size: 24),
+                      SizedBox(width: 8),
+                      Text(
+                        'Set Exam Countdown 🎯',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Track exact days left to stay focused during your study shifts.',
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Exam or Goal Name',
+                      hintText: 'e.g. UPSC Prelims, NEET UG, CA Final',
+                      prefixIcon: const Icon(Icons.school_rounded),
+                      filled: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate.isBefore(DateTime.now())
+                            ? DateTime.now().add(const Duration(days: 30))
+                            : selectedDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                      );
+                      if (picked != null) {
+                        setSheetState(() => selectedDate = picked);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: theme.colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(12),
+                        color: theme.colorScheme.surfaceContainerLowest,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today_rounded, size: 20, color: Color(0xFF6366F1)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Target Exam Date', style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
+                                Text(
+                                  DateFormat('EEEE, dd MMMM yyyy').format(selectedDate),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.check_circle_rounded),
+                      label: const Text('Save & Start Countdown', style: TextStyle(fontWeight: FontWeight.bold)),
+                      onPressed: () async {
+                        final examName = nameController.text.trim().isNotEmpty
+                            ? nameController.text.trim()
+                            : student.effectiveTargetExamName;
+
+                        Navigator.pop(sheetCtx);
+                        HapticFeedback.mediumImpact();
+
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(libraryId)
+                              .collection('students')
+                              .doc(student.id)
+                              .set({
+                            'targetExamName': examName,
+                            'targetExamDate': selectedDate.toIso8601String(),
+                            'course': examName,
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          }, SetOptions(merge: true));
+
+                          ref.invalidate(currentStudentProvider);
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('🎯 Target countdown set for "$examName"! Keep going!'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Could not save exam target: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

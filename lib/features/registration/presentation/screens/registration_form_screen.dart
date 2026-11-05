@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/ocr_service.dart';
+import 'package:study_library/services/document_picker_service.dart';
 import '../../data/ocr_parser.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/utils/app_validators.dart';
@@ -460,29 +460,64 @@ class _RegistrationFormScreenState
   }
 
   Future<void> _scanOrAttachGovId(ImageSource source, {bool isBackSide = false}) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: source,
-      maxWidth: 1600,
-      imageQuality: 85,
+    final doc = await DocumentPickerService.pickDocument(
+      context: context,
+      preferredSource: source,
     );
-    if (picked == null || !mounted) return;
+    if (doc == null || !mounted) return;
 
-    final bytes = await picked.readAsBytes();
-    if (bytes.isEmpty || !mounted) return;
-
-    final dataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+    final dataUrl = doc.dataUrl;
 
     setState(() {
       _isScanningId = true;
       _scanStatusMessage = isBackSide
           ? 'Reading address from document...'
-          : 'Scanning ${_selectedGovIdType.displayName} card...';
+          : 'Processing ${_selectedGovIdType.displayName}...';
     });
 
     try {
+      if (doc.isPdf) {
+        // PDF Document directly attached
+        final updates = <String, dynamic>{
+          if (isBackSide) ...{
+            'govIdBackDataUrl': dataUrl,
+            'govIdBackImageUrl': dataUrl,
+            'govIdBackImagePath': dataUrl,
+            'govIdBackFileName': doc.fileName,
+          } else ...{
+            'govIdType': _selectedGovIdType.name,
+            'govIdDataUrl': dataUrl,
+            'govIdImageUrl': dataUrl,
+            'govIdImagePath': dataUrl,
+            'govIdFileName': doc.fileName,
+          },
+        };
+        ref.read(registrationNotifierProvider.notifier).updateFields(updates);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.picture_as_pdf_rounded, color: Colors.amberAccent),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('PDF Document (${doc.fileName}) attached as ID proof!'),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF1E293B),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Image: attempt instant QR decode + OCR
       final ocrService = OcrService();
-      final rawText = await ocrService.processImageBytes(bytes);
+      final qrString = await ocrService.decodeQrBytes(doc.bytes);
+      final rawText = await ocrService.processImageBytes(doc.bytes);
 
       if (isBackSide) {
         final backResult = OcrParser.parseByType(_selectedGovIdType, rawText);
@@ -490,6 +525,7 @@ class _RegistrationFormScreenState
           'govIdBackDataUrl': dataUrl,
           'govIdBackImageUrl': dataUrl,
           'govIdBackImagePath': dataUrl,
+          'govIdBackFileName': doc.fileName,
         };
         if (backResult.address != null && backResult.address!.trim().isNotEmpty) {
           updates['address'] = backResult.address!.trim();
@@ -503,15 +539,21 @@ class _RegistrationFormScreenState
         }
         ref.read(registrationNotifierProvider.notifier).updateFields(updates);
       } else {
-        final detectedType = OcrParser.detectGovIdType(rawText);
+        final qrParsed = QrIdParser.parseQrString(qrString);
+        final detectedType = qrParsed?.type ?? OcrParser.detectGovIdType(rawText);
         final finalType = detectedType != GovIdType.other ? detectedType : _selectedGovIdType;
-        final result = OcrParser.parseByType(finalType, rawText);
+        final result = OcrParser.parseUnified(
+          qrString: qrString,
+          rawText: rawText,
+          preferredType: finalType,
+        );
 
         final updates = <String, dynamic>{
           'govIdType': finalType.name,
           'govIdDataUrl': dataUrl,
           'govIdImageUrl': dataUrl,
           'govIdImagePath': dataUrl,
+          'govIdFileName': doc.fileName,
         };
 
         setState(() {
@@ -569,10 +611,26 @@ class _RegistrationFormScreenState
         );
       }
     } catch (_) {
+      // Even if OCR failed to read, the document is STILL validly attached!
+      final fallbackUpdates = <String, dynamic>{
+        if (isBackSide) ...{
+          'govIdBackDataUrl': dataUrl,
+          'govIdBackImageUrl': dataUrl,
+          'govIdBackImagePath': dataUrl,
+        } else ...{
+          'govIdType': _selectedGovIdType.name,
+          'govIdDataUrl': dataUrl,
+          'govIdImageUrl': dataUrl,
+          'govIdImagePath': dataUrl,
+        },
+      };
+      ref.read(registrationNotifierProvider.notifier).updateFields(fallbackUpdates);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Could not read card clearly. Please ensure good lighting or enter details manually.'),
+            content: Text('ID document attached! Please confirm or enter your ID number below.'),
+            backgroundColor: Color(0xFF1E293B),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1165,12 +1223,26 @@ class _RegistrationFormScreenState
                                           borderRadius: BorderRadius.circular(10),
                                           child: Stack(
                                             children: [
-                                              Image(
-                                                image: ImageService.getImageProvider(frontUrl)!,
-                                                width: 84,
-                                                height: 56,
-                                                fit: BoxFit.cover,
-                                              ),
+                                              DocumentPickerService.isPdf(frontUrl)
+                                                   ? Container(
+                                                       width: 84,
+                                                       height: 56,
+                                                       decoration: BoxDecoration(
+                                                         color: const Color(0xFFFEF2F2),
+                                                         borderRadius: BorderRadius.circular(10),
+                                                         border: Border.all(color: const Color(0xFFFECACA)),
+                                                       ),
+                                                       child: const Center(
+                                                         child: Column(
+                                                           mainAxisSize: MainAxisSize.min,
+                                                           children: [
+                                                             Icon(Icons.picture_as_pdf_rounded, color: Colors.red, size: 22),
+                                                             Text('PDF', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
+                                                           ],
+                                                         ),
+                                                       ),
+                                                     )
+                                                   : ImageService.buildImageWidget(frontUrl, width: 84, height: 56),
                                               Positioned(
                                                 bottom: 2,
                                                 left: 2,
@@ -1198,12 +1270,26 @@ class _RegistrationFormScreenState
                                             borderRadius: BorderRadius.circular(10),
                                             child: Stack(
                                               children: [
-                                                Image(
-                                                  image: ImageService.getImageProvider(backUrl)!,
-                                                  width: 84,
-                                                  height: 56,
-                                                  fit: BoxFit.cover,
-                                                ),
+                                                DocumentPickerService.isPdf(backUrl)
+                                                   ? Container(
+                                                       width: 84,
+                                                       height: 56,
+                                                       decoration: BoxDecoration(
+                                                         color: const Color(0xFFFEF2F2),
+                                                         borderRadius: BorderRadius.circular(10),
+                                                         border: Border.all(color: const Color(0xFFFECACA)),
+                                                       ),
+                                                       child: const Center(
+                                                         child: Column(
+                                                           mainAxisSize: MainAxisSize.min,
+                                                           children: [
+                                                             Icon(Icons.picture_as_pdf_rounded, color: Colors.red, size: 22),
+                                                             Text('PDF', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
+                                                           ],
+                                                         ),
+                                                       ),
+                                                     )
+                                                   : ImageService.buildImageWidget(backUrl, width: 84, height: 56),
                                                 Positioned(
                                                   bottom: 2,
                                                   left: 2,
@@ -1287,9 +1373,17 @@ class _RegistrationFormScreenState
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            'Attach ${_selectedGovIdType.displayName} Card',
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                          Builder(
+                                            builder: (_) {
+                                              final typeName = _selectedGovIdType.displayName;
+                                              final cleanLabel = typeName.toLowerCase().endsWith('card') || typeName.toLowerCase().endsWith('id')
+                                                  ? 'Attach $typeName'
+                                                  : 'Attach $typeName Card';
+                                              return Text(
+                                                cleanLabel,
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                              );
+                                            },
                                           ),
                                           Text(
                                             'Single upload: Auto-fills details & attaches proof',

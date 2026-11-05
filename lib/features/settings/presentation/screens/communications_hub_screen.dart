@@ -461,6 +461,11 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
           ),
           title: const Text('Communications & Automation'),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.mark_chat_unread_rounded, color: Color(0xFF25D366)),
+              tooltip: 'WhatsApp & Message Template Studio',
+              onPressed: () => context.push(Routes.adminMessageTemplates),
+            ),
             Padding(
               padding: const EdgeInsets.only(right: 12.0),
               child: FilledButton.icon(

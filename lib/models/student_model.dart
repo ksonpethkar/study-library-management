@@ -145,6 +145,83 @@ class StudentModel {
   final double? securityDepositAmount; // Optional refundable deposit held
   final bool isDepositRefunded;
   final DateTime? depositRefundedAt;
+  final DateTime? targetExamDate;
+  final String? targetExamName;
+
+  /// Effective Target Exam Name (defaults to student's course or 'Competitive Exam')
+  String get effectiveTargetExamName {
+    if (targetExamName != null && targetExamName!.trim().isNotEmpty) {
+      return targetExamName!.trim();
+    }
+    if (course.trim().isNotEmpty) {
+      return course.trim();
+    }
+    return 'Competitive Exam';
+  }
+
+  /// Automatic smart fallback date resolution if student has not set a specific custom date.
+  /// Looks at known competitive exams in India to provide an intelligent countdown target.
+  DateTime? get effectiveTargetExamDate {
+    if (targetExamDate != null) return targetExamDate;
+    final c = course.toLowerCase().trim();
+    final now = DateTime.now();
+
+    if (c.contains('upsc') || c.contains('civil services') || c.contains('ias')) {
+      var targetYear = now.year;
+      var examDate = DateTime(targetYear, 5, 24);
+      if (examDate.isBefore(now)) examDate = DateTime(targetYear + 1, 5, 24);
+      return examDate;
+    } else if (c.contains('neet')) {
+      var targetYear = now.year;
+      var examDate = DateTime(targetYear, 5, 3);
+      if (examDate.isBefore(now)) examDate = DateTime(targetYear + 1, 5, 3);
+      return examDate;
+    } else if (c.contains('gate')) {
+      var targetYear = now.year;
+      var examDate = DateTime(targetYear, 2, 8);
+      if (examDate.isBefore(now)) examDate = DateTime(targetYear + 1, 2, 8);
+      return examDate;
+    } else if (c.contains('jee')) {
+      var targetYear = now.year;
+      var examDate = DateTime(targetYear, 4, 5);
+      if (examDate.isBefore(now)) examDate = DateTime(targetYear + 1, 4, 5);
+      return examDate;
+    } else if (c.contains('ca ') || c.contains('chartered') || c.contains('icai')) {
+      final mayExam = DateTime(now.year, 5, 2);
+      final novExam = DateTime(now.year, 11, 2);
+      if (now.isBefore(mayExam)) return mayExam;
+      if (now.isBefore(novExam)) return novExam;
+      return DateTime(now.year + 1, 5, 2);
+    } else if (c.contains('mpsc')) {
+      var targetYear = now.year;
+      var examDate = DateTime(targetYear, 7, 20);
+      if (examDate.isBefore(now)) examDate = DateTime(targetYear + 1, 7, 20);
+      return examDate;
+    } else if (c.contains('ssc') || c.contains('cgl')) {
+      var targetYear = now.year;
+      var examDate = DateTime(targetYear, 9, 10);
+      if (examDate.isBefore(now)) examDate = DateTime(targetYear + 1, 9, 10);
+      return examDate;
+    } else if (c.contains('banking') || c.contains('ibps') || c.contains('sbi')) {
+      var targetYear = now.year;
+      var examDate = DateTime(targetYear, 10, 15);
+      if (examDate.isBefore(now)) examDate = DateTime(targetYear + 1, 10, 15);
+      return examDate;
+    }
+
+    return null;
+  }
+
+  /// Days remaining until the target examination (clamped to >= 0)
+  int? get daysUntilExam {
+    final target = effectiveTargetExamDate;
+    if (target == null) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final examDay = DateTime(target.year, target.month, target.day);
+    final diff = examDay.difference(today).inDays;
+    return diff >= 0 ? diff : 0;
+  }
 
   StudentModel({
     required this.id,
@@ -194,6 +271,8 @@ class StudentModel {
     this.securityDepositAmount,
     this.isDepositRefunded = false,
     this.depositRefundedAt,
+    this.targetExamDate,
+    this.targetExamName,
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
@@ -265,6 +344,8 @@ class StudentModel {
       securityDepositAmount: (json['securityDepositAmount'] as num?)?.toDouble() ?? (json['securityDeposit'] as num?)?.toDouble(),
       isDepositRefunded: json['isDepositRefunded'] == true,
       depositRefundedAt: _parseDate(json['depositRefundedAt']),
+      targetExamDate: _parseDate(json['targetExamDate']),
+      targetExamName: json['targetExamName'] as String?,
     );
   }
 
@@ -317,6 +398,8 @@ class StudentModel {
       if (securityDepositAmount != null) 'securityDepositAmount': securityDepositAmount,
       if (isDepositRefunded) 'isDepositRefunded': true,
       if (depositRefundedAt != null) 'depositRefundedAt': depositRefundedAt!.toIso8601String(),
+      if (targetExamDate != null) 'targetExamDate': targetExamDate!.toIso8601String(),
+      if (targetExamName != null) 'targetExamName': targetExamName,
     };
   }
 
@@ -369,6 +452,8 @@ class StudentModel {
     double? securityDepositAmount,
     bool? isDepositRefunded,
     DateTime? depositRefundedAt,
+    DateTime? targetExamDate,
+    String? targetExamName,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -418,6 +503,8 @@ class StudentModel {
       securityDepositAmount: securityDepositAmount ?? this.securityDepositAmount,
       isDepositRefunded: isDepositRefunded ?? this.isDepositRefunded,
       depositRefundedAt: depositRefundedAt ?? this.depositRefundedAt,
+      targetExamDate: targetExamDate ?? this.targetExamDate,
+      targetExamName: targetExamName ?? this.targetExamName,
     );
   }
 

@@ -491,6 +491,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
       paymentMethod: receipt.paymentMethod,
       remainingDue: receipt.remainingDue,
       libraryHelpline: library.phone,
+      adminTemplate: library.effectiveReceiptTemplate,
       context: context,
     );
   }

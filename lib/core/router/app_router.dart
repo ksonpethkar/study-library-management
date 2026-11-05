@@ -40,6 +40,7 @@ import '../../features/expenses/presentation/screens/expense_list_screen.dart';
 import '../../features/receipts/presentation/screens/receipt_preview_screen.dart';
 import '../../features/receipts/presentation/screens/generate_receipt_screen.dart';
 import '../../features/settings/presentation/screens/receipt_template_screen.dart';
+import '../../features/settings/presentation/screens/message_template_studio_screen.dart';
 import '../../features/requests/presentation/screens/request_list_screen.dart';
 import '../../features/requests/presentation/screens/request_detail_screen.dart';
 import '../../features/announcements/presentation/screens/announcement_list_screen.dart';
@@ -117,6 +118,7 @@ class Routes {
   static const adminRevenue = '/admin/revenue';
   static const adminGenerateReceipt = '/admin/receipts/generate/:studentId';
   static const adminReceiptTemplate = '/admin/receipts/template';
+  static const adminMessageTemplates = '/admin/settings/message-templates';
   static const adminIdCardTemplate = '/admin/settings/id-card-template';
   static const adminReceiptPreview = '/admin/receipts/:id';
   
@@ -517,6 +519,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminReceiptTemplate, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const ReceiptTemplateScreen(),
+      )),
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminMessageTemplates, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const MessageTemplateStudioScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminIdCardTemplate, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const IdCardCustomizerScreen(),

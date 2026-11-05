@@ -843,6 +843,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
               paymentMethod: _paymentMethod,
               remainingDue: remainingDue,
               libraryHelpline: library?.phone,
+              adminTemplate: library?.effectiveReceiptTemplate,
               context: context,
             );
           }

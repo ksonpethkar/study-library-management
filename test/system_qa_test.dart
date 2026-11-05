@@ -23,6 +23,7 @@ import 'package:study_library/core/validators/form_validators.dart';
 import 'package:study_library/models/expense_model.dart';
 import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
 import 'package:study_library/services/pdf_service.dart';
+import 'package:study_library/services/message_template_service.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/models/feedback_model.dart';
 import 'package:study_library/models/receipt_model.dart';
@@ -3727,6 +3728,174 @@ void main() {
       expect(restoredLib.wifiPassword, equals('CozyStudyPass2026'));
       expect(restoredLib.effectiveWifiSsid, equals('CozyCorner_Ultra5G'));
       expect(restoredLib.effectiveWifiPassword, equals('CozyStudyPass2026'));
+    });
+
+    test('97. WYSIWYG WhatsApp Message Template Studio, Multilingual Presets (EN/HI/MR) & Tag Substitution', () {
+      // 1. Shorthand Tag Aliases & Substitution Validation
+      const rawCustomTemplate = 'Hello {name}, your desk {desk} (Plan: {plan}) expires on {expiry}. Pending due: ₹{due}. UPI: {upi}';
+      final substituted = MessageTemplateService.substitute(
+        rawCustomTemplate,
+        studentName: 'Shubham Kandukatle',
+        seatLabel: 'Seat #14',
+        planName: 'Monthly Full-Day',
+        expiryDate: '30 Nov 2026',
+        dueAmount: '0',
+        libraryUpiId: '7276959070@upi',
+      );
+
+      expect(substituted, equals('Hello Shubham Kandukatle, your desk Seat #14 (Plan: Monthly Full-Day) expires on 30 Nov 2026. Pending due: ₹0. UPI: 7276959070@upi'));
+
+      // 2. Multilingual Presets Availability & Cultural Formatting
+      final welcomeEn = MessageTemplateService.getTemplate(type: 'welcome', language: 'en');
+      final welcomeHi = MessageTemplateService.getTemplate(type: 'welcome', language: 'hi');
+      final welcomeMr = MessageTemplateService.getTemplate(type: 'welcome', language: 'mr');
+
+      expect(welcomeEn, contains('Welcome to {libraryName}'));
+      expect(welcomeHi, contains('{libraryName} में आपका स्वागत है'));
+      expect(welcomeMr, contains('{libraryName} मध्ये आपले सहर्ष स्वागत आहे'));
+
+      final receiptEn = MessageTemplateService.getTemplate(type: 'receipt', language: 'en');
+      final receiptHi = MessageTemplateService.getTemplate(type: 'receipt', language: 'hi');
+      final receiptMr = MessageTemplateService.getTemplate(type: 'receipt', language: 'mr');
+
+      expect(receiptEn, contains('Payment Received — Fee Receipt'));
+      expect(receiptHi, contains('शुल्क प्राप्ति पावती'));
+      expect(receiptMr, contains('शुल्क पावती'));
+
+      final dueEn = MessageTemplateService.getTemplate(type: 'due_reminder', language: 'en');
+      final dueHi = MessageTemplateService.getTemplate(type: 'due_reminder', language: 'hi');
+      final dueMr = MessageTemplateService.getTemplate(type: 'due_reminder', language: 'mr');
+
+      expect(dueEn, contains('Fee Balance Reminder'));
+      expect(dueHi, contains('बकाया शुल्क सूचना'));
+      expect(dueMr, contains('थकबाकी शुल्क स्मरणपत्र'));
+
+      // 3. Live Preview Generator with simulated parameters
+      final liveMrPreview = MessageTemplateService.getLivePreview(
+        welcomeMr,
+        libraryName: 'The Cozy Corner Study Centre',
+        helpline: '+91 91569 44773',
+      );
+      expect(liveMrPreview, contains('The Cozy Corner Study Centre मध्ये आपले सहर्ष स्वागत आहे!'));
+      expect(liveMrPreview, contains('Shubham Kandukatle'));
+      expect(liveMrPreview, contains('+91 91569 44773'));
+
+      // 4. LibraryModel Template Integration, Defaults & Serialization Round-Trip
+      final now = DateTime.now();
+      final libModel = LibraryModel(
+        id: 'lib_template_01',
+        name: 'The Cozy Corner Study Centre',
+        address: 'Someshwar Nagar, Parli Vaijanath',
+        logoUrl: '',
+        contact: '9156944773',
+        ownerId: 'owner_99',
+        accentColor: 0xFF5D4037,
+        welcomeMessage: 'Welcome',
+        operatingHours: '6 AM - 11 PM',
+        socialLinks: {},
+        rulesText: 'Standard rules',
+        adminPhotoUrl: '',
+        helplineNumber: '9156944773',
+        waitingListMode: WaitingListMode.contactAdmin,
+        templateLanguage: 'mr',
+        whatsappReceiptTemplate: 'Custom Receipt for {name}: Paid ₹{amount}',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // Verify effective getters fall back to language preset when unset
+      expect(libModel.effectiveWelcomeTemplate, contains('मध्ये आपले सहर्ष स्वागत आहे')); // Marathi preset
+      expect(libModel.effectiveReceiptTemplate, equals('Custom Receipt for {name}: Paid ₹{amount}')); // Custom override
+      expect(libModel.effectiveDueReminderTemplate, contains('थकबाकी शुल्क स्मरणपत्र')); // Marathi preset fallback
+
+      // Serialization round-trip
+      final json = libModel.toJson();
+      expect(json['templateLanguage'], equals('mr'));
+      expect(json['whatsappReceiptTemplate'], equals('Custom Receipt for {name}: Paid ₹{amount}'));
+
+      final deserialized = LibraryModel.fromJson(json);
+      expect(deserialized.templateLanguage, equals('mr'));
+      expect(deserialized.whatsappReceiptTemplate, equals('Custom Receipt for {name}: Paid ₹{amount}'));
+      expect(deserialized.effectiveReceiptTemplate, equals('Custom Receipt for {name}: Paid ₹{amount}'));
+      expect(deserialized.effectiveWelcomeTemplate, contains('मध्ये आपले सहर्ष स्वागत आहे'));
+    });
+
+    test('98. PHASE 2: EXAM COUNTDOWN ENGINE, SMART COURSE CALENDAR RESOLUTION & TARGET GOAL PERSISTENCE', () {
+      final now = DateTime.now();
+
+      // ── 1. Smart Automated Calendar Resolution from Course Name ──
+      final upscStudent = createTestStudent(
+        id: 'student_upsc_01',
+        name: 'Gaurav Kute',
+        phone: '9822112233',
+      ).copyWith(course: 'UPSC Civil Services Prelims');
+
+      expect(upscStudent.effectiveTargetExamName, equals('UPSC Civil Services Prelims'));
+      expect(upscStudent.effectiveTargetExamDate, isNotNull);
+      expect(upscStudent.effectiveTargetExamDate!.month, equals(5)); // May
+      expect(upscStudent.effectiveTargetExamDate!.day, equals(24));
+      expect(upscStudent.daysUntilExam, isNotNull);
+      expect(upscStudent.daysUntilExam!, greaterThanOrEqualTo(0));
+
+      final neetStudent = createTestStudent(
+        id: 'student_neet_01',
+        name: 'Anjali Sharma',
+        phone: '9822445566',
+      ).copyWith(course: 'NEET UG 2027');
+
+      expect(neetStudent.effectiveTargetExamDate, isNotNull);
+      expect(neetStudent.effectiveTargetExamDate!.month, equals(5)); // May
+
+      final gateStudent = createTestStudent(
+        id: 'student_gate_01',
+        name: 'Rohan More',
+        phone: '9822778899',
+      ).copyWith(course: 'GATE CSE');
+
+      expect(gateStudent.effectiveTargetExamDate, isNotNull);
+      expect(gateStudent.effectiveTargetExamDate!.month, equals(2)); // Feb
+
+      final caStudent = createTestStudent(
+        id: 'student_ca_01',
+        name: 'Sneha Rathi',
+        phone: '9822001122',
+      ).copyWith(course: 'CA Final Group 1');
+
+      expect(caStudent.effectiveTargetExamDate, isNotNull);
+      // Either May (5) or November (11)
+      expect(caStudent.effectiveTargetExamDate!.month == 5 || caStudent.effectiveTargetExamDate!.month == 11, isTrue);
+
+      // ── 2. Custom Target Exam Override by Student ──
+      final customTargetDate = now.add(const Duration(days: 120));
+      final customStudent = upscStudent.copyWith(
+        targetExamName: 'Target IFS 2027',
+        targetExamDate: customTargetDate,
+      );
+
+      expect(customStudent.effectiveTargetExamName, equals('Target IFS 2027'));
+      expect(customStudent.effectiveTargetExamDate, equals(customTargetDate));
+      expect(customStudent.daysUntilExam, equals(120));
+
+      // ── 3. Graceful Fallback for Non-Competitive Course ──
+      final generalStudent = createTestStudent(
+        id: 'student_general_01',
+        name: 'Amit Patel',
+        phone: '9822334455',
+      ).copyWith(course: 'B.Com General');
+
+      expect(generalStudent.effectiveTargetExamDate, isNull);
+      expect(generalStudent.daysUntilExam, isNull);
+      expect(generalStudent.effectiveTargetExamName, equals('B.Com General'));
+
+      // ── 4. Full JSON Serialization & Deserialization ──
+      final studentJson = customStudent.toJson();
+      expect(studentJson['targetExamName'], equals('Target IFS 2027'));
+      expect(studentJson['targetExamDate'], isNotNull);
+
+      final restoredStudent = StudentModel.fromJson(studentJson);
+      expect(restoredStudent.targetExamName, equals('Target IFS 2027'));
+      expect(restoredStudent.effectiveTargetExamName, equals('Target IFS 2027'));
+      expect(restoredStudent.daysUntilExam, equals(120));
     });
   });
 }

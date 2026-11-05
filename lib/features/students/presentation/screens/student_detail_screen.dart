@@ -234,7 +234,19 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
               subtitle: const Text('Greet new member with library details'),
               onTap: () {
                 Navigator.pop(ctx);
-                whatsapp.sendWelcomeMessage(s.phone, s.name, libraryName, context: context);
+                whatsapp.sendWelcomeMessage(
+                  s.phone,
+                  s.name,
+                  libraryName,
+                  adminTemplate: library?.effectiveWelcomeTemplate ?? '',
+                  membershipId: s.id,
+                  planName: s.planId ?? '',
+                  seatLabel: seatLabel,
+                  expiryDate: s.planEndDate != null ? DateFormat('dd MMM yyyy').format(s.planEndDate!) : '',
+                  libraryAddress: library?.address ?? '',
+                  libraryHelpline: library?.phone ?? '',
+                  context: context,
+                );
               },
             ),
             if (daysLeft != null)
@@ -249,7 +261,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 subtitle: const Text('Notify student about plan status'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  whatsapp.sendExpiryReminder(s.phone, s.name, daysLeft, libraryName: libraryName, context: context);
+                  whatsapp.sendExpiryReminder(
+                    s.phone,
+                    s.name,
+                    daysLeft,
+                    libraryName: libraryName,
+                    seatLabel: seatLabel,
+                    expiryDate: s.planEndDate != null ? DateFormat('dd MMM yyyy').format(s.planEndDate!) : null,
+                    libraryHelpline: library?.phone,
+                    libraryUpiId: library?.upiId,
+                    adminTemplate: library?.effectiveExpiryReminderTemplate,
+                    context: context,
+                  );
                 },
               ),
             if (seatLabel.isNotEmpty)
@@ -3125,7 +3148,19 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   final libDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).get();
                   final libName = libDoc.data()?['name'] as String? ?? 'Cozy Corner Library';
                   final rNum = payment.receiptNumber ?? (payment.receiptId != null && payment.receiptId!.startsWith('REC-') ? payment.receiptId! : '#${payment.id.substring(0, payment.id.length >= 6 ? 6 : payment.id.length).toUpperCase()}');
-                  if (context.mounted) { await WhatsAppService().sendPaymentConfirmation(phone, s.name, libName, payment.amount, rNum, context: context); }
+                  final libModel = ref.read(currentLibraryProvider).value;
+                  if (context.mounted) {
+                    await WhatsAppService().sendPaymentConfirmation(
+                      phone,
+                      s.name,
+                      libName,
+                      payment.amount,
+                      rNum,
+                      adminTemplate: libModel?.effectiveReceiptTemplate,
+                      libraryHelpline: libModel?.phone,
+                      context: context,
+                    );
+                  }
                 },
               ),
 

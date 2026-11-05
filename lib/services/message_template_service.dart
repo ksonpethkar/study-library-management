@@ -391,24 +391,28 @@ class MessageTemplateService {
         return defaultWelcomeTemplate;
 
       case 'payment_receipt':
+      case 'paymentReceipt':
       case 'receipt':
         if (lang == 'hi') return paymentReceiptHindi;
         if (lang == 'mr') return paymentReceiptMarathi;
         return defaultPaymentReceiptTemplate;
 
       case 'due_reminder':
+      case 'dueReminder':
       case 'due':
         if (lang == 'hi') return dueReminderHindi;
         if (lang == 'mr') return dueReminderMarathi;
         return defaultDueReminderTemplate;
 
       case 'expiry_reminder':
+      case 'expiryReminder':
       case 'expiry':
         if (lang == 'hi') return expiryReminderHindi;
         if (lang == 'mr') return expiryReminderMarathi;
         return defaultExpiryReminderTemplate;
 
       case 'waitlist_offer':
+      case 'waitlistOffer':
       case 'waitlist':
         if (lang == 'hi') return waitlistOfferHindi;
         if (lang == 'mr') return waitlistOfferMarathi;

@@ -325,6 +325,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const Divider(height: 1, indent: 56),
               _buildSettingsTile(
+                icon: Icons.mark_chat_unread_rounded,
+                iconColor: const Color(0xFF25D366),
+                title: 'WhatsApp & Message Template Studio',
+                subtitle: 'Personalize welcome, receipt, due and renewal messages with real-time WhatsApp preview',
+                onTap: () => context.push(Routes.adminMessageTemplates),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
                 icon: Icons.app_registration_rounded,
                 iconColor: const Color(0xFF0284C7),
                 title: 'Admission Form Builder',
