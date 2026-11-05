@@ -381,8 +381,63 @@ class AppValidators {
     return null;
   }
 
+  /// Multiplication table (d) for Verhoeff algorithm based on dihedral group D5
+  static const List<List<int>> _verhoeffD = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+    [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+    [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+    [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+    [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+    [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+    [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+    [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+    [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+  ];
+
+  /// Permutation table (p) for Verhoeff algorithm
+  static const List<List<int>> _verhoeffP = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+    [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+    [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+    [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+    [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+    [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+    [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+  ];
+
+  /// Inverse table (inv) for Verhoeff algorithm
+  static const List<int> _verhoeffInv = [0, 4, 3, 2, 1, 5, 6, 7, 8, 9];
+
+  /// Official Verhoeff Algorithm Checksum validator (UIDAI Aadhaar standard).
+  /// Validates that 12-digit UID numbers pass dihedral checksum verification,
+  /// immediately detecting single-digit errors and digit transpositions.
+  static bool validateVerhoeff(String numStr) {
+    final clean = numStr.trim().replaceAll(RegExp(r'\s+'), '');
+    if (!RegExp(r'^\d+$').hasMatch(clean)) return false;
+    int c = 0;
+    final digits = clean.split('').map(int.parse).toList().reversed.toList();
+    for (int i = 0; i < digits.length; i++) {
+      c = _verhoeffD[c][_verhoeffP[i % 8][digits[i]]];
+    }
+    return c == 0;
+  }
+
+  /// Calculates and generates the 12th Verhoeff checksum digit for any 11-digit Aadhaar prefix.
+  static int generateVerhoeffCheckDigit(String prefix) {
+    final clean = prefix.trim().replaceAll(RegExp(r'\s+'), '');
+    int c = 0;
+    final digits = clean.split('').map(int.parse).toList().reversed.toList();
+    for (int i = 0; i < digits.length; i++) {
+      c = _verhoeffD[c][_verhoeffP[(i + 1) % 8][digits[i]]];
+    }
+    return _verhoeffInv[c];
+  }
+
   /// Aadhaar number: exactly 12 digits, cannot start with 0 or 1.
-  static String? aadhaar(String? value, {bool required = false}) {
+  /// Optionally enforces Verhoeff checksum algorithm verification.
+  static String? aadhaar(String? value, {bool required = false, bool verifyChecksum = false}) {
     final v = value?.trim().replaceAll(RegExp(r'\s+'), '') ?? '';
     if (v.isEmpty) return required ? 'Aadhaar number is required' : null;
     if (!RegExp(r'^\d{12}$').hasMatch(v)) {
@@ -390,6 +445,9 @@ class AppValidators {
     }
     if (v.startsWith('0') || v.startsWith('1')) {
       return 'Aadhaar cannot begin with 0 or 1';
+    }
+    if (verifyChecksum && !validateVerhoeff(v)) {
+      return 'Invalid Aadhaar number (checksum validation failed)';
     }
     return null;
   }

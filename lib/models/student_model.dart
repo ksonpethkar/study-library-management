@@ -147,6 +147,24 @@ class StudentModel {
   final DateTime? depositRefundedAt;
   final DateTime? targetExamDate;
   final String? targetExamName;
+  final bool isFrozen;
+  final DateTime? freezeStartDate;
+  final DateTime? freezeEndDate;
+  final String? freezeReason;
+
+  /// Evaluates whether the student is currently on an active study vacation / membership freeze
+  bool get isCurrentlyFrozen {
+    if (!isFrozen) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (freezeStartDate != null && freezeEndDate != null) {
+      final start = DateTime(freezeStartDate!.year, freezeStartDate!.month, freezeStartDate!.day);
+      final end = DateTime(freezeEndDate!.year, freezeEndDate!.month, freezeEndDate!.day, 23, 59, 59, 999);
+      return (today.isAfter(start) || today.isAtSameMomentAs(start)) &&
+             (now.isBefore(end) || now.isAtSameMomentAs(end));
+    }
+    return isFrozen;
+  }
 
   /// Effective Target Exam Name (defaults to student's course or 'Competitive Exam')
   String get effectiveTargetExamName {
@@ -273,6 +291,10 @@ class StudentModel {
     this.depositRefundedAt,
     this.targetExamDate,
     this.targetExamName,
+    this.isFrozen = false,
+    this.freezeStartDate,
+    this.freezeEndDate,
+    this.freezeReason,
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
@@ -346,6 +368,10 @@ class StudentModel {
       depositRefundedAt: _parseDate(json['depositRefundedAt']),
       targetExamDate: _parseDate(json['targetExamDate']),
       targetExamName: json['targetExamName'] as String?,
+      isFrozen: json['isFrozen'] == true,
+      freezeStartDate: _parseDate(json['freezeStartDate']),
+      freezeEndDate: _parseDate(json['freezeEndDate']),
+      freezeReason: json['freezeReason'] as String?,
     );
   }
 
@@ -400,6 +426,10 @@ class StudentModel {
       if (depositRefundedAt != null) 'depositRefundedAt': depositRefundedAt!.toIso8601String(),
       if (targetExamDate != null) 'targetExamDate': targetExamDate!.toIso8601String(),
       if (targetExamName != null) 'targetExamName': targetExamName,
+      if (isFrozen) 'isFrozen': true,
+      if (freezeStartDate != null) 'freezeStartDate': freezeStartDate!.toIso8601String(),
+      if (freezeEndDate != null) 'freezeEndDate': freezeEndDate!.toIso8601String(),
+      if (freezeReason != null) 'freezeReason': freezeReason,
     };
   }
 
@@ -454,6 +484,11 @@ class StudentModel {
     DateTime? depositRefundedAt,
     DateTime? targetExamDate,
     String? targetExamName,
+    bool? isFrozen,
+    DateTime? freezeStartDate,
+    DateTime? freezeEndDate,
+    String? freezeReason,
+    bool clearFreeze = false,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -505,6 +540,10 @@ class StudentModel {
       depositRefundedAt: depositRefundedAt ?? this.depositRefundedAt,
       targetExamDate: targetExamDate ?? this.targetExamDate,
       targetExamName: targetExamName ?? this.targetExamName,
+      isFrozen: clearFreeze ? false : (isFrozen ?? this.isFrozen),
+      freezeStartDate: clearFreeze ? null : (freezeStartDate ?? this.freezeStartDate),
+      freezeEndDate: clearFreeze ? null : (freezeEndDate ?? this.freezeEndDate),
+      freezeReason: clearFreeze ? null : (freezeReason ?? this.freezeReason),
     );
   }
 

@@ -1175,7 +1175,33 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                             ),
                           ),
                         ),
-                        if (student.planEndDate != null)
+                        if (student.isCurrentlyFrozen)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFFF59E0B)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.ac_unit_rounded, size: 10, color: Color(0xFFFCD34D)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  student.freezeEndDate != null
+                                      ? 'FROZEN: Resumes ${DateFormat('dd MMM').format(student.freezeEndDate!.add(const Duration(days: 1)))}'
+                                      : 'PASS FROZEN',
+                                  style: const TextStyle(
+                                    color: Color(0xFFFCD34D),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (student.planEndDate != null)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -1207,9 +1233,17 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                daysLeft == 1 ? '1 Day Remaining' : (daysLeft > 1 ? '$daysLeft Days Remaining' : (student.planEndDate != null ? 'Expired ${-daysLeft}d ago' : 'No Active Plan')),
+                student.isCurrentlyFrozen
+                    ? (student.freezeEndDate != null
+                        ? 'Pass Frozen • Resumes ${DateFormat('dd MMM yyyy').format(student.freezeEndDate!.add(const Duration(days: 1)))}'
+                        : 'Pass Frozen (Study Leave)')
+                    : (daysLeft == 1
+                        ? '1 Day Remaining'
+                        : (daysLeft > 1
+                            ? '$daysLeft Days Remaining'
+                            : (student.planEndDate != null ? 'Expired ${-daysLeft}d ago' : 'No Active Plan'))),
                 style: TextStyle(
-                  color: progressColor,
+                  color: student.isCurrentlyFrozen ? const Color(0xFFFCD34D) : progressColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -1432,6 +1466,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                             'emergency': student.emergencyContact,
                             'seat': seatLabel.isNotEmpty ? seatLabel : (student.seatId ?? 'Unassigned'),
                             'expiry': student.planEndDate != null ? DateFormat('dd/MM/yyyy').format(student.planEndDate!) : 'Active',
+                            'isFrozen': student.isCurrentlyFrozen,
                           }),
                           size: 78,
                           eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),

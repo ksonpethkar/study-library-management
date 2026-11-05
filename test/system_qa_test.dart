@@ -1736,7 +1736,7 @@ void main() {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(60));
+      expect(AppConstants.buildNumber, equals(61));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -5062,9 +5062,9 @@ void main() {
 
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+60'));
+      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+61'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(60));
+      expect(AppConstants.buildNumber, equals(61));
 
       // 2. Student-facing release changes include all 4 automation features
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
@@ -5085,7 +5085,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.50+60'));
+      expect(formattedVersion, equals('v1.5.50+61'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -5232,6 +5232,130 @@ void main() {
 
       final trailingActionLabel = hasPendingChange ? 'View Request' : 'Change Desk';
       expect(trailingActionLabel, equals('View Request'));
+    });
+
+    test('113. UIDAI AADHAAR VERHOEFF CHECKSUM ALGORITHM INTEGRITY & TYPO GUARDS', () {
+      // 1. Generate check digit for an 11-digit prefix
+      const prefix = '23456789012';
+      final checkDigit = AppValidators.generateVerhoeffCheckDigit(prefix);
+      final validAadhaar = '$prefix$checkDigit';
+
+      // 2. Validate valid Aadhaar passes Verhoeff checksum
+      expect(AppValidators.validateVerhoeff(validAadhaar), isTrue);
+      expect(AppValidators.aadhaar(validAadhaar, verifyChecksum: true), isNull);
+
+      // 3. Single-digit mutation / typo fails checksum
+      final mutatedDigit = (checkDigit + 1) % 10;
+      final typoAadhaar = '$prefix$mutatedDigit';
+      expect(AppValidators.validateVerhoeff(typoAadhaar), isFalse);
+      expect(
+        AppValidators.aadhaar(typoAadhaar, verifyChecksum: true),
+        equals('Invalid Aadhaar number (checksum validation failed)'),
+      );
+
+      // 4. Adjacent digit transposition fails checksum (Verhoeff guarantee)
+      // Transpose 5th and 6th digits: '2345 67 89012' -> '2345 76 89012'
+      final transposedAadhaar = '23457689012$checkDigit';
+      expect(AppValidators.validateVerhoeff(transposedAadhaar), isFalse);
+
+      // 5. Basic length and prefix guards remain intact
+      expect(AppValidators.aadhaar('023456789012'), equals('Aadhaar cannot begin with 0 or 1'));
+      expect(AppValidators.aadhaar('123456789012'), equals('Aadhaar cannot begin with 0 or 1'));
+      expect(AppValidators.aadhaar('2345'), equals('Aadhaar must be exactly 12 numeric digits'));
+    });
+
+    test('114. SCENARIO D: STUDY VACATION / EXAM LEAVE FREEZE (10+ DAYS) FULL LIFECYCLE', () {
+      // 1. Setup mock student with active membership ending Dec 31, 2026
+      final amit = StudentModel(
+        id: 'stud_amit_01',
+        name: 'Amit Sharma',
+        fatherName: 'Rajesh Sharma',
+        phone: '9876543210',
+        email: 'amit@example.com',
+        gender: Gender.male,
+        address: 'MG Road, Pune',
+        pincode: '411001',
+        govIdType: GovIdType.aadhaar,
+        govIdNumber: '234567890128',
+        govIdImageUrl: 'https://example.com/id.jpg',
+        photoUrl: 'https://example.com/photo.jpg',
+        college: 'Fergusson College',
+        course: 'UPSC Civil Services',
+        year: 'Final',
+        emergencyContact: '9876543211',
+        seatId: 'seat_14',
+        sectionId: 'sec_cozy_01',
+        planId: 'plan_monthly',
+        planStartDate: DateTime(2026, 12, 1),
+        planEndDate: DateTime(2026, 12, 31),
+        membershipStatus: MembershipStatus.active,
+        customFields: {},
+      );
+
+      // 2. Reject short freeze (< 10 days policy rule)
+      final shortFreeze = PlanCalculatorService.calculateMembershipFreeze(
+        student: amit,
+        freezeStartDate: DateTime(2026, 12, 12),
+        freezeEndDate: DateTime(2026, 12, 16), // 5 days
+      );
+      expect(shortFreeze.isValid, isFalse);
+      expect(shortFreeze.freezeDays, equals(5));
+      expect(shortFreeze.message, contains('permitted for 10 or more consecutive days'));
+
+      // 3. Approve 14-day study vacation (Dec 12 - Dec 25)
+      final validFreeze = PlanCalculatorService.calculateMembershipFreeze(
+        student: amit,
+        freezeStartDate: DateTime(2026, 12, 12),
+        freezeEndDate: DateTime(2026, 12, 25), // 14 days
+      );
+      expect(validFreeze.isValid, isTrue);
+      expect(validFreeze.freezeDays, equals(14));
+      // Dec 31 + 14 days = Jan 14, 2027
+      expect(validFreeze.newEndDate, equals(DateTime(2027, 1, 14)));
+
+      // 4. Update student model with freeze attributes
+      final frozenAmit = amit.copyWith(
+        isFrozen: true,
+        freezeStartDate: DateTime(2026, 12, 12),
+        freezeEndDate: DateTime(2026, 12, 25),
+        freezeReason: 'University semester practicals',
+        planEndDate: validFreeze.newEndDate,
+      );
+      expect(frozenAmit.isFrozen, isTrue);
+      expect(frozenAmit.freezeReason, equals('University semester practicals'));
+
+      // 5. StudentModel serialization parity
+      final json = frozenAmit.toJson();
+      expect(json['isFrozen'], isTrue);
+      expect(json['freezeReason'], equals('University semester practicals'));
+      final restored = StudentModel.fromJson(json);
+      expect(restored.isFrozen, isTrue);
+      expect(restored.freezeStartDate, equals(DateTime(2026, 12, 12)));
+      expect(restored.freezeEndDate, equals(DateTime(2026, 12, 25)));
+
+      // 6. Seat reservationType parity for study vacation
+      final seat14 = SeatModel(
+        id: 'seat_14',
+        sectionId: 'sec_cozy_01',
+        row: 1,
+        col: 2,
+        label: '14',
+        status: SeatStatus.occupied,
+        genderRestriction: GenderRestriction.any,
+        studentId: amit.id,
+        reservationType: 'study_leave',
+      );
+      expect(seat14.reservationType, equals('study_leave'));
+
+      // 7. Unfreezing lifecycle / return early
+      final unfrozenAmit = frozenAmit.copyWith(clearFreeze: true);
+      expect(unfrozenAmit.isFrozen, isFalse);
+      expect(unfrozenAmit.freezeStartDate, isNull);
+      expect(unfrozenAmit.freezeEndDate, isNull);
+      expect(unfrozenAmit.freezeReason, isNull);
+
+      final clearedSeat14 = seat14.copyWith(clearReservation: true);
+      expect(clearedSeat14.reservationType, isNull);
     });
   });
 }

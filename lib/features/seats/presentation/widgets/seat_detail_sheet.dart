@@ -482,7 +482,9 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                         studentName ?? 'Loading...',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: const Text('Currently assigned'),
+                      subtitle: widget.seat.reservationType == 'study_leave' || widget.seat.reservationType == 'freeze'
+                          ? const Text('🟡 On Study Vacation / Leave (Pass Frozen)', style: TextStyle(color: Color(0xFFD97706), fontWeight: FontWeight.bold))
+                          : const Text('Currently assigned'),
                       trailing: TextButton(
                         onPressed: () {
                           Navigator.pop(context);

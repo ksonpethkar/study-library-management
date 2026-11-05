@@ -59,6 +59,25 @@ class SeatTile extends StatelessWidget {
 
     buffer.writeln('Desk #$displayLabel • $zoneStr');
 
+    final bool isOnLeave = (seat.reservationType == 'study_leave' || seat.reservationType == 'freeze') ||
+        (student != null && student!.isCurrentlyFrozen);
+
+    if (isOnLeave) {
+      buffer.writeln('Status: 🟡 Temporarily On Leave (Study Vacation)');
+      final name = studentName ?? student?.name;
+      if (name != null && name.isNotEmpty) {
+        buffer.writeln('Student: $name');
+      }
+      if (student?.freezeEndDate != null) {
+        final resume = student!.freezeEndDate!.add(const Duration(days: 1));
+        final dateStr = '${resume.day.toString().padLeft(2, '0')}/${resume.month.toString().padLeft(2, '0')}/${resume.year}';
+        buffer.write('Resumes On: $dateStr');
+      } else {
+        buffer.write('Membership pass frozen for study leave');
+      }
+      return buffer.toString().trim();
+    }
+
     switch (seat.status) {
       case SeatStatus.available:
         buffer.write('Status: 🟢 Available (Ready for assignment)');
@@ -103,31 +122,40 @@ class SeatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final bool isOnLeave = (seat.reservationType == 'study_leave' || seat.reservationType == 'freeze') ||
+        (student != null && student!.isCurrentlyFrozen);
+
     Color bgColor;
     Color borderColor;
     Color textColor;
 
-    switch (seat.status) {
-      case SeatStatus.available:
-        bgColor = isDark ? const Color(0xFF1B382B) : const Color(0xFFE8F5E9);
-        borderColor = isDark ? const Color(0xFF2E7D32) : const Color(0xFF81C784);
-        textColor = isDark ? const Color(0xFFA5D6A7) : const Color(0xFF1B5E20);
-        break;
-      case SeatStatus.occupied:
-        bgColor = isDark ? const Color(0xFF45141D) : const Color(0xFFFFEBEE);
-        borderColor = isDark ? const Color(0xFFE53935) : const Color(0xFFE57373);
-        textColor = isDark ? const Color(0xFFFF8A80) : const Color(0xFFB71C1C);
-        break;
-      case SeatStatus.reserved:
-        bgColor = isDark ? const Color(0xFF3E3218) : const Color(0xFFFFF8E1);
-        borderColor = isDark ? const Color(0xFFF57F17) : const Color(0xFFFFD54F);
-        textColor = isDark ? const Color(0xFFFFE082) : const Color(0xFFE65100);
-        break;
-      case SeatStatus.maintenance:
-        bgColor = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFEEEEEE);
-        borderColor = isDark ? const Color(0xFF757575) : const Color(0xFFBDBDBD);
-        textColor = isDark ? const Color(0xFFE0E0E0) : const Color(0xFF212121);
-        break;
+    if (isOnLeave) {
+      bgColor = isDark ? const Color(0xFF382405) : const Color(0xFFFEF3C7);
+      borderColor = isDark ? const Color(0xFFB45309) : const Color(0xFFF59E0B);
+      textColor = isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E);
+    } else {
+      switch (seat.status) {
+        case SeatStatus.available:
+          bgColor = isDark ? const Color(0xFF1B382B) : const Color(0xFFE8F5E9);
+          borderColor = isDark ? const Color(0xFF2E7D32) : const Color(0xFF81C784);
+          textColor = isDark ? const Color(0xFFA5D6A7) : const Color(0xFF1B5E20);
+          break;
+        case SeatStatus.occupied:
+          bgColor = isDark ? const Color(0xFF45141D) : const Color(0xFFFFEBEE);
+          borderColor = isDark ? const Color(0xFFE53935) : const Color(0xFFE57373);
+          textColor = isDark ? const Color(0xFFFF8A80) : const Color(0xFFB71C1C);
+          break;
+        case SeatStatus.reserved:
+          bgColor = isDark ? const Color(0xFF3E3218) : const Color(0xFFFFF8E1);
+          borderColor = isDark ? const Color(0xFFF57F17) : const Color(0xFFFFD54F);
+          textColor = isDark ? const Color(0xFFFFE082) : const Color(0xFFE65100);
+          break;
+        case SeatStatus.maintenance:
+          bgColor = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFEEEEEE);
+          borderColor = isDark ? const Color(0xFF757575) : const Color(0xFFBDBDBD);
+          textColor = isDark ? const Color(0xFFE0E0E0) : const Color(0xFF212121);
+          break;
+      }
     }
 
     final isMaleOnly = seat.genderRestriction == GenderRestriction.male;
@@ -187,7 +215,7 @@ class SeatTile extends StatelessWidget {
                             ),
                           ],
           ),
-          child: _buildTileContent(context, isDark, textColor, genderColor, isMaleOnly, isFemaleOnly),
+          child: _buildTileContent(context, isDark, textColor, genderColor, isMaleOnly, isFemaleOnly, isOnLeave: isOnLeave),
         ),
       ),
     );
@@ -225,8 +253,9 @@ class SeatTile extends StatelessWidget {
     Color textColor,
     Color genderColor,
     bool isMaleOnly,
-    bool isFemaleOnly,
-  ) {
+    bool isFemaleOnly, {
+    bool isOnLeave = false,
+  }) {
     // -------------------------------------------------------------
     // LEVEL 3: 2 COLUMNS (LARGE DETAILED STUDENT FOCUS CARD)
     // -------------------------------------------------------------
@@ -292,7 +321,7 @@ class SeatTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    seat.status.name.toUpperCase(),
+                    isOnLeave ? 'ON LEAVE' : seat.status.name.toUpperCase(),
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w900,
@@ -412,12 +441,14 @@ class SeatTile extends StatelessWidget {
             ),
             Text(
               studentName != null && studentName!.isNotEmpty
-                  ? studentName!.split(' ').first
-                  : (seat.status == SeatStatus.occupied
-                      ? 'Occupied'
-                      : (seat.status == SeatStatus.reserved
-                          ? 'Reserved'
-                          : (seat.status == SeatStatus.maintenance ? 'Service' : 'Vacant'))),
+                  ? (isOnLeave ? '${studentName!.split(' ').first} (Leave)' : studentName!.split(' ').first)
+                  : (isOnLeave
+                      ? 'On Leave'
+                      : (seat.status == SeatStatus.occupied
+                          ? 'Occupied'
+                          : (seat.status == SeatStatus.reserved
+                              ? 'Reserved'
+                              : (seat.status == SeatStatus.maintenance ? 'Service' : 'Vacant')))),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -521,7 +552,19 @@ class SeatTile extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (isOccupied && displayName.isNotEmpty) ...[
+                  if (isOnLeave) ...[
+                    const SizedBox(height: 1.5),
+                    Text(
+                      displayName.isNotEmpty ? '$displayName (Leave)' : 'On Leave',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 9.0,
+                        fontWeight: FontWeight.w800,
+                        color: textColor,
+                      ),
+                    ),
+                  ] else if (isOccupied && displayName.isNotEmpty) ...[
                     const SizedBox(height: 1.5),
                     Text(
                       displayName,
@@ -620,7 +663,19 @@ class SeatTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isOccupied && displayName.isNotEmpty) ...[
+                if (isOnLeave) ...[
+                  const SizedBox(height: 1),
+                  Text(
+                    'Leave',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                      color: textColor,
+                    ),
+                  ),
+                ] else if (isOccupied && displayName.isNotEmpty) ...[
                   const SizedBox(height: 1),
                   Text(
                     displayName,

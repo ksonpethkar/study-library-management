@@ -842,6 +842,124 @@ class WhatsAppService {
       title: 'Plan Upgrade Confirmation Preview',
     );
   }
+
+  /// Sends an official Study Vacation / Membership Freeze confirmation to the student.
+  Future<bool> sendMembershipFreezeNotice({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    required int freezeDays,
+    required DateTime freezeStartDate,
+    required DateTime freezeEndDate,
+    required DateTime newExpiryDate,
+    String? seatLabel,
+    String? reason,
+    String? libraryHelpline,
+    BuildContext? context,
+  }) async {
+    final startStr = DateFormat('dd MMM yyyy').format(freezeStartDate);
+    final endStr = DateFormat('dd MMM yyyy').format(freezeEndDate);
+    final resumeDateStr = DateFormat('dd MMM yyyy').format(freezeEndDate.add(const Duration(days: 1)));
+    final newExpiryStr = DateFormat('dd MMM yyyy').format(newExpiryDate);
+
+    final buffer = StringBuffer()
+      ..writeln('❄️ *Study Vacation / Pass Freeze Approved*')
+      ..writeln()
+      ..writeln('Namaste *$studentName*,')
+      ..writeln('Your study vacation / membership freeze request at *$libraryName* has been approved.')
+      ..writeln()
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('📅 *FREEZE & VALIDITY SCHEDULE*')
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('⏸️ *Freeze Period:* $startStr to $endStr (*$freezeDays days*)');
+
+    if (seatLabel != null && seatLabel.isNotEmpty) {
+      buffer.writeln('🪑 *Reserved Desk:* $seatLabel (Held & protected for you)');
+    }
+
+    if (reason != null && reason.trim().isNotEmpty) {
+      buffer.writeln('📝 *Reason / Purpose:* $reason');
+    }
+
+    buffer
+      ..writeln('⏳ *Extended Plan Expiry:* *$newExpiryStr*')
+      ..writeln('🔄 *Access Resumes On:* *$resumeDateStr*')
+      ..writeln()
+      ..writeln('Your assigned desk will remain reserved and protected throughout your leave.')
+      ..writeln('Best wishes for your exams / practicals! See you back at the library soon. 📚✨');
+
+    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('📞 *Helpline / Admin Desk:* $libraryHelpline');
+    }
+
+    buffer
+      ..writeln()
+      ..writeln('— *Management, $libraryName*');
+
+    return await sendMessage(
+      phone,
+      buffer.toString(),
+      context: context,
+      recipientName: studentName,
+      title: 'Study Leave Freeze Preview',
+    );
+  }
+
+  /// Sends an official Unfreeze / Return from Study Leave confirmation to the student.
+  Future<bool> sendMembershipUnfreezeNotice({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    required DateTime resumeDate,
+    required DateTime expiryDate,
+    String? seatLabel,
+    String? libraryHelpline,
+    BuildContext? context,
+  }) async {
+    final resumeStr = DateFormat('dd MMM yyyy').format(resumeDate);
+    final expiryStr = DateFormat('dd MMM yyyy').format(expiryDate);
+
+    final buffer = StringBuffer()
+      ..writeln('☀️ *Welcome Back! Digital Pass Reactivated*')
+      ..writeln()
+      ..writeln('Namaste *$studentName*,')
+      ..writeln('Welcome back to *$libraryName*! Your study vacation has concluded and your Digital Pass has been reactivated.')
+      ..writeln()
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('📋 *MEMBERSHIP STATUS*')
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('🟢 *Pass Status:* ACTIVE')
+      ..writeln('📅 *Resumed On:* $resumeStr');
+
+    if (seatLabel != null && seatLabel.isNotEmpty) {
+      buffer.writeln('🪑 *Assigned Desk:* $seatLabel');
+    }
+
+    buffer
+      ..writeln('⏳ *Valid Through:* *$expiryStr*')
+      ..writeln()
+      ..writeln('Your desk is ready and waiting for you. Have a productive and focused study session! 📖⚡');
+
+    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('📞 *Helpline / Admin Desk:* $libraryHelpline');
+    }
+
+    buffer
+      ..writeln()
+      ..writeln('— *Management, $libraryName*');
+
+    return await sendMessage(
+      phone,
+      buffer.toString(),
+      context: context,
+      recipientName: studentName,
+      title: 'Pass Reactivation Preview',
+    );
+  }
 }
 
 /// Provider for WhatsAppService

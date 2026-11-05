@@ -413,6 +413,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     DateTime freezeStart = DateTime(now.year, now.month, now.day);
     // Minimum 10 consecutive days
     DateTime freezeEnd = freezeStart.add(const Duration(days: 9));
+    final reasonCtrl = TextEditingController(text: 'University semester exams / Study vacation');
+    bool sendWhatsApp = true;
 
     await showDialog(
       context: context,
@@ -555,6 +557,17 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       ),
                     ),
                     const SizedBox(height: 12),
+                    TextField(
+                      controller: reasonCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Reason / Notes',
+                        hintText: 'e.g. University practicals / visiting hometown',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        isDense: true,
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -584,6 +597,15 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         ],
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    CheckboxListTile(
+                      value: sendWhatsApp,
+                      onChanged: (val) => setDlgState(() => sendWhatsApp = val ?? true),
+                      title: const Text('Send WhatsApp freeze confirmation', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Dispatches itemized vacation dates and extended expiry.', style: TextStyle(fontSize: 11)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ],
                 ),
               ),
@@ -598,25 +620,91 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     ? null
                     : () async {
                         try {
-                          await FirebaseFirestore.instance
+                          final batch = FirebaseFirestore.instance.batch();
+                          final studentRef = FirebaseFirestore.instance
                               .collection('libraries')
                               .doc(libraryId)
                               .collection('students')
-                              .doc(s.id)
-                              .update({
+                              .doc(s.id);
+
+                          batch.update(studentRef, {
+                            'isFrozen': true,
+                            'freezeStartDate': Timestamp.fromDate(freezeStart),
+                            'freezeEndDate': Timestamp.fromDate(freezeEnd),
+                            'freezeReason': reasonCtrl.text.trim(),
                             'planEndDate': Timestamp.fromDate(freezeCalc.newEndDate),
                             'notes': '${(s.notes != null && s.notes!.isNotEmpty) ? "${s.notes}\n" : ""}[Freeze] Study Vacation: ${freezeCalc.freezeDays}d (${DateFormat('dd MMM').format(freezeStart)} - ${DateFormat('dd MMM').format(freezeEnd)}). Expiry extended to ${DateFormat('dd MMM yyyy').format(freezeCalc.newEndDate)}.',
                             'updatedAt': FieldValue.serverTimestamp(),
                           });
 
+                          // Update assigned seat reservationType to 'study_leave' so Seat Map badges in Amber
+                          if (s.seatId != null && s.sectionId != null) {
+                            final seatRef = FirebaseFirestore.instance
+                                .collection('libraries')
+                                .doc(libraryId)
+                                .collection('sections')
+                                .doc(s.sectionId!)
+                                .collection('seats')
+                                .doc(s.seatId!);
+                            batch.update(seatRef, {
+                              'reservationType': 'study_leave',
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            });
+                          }
+
+                          await batch.commit();
+
                           if (context.mounted) {
                             Navigator.pop(ctx);
+                            final seatLabel = SeatHelper.formatSeatLabel(
+                              seatId: s.seatId,
+                              rawLabel: s.seatId,
+                            );
+                            final libName = ref.read(currentLibraryProvider).value?.name ?? 'Study Library';
+                            final helpline = ref.read(currentLibraryProvider).value?.helplineNumber;
+
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Membership freeze applied ✓ Plan extended to ${DateFormat('dd MMM yyyy').format(freezeCalc.newEndDate)}'),
                                 backgroundColor: Colors.green,
+                                action: SnackBarAction(
+                                  label: 'WhatsApp Notice',
+                                  textColor: Colors.white,
+                                  onPressed: () {
+                                    ref.read(whatsappServiceProvider).sendMembershipFreezeNotice(
+                                      phone: s.phone,
+                                      studentName: s.name,
+                                      libraryName: libName,
+                                      freezeDays: freezeCalc.freezeDays,
+                                      freezeStartDate: freezeStart,
+                                      freezeEndDate: freezeEnd,
+                                      newExpiryDate: freezeCalc.newEndDate,
+                                      seatLabel: seatLabel,
+                                      reason: reasonCtrl.text.trim(),
+                                      libraryHelpline: helpline,
+                                      context: context,
+                                    );
+                                  },
+                                ),
                               ),
                             );
+
+                            if (sendWhatsApp) {
+                              ref.read(whatsappServiceProvider).sendMembershipFreezeNotice(
+                                phone: s.phone,
+                                studentName: s.name,
+                                libraryName: libName,
+                                freezeDays: freezeCalc.freezeDays,
+                                freezeStartDate: freezeStart,
+                                freezeEndDate: freezeEnd,
+                                newExpiryDate: freezeCalc.newEndDate,
+                                seatLabel: seatLabel,
+                                reason: reasonCtrl.text.trim(),
+                                libraryHelpline: helpline,
+                                context: context,
+                              );
+                            }
+
                             _loadStudent();
                           }
                         } catch (e) {
@@ -625,6 +713,189 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           }
                         }
                       },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showUnfreezeMembershipDialog(BuildContext context, StudentModel s) async {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) return;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final currentEnd = s.planEndDate ?? today;
+    bool sendWhatsApp = true;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          final theme = Theme.of(context);
+          final seatLabel = SeatHelper.formatSeatLabel(
+            seatId: s.seatId,
+            rawLabel: s.seatId,
+          );
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.amber.shade50,
+                  child: const Icon(Icons.wb_sunny_rounded, color: Colors.amber),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text('Resume Pass / Unfreeze', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 440,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Reactivate ${s.name}\'s membership pass today. This will restore the desk status from Study Leave back to Active.',
+                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.colorScheme.outlineVariant),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Reserved Desk:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(seatLabel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Current Expiry:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(DateFormat('dd MMM yyyy').format(currentEnd), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.green)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    CheckboxListTile(
+                      value: sendWhatsApp,
+                      onChanged: (val) => setDlgState(() => sendWhatsApp = val ?? true),
+                      title: const Text('Send WhatsApp Welcome Back notice', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Sends a confirmation message to student that their pass and desk are active.', style: TextStyle(fontSize: 11)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD97706)),
+                icon: const Icon(Icons.wb_sunny_rounded, size: 16),
+                label: const Text('Confirm & Reactivate Pass'),
+                onPressed: () async {
+                  try {
+                    final batch = FirebaseFirestore.instance.batch();
+                    final studentRef = FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('students')
+                        .doc(s.id);
+
+                    batch.update(studentRef, {
+                      'isFrozen': false,
+                      'freezeStartDate': FieldValue.delete(),
+                      'freezeEndDate': FieldValue.delete(),
+                      'freezeReason': FieldValue.delete(),
+                      'notes': '${(s.notes != null && s.notes!.isNotEmpty) ? "${s.notes}\n" : ""}[Unfreeze] Resumed from study leave on ${DateFormat('dd MMM yyyy').format(today)}.',
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    });
+
+                    if (s.seatId != null && s.sectionId != null) {
+                      final seatRef = FirebaseFirestore.instance
+                          .collection('libraries')
+                          .doc(libraryId)
+                          .collection('sections')
+                          .doc(s.sectionId!)
+                          .collection('seats')
+                          .doc(s.seatId!);
+                      batch.update(seatRef, {
+                        'reservationType': FieldValue.delete(),
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      });
+                    }
+
+                    await batch.commit();
+
+                    if (context.mounted) {
+                      Navigator.pop(ctx);
+                      final libName = ref.read(currentLibraryProvider).value?.name ?? 'Study Library';
+                      final helpline = ref.read(currentLibraryProvider).value?.helplineNumber;
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Membership reactivated ✓ ${s.name} is now Active.'),
+                          backgroundColor: Colors.green,
+                          action: SnackBarAction(
+                            label: 'WhatsApp',
+                            textColor: Colors.white,
+                            onPressed: () {
+                              ref.read(whatsappServiceProvider).sendMembershipUnfreezeNotice(
+                                phone: s.phone,
+                                studentName: s.name,
+                                libraryName: libName,
+                                resumeDate: today,
+                                expiryDate: currentEnd,
+                                seatLabel: seatLabel,
+                                libraryHelpline: helpline,
+                                context: context,
+                              );
+                            },
+                          ),
+                        ),
+                      );
+
+                      if (sendWhatsApp) {
+                        ref.read(whatsappServiceProvider).sendMembershipUnfreezeNotice(
+                          phone: s.phone,
+                          studentName: s.name,
+                          libraryName: libName,
+                          resumeDate: today,
+                          expiryDate: currentEnd,
+                          seatLabel: seatLabel,
+                          libraryHelpline: helpline,
+                          context: context,
+                        );
+                      }
+
+                      _loadStudent();
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
+                    }
+                  }
+                },
               ),
             ],
           );
@@ -2357,12 +2628,27 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         ),
                       ],
                       const SizedBox(height: 8),
-                      Chip(
-                        label: Text(s.membershipStatus.name.toUpperCase()),
-                        backgroundColor: _getStatusColor(s.membershipStatus).withValues(alpha: 0.15),
-                        labelStyle: TextStyle(color: _getStatusColor(s.membershipStatus), fontWeight: FontWeight.bold, fontSize: 12),
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          Chip(
+                            label: Text(s.membershipStatus.name.toUpperCase()),
+                            backgroundColor: _getStatusColor(s.membershipStatus).withValues(alpha: 0.15),
+                            labelStyle: TextStyle(color: _getStatusColor(s.membershipStatus), fontWeight: FontWeight.bold, fontSize: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          if (s.isCurrentlyFrozen)
+                            Chip(
+                              avatar: const Icon(Icons.ac_unit_rounded, size: 14, color: Color(0xFFD97706)),
+                              label: const Text('STUDY LEAVE (FROZEN)'),
+                              backgroundColor: const Color(0xFFFEF3C7),
+                              labelStyle: const TextStyle(color: Color(0xFFB45309), fontWeight: FontWeight.bold, fontSize: 11),
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                        ],
                       ),
                     ],
                   ),
@@ -2488,17 +2774,29 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF2563EB),
-                        side: const BorderSide(color: Color(0xFF93C5FD)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      icon: const Icon(Icons.ac_unit_rounded, size: 16),
-                      label: const Text('Freeze (10+ Days)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                      onPressed: () => _showFreezeMembershipDialog(context, s),
-                    ),
+                    child: s.isCurrentlyFrozen
+                        ? OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFD97706),
+                              side: const BorderSide(color: Color(0xFFFDE68A)),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            icon: const Icon(Icons.wb_sunny_rounded, size: 16),
+                            label: const Text('Unfreeze Pass', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                            onPressed: () => _showUnfreezeMembershipDialog(context, s),
+                          )
+                        : OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF2563EB),
+                              side: const BorderSide(color: Color(0xFF93C5FD)),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            icon: const Icon(Icons.ac_unit_rounded, size: 16),
+                            label: const Text('Freeze (10+ Days)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                            onPressed: () => _showFreezeMembershipDialog(context, s),
+                          ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
