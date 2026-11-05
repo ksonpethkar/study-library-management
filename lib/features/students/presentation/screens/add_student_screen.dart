@@ -20,6 +20,8 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/models/seat_model.dart';
 
 class AddStudentScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initialData;
@@ -48,6 +50,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   final _customPlanNameController = TextEditingController(text: 'Custom Plan');
   final _customPlanFeeController = TextEditingController(text: '500');
   final _customDiscountReasonController = TextEditingController();
+  final _paidAmountController = TextEditingController();
+  final _securityDepositController = TextEditingController();
 
   // State
   Gender _gender = Gender.male;
@@ -60,6 +64,11 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   bool _isStickyCustomPrice = false;
   String? _selectedSectionId;
   String? _selectedSeatId;
+  String? _selectedSeatLabel;
+  String? _selectedSectionName;
+  String _paymentMethod = 'Cash';
+  bool _issueReceipt = true;
+  bool _sendWhatsAppWelcome = true;
   String? _bloodGroup;
   final _rollNumberController = TextEditingController();
   final Map<String, TextEditingController> _customControllers = {};
@@ -73,6 +82,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
       final d = widget.initialData!;
       if (d['name'] != null) _nameController.text = d['name'].toString();
       if (d['phone'] != null) _phoneController.text = d['phone'].toString();
+      if (d['seatId'] != null && d['seatId'].toString().isNotEmpty) {
+        _selectedSeatId = d['seatId'].toString();
+      }
       if (d['sectionId'] != null && d['sectionId'].toString().isNotEmpty) {
         _selectedSectionId = d['sectionId'].toString();
       }
@@ -102,6 +114,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
     _customPlanNameController.dispose();
     _customPlanFeeController.dispose();
     _customDiscountReasonController.dispose();
+    _paidAmountController.dispose();
+    _securityDepositController.dispose();
     _rollNumberController.dispose();
     for (final c in _customControllers.values) {
       c.dispose();
@@ -332,6 +346,20 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         }
       }
 
+      final plans = ref.read(plansStreamProvider).value ?? [];
+      final plan = plans.where((p) => p.id == _selectedPlanId).firstOrNull;
+      final effectiveFee = _selectedPlanId == 'custom'
+          ? (double.tryParse(_customPlanFeeController.text.trim()) ?? 0.0)
+          : (_selectedPlanId != null ? (plan?.price ?? 0.0) : 0.0);
+      final paidAmount = _selectedPlanId != null
+          ? (double.tryParse(_paidAmountController.text.trim()) ?? effectiveFee)
+          : 0.0;
+      final remainingDue = (effectiveFee > paidAmount) ? (effectiveFee - paidAmount) : 0.0;
+      final securityDeposit = double.tryParse(_securityDepositController.text.trim());
+      final effectivePlanName = _selectedPlanId == 'custom'
+          ? (_customPlanNameController.text.trim().isNotEmpty ? _customPlanNameController.text.trim() : 'Custom Plan')
+          : (plan?.name ?? 'Standard Plan');
+
       final newStudent = StudentModel(
         id: '',
         name: _nameController.text.trim(),
@@ -364,6 +392,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         notes: _notesController.text.trim(),
         bloodGroup: _bloodGroup,
         rollNumber: _rollNumberController.text.trim().isEmpty ? null : _rollNumberController.text.trim(),
+        pendingDueBalance: remainingDue > 0 ? remainingDue : null,
+        securityDepositAmount: (securityDeposit != null && securityDeposit > 0) ? securityDeposit : null,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -384,18 +414,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
             );
       }
 
-      // If student was created with an active plan, auto-generate official initial admission receipt & payment record
-      if (status == MembershipStatus.active && _selectedPlanId != null) {
+      // If student was created with an active plan and receipt requested, generate official initial admission receipt & payment record
+      if (status == MembershipStatus.active && _selectedPlanId != null && _issueReceipt) {
         try {
-          final plans = ref.read(plansStreamProvider).value ?? [];
-          final plan = plans.where((p) => p.id == _selectedPlanId).firstOrNull;
-          final effectiveFee = _selectedPlanId == 'custom'
-              ? (double.tryParse(_customPlanFeeController.text.trim()) ?? 0.0)
-              : (plan?.price ?? 0.0);
-          final effectivePlanName = _selectedPlanId == 'custom'
-              ? (_customPlanNameController.text.trim().isNotEmpty ? _customPlanNameController.text.trim() : 'Custom Plan')
-              : (plan?.name ?? 'Standard Plan');
-
           final receiptRepo = ReceiptRepository();
           final nextRecNum = await receiptRepo.getNextReceiptNumber(libraryId);
           final rec = ReceiptModel(
@@ -405,24 +426,61 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
             studentId: studentId,
             studentUserId: null,
             planId: _selectedPlanId!,
-            amount: effectiveFee,
+            amount: paidAmount,
             totalFee: effectiveFee,
-            paidAmount: effectiveFee,
-            remainingDue: 0.0,
-            paymentMethod: 'Cash',
+            paidAmount: paidAmount,
+            remainingDue: remainingDue,
+            paymentMethod: _paymentMethod,
             validFrom: planStartDate ?? DateTime.now(),
             validTo: planEndDate ?? (planStartDate ?? DateTime.now()).add(const Duration(days: 30)),
             customFields: {
               'planName': effectivePlanName,
-              if (_selectedSeatId != null) 'seatLabel': SeatHelper.formatSeatLabel(seatId: _selectedSeatId),
-              'admissionType': 'New Student Admission',
+              if (_selectedSeatId != null) 'seatLabel': _selectedSeatLabel ?? SeatHelper.formatSeatLabel(seatId: _selectedSeatId),
+              if (securityDeposit != null && securityDeposit > 0) 'securityDeposit': securityDeposit,
+              'admissionType': 'Walk-in Admission',
             },
             status: ReceiptStatus.active,
             createdAt: DateTime.now(),
           );
-          await receiptRepo.generateReceipt(libraryId, rec, recordMatchingPayment: true);
+          await receiptRepo.generateReceipt(libraryId, rec, recordMatchingPayment: paidAmount > 0);
         } catch (e) {
           debugPrint('Silent initial receipt generation error: $e');
+        }
+      }
+
+      // Send WhatsApp welcome if selected
+      if (_sendWhatsAppWelcome && newStudent.phone.isNotEmpty) {
+        try {
+          final lib = ref.read(currentLibraryProvider).value;
+          final libName = lib?.name.isNotEmpty == true ? lib!.name : 'The Cozy Corner';
+          final deskInfo = _selectedSeatId != null
+              ? 'Desk: ${_selectedSeatLabel ?? SeatHelper.formatSeatLabel(seatId: _selectedSeatId)}'
+              : 'Desk: General / Shared';
+          final planInfo = _selectedPlanId != null ? 'Plan: $effectivePlanName' : 'Registration Confirmed';
+          final dueInfo = remainingDue > 0 ? '\nPending Due: ₹${remainingDue.toStringAsFixed(0)}' : '';
+          final depositInfo = (securityDeposit != null && securityDeposit > 0) ? '\nSecurity Deposit: ₹${securityDeposit.toStringAsFixed(0)} (Refundable)' : '';
+
+          final msg = 'Dear ${newStudent.name},\n\n'
+              'Welcome to $libName! 🎉\n'
+              'Your admission has been confirmed successfully.\n\n'
+              '• $deskInfo\n'
+              '• $planInfo\n'
+              '• Amount Paid: ₹${paidAmount.toStringAsFixed(0)} ($_paymentMethod)$dueInfo$depositInfo\n\n'
+              'You can log in to our study app anytime to view your digital ID card, desk status, and payment receipts.\n\n'
+              'Best regards,\n'
+              'Team $libName';
+
+          if (mounted) {
+            WhatsAppService().sendMessage(
+              newStudent.phone,
+              msg,
+              recipientName: newStudent.name,
+              title: 'Welcome ${newStudent.name}',
+              context: context,
+            ).ignore();
+          }
+        } catch (e) {
+          debugPrint('Silent WhatsApp welcome error: $e');
         }
       }
 
@@ -905,7 +963,14 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Section 5: Plan Assignment (Optional)
+                  // Section 5: Desk / Seat Allocation (Walk-in)
+                  _buildSectionHeader(context, 'Desk / Seat Allocation (Optional)', Icons.event_seat_rounded),
+                  const SizedBox(height: 12),
+                  _buildDeskPickerCard(context),
+
+                  const SizedBox(height: 24),
+
+                  // Section 6: Plan Assignment (Optional)
                   _buildSectionHeader(context, 'Membership Plan (Optional)', Icons.card_membership_rounded),
                   const SizedBox(height: 12),
                   plansAsync.when(
@@ -923,7 +988,12 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                             subtitle: 'Register student now; plan & fee can be added anytime',
                             icon: Icons.hourglass_empty_rounded,
                             priceText: 'Free now',
-                            onTap: () => setState(() => _selectedPlanId = null),
+                            onTap: () {
+                              setState(() {
+                                _selectedPlanId = null;
+                                _paidAmountController.clear();
+                              });
+                            },
                           ),
                           const SizedBox(height: 8),
 
@@ -948,7 +1018,12 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                                 priceText: '₹${p.price.toStringAsFixed(0)}',
                                 originalPriceText: origText,
                                 badge: discText ?? (p.isFeatured ? 'POPULAR' : null),
-                                onTap: () => setState(() => _selectedPlanId = p.id),
+                                onTap: () {
+                                  setState(() {
+                                    _selectedPlanId = p.id;
+                                    _paidAmountController.text = p.price.toStringAsFixed(0);
+                                  });
+                                },
                               ),
                             );
                           }),
@@ -968,6 +1043,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                                 final now = DateTime.now();
                                 final nextMonthFirst = DateTime(now.year, now.month + 1, 1);
                                 _customPlanEndDate ??= DateTime(nextMonthFirst.year, nextMonthFirst.month, 0, 23, 59, 59, 999);
+                                _paidAmountController.text = _customPlanFeeController.text.isNotEmpty ? _customPlanFeeController.text : "500";
                               });
                             },
                           ),
@@ -1160,9 +1236,25 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     error: (_, _) => const SizedBox(),
                   ),
 
+                  if (_selectedPlanId != null) ...[
+                    const SizedBox(height: 24),
+                    _buildSectionHeader(context, 'Initial Payment & Admission Receipt', Icons.receipt_long_rounded),
+                    const SizedBox(height: 12),
+                    Builder(
+                      builder: (context) {
+                        final plans = ref.read(plansStreamProvider).value ?? [];
+                        final plan = plans.where((p) => p.id == _selectedPlanId).firstOrNull;
+                        final effectiveFee = _selectedPlanId == 'custom'
+                            ? (double.tryParse(_customPlanFeeController.text.trim()) ?? 0.0)
+                            : (plan?.price ?? 0.0);
+                        return _buildPaymentCollectionCard(context, effectiveFee);
+                      },
+                    ),
+                  ],
+
                   const SizedBox(height: 24),
 
-                  // Section 6: Additional Notes
+                  // Section 7: Additional Notes
                   _buildSectionHeader(context, 'Remarks & Notes', Icons.notes_rounded),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -1612,6 +1704,436 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         validator: isRequired
             ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
             : null,
+      ),
+    );
+  }
+
+  Widget _buildDeskPickerCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final isAssigned = _selectedSeatId != null && _selectedSeatId!.isNotEmpty;
+
+    if (!isAssigned) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.chair_outlined, size: 28, color: Colors.grey.shade600),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('No Desk Assigned', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Student can be admitted without a desk or assigned anytime.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.tonalIcon(
+              onPressed: () => _showWalkinSeatPickerSheet(context),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Choose Desk'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10B981).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4), width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.chair_rounded, size: 28, color: Color(0xFF059669)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Desk ${_selectedSeatLabel ?? SeatHelper.formatSeatLabel(seatId: _selectedSeatId)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF065F46)),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text('ALLOCATED', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${_selectedSectionName ?? "Main Section"} • Full Day Access',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            onPressed: () => _showWalkinSeatPickerSheet(context),
+            child: const Text('Change'),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, size: 20, color: Colors.grey),
+            tooltip: 'Remove Desk',
+            onPressed: () => setState(() {
+              _selectedSeatId = null;
+              _selectedSeatLabel = null;
+              _selectedSectionId = null;
+              _selectedSectionName = null;
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWalkinSeatPickerSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.75,
+            maxChildSize: 0.95,
+            minChildSize: 0.5,
+            builder: (innerCtx, scrollController) {
+              return Consumer(
+                builder: (consumerCtx, ref, _) {
+                  final sectionsAsync = ref.watch(sectionsProvider);
+
+                  return sectionsAsync.when(
+                    data: (sections) {
+                      final activeSections = sections.where((s) => s.isActive).toList();
+                      if (activeSections.isEmpty) {
+                        return const Center(child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: Text('No active sections found. Please add a section in Seats settings.'),
+                        ));
+                      }
+
+                      final curSection = activeSections.firstWhere(
+                        (s) => s.id == _selectedSectionId,
+                        orElse: () => activeSections.first,
+                      );
+
+                      final seatsAsync = ref.watch(seatsProvider(curSection.id));
+
+                      return Column(
+                        children: [
+                          const SizedBox(height: 8),
+                          Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.event_seat_rounded, color: Color(0xFF059669)),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Select Available Desk',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded),
+                                  onPressed: () => Navigator.pop(sheetCtx),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (activeSections.length > 1) ...[
+                            const SizedBox(height: 8),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                children: activeSections.map((sec) {
+                                  final isSecSel = sec.id == curSection.id;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: FilterChip(
+                                      selected: isSecSel,
+                                      label: Text(sec.name),
+                                      onSelected: (_) {
+                                        setSheetState(() {
+                                          _selectedSectionId = sec.id;
+                                          _selectedSectionName = sec.name;
+                                        });
+                                      },
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
+                          const Divider(height: 16),
+                          Expanded(
+                            child: seatsAsync.when(
+                              data: (seats) {
+                                final available = seats.where((s) => s.status == SeatStatus.available).toList();
+                                if (available.isEmpty) {
+                                  return Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.event_busy_rounded, size: 48, color: Colors.grey.shade400),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'No available desks in ${curSection.name}',
+                                          style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                return GridView.builder(
+                                  controller: scrollController,
+                                  padding: const EdgeInsets.all(16),
+                                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 110,
+                                    childAspectRatio: 1.1,
+                                    crossAxisSpacing: 10,
+                                    mainAxisSpacing: 10,
+                                  ),
+                                  itemCount: available.length,
+                                  itemBuilder: (gridCtx, i) {
+                                    final seat = available[i];
+                                    final isChosen = _selectedSeatId == seat.id;
+
+                                    return InkWell(
+                                      borderRadius: BorderRadius.circular(12),
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedSeatId = seat.id;
+                                          _selectedSectionId = curSection.id;
+                                          _selectedSeatLabel = seat.label;
+                                          _selectedSectionName = curSection.name;
+                                        });
+                                        Navigator.pop(sheetCtx);
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: isChosen ? const Color(0xFF059669) : Colors.green.shade50,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: isChosen ? const Color(0xFF059669) : Colors.green.shade200,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.chair_rounded,
+                                              size: 24,
+                                              color: isChosen ? Colors.white : const Color(0xFF059669),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '#${seat.label}',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                                color: isChosen ? Colors.white : const Color(0xFF065F46),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                              loading: () => const Center(child: CircularProgressIndicator()),
+                              error: (e, _) => Center(child: Text('Error: $e')),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('Error: $e')),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPaymentCollectionCard(BuildContext context, double totalFee) {
+    final theme = Theme.of(context);
+    final paidNow = double.tryParse(_paidAmountController.text.trim()) ?? totalFee;
+    final due = totalFee > paidNow ? (totalFee - paidNow) : 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Total Plan Fee', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text(
+                    '₹${totalFee.toStringAsFixed(0)}',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              if (due > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text(
+                    'Pending Due: ₹${due.toStringAsFixed(0)}',
+                    style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Text(
+                    'Fully Paid ✓',
+                    style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Payment Mode',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            children: ['Cash', 'UPI / Online', 'Bank Transfer', 'Card'].map((m) {
+              final isSel = _paymentMethod == m;
+              return ChoiceChip(
+                label: Text(m),
+                selected: isSel,
+                onSelected: (val) {
+                  if (val) setState(() => _paymentMethod = m);
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _paidAmountController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Amount Paid Now (₹) *',
+              prefixText: '₹ ',
+              border: OutlineInputBorder(),
+              isDense: true,
+              helperText: 'Enter full fee or advance deposit. Remainder will be recorded as pending due.',
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _securityDepositController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Refundable Security Deposit (₹) (Optional)',
+              prefixText: '₹ ',
+              border: OutlineInputBorder(),
+              isDense: true,
+              hintText: 'e.g. 500 for locker or desk keys',
+              helperText: 'Tracked separately on student record; refundable upon exit',
+            ),
+          ),
+          const SizedBox(height: 14),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _issueReceipt,
+            title: const Text('Issue Official Admission Receipt & Record Payment', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+            subtitle: const Text('Generates official serial receipt with PDF export', style: TextStyle(fontSize: 11.5)),
+            onChanged: (val) => setState(() => _issueReceipt = val ?? true),
+          ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _sendWhatsAppWelcome,
+            title: const Text('Send Welcome & Admission Confirmation to WhatsApp', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+            subtitle: const Text('Dispatches greeting with Desk #, Plan, and Receipt details', style: TextStyle(fontSize: 11.5)),
+            onChanged: (val) => setState(() => _sendWhatsAppWelcome = val ?? true),
+          ),
+        ],
       ),
     );
   }

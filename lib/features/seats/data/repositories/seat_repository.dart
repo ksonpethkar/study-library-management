@@ -428,9 +428,8 @@ class SeatRepository {
     String studentId,
   ) async {
     try {
-      final batch = _firestore.batch();
-
-      // 1. Release any previously occupied seat for this student across all sections
+      // 1. Sweep any previously occupied seats for this student across all sections
+      final oldSeatRefs = <DocumentReference>[];
       final sectionsSnap = await _firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
@@ -445,16 +444,11 @@ class SeatRepository {
 
         for (final oldSeat in occupiedSeats.docs) {
           if (oldSeat.id != seatId) {
-            batch.update(oldSeat.reference, {
-              'status': SeatStatus.available.name,
-              'studentId': null,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
+            oldSeatRefs.add(oldSeat.reference);
           }
         }
       }
 
-      // 2. Mark target seat as occupied (with anti-collision check)
       final targetSeatRef = _firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
@@ -463,41 +457,76 @@ class SeatRepository {
           .collection(FirestorePaths.seats)
           .doc(seatId);
 
-      final targetSeatSnap = await targetSeatRef.get();
-      if (targetSeatSnap.exists) {
-        final currentOccupant = targetSeatSnap.data()?['studentId'] as String?;
-        final currentStatus = targetSeatSnap.data()?['status'] as String?;
-        if (currentStatus == SeatStatus.occupied.name &&
-            currentOccupant != null &&
-            currentOccupant.isNotEmpty &&
-            currentOccupant != studentId) {
-          throw Exception('Seat is already occupied by another student.');
-        }
-      }
-
-      batch.update(targetSeatRef, {
-        'status': SeatStatus.occupied.name,
-        'studentId': studentId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // 3. Update student document with current seat and section
       final studentRef = _firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
           .collection(FirestorePaths.students)
           .doc(studentId);
 
-      batch.update(studentRef, {
-        'seatId': seatId,
-        'sectionId': sectionId,
-        'updatedAt': FieldValue.serverTimestamp(),
+      // 2. Atomic Firestore Transaction for collision prevention
+      await _firestore.runTransaction((tx) async {
+        // READS FIRST
+        final targetSeatSnap = await tx.get(targetSeatRef);
+        if (!targetSeatSnap.exists) {
+          throw Exception('Target seat does not exist.');
+        }
+
+        final targetData = targetSeatSnap.data() ?? {};
+        final currentOccupant = targetData['studentId'] as String?;
+        final currentStatus = targetData['status'] as String?;
+
+        if (currentStatus == SeatStatus.occupied.name &&
+            currentOccupant != null &&
+            currentOccupant.isNotEmpty &&
+            currentOccupant != studentId) {
+          throw Exception('Seat is already occupied by another student.');
+        }
+
+        final seatLabel = targetData['label'] ?? targetData['seatNumber']?.toString() ?? seatId;
+
+        // WRITES
+        // Release previous seats if any
+        for (final oldRef in oldSeatRefs) {
+          tx.update(oldRef, {
+            'status': SeatStatus.available.name,
+            'studentId': null,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        // Occupy target seat
+        tx.update(targetSeatRef, {
+          'status': SeatStatus.occupied.name,
+          'studentId': studentId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Update student document with current seat and section
+        tx.update(studentRef, {
+          'seatId': seatId,
+          'sectionId': sectionId,
+          'seatLabel': seatLabel,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
 
-      await batch.commit();
+      AuditLogger().log(
+        action: AuditAction.updated,
+        entityType: AuditEntity.seat,
+        libraryId: libraryId,
+        entityId: seatId,
+        entityName: 'Seat #$seatId',
+        details: {
+          'seatId': seatId,
+          'sectionId': sectionId,
+          'studentId': studentId,
+          'operation': 'Seat Assigned (Atomic Transaction)',
+        },
+      ).ignore();
     } catch (e) {
       debugPrint('Failed to assign student to seat: $e');
-      throw Exception('Failed to assign student to seat.');
+      final msg = e.toString().replaceAll('Exception: ', '');
+      throw Exception(msg.isNotEmpty ? msg : 'Failed to assign student to seat.');
     }
   }
 
@@ -565,8 +594,6 @@ class SeatRepository {
     String studentId,
   ) async {
     try {
-      final batch = _firestore.batch();
-
       final fromSeatRef = _firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
@@ -583,21 +610,74 @@ class SeatRepository {
           .collection(FirestorePaths.seats)
           .doc(toSeatId);
 
-      batch.update(fromSeatRef, {
-        'status': SeatStatus.available.name,
-        'studentId': FieldValue.delete(),
-        'updatedAt': FieldValue.serverTimestamp(),
+      final studentRef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.students)
+          .doc(studentId);
+
+      await _firestore.runTransaction((tx) async {
+        // READS FIRST
+        final toSeatSnap = await tx.get(toSeatRef);
+        if (!toSeatSnap.exists) {
+          throw Exception('Destination seat does not exist.');
+        }
+
+        final toData = toSeatSnap.data() ?? {};
+        final currentOccupant = toData['studentId'] as String?;
+        final currentStatus = toData['status'] as String?;
+
+        if (currentStatus == SeatStatus.occupied.name &&
+            currentOccupant != null &&
+            currentOccupant.isNotEmpty &&
+            currentOccupant != studentId) {
+          throw Exception('Destination seat is already occupied by another student.');
+        }
+
+        final toSeatLabel = toData['label'] ?? toData['seatNumber']?.toString() ?? toSeatId;
+
+        // WRITES
+        tx.update(fromSeatRef, {
+          'status': SeatStatus.available.name,
+          'studentId': null,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        tx.update(toSeatRef, {
+          'status': SeatStatus.occupied.name,
+          'studentId': studentId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        tx.update(studentRef, {
+          'seatId': toSeatId,
+          'sectionId': toSectionId,
+          'seatLabel': toSeatLabel,
+          'previousSeatId': fromSeatId,
+          'previousSectionId': fromSectionId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
 
-      batch.update(toSeatRef, {
-        'status': SeatStatus.occupied.name,
-        'studentId': studentId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      await batch.commit();
+      AuditLogger().log(
+        action: AuditAction.updated,
+        entityType: AuditEntity.seat,
+        libraryId: libraryId,
+        entityId: toSeatId,
+        entityName: 'Seat #$toSeatId',
+        details: {
+          'fromSeatId': fromSeatId,
+          'fromSectionId': fromSectionId,
+          'toSeatId': toSeatId,
+          'toSectionId': toSectionId,
+          'studentId': studentId,
+          'operation': 'Seat Transferred (Atomic Transaction)',
+        },
+      ).ignore();
     } catch (e) {
-      throw Exception('Failed to transfer student.');
+      debugPrint('Failed to transfer student: $e');
+      final msg = e.toString().replaceAll('Exception: ', '');
+      throw Exception(msg.isNotEmpty ? msg : 'Failed to transfer student.');
     }
   }
 

@@ -368,14 +368,50 @@ class StudentRepository {
 
   Future<void> archiveStudent(String libraryId, String studentId) async {
     try {
-      await _firestore
+      final studentRef = _firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
           .collection(FirestorePaths.students)
-          .doc(studentId)
-          .update({'membershipStatus': 'archived', 'updatedAt': FieldValue.serverTimestamp()});
+          .doc(studentId);
+
+      final batch = _firestore.batch();
+      final snap = await studentRef.get();
+      final data = snap.data();
+      final seatId = data?['seatId'] as String?;
+      final sectionId = data?['sectionId'] as String?;
+
+      if (seatId != null && sectionId != null && seatId.isNotEmpty && sectionId.isNotEmpty) {
+        final seatRef = _firestore
+            .collection(FirestorePaths.libraries)
+            .doc(libraryId)
+            .collection(FirestorePaths.sections)
+            .doc(sectionId)
+            .collection(FirestorePaths.seats)
+            .doc(seatId);
+        batch.update(seatRef, {
+          'status': 'available',
+          'isOccupied': false,
+          'studentId': null,
+          'studentName': null,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        batch.update(studentRef, {
+          'membershipStatus': 'archived',
+          'previousSeatId': seatId,
+          'previousSectionId': sectionId,
+          'seatId': null,
+          'sectionId': null,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        batch.update(studentRef, {
+          'membershipStatus': 'archived',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
     } catch (e) {
-      throw Exception('Failed to archive student.');
+      throw Exception('Failed to archive student: $e');
     }
   }
 

@@ -126,7 +126,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.48+56';
+  static const String currentVersionIdentifier = '1.5.49+57';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -135,8 +135,28 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.48)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.49)
   static final List<ReleaseChange> adminChanges = [
+    const ReleaseChange(
+      icon: Icons.bolt_rounded,
+      rawIconName: 'bolt',
+      badge: 'Quick Action Studio',
+      title: 'Categorized Quick Action Studio & Instant Petty Cash Logging',
+      description:
+          'Upgraded the bottom (+) button into a high-speed Quick Action Studio grouped into Daily Transactions and Admissions/Notices. Added 5-second petty cash expense logging directly updating the Net Facility Profit.',
+      actionRoute: Routes.adminHome,
+      actionLabel: 'Try Studio (+)',
+    ),
+    const ReleaseChange(
+      icon: Icons.payments_rounded,
+      rawIconName: 'payments',
+      badge: 'Smart Picker',
+      title: 'Smart Payment Picker with Defaulter Prioritization',
+      description:
+          'Payment collection sheet now places students with overdue dues strictly at the top with prominent due badges, instant multimodal search (Name, Phone, #CC Admission ID, Desk), and offline cache loading.',
+      actionRoute: Routes.adminHome,
+      actionLabel: 'Collect Fee',
+    ),
     const ReleaseChange(
       icon: Icons.campaign_rounded,
       rawIconName: 'campaign',

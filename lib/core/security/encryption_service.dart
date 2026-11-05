@@ -50,13 +50,15 @@ class EncryptionService {
       try {
         final key = _deriveKey(passphrase);
         final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc, padding: 'PKCS7'));
-        return encrypter.decrypt(encrypted, iv: iv);
+        final bytes = encrypter.decryptBytes(encrypted, iv: iv);
+        return utf8.decode(bytes, allowMalformed: false);
       } catch (_) { /* intentionally silent — try legacy */ }
 
       // Fall back to legacy SHA-256 key (for pre-upgrade data)
       final legacyKey = _deriveKeyLegacy(passphrase);
       final legacyEncrypter = enc.Encrypter(enc.AES(legacyKey, mode: enc.AESMode.cbc, padding: 'PKCS7'));
-      return legacyEncrypter.decrypt(encrypted, iv: iv);
+      final bytes = legacyEncrypter.decryptBytes(encrypted, iv: iv);
+      return utf8.decode(bytes, allowMalformed: false);
     } catch (e) {
       throw Exception('Failed to decrypt data securely.');
     }

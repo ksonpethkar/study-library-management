@@ -170,11 +170,25 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
           .update(updateData);
 
       // 2. Sync with Receipt doc if enabled
+      final oldEffectivePaid = (widget.payment.status != PaymentStatus.refunded &&
+              widget.payment.status != PaymentStatus.voided &&
+              widget.payment.status != PaymentStatus.cancelled)
+          ? widget.payment.amount
+          : 0.0;
+
+      final newEffectivePaid = (_selectedStatus != PaymentStatus.refunded &&
+              _selectedStatus != PaymentStatus.voided &&
+              _selectedStatus != PaymentStatus.cancelled)
+          ? newAmount
+          : 0.0;
+
+      final deltaPaid = newEffectivePaid - oldEffectivePaid;
+
       final targetReceiptId = widget.payment.receiptId;
       if (_syncReceipt && targetReceiptId != null && targetReceiptId.isNotEmpty) {
         final receiptUpdate = <String, dynamic>{
           'amount': newAmount,
-          'paidAmount': newAmount,
+          'paidAmount': newEffectivePaid,
           'paymentMethod': _selectedMethod,
           'updatedAt': FieldValue.serverTimestamp(),
         };
@@ -188,10 +202,6 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
           receiptUpdate['status'] = ReceiptStatus.active.name;
         }
 
-        if (updatedDue != null) {
-          receiptUpdate['remainingDue'] = updatedDue;
-        }
-
         // Try direct doc ID match first
         final receiptDoc = FirebaseFirestore.instance
             .collection('libraries')
@@ -199,8 +209,13 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
             .collection('receipts')
             .doc(targetReceiptId);
 
-        final receiptExists = (await receiptDoc.get()).exists;
-        if (receiptExists) {
+        final receiptSnap = await receiptDoc.get();
+        if (receiptSnap.exists) {
+          final rData = receiptSnap.data() ?? {};
+          final currentReceiptDue = (rData['remainingDue'] as num?)?.toDouble();
+          if (currentReceiptDue != null) {
+            receiptUpdate['remainingDue'] = (currentReceiptDue - deltaPaid).clamp(0.0, double.infinity);
+          }
           await receiptDoc.update(receiptUpdate);
         } else {
           // Fallback: match by receiptNumber
@@ -212,55 +227,34 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
               .limit(1)
               .get();
           if (snap.docs.isNotEmpty) {
+            final rData = snap.docs.first.data();
+            final currentReceiptDue = (rData['remainingDue'] as num?)?.toDouble();
+            if (currentReceiptDue != null) {
+              receiptUpdate['remainingDue'] = (currentReceiptDue - deltaPaid).clamp(0.0, double.infinity);
+            }
             await snap.docs.first.reference.update(receiptUpdate);
           }
         }
       }
 
-      // 3. Recalculate Student Balance
-      final paymentsSnap = await FirebaseFirestore.instance
+      // 3. Recalculate Student Balance (Deterministic Delta Algorithm)
+      final studentDocRef = FirebaseFirestore.instance
           .collection('libraries')
           .doc(widget.libraryId)
-          .collection('payments')
-          .where('studentId', isEqualTo: widget.student.id)
-          .get();
+          .collection('students')
+          .doc(widget.student.id);
 
-      double activePaidSum = 0.0;
-      for (final doc in paymentsSnap.docs) {
-        final d = doc.data();
-        final st = (d['status'] as String? ?? 'paid').toLowerCase();
-        if (st != 'refunded' && st != 'voided' && st != 'cancelled') {
-          activePaidSum += (d['amount'] as num?)?.toDouble() ?? 0.0;
-        }
-      }
+      final freshStudentSnap = await studentDocRef.get();
+      final freshStudentData = freshStudentSnap.data() ?? {};
+      final currentDue = (freshStudentData['pendingDueBalance'] as num?)?.toDouble() ??
+          (widget.student.pendingDueBalance ?? 0.0);
 
-      double? planFee = widget.payment.totalPlanFee;
-      if (planFee == null || planFee <= 0) {
-        if (widget.student.planId != null && widget.student.planId!.isNotEmpty) {
-          final pDoc = await FirebaseFirestore.instance
-              .collection('libraries')
-              .doc(widget.libraryId)
-              .collection('plans')
-              .doc(widget.student.planId)
-              .get();
-          if (pDoc.exists) {
-            planFee = (pDoc.data()?['price'] as num?)?.toDouble();
-          }
-        }
-      }
+      final newStudentDue = (currentDue - deltaPaid).clamp(0.0, double.infinity);
 
-      if (planFee != null && planFee > 0) {
-        final newStudentDue = (planFee - activePaidSum).clamp(0.0, double.infinity);
-        await FirebaseFirestore.instance
-            .collection('libraries')
-            .doc(widget.libraryId)
-            .collection('students')
-            .doc(widget.student.id)
-            .update({
-          'pendingDueBalance': newStudentDue,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
+      await studentDocRef.update({
+        'pendingDueBalance': newStudentDue,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       // 4. Audit Log Entry
       AuditLogger().log(
@@ -526,34 +520,53 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
                         ),
                       ),
                       if (displayReceiptNum != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.receipt_long_rounded, size: 14, color: theme.colorScheme.primary),
-                              const SizedBox(width: 5),
-                              Text(
-                                'Receipt: $displayReceiptNum',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.primary,
+                        Tooltip(
+                          message: 'Receipt #$displayReceiptNum • Tap to copy',
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(text: displayReceiptNum));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Copied Receipt $displayReceiptNum to clipboard'),
+                                    duration: const Duration(seconds: 2),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.03),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.receipt_long_rounded, size: 14, color: theme.colorScheme.primary),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Receipt: $displayReceiptNum',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
                     ],

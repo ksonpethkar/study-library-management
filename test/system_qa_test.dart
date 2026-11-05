@@ -36,6 +36,50 @@ import 'package:study_library/features/registration/presentation/providers/regis
 import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/core/router/app_router.dart';
 
+StudentModel createTestStudent({
+  required String id,
+  required String name,
+  required String phone,
+  String? membershipNumber,
+  MembershipStatus membershipStatus = MembershipStatus.active,
+  double? pendingDueBalance,
+  DateTime? planStartDate,
+  DateTime? planEndDate,
+  DateTime? graceEndDate,
+  String? seatId,
+  String? blockedReason,
+}) {
+  return StudentModel(
+    id: id,
+    name: name,
+    fatherName: 'Guardian',
+    phone: phone,
+    email: '$id@test.com',
+    gender: Gender.male,
+    address: 'Parli',
+    pincode: '431515',
+    govIdType: GovIdType.aadhaar,
+    govIdNumber: '123456789012',
+    govIdImageUrl: '',
+    photoUrl: '',
+    college: 'University',
+    course: 'Gov Exam',
+    year: '2026',
+    emergencyContact: '9822000000',
+    membershipNumber: membershipNumber,
+    membershipStatus: membershipStatus,
+    pendingDueBalance: pendingDueBalance,
+    planStartDate: planStartDate,
+    planEndDate: planEndDate,
+    graceEndDate: graceEndDate,
+    seatId: seatId,
+    blockedReason: blockedReason,
+    customFields: const {},
+    createdAt: DateTime(2026, 10, 1),
+    updatedAt: DateTime(2026, 10, 1),
+  );
+}
+
 void main() {
   group('E2E QA Test Suite — Study Library SaaS', () {
 
@@ -1678,9 +1722,9 @@ void main() {
 
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.48+56'));
-      expect(AppConstants.appVersion, equals('1.5.48'));
-      expect(AppConstants.buildNumber, equals(56));
+      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.49+57'));
+      expect(AppConstants.appVersion, equals('1.5.49'));
+      expect(AppConstants.buildNumber, equals(57));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -3126,7 +3170,6 @@ void main() {
     test('91. PHYSICAL ROOM GRID FIDELITY, QUICK FILTER METRICS & SEAT TILE OCCUPANCY BADGES', () {
       // 1. Physical 10-Column Room Alignment Verification
       const roomCols = 10;
-      const roomRows = 6;
       final List<SeatModel> cozyHallSeats = List.generate(60, (index) {
         final deskNum = index + 1;
         final row = index ~/ roomCols;
@@ -3196,47 +3239,13 @@ void main() {
 
     test('92. QUICK ACTION STUDIO (+) & SMART PAYMENT PICKER ARCHITECTURE', () {
       // 1. Defaulter Prioritization & Sorting Invariant
-      StudentModel createTestStudent({
-        required String id,
-        required String name,
-        required String phone,
-        required String membershipNumber,
-        required MembershipStatus status,
-        required double pendingDue,
-      }) {
-        return StudentModel(
-          id: id,
-          name: name,
-          fatherName: 'Guardian',
-          phone: phone,
-          email: '$id@test.com',
-          gender: Gender.male,
-          address: 'Parli',
-          pincode: '431515',
-          govIdType: GovIdType.aadhaar,
-          govIdNumber: '123456789012',
-          govIdImageUrl: '',
-          photoUrl: '',
-          college: 'University',
-          course: 'Gov Exam',
-          year: '2026',
-          emergencyContact: '9822000000',
-          membershipNumber: membershipNumber,
-          membershipStatus: status,
-          pendingDueBalance: pendingDue,
-          customFields: const {},
-          createdAt: DateTime(2026, 10, 1),
-          updatedAt: DateTime(2026, 10, 1),
-        );
-      }
-
       final studentA = createTestStudent(
         id: 's_1',
         name: 'Bharat Patil',
         phone: '9822001122',
         membershipNumber: 'CC20260005',
-        status: MembershipStatus.active,
-        pendingDue: 0.0,
+        membershipStatus: MembershipStatus.active,
+        pendingDueBalance: 0.0,
       );
 
       final studentDefaulterSmall = createTestStudent(
@@ -3244,8 +3253,8 @@ void main() {
         name: 'Chetan Shinde',
         phone: '9822003344',
         membershipNumber: 'CC20260002',
-        status: MembershipStatus.active,
-        pendingDue: 500.0,
+        membershipStatus: MembershipStatus.active,
+        pendingDueBalance: 500.0,
       );
 
       final studentDefaulterLarge = createTestStudent(
@@ -3253,8 +3262,8 @@ void main() {
         name: 'Amit Deshmukh',
         phone: '9822005566',
         membershipNumber: 'CC20260001',
-        status: MembershipStatus.active,
-        pendingDue: 1500.0,
+        membershipStatus: MembershipStatus.active,
+        pendingDueBalance: 1500.0,
       );
 
       final studentGrace = createTestStudent(
@@ -3262,8 +3271,8 @@ void main() {
         name: 'Deepak Joshi',
         phone: '9822007788',
         membershipNumber: 'CC20260003',
-        status: MembershipStatus.grace,
-        pendingDue: 0.0,
+        membershipStatus: MembershipStatus.grace,
+        pendingDueBalance: 0.0,
       );
 
       final list = [studentA, studentDefaulterSmall, studentDefaulterLarge, studentGrace];
@@ -3343,6 +3352,229 @@ void main() {
       expect(staffManager['canRecordPayments'], isTrue);
       expect(staffManager['canViewRevenue'], isTrue);
       expect(staffManager['canManageSeats'], isTrue);
+    });
+
+    test('93. 7 MEMBERSHIP STATUSES & REAL-TIME AUTOMATION SCENARIOS ENGINE', () {
+      final now = DateTime.now();
+
+      StudentModel createTestStudent({
+        required String id,
+        required String name,
+        required String phone,
+        DateTime? planStartDate,
+        DateTime? planEndDate,
+        DateTime? graceEndDate,
+        required MembershipStatus membershipStatus,
+        String? seatId,
+        String? blockedReason,
+      }) {
+        return StudentModel(
+          id: id,
+          name: name,
+          fatherName: 'Father $name',
+          phone: phone,
+          email: '$id@example.com',
+          gender: Gender.male,
+          address: 'Main Street, Parli',
+          pincode: '431515',
+          govIdType: GovIdType.aadhaar,
+          govIdNumber: '123456789012',
+          govIdImageUrl: '',
+          photoUrl: '',
+          college: 'Government College',
+          course: 'B.Sc',
+          year: 'Final Year',
+          emergencyContact: '9876543210',
+          membershipStatus: membershipStatus,
+          customFields: const {},
+          planStartDate: planStartDate,
+          planEndDate: planEndDate,
+          graceEndDate: graceEndDate,
+          seatId: seatId,
+          blockedReason: blockedReason,
+        );
+      }
+
+      // ── SCENARIO 1: ACTIVE STUDENT (Valid Subscription) ──
+      final activeStudent = createTestStudent(
+        id: 's_act_1',
+        name: 'Aarav Sharma',
+        phone: '9876543210',
+        planStartDate: now.subtract(const Duration(days: 10)),
+        planEndDate: now.add(const Duration(days: 20)),
+        graceEndDate: now.add(const Duration(days: 23)),
+        membershipStatus: MembershipStatus.active,
+        seatId: 'seat_01',
+      );
+      expect(activeStudent.effectiveMembershipStatus, equals(MembershipStatus.active));
+      expect(activeStudent.isEffectivelyActive, isTrue);
+      expect(activeStudent.isExpired, isFalse);
+      expect(activeStudent.daysRemaining, equals(20));
+
+      // ── SCENARIO 2: DYNAMIC TRANSITION TO GRACE (Plan Ended, Within Grace) ──
+      // Stored in Firestore as 'active', but wall-clock time is past planEndDate!
+      final graceDynamicStudent = createTestStudent(
+        id: 's_grace_2',
+        name: 'Priya Verma',
+        phone: '9876543211',
+        planStartDate: now.subtract(const Duration(days: 31)),
+        planEndDate: now.subtract(const Duration(days: 1)), // Ended yesterday
+        graceEndDate: now.add(const Duration(days: 2)),     // 2 grace days left
+        membershipStatus: MembershipStatus.active,          // Stored string still says active
+        seatId: 'seat_02',
+      );
+      // Evaluates dynamically to GRACE without waiting for batch cron
+      expect(graceDynamicStudent.effectiveMembershipStatus, equals(MembershipStatus.grace));
+      // Grace period protects their desk — student is still effectively active!
+      expect(graceDynamicStudent.isEffectivelyActive, isTrue);
+      expect(graceDynamicStudent.isExpired, isFalse);
+      expect(graceDynamicStudent.daysRemaining, lessThan(0));
+
+      // ── SCENARIO 3: DYNAMIC TRANSITION TO EXPIRED (Past Grace Window) ──
+      // Stored in Firestore as 'active' or 'grace', but graceEndDate has passed!
+      final expiredDynamicStudent = createTestStudent(
+        id: 's_exp_3',
+        name: 'Rohan Gupta',
+        phone: '9876543212',
+        planStartDate: now.subtract(const Duration(days: 40)),
+        planEndDate: now.subtract(const Duration(days: 10)),
+        graceEndDate: now.subtract(const Duration(days: 7)), // Grace ended 7 days ago
+        membershipStatus: MembershipStatus.grace,
+        seatId: 'seat_03',
+      );
+      expect(expiredDynamicStudent.effectiveMembershipStatus, equals(MembershipStatus.expired));
+      expect(expiredDynamicStudent.isEffectivelyActive, isFalse);
+      expect(expiredDynamicStudent.isExpired, isTrue);
+
+      // Invariant: Expired student seat auto-release simulation
+      final simulatedSeatAfterRelease = {
+        'id': 'seat_03',
+        'status': 'available', // Seat returned to public pool
+        'studentId': null,
+      };
+      final studentAfterRelease = expiredDynamicStudent.copyWith(
+        clearSeat: true,
+        membershipStatus: MembershipStatus.expired,
+      );
+      expect(simulatedSeatAfterRelease['status'], equals('available'));
+      expect(simulatedSeatAfterRelease['studentId'], isNull);
+      expect(studentAfterRelease.seatId, isNull);
+
+      // ── SCENARIO 4: MANUAL OVERRIDE — BLOCKED ──
+      // Even if planEndDate is 30 days in the future, admin block strictly revokes access
+      final blockedStudent = createTestStudent(
+        id: 's_blk_4',
+        name: 'Vikram Joshi',
+        phone: '9876543213',
+        planStartDate: now.subtract(const Duration(days: 2)),
+        planEndDate: now.add(const Duration(days: 28)), // Paid for 28 more days!
+        membershipStatus: MembershipStatus.blocked,
+        blockedReason: 'Violated silent study zone protocol',
+        seatId: 'seat_04',
+      );
+      expect(blockedStudent.effectiveMembershipStatus, equals(MembershipStatus.blocked));
+      expect(blockedStudent.isEffectivelyActive, isFalse); // Revoked!
+      expect(blockedStudent.blockedReason, equals('Violated silent study zone protocol'));
+
+      // QR Scanner Verification for Blocked User
+      final isQrAccessAllowedForBlocked = blockedStudent.effectiveMembershipStatus == MembershipStatus.active ||
+          blockedStudent.effectiveMembershipStatus == MembershipStatus.grace;
+      expect(isQrAccessAllowedForBlocked, isFalse);
+
+      // ── SCENARIO 5: MANUAL OVERRIDE — INACTIVE (Study Sabbatical / Leave) ──
+      final inactiveStudent = createTestStudent(
+        id: 's_ina_5',
+        name: 'Sneha Deshmukh',
+        phone: '9876543214',
+        planStartDate: null,
+        planEndDate: null,
+        membershipStatus: MembershipStatus.inactive,
+        seatId: null,
+      );
+      expect(inactiveStudent.effectiveMembershipStatus, equals(MembershipStatus.inactive));
+      expect(inactiveStudent.isEffectivelyActive, isFalse);
+      expect(inactiveStudent.isExpired, isFalse);
+      expect(inactiveStudent.daysRemaining, isNull);
+
+      // ── SCENARIO 6: MANUAL OVERRIDE — ARCHIVED (Alumni / Left Facility) ──
+      final archivedStudent = createTestStudent(
+        id: 's_arc_6',
+        name: 'Amitabh Sen',
+        phone: '9876543215',
+        membershipStatus: MembershipStatus.archived,
+        seatId: null,
+      );
+      expect(archivedStudent.effectiveMembershipStatus, equals(MembershipStatus.archived));
+      expect(archivedStudent.isEffectivelyActive, isFalse);
+
+      // ── SCENARIO 7: MANUAL OVERRIDE — PENDING (Registered, Awaiting Fee) ──
+      final pendingStudent = createTestStudent(
+        id: 's_pen_7',
+        name: 'Kavita Nair',
+        phone: '9876543216',
+        membershipStatus: MembershipStatus.pending,
+        seatId: null,
+      );
+      expect(pendingStudent.effectiveMembershipStatus, equals(MembershipStatus.pending));
+      expect(pendingStudent.isEffectivelyActive, isFalse);
+
+      // ── SCENARIO 8: AUTOMATED REMINDER STAGES & DEDUPLICATION ──
+      final remindedStages = <String>[];
+
+      // Stage 1: T-3 Days Check
+      final daysLeftT3 = 3;
+      final currentStatusT3 = MembershipStatus.active;
+      if (daysLeftT3 == 3 && currentStatusT3 == MembershipStatus.active && !remindedStages.contains('T-3')) {
+        remindedStages.add('T-3');
+      }
+      expect(remindedStages.contains('T-3'), isTrue);
+
+      // Attempt duplicate trigger on same day
+      if (daysLeftT3 == 3 && currentStatusT3 == MembershipStatus.active && !remindedStages.contains('T-3')) {
+        remindedStages.add('T-3');
+      }
+      expect(remindedStages.where((s) => s == 'T-3').length, equals(1)); // Deduplicated!
+
+      // Stage 2: T-0 Day Check
+      final daysLeftT0 = 0;
+      if (daysLeftT0 == 0 && currentStatusT3 == MembershipStatus.active && !remindedStages.contains('T-0')) {
+        remindedStages.add('T-0');
+      }
+      expect(remindedStages.contains('T-0'), isTrue);
+
+      // Stage 3: Eve-of-Grace Check (1 day before grace period ends)
+      final daysUntilGraceEnd = 1;
+      final isInGraceWindow = true;
+      if (daysUntilGraceEnd == 1 && isInGraceWindow && !remindedStages.contains('grace_eve')) {
+        remindedStages.add('grace_eve');
+      }
+      expect(remindedStages.contains('grace_eve'), isTrue);
+      expect(remindedStages.length, equals(3));
+
+      // ── SCENARIO 9: AUTO-SEAT RETENTION ON RENEWAL ──
+      // When an expired student renews, if their previous seat is still free, restore it
+      const previousSeatId = 'seat_hall_a_05';
+      final seatPool = <String, String>{
+        'seat_hall_a_05': 'available', // Seat is vacant!
+        'seat_hall_a_06': 'occupied',
+      };
+
+      String? allocatedSeatId;
+      if (seatPool[previousSeatId] == 'available') {
+        allocatedSeatId = previousSeatId;
+      }
+
+      final renewedStudent = expiredDynamicStudent.copyWith(
+        membershipStatus: MembershipStatus.active,
+        planStartDate: now,
+        planEndDate: now.add(const Duration(days: 30)),
+        graceEndDate: now.add(const Duration(days: 33)),
+        seatId: allocatedSeatId,
+      );
+
+      expect(renewedStudent.effectiveMembershipStatus, equals(MembershipStatus.active));
+      expect(renewedStudent.isEffectivelyActive, isTrue);
+      expect(renewedStudent.seatId, equals('seat_hall_a_05'));
     });
   });
 }

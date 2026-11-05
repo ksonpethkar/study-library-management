@@ -17,6 +17,14 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/widgets/loading_skeleton.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 
+enum StudentSortOrder {
+  recent,
+  seatNumber,
+  nameAsc,
+  expirySoon,
+  highestDue,
+}
+
 class StudentListScreen extends ConsumerStatefulWidget {
   final String? initialFilter;
   const StudentListScreen({super.key, this.initialFilter});
@@ -32,6 +40,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   bool _isSearching = false;
   Timer? _debounce;
   String _selectedFilter = 'All';
+  StudentSortOrder _selectedSortOrder = StudentSortOrder.recent;
   Set<String> _selectedStudentIds = {};
   final Set<String> _swipeThresholdReached = {};
   bool _isSelectionMode = false;
@@ -152,6 +161,42 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
 
       return nameMatch || phoneMatch || idMatch || emailMatch || seatMatch;
     }).toList();
+  }
+
+  void _applySort(List<StudentModel> list) {
+    switch (_selectedSortOrder) {
+      case StudentSortOrder.recent:
+        break;
+      case StudentSortOrder.nameAsc:
+        list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        break;
+      case StudentSortOrder.seatNumber:
+        list.sort((a, b) {
+          if (a.seatId == null && b.seatId == null) return 0;
+          if (a.seatId == null) return 1;
+          if (b.seatId == null) return -1;
+          final aNum = int.tryParse(SeatHelper.formatSeatLabel(seatId: a.seatId, includePrefix: false).replaceAll(RegExp(r'\D'), ''));
+          final bNum = int.tryParse(SeatHelper.formatSeatLabel(seatId: b.seatId, includePrefix: false).replaceAll(RegExp(r'\D'), ''));
+          if (aNum != null && bNum != null) return aNum.compareTo(bNum);
+          return (a.seatId ?? '').compareTo(b.seatId ?? '');
+        });
+        break;
+      case StudentSortOrder.expirySoon:
+        list.sort((a, b) {
+          if (a.planEndDate == null && b.planEndDate == null) return 0;
+          if (a.planEndDate == null) return 1;
+          if (b.planEndDate == null) return -1;
+          return a.planEndDate!.compareTo(b.planEndDate!);
+        });
+        break;
+      case StudentSortOrder.highestDue:
+        list.sort((a, b) {
+          final aDue = a.pendingDueBalance ?? 0.0;
+          final bDue = b.pendingDueBalance ?? 0.0;
+          return bDue.compareTo(aDue);
+        });
+        break;
+    }
   }
 
   Future<void> _runSearch(String query) async {
@@ -312,31 +357,103 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           if (!_isSelectionMode)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search by name, phone or ID...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {
-                              _searchQuery = '';
-                              _searchResults = null;
-                            });
-                          },
-                        )
-                      : null,
-                  border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                onChanged: (v) {
-                  setState(() => _searchQuery = v.toLowerCase().trim());
-                  _debounce?.cancel();
-                  _debounce = Timer(const Duration(milliseconds: 400), () => _runSearch(v.trim()));
-                },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search by name, phone, ID, or desk...',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                    _searchResults = null;
+                                  });
+                                },
+                              )
+                            : null,
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onChanged: (v) {
+                        setState(() => _searchQuery = v.toLowerCase().trim());
+                        _debounce?.cancel();
+                        _debounce = Timer(const Duration(milliseconds: 400), () => _runSearch(v.trim()));
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  PopupMenuButton<StudentSortOrder>(
+                    tooltip: 'Sort Students',
+                    icon: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.colorScheme.outlineVariant),
+                      ),
+                      child: Icon(Icons.sort_rounded, size: 20, color: theme.colorScheme.primary),
+                    ),
+                    onSelected: (order) => setState(() => _selectedSortOrder = order),
+                    itemBuilder: (ctx) => [
+                      PopupMenuItem(
+                        value: StudentSortOrder.recent,
+                        child: Row(
+                          children: [
+                            Icon(Icons.history_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.recent ? theme.colorScheme.primary : null),
+                            const SizedBox(width: 8),
+                            const Text('Recent Admissions First'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: StudentSortOrder.seatNumber,
+                        child: Row(
+                          children: [
+                            Icon(Icons.chair_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.seatNumber ? theme.colorScheme.primary : null),
+                            const SizedBox(width: 8),
+                            const Text('Desk Number (1 → 100)'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: StudentSortOrder.nameAsc,
+                        child: Row(
+                          children: [
+                            Icon(Icons.sort_by_alpha_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.nameAsc ? theme.colorScheme.primary : null),
+                            const SizedBox(width: 8),
+                            const Text('Name (A → Z)'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: StudentSortOrder.expirySoon,
+                        child: Row(
+                          children: [
+                            Icon(Icons.event_busy_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.expirySoon ? theme.colorScheme.primary : null),
+                            const SizedBox(width: 8),
+                            const Text('Expiring Soonest First'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: StudentSortOrder.highestDue,
+                        child: Row(
+                          children: [
+                            Icon(Icons.money_off_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.highestDue ? theme.colorScheme.primary : null),
+                            const SizedBox(width: 8),
+                            const Text('Highest Dues / Defaulters'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           if (!_isSelectionMode)
@@ -386,6 +503,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 }
                 final searchResults = _searchResults ?? _filteredStudents(students);
                 var filtered = searchResults.where((s) => _matchesFilter(s, _selectedFilter)).toList();
+                _applySort(filtered);
 
                 if (students.isEmpty) {
                   return Center(
@@ -431,165 +549,220 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   );
                 }
 
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    await ref.read(studentPageProvider.notifier).loadFirst();
-                  },
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.only(bottom: 96),
-                    itemCount: filtered.length + 1,
-                    itemBuilder: (context, index) {
-                      if (index == filtered.length) {
-                        if (studentState.isLoading && studentState.students.isNotEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16.0),
-                            child: Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2.5),
-                              ),
-                            ),
-                          );
-                        }
-                        if (!studentState.hasMore) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16.0),
-                            child: Center(
-                              child: Text(
-                                'No more students',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: theme.colorScheme.outline,
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      }
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth >= 720;
 
-                      final student = filtered[index];
-                      final isSelected = _selectedStudentIds.contains(student.id);
+                    if (isDesktop) {
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          await ref.read(studentPageProvider.notifier).loadFirst();
+                        },
+                        child: GridView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 2.85,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 8,
+                          ),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final student = filtered[index];
+                            final isSelected = _selectedStudentIds.contains(student.id);
 
-                      return _isSelectionMode
-                          ? PressableScale(
+                            return PressableScale(
                               scaleFactor: 0.98,
                               onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() {
-                                  isSelected
-                                      ? _selectedStudentIds.remove(student.id)
-                                      : _selectedStudentIds.add(student.id);
-                                  if (_selectedStudentIds.isEmpty) _isSelectionMode = false;
-                                });
+                                if (_isSelectionMode) {
+                                  HapticFeedback.selectionClick();
+                                  setState(() {
+                                    isSelected
+                                        ? _selectedStudentIds.remove(student.id)
+                                        : _selectedStudentIds.add(student.id);
+                                    if (_selectedStudentIds.isEmpty) _isSelectionMode = false;
+                                  });
+                                } else {
+                                  HapticFeedback.lightImpact();
+                                  context.go('/admin/students/${student.id}');
+                                }
                               },
                               onLongPress: () {
-                                HapticFeedback.selectionClick();
+                                HapticFeedback.heavyImpact();
                                 setState(() {
+                                  _isSelectionMode = true;
                                   _selectedStudentIds.add(student.id);
                                 });
                               },
                               child: _buildStudentCardContent(student, isSelected, theme),
-                            )
-                          : Dismissible(
-                              key: ValueKey('student_swipe_${student.id}'),
-                              direction: DismissDirection.horizontal,
-                              dismissThresholds: const {
-                                DismissDirection.startToEnd: 0.35,
-                                DismissDirection.endToStart: 0.35,
-                              },
-                              onUpdate: (details) {
-                                if (details.reached && !_swipeThresholdReached.contains(student.id)) {
-                                  _swipeThresholdReached.add(student.id);
-                                  HapticFeedback.lightImpact();
-                                } else if (!details.reached && _swipeThresholdReached.contains(student.id)) {
-                                  _swipeThresholdReached.remove(student.id);
-                                }
-                              },
-                              confirmDismiss: (direction) async {
-                                _swipeThresholdReached.remove(student.id);
-                                if (direction == DismissDirection.startToEnd) {
-                                  HapticFeedback.mediumImpact();
-                                  _showQuickContactSheet(student);
-                                  return false;
-                                } else if (direction == DismissDirection.endToStart) {
-                                  HapticFeedback.mediumImpact();
-                                  _showFastActionsSheet(student);
-                                  return false;
-                                }
-                                return false;
-                              },
-                              background: Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF059669), Color(0xFF10B981)],
-                                  ),
-                                ),
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.only(left: 20),
-                                child: const Row(
-                                  children: [
-                                    Icon(Icons.phone_forwarded_rounded, color: Colors.white, size: 22),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Call / WhatsApp',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              secondaryBackground: Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-                                  ),
-                                ),
-                                alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 20),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      'Quick Actions',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Icon(Icons.bolt_rounded, color: Colors.white, size: 24),
-                                  ],
-                                ),
-                              ),
-                              child: PressableScale(
-                                scaleFactor: 0.98,
-                                onTap: () {
-                                  HapticFeedback.lightImpact();
-                                  context.go('/admin/students/${student.id}');
-                                },
-                                onLongPress: () {
-                                  HapticFeedback.heavyImpact();
-                                  setState(() {
-                                    _isSelectionMode = true;
-                                    _selectedStudentIds.add(student.id);
-                                  });
-                                },
-                                child: _buildStudentCardContent(student, isSelected, theme),
-                              ),
                             );
-                    },
-                  ),
+                          },
+                        ),
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        await ref.read(studentPageProvider.notifier).loadFirst();
+                      },
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.only(bottom: 96),
+                        itemCount: filtered.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == filtered.length) {
+                            if (studentState.isLoading && studentState.students.isNotEmpty) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16.0),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                                  ),
+                                ),
+                              );
+                            }
+                            if (!studentState.hasMore) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                child: Center(
+                                  child: Text(
+                                    'No more students',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: theme.colorScheme.outline,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          }
+
+                          final student = filtered[index];
+                          final isSelected = _selectedStudentIds.contains(student.id);
+
+                          return _isSelectionMode
+                              ? PressableScale(
+                                  scaleFactor: 0.98,
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() {
+                                      isSelected
+                                          ? _selectedStudentIds.remove(student.id)
+                                          : _selectedStudentIds.add(student.id);
+                                      if (_selectedStudentIds.isEmpty) _isSelectionMode = false;
+                                    });
+                                  },
+                                  onLongPress: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() {
+                                      _selectedStudentIds.add(student.id);
+                                    });
+                                  },
+                                  child: _buildStudentCardContent(student, isSelected, theme),
+                                )
+                              : Dismissible(
+                                  key: ValueKey('student_swipe_${student.id}'),
+                                  direction: DismissDirection.horizontal,
+                                  dismissThresholds: const {
+                                    DismissDirection.startToEnd: 0.35,
+                                    DismissDirection.endToStart: 0.35,
+                                  },
+                                  onUpdate: (details) {
+                                    if (details.reached && !_swipeThresholdReached.contains(student.id)) {
+                                      _swipeThresholdReached.add(student.id);
+                                      HapticFeedback.lightImpact();
+                                    } else if (!details.reached && _swipeThresholdReached.contains(student.id)) {
+                                      _swipeThresholdReached.remove(student.id);
+                                    }
+                                  },
+                                  confirmDismiss: (direction) async {
+                                    _swipeThresholdReached.remove(student.id);
+                                    if (direction == DismissDirection.startToEnd) {
+                                      HapticFeedback.mediumImpact();
+                                      _showQuickContactSheet(student);
+                                      return false;
+                                    } else if (direction == DismissDirection.endToStart) {
+                                      HapticFeedback.mediumImpact();
+                                      _showFastActionsSheet(student);
+                                      return false;
+                                    }
+                                    return false;
+                                  },
+                                  background: Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF059669), Color(0xFF10B981)],
+                                      ),
+                                    ),
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.only(left: 20),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.phone_forwarded_rounded, color: Colors.white, size: 22),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Call / WhatsApp',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  secondaryBackground: Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                                      ),
+                                    ),
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.only(right: 20),
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          'Quick Actions',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Icon(Icons.bolt_rounded, color: Colors.white, size: 24),
+                                      ],
+                                    ),
+                                  ),
+                                  child: PressableScale(
+                                    scaleFactor: 0.98,
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      context.go('/admin/students/${student.id}');
+                                    },
+                                    onLongPress: () {
+                                      HapticFeedback.heavyImpact();
+                                      setState(() {
+                                        _isSelectionMode = true;
+                                        _selectedStudentIds.add(student.id);
+                                      });
+                                    },
+                                    child: _buildStudentCardContent(student, isSelected, theme),
+                                  ),
+                                );
+                        },
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -1249,22 +1422,46 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                 ),
                                 if (student.seatId != null && student.seatId!.isNotEmpty)
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-                                      borderRadius: BorderRadius.circular(4),
+                                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+                                      borderRadius: BorderRadius.circular(5),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.chair_outlined, size: 10, color: theme.colorScheme.primary),
-                                        const SizedBox(width: 2),
+                                        Icon(Icons.chair_rounded, size: 11, color: theme.colorScheme.primary),
+                                        const SizedBox(width: 3),
                                         Text(
-                                          SeatHelper.formatSeatLabel(seatId: student.seatId, includePrefix: false),
+                                          'Desk #${SeatHelper.formatSeatLabel(seatId: student.seatId, includePrefix: false)}',
                                           style: TextStyle(
-                                            fontSize: 10,
+                                            fontSize: 10.5,
                                             fontWeight: FontWeight.bold,
                                             color: theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.chair_outlined, size: 11, color: Colors.grey.shade600),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          'No Desk',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.grey.shade600,
                                           ),
                                         ),
                                       ],
@@ -1286,22 +1483,28 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if ((student.pendingDueBalance ?? 0) > 0 ||
-                                student.membershipStatus == MembershipStatus.grace ||
-                                student.isExpired ||
-                                _selectedFilter == 'Due Soon') ...[
-                              IconButton(
-                                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: Color(0xFF25D366)),
-                                tooltip: 'WhatsApp Reminder',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                onPressed: () {
-                                  HapticFeedback.selectionClick();
-                                  _sendWhatsAppNudge(student);
-                                },
-                              ),
-                              const SizedBox(width: 4),
-                            ],
+                            IconButton(
+                              icon: const Icon(Icons.phone_outlined, size: 18, color: Color(0xFF2563EB)),
+                              tooltip: 'Call ${student.name}',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              onPressed: () async {
+                                HapticFeedback.selectionClick();
+                                final uri = Uri.parse('tel:${student.phone}');
+                                if (await canLaunchUrl(uri)) await launchUrl(uri);
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: Color(0xFF25D366)),
+                              tooltip: 'WhatsApp ${student.name}',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                _sendWhatsAppNudge(student);
+                              },
+                            ),
+                            const SizedBox(width: 4),
                             Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.end,
