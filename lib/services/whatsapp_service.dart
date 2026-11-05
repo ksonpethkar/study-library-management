@@ -671,6 +671,76 @@ class WhatsAppService {
       title: 'Waiting List Seat Offer Preview',
     );
   }
+
+  /// Sends an official early exit pro-rata settlement confirmation & refund voucher to the student.
+  Future<bool> sendEarlyExitSettlement({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    required String voucherNumber,
+    required int usedDays,
+    required int totalDays,
+    required double fairUsageFee,
+    required double processingFee,
+    required double netRefund,
+    required String refundMethod,
+    String? referenceNumber,
+    String? seatLabel,
+    String? libraryHelpline,
+    BuildContext? context,
+  }) async {
+    final buffer = StringBuffer()
+      ..writeln('🚪 *Membership Early Exit & Settlement Confirmation*')
+      ..writeln()
+      ..writeln('Dear *$studentName*,')
+      ..writeln('Your early exit and account settlement has been successfully processed at *$libraryName*.')
+      ..writeln()
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('🧾 *SETTLEMENT SUMMARY*')
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('🧾 *Voucher Number:* $voucherNumber')
+      ..writeln('📅 *Cycle Days Used:* $usedDays of $totalDays days');
+
+    if (seatLabel != null && seatLabel.isNotEmpty) {
+      buffer.writeln('💺 *Seat Vacated:* Seat #$seatLabel');
+    }
+
+    buffer
+      ..writeln('📊 *Fair Usage Charge:* ₹${fairUsageFee.toStringAsFixed(0)}')
+      ..writeln('✂️ *Early Cancellation Fee:* ₹${processingFee.toStringAsFixed(0)}');
+
+    if (netRefund > 0) {
+      buffer.writeln('💵 *Net Refund Issued:* *₹${netRefund.toStringAsFixed(0)}* ($refundMethod)');
+      if (referenceNumber != null && referenceNumber.isNotEmpty) {
+        buffer.writeln('🔖 *Reference / UTR:* $referenceNumber');
+      }
+    } else {
+      buffer.writeln('💵 *Net Balance:* ₹0.00 (Account Fully Closed)');
+    }
+
+    buffer
+      ..writeln()
+      ..writeln('Your desk has been vacated and your membership account marked as settled.')
+      ..writeln('Thank you for being part of our community. We wish you immense success in your academic and career goals! 🎓🌟');
+
+    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('📞 *Helpline / Admin Desk:* $libraryHelpline');
+    }
+
+    buffer
+      ..writeln()
+      ..writeln('— *Management, $libraryName*');
+
+    return await sendMessage(
+      phone,
+      buffer.toString(),
+      context: context,
+      recipientName: studentName,
+      title: 'Exit Settlement Preview',
+    );
+  }
 }
 
 /// Provider for WhatsAppService

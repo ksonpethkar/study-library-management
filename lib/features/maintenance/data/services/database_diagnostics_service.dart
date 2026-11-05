@@ -152,6 +152,7 @@ class PruneResult {
 class DatabaseDiagnosticsService {
   final FirebaseFirestore? _firestore;
 
+  // ignore: prefer_initializing_formals
   DatabaseDiagnosticsService({FirebaseFirestore? firestore}) : _firestore = firestore;
 
   FirebaseFirestore get _db => _firestore ?? FirebaseFirestore.instance;

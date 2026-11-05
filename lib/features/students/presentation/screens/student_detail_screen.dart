@@ -35,6 +35,8 @@ import 'package:study_library/features/receipts/data/repositories/receipt_reposi
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/features/requests/presentation/widgets/admin_document_studio_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:study_library/services/waiting_list_promotion_service.dart';
+import 'package:study_library/models/waiting_list_model.dart';
 
 class StudentDetailScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -670,11 +672,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     final exitDate = DateTime.now();
     final double totalPaid = s.customPlanFee ?? effectivePlan.price;
     final paidCtrl = TextEditingController(text: totalPaid.toStringAsFixed(0));
+    final refCtrl = TextEditingController();
+    final reasonCtrl = TextEditingController(text: 'Early exit requested by student');
+    String refundMethod = 'UPI';
+    bool releaseSeat = autoReleaseSeat && s.seatId != null && s.seatId!.isNotEmpty;
+    bool sendWhatsApp = true;
+    bool isProcessing = false;
 
     if (!context.mounted) return;
 
     await showDialog(
       context: context,
+      barrierDismissible: !isProcessing,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) {
           final processingFee = double.tryParse(feeCtrl.text.trim()) ?? defaultCancellationFee;
@@ -689,6 +698,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             processingFee: processingFee,
           );
 
+          final hasSeat = s.seatId != null && s.seatId!.isNotEmpty;
+          final formattedSeatLabel = seatLabel.isNotEmpty ? seatLabel : SeatHelper.formatSeatLabel(seatId: s.seatId);
+
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
@@ -699,30 +711,68 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
-                  child: Text('Early Exit & Settlement', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Early Exit & Refund Wizard', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                      Text('Pro-rata ledger settlement & seat vacate', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    ],
+                  ),
                 ),
               ],
             ),
             content: SingleChildScrollView(
               child: SizedBox(
-                width: 460,
+                width: 480,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Fair pro-rata calculation based on exact calendar days used. The seat will be released upon exit.',
-                      style: TextStyle(fontSize: 12.5, color: Colors.grey),
+                    // Student Header Tile
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.person_rounded, size: 18, color: Colors.deepOrange),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${s.name} • ${s.phone}',
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            ),
+                          ),
+                          if (hasSeat)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Text(
+                                'Desk $formattedSeatLabel',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade800),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 14),
+
+                    // Inputs for Total Paid & Processing Fee
                     Row(
                       children: [
                         Expanded(
                           child: TextField(
                             controller: paidCtrl,
                             keyboardType: TextInputType.number,
+                            enabled: !isProcessing,
                             decoration: const InputDecoration(
-                              labelText: 'Total Paid (₹)',
+                              labelText: 'Total Fee Paid (₹)',
                               prefixIcon: Icon(Icons.currency_rupee_rounded, size: 18),
                               border: OutlineInputBorder(),
                               isDense: true,
@@ -735,8 +785,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           child: TextField(
                             controller: feeCtrl,
                             keyboardType: TextInputType.number,
+                            enabled: !isProcessing,
                             decoration: const InputDecoration(
-                              labelText: 'Processing Fee (₹)',
+                              labelText: 'Cancellation Fee (₹)',
                               prefixIcon: Icon(Icons.handyman_rounded, size: 18),
                               border: OutlineInputBorder(),
                               isDense: true,
@@ -747,6 +798,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       ],
                     ),
                     const SizedBox(height: 14),
+
+                    // Settlement Math Card
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -778,7 +831,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Fair Usage Fee:', style: TextStyle(fontSize: 13)),
+                              const Text('Fair Usage Charge:', style: TextStyle(fontSize: 13)),
                               Text('₹${exitCalc.fairUsageFee.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                             ],
                           ),
@@ -805,85 +858,329 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               const Text('Net Refund Due to Student:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                               Text(
                                 exitCalc.formattedNetRefund,
-                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.green),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 18,
+                                  color: exitCalc.netRefund > 0 ? Colors.green : Colors.grey,
+                                ),
                               ),
                             ],
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 14),
+
+                    // Refund Payment Method Selection (if netRefund > 0)
+                    if (exitCalc.netRefund > 0) ...[
+                      const Text('Refund Payout Method:', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          ChoiceChip(
+                            label: const Text('UPI'),
+                            avatar: const Icon(Icons.qr_code_rounded, size: 16),
+                            selected: refundMethod == 'UPI',
+                            onSelected: isProcessing ? null : (_) => setDlgState(() => refundMethod = 'UPI'),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Cash'),
+                            avatar: const Icon(Icons.money_rounded, size: 16),
+                            selected: refundMethod == 'Cash',
+                            onSelected: isProcessing ? null : (_) => setDlgState(() => refundMethod = 'Cash'),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Bank Transfer'),
+                            avatar: const Icon(Icons.account_balance_rounded, size: 16),
+                            selected: refundMethod == 'Bank Transfer',
+                            onSelected: isProcessing ? null : (_) => setDlgState(() => refundMethod = 'Bank Transfer'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      if (refundMethod != 'Cash')
+                        TextField(
+                          controller: refCtrl,
+                          enabled: !isProcessing,
+                          decoration: const InputDecoration(
+                            labelText: 'Reference ID / UTR Number (Optional)',
+                            hintText: 'e.g. UPI Ref / Cheque No.',
+                            prefixIcon: Icon(Icons.tag_rounded, size: 18),
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Exit Reason field
+                    TextField(
+                      controller: reasonCtrl,
+                      enabled: !isProcessing,
+                      decoration: const InputDecoration(
+                        labelText: 'Exit Reason / Settlement Note',
+                        hintText: 'e.g. Relocating, Exams Over, Personal Reasons',
+                        prefixIcon: Icon(Icons.edit_note_rounded, size: 18),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Desk Vacate & Waiting List Cascade Option
+                    if (hasSeat)
+                      CheckboxListTile(
+                        value: releaseSeat,
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text('Vacate Desk $formattedSeatLabel & Alert Waiting List', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        subtitle: const Text('Releases seat instantly and offers a 2-hour priority hold to candidate #1.', style: TextStyle(fontSize: 11.5)),
+                        onChanged: isProcessing ? null : (val) => setDlgState(() => releaseSeat = val ?? true),
+                      ),
+
+                    // WhatsApp Settlement Voucher Option
+                    CheckboxListTile(
+                      value: sendWhatsApp,
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: Text('Send WhatsApp Settlement Voucher to ${s.phone}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      subtitle: const Text('Dispatches itemized pro-rata breakdown, refund voucher number, and exit confirmation.', style: TextStyle(fontSize: 11.5)),
+                      onChanged: isProcessing ? null : (val) => setDlgState(() => sendWhatsApp = val ?? true),
+                    ),
                   ],
                 ),
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              TextButton(
+                onPressed: isProcessing ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
               FilledButton.icon(
                 style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
-                icon: const Icon(Icons.exit_to_app_rounded, size: 16),
-                label: const Text('Confirm Early Exit'),
-                onPressed: () async {
-                  try {
-                    // 1. Release allocated seat if autoReleaseSeat is true
-                    if (autoReleaseSeat && s.seatId != null && s.sectionId != null) {
-                      try {
-                        final seatRepo = ref.read(seatRepositoryProvider);
-                        await seatRepo.unassignStudent(
-                          libraryId: libraryId,
-                          sectionId: s.sectionId!,
-                          seatId: s.seatId!,
-                          studentId: s.id,
-                        );
-                      } catch (e) {
-                        debugPrint('Could not unassign seat: $e');
-                      }
-                    }
+                icon: isProcessing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.exit_to_app_rounded, size: 16),
+                label: Text(
+                  isProcessing
+                      ? 'Processing Settlement...'
+                      : (exitCalc.netRefund > 0
+                          ? 'Issue ₹${exitCalc.netRefund.toStringAsFixed(0)} Refund & Exit'
+                          : 'Confirm Early Exit'),
+                ),
+                onPressed: isProcessing
+                    ? null
+                    : () async {
+                        setDlgState(() => isProcessing = true);
+                        try {
+                          WaitingListEntry? cascadedCandidate;
 
-                    // 2. Mark student as inactive / exit
-                    await FirebaseFirestore.instance
-                        .collection('libraries')
-                        .doc(libraryId)
-                        .collection('students')
-                        .doc(s.id)
-                        .update({
-                      'membershipStatus': 'inactive',
-                      'previousSeatId': s.seatId,
-                      'previousSectionId': s.sectionId,
-                      'seatId': null,
-                      'sectionId': null,
-                      'notes': '${(s.notes != null && s.notes!.isNotEmpty) ? "${s.notes}\n" : ""}[Exit] Early exit on ${DateFormat('dd MMM yyyy').format(exitDate)}. Used: ${exitCalc.usedDays}/${exitCalc.totalCycleDays}d. Fair usage: ${exitCalc.formattedFairUsage}. Deducted Fee: ₹${processingFee.toStringAsFixed(0)}. Net Refund: ${exitCalc.formattedNetRefund}.',
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    });
+                          // 1. Release allocated seat if releaseSeat is true
+                          if (releaseSeat && s.seatId != null && s.sectionId != null) {
+                            try {
+                              final seatRepo = ref.read(seatRepositoryProvider);
+                              await seatRepo.unassignStudent(
+                                libraryId: libraryId,
+                                sectionId: s.sectionId!,
+                                seatId: s.seatId!,
+                                studentId: s.id,
+                              );
 
-                    // 3. Record audit entry
-                    AuditLogger().log(
-                      action: AuditAction.updated,
-                      entityType: AuditEntity.student,
-                      entityId: s.id,
-                      libraryId: libraryId,
-                      details: {
-                        'action': 'early_exit',
-                        'studentName': s.name,
-                        'netRefund': exitCalc.formattedNetRefund,
+                              // Trigger Waiting List priority cascade
+                              final waitlistService = ref.read(waitingListPromotionServiceProvider);
+                              final libModel = ref.read(currentLibraryProvider).value;
+                              cascadedCandidate = await waitlistService.handleSeatReleaseCascade(
+                                libraryId: libraryId,
+                                sectionId: s.sectionId!,
+                                seatId: s.seatId!,
+                                seatLabel: formattedSeatLabel,
+                                libraryName: libModel?.name ?? 'The Cozy Corner Study Centre',
+                              );
+                            } catch (e) {
+                              debugPrint('Could not unassign seat or cascade waitlist: $e');
+                            }
+                          }
+
+                          // 2. Generate official Refund Voucher / Settlement Receipt & record negative ledger payment
+                          String? voucherNumber;
+                          String? receiptDocId;
+                          if (exitCalc.netRefund > 0) {
+                            final receiptRepo = ReceiptRepository();
+                            voucherNumber = await receiptRepo.getNextReceiptNumber(libraryId);
+
+                            final receiptDoc = FirebaseFirestore.instance
+                                .collection('libraries')
+                                .doc(libraryId)
+                                .collection('receipts')
+                                .doc();
+                            receiptDocId = receiptDoc.id;
+
+                            final settlementReceipt = ReceiptModel(
+                              id: receiptDoc.id,
+                              libraryId: libraryId,
+                              receiptNumber: voucherNumber,
+                              studentId: s.id,
+                              studentUserId: s.userId,
+                              planId: s.planId ?? 'early_exit',
+                              amount: exitCalc.netRefund,
+                              paymentMethod: refundMethod,
+                              validFrom: s.planStartDate!,
+                              validTo: exitDate,
+                              status: ReceiptStatus.active,
+                              customFields: {
+                                'isRefund': true,
+                                'isEarlyExitSettlement': true,
+                                'usedDays': exitCalc.usedDays,
+                                'totalCycleDays': exitCalc.totalCycleDays,
+                                'unusedDays': exitCalc.unusedDays,
+                                'fairUsageFee': exitCalc.fairUsageFee,
+                                'processingFee': processingFee,
+                                'totalPaid': curPaid,
+                                'netRefund': exitCalc.netRefund,
+                                'refundMethod': refundMethod,
+                                'exitReason': reasonCtrl.text.trim(),
+                                if (refCtrl.text.trim().isNotEmpty) 'referenceNumber': refCtrl.text.trim(),
+                                'exitDate': exitDate.toIso8601String(),
+                              },
+                              createdAt: exitDate,
+                            );
+                            await receiptDoc.set(settlementReceipt.toJson());
+
+                            // Create matching negative refund payment in ledger
+                            final payDoc = FirebaseFirestore.instance
+                                .collection('libraries')
+                                .doc(libraryId)
+                                .collection('payments')
+                                .doc();
+                            final refundPayment = PaymentModel(
+                              id: payDoc.id,
+                              studentId: s.id,
+                              studentUserId: s.userId,
+                              amount: -exitCalc.netRefund,
+                              totalPlanFee: curPaid,
+                              remainingDue: 0.0,
+                              method: refundMethod,
+                              referenceNumber: refCtrl.text.trim().isNotEmpty ? refCtrl.text.trim() : null,
+                              date: exitDate,
+                              receiptId: receiptDoc.id,
+                              receiptNumber: voucherNumber,
+                              status: PaymentStatus.refunded,
+                              notes: 'Early Exit Settlement Voucher #$voucherNumber: Used ${exitCalc.usedDays}/${exitCalc.totalCycleDays}d. Fair usage: ₹${exitCalc.fairUsageFee.toStringAsFixed(0)}. Deduction: ₹${processingFee.toStringAsFixed(0)}. Net refund: ₹${exitCalc.netRefund.toStringAsFixed(0)} ($refundMethod). Reason: ${reasonCtrl.text.trim()}',
+                              createdAt: exitDate,
+                            );
+                            await payDoc.set(refundPayment.toJson());
+
+                            // Adjust library revenue aggregate
+                            final monthKey = exitDate.toIso8601String().substring(0, 7);
+                            FirebaseFirestore.instance
+                                .collection('libraries')
+                                .doc(libraryId)
+                                .collection('settings')
+                                .doc('revenue_aggregate')
+                                .set({
+                              'totalRevenue': FieldValue.increment(-exitCalc.netRefund),
+                              'monthlyRevenue.$monthKey': FieldValue.increment(-exitCalc.netRefund),
+                              'lastUpdated': FieldValue.serverTimestamp(),
+                            }, SetOptions(merge: true)).ignore();
+                          }
+
+                          // 3. Mark student as inactive, settle dues to ₹0, append settlement log
+                          final exitSummaryNote = '[Exit Settlement] on ${DateFormat('dd MMM yyyy').format(exitDate)}. '
+                              'Cycle: ${exitCalc.usedDays}/${exitCalc.totalCycleDays}d. '
+                              'Fair usage: ₹${exitCalc.fairUsageFee.toStringAsFixed(0)}. '
+                              'Deduction: ₹${processingFee.toStringAsFixed(0)}. '
+                              'Net refund: ₹${exitCalc.netRefund.toStringAsFixed(0)}'
+                              '${voucherNumber != null ? " (Voucher: $voucherNumber via $refundMethod)" : ""}. '
+                              'Reason: ${reasonCtrl.text.trim().isNotEmpty ? reasonCtrl.text.trim() : "Early exit requested by student"}.';
+
+                          await FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(libraryId)
+                              .collection('students')
+                              .doc(s.id)
+                              .update({
+                            'membershipStatus': 'inactive',
+                            'previousSeatId': s.seatId,
+                            'previousSectionId': s.sectionId,
+                            'seatId': null,
+                            'sectionId': null,
+                            'pendingDueBalance': 0.0,
+                            'notes': (s.notes != null && s.notes!.isNotEmpty) ? '${s.notes}\n$exitSummaryNote' : exitSummaryNote,
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          });
+
+                          // 4. Record audit entry
+                          AuditLogger().log(
+                            action: AuditAction.updated,
+                            entityType: AuditEntity.student,
+                            entityId: s.id,
+                            libraryId: libraryId,
+                            details: {
+                              'action': 'early_exit_settlement',
+                              'studentName': s.name,
+                              'voucherNumber': voucherNumber,
+                              'netRefund': exitCalc.netRefund,
+                              'refundMethod': refundMethod,
+                              'seatReleased': releaseSeat ? s.seatId : null,
+                              if (cascadedCandidate != null) 'waitlistCandidatePromoted': cascadedCandidate.studentName,
+                            },
+                          );
+
+                          // 5. Send WhatsApp settlement voucher if opted-in
+                          if (sendWhatsApp && s.phone.isNotEmpty) {
+                            try {
+                              final whatsapp = ref.read(whatsappServiceProvider);
+                              final libModel = ref.read(currentLibraryProvider).value;
+                              await whatsapp.sendEarlyExitSettlement(
+                                phone: s.phone,
+                                studentName: s.name,
+                                libraryName: libModel?.name ?? 'The Cozy Corner Study Centre',
+                                voucherNumber: voucherNumber ?? 'SETTLE-${DateFormat('yyyyMMdd').format(exitDate)}',
+                                usedDays: exitCalc.usedDays,
+                                totalDays: exitCalc.totalCycleDays,
+                                fairUsageFee: exitCalc.fairUsageFee,
+                                processingFee: processingFee,
+                                netRefund: exitCalc.netRefund,
+                                refundMethod: refundMethod,
+                                referenceNumber: refCtrl.text.trim().isNotEmpty ? refCtrl.text.trim() : null,
+                                seatLabel: formattedSeatLabel,
+                                libraryHelpline: libModel?.phone,
+                                context: context,
+                              );
+                            } catch (e) {
+                              debugPrint('Error launching WhatsApp settlement confirmation: $e');
+                            }
+                          }
+
+                          if (context.mounted) {
+                            Navigator.pop(ctx);
+                            final seatMsg = releaseSeat && s.seatId != null
+                                ? ' • Desk $formattedSeatLabel vacated${cascadedCandidate != null ? ' & held for ${cascadedCandidate.studentName}' : ''}'
+                                : '';
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Early exit processed ✓ Net refund: ${exitCalc.formattedNetRefund}${voucherNumber != null ? ' (Voucher: $voucherNumber)' : ''}$seatMsg',
+                                ),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                            _loadStudent();
+                          }
+                        } catch (e) {
+                          setDlgState(() => isProcessing = false);
+                          if (context.mounted) {
+                            AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
+                          }
+                        }
                       },
-                    );
-
-                    if (context.mounted) {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Student exit processed ✓ Net refund: ${exitCalc.formattedNetRefund} • Seat released'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                      _loadStudent();
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'student');
-                    }
-                  }
-                },
               ),
             ],
           );

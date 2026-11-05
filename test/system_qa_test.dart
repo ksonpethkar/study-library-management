@@ -1730,9 +1730,9 @@ void main() {
 
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.49+57'));
-      expect(AppConstants.appVersion, equals('1.5.49'));
-      expect(AppConstants.buildNumber, equals(57));
+      expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
+      expect(AppConstants.appVersion, equals('1.5.50'));
+      expect(AppConstants.buildNumber, equals(58));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -4400,19 +4400,453 @@ void main() {
       final service = DatabaseDiagnosticsService();
       final reportText = service.generateDiagnosticTextReport(sampleMetrics, sampleReport);
 
-      expect(reportText, contains('COZY CORNER STUDY CENTRE - SYSTEM DIAGNOSTICS & HEALTH'));
-      expect(reportText, contains('SPARK (FREE TIER) QUOTA & RESOURCE PULSE'));
-      expect(reportText, contains('50,000 / day'));
-      expect(reportText, contains('20,000 / day'));
-      expect(reportText, contains('COLLECTION DOCUMENT COUNTS'));
-      expect(reportText, contains('Students (Total / Active): 3 / 3'));
-      expect(reportText, contains('Seats: 60'));
-      expect(reportText, contains('INVARIANT HEALTH & INTEGRITY SCAN'));
+      expect(reportText, contains('THE COZY CORNER STUDY CENTRE — SYSTEM DIAGNOSTIC REPORT'));
+      expect(reportText, contains('FIREBASE DATABASE QUOTA & USAGE PULSE'));
+      expect(reportText, contains('50,000 Free Limit'));
+      expect(reportText, contains('20,000 Free Limit'));
+      expect(reportText, contains('COLLECTION INVENTORY METRICS'));
+      expect(reportText, contains('Students: 3 (3 Active)'));
+      expect(reportText, contains('Desks / Seats: 60'));
+      expect(reportText, contains('INTEGRITY & INVARIANT DIAGNOSTICS'));
       expect(reportText, contains('Orphaned Occupied Seat #5'));
       expect(reportText, contains('STALE DATA CANDIDATES'));
       expect(reportText, contains('Read Notifications (>30d): 14'));
       expect(reportText, contains('Expired Recycle Bin (>30d): 5'));
       expect(reportText, contains('Historical Audit Logs (>90d): 42'));
+    });
+
+    test('104. PHASE 4: SILENT RECEPTION DESK ASSISTANCE & QUIET STUDY ENVIRONMENT ENGINE', () {
+      final now = DateTime(2026, 11, 5, 18, 0, 0);
+
+      // ── 1. Silent Alert Category Presets & Default Messages ──
+      const silentCategories = [
+        {
+          'id': 'noise',
+          'title': 'Noise Disturbance',
+          'defaultMessage': 'Noise disturbance in study zone. Requesting discreet floor supervisor check.',
+        },
+        {
+          'id': 'ac',
+          'title': 'AC / Temperature',
+          'defaultMessage': 'Please adjust the AC temperature or airflow in our study area.',
+        },
+        {
+          'id': 'wifi',
+          'title': 'Wi-Fi / Latency',
+          'defaultMessage': 'Wi-Fi speed is sluggish or dropping out at this desk. Please verify router AP.',
+        },
+        {
+          'id': 'water_clean',
+          'title': 'Water & Hygiene',
+          'defaultMessage': 'RO water dispenser needs refilling or desk area requires housekeeping attention.',
+        },
+        {
+          'id': 'desk_help',
+          'title': 'Reception Help',
+          'defaultMessage': 'Requesting a staff member visit my desk for quick assistance.',
+        },
+      ];
+
+      expect(silentCategories.length, equals(5));
+      expect(silentCategories.any((c) => c['id'] == 'noise'), isTrue);
+      expect(silentCategories.any((c) => c['id'] == 'ac'), isTrue);
+      expect(silentCategories.any((c) => c['id'] == 'wifi'), isTrue);
+      expect(silentCategories.any((c) => c['id'] == 'water_clean'), isTrue);
+      expect(silentCategories.any((c) => c['id'] == 'desk_help'), isTrue);
+
+      // ── 2. Automatic Desk Location Resolution ──
+      final testStudentWithDesk = createTestStudent(
+        id: 'std_quiet_01',
+        name: 'Focused Scholar',
+        phone: '9822011223',
+        seatId: 'seat_46',
+      );
+
+      String resolveLocationLabel(StudentModel s, {String? customOverride}) {
+        if (customOverride != null && customOverride.trim().isNotEmpty) {
+          return customOverride.trim();
+        }
+        if (s.seatId != null && s.seatId!.isNotEmpty) {
+          return SeatHelper.formatSeatLabel(seatId: s.seatId);
+        }
+        return 'General Study Hall';
+      }
+
+      expect(resolveLocationLabel(testStudentWithDesk), equals('Seat #46'));
+      expect(
+        resolveLocationLabel(testStudentWithDesk, customOverride: 'Zone B - Row 4'),
+        equals('Zone B - Row 4'),
+      );
+
+      final unassignedStudent = createTestStudent(
+        id: 'std_quiet_02',
+        name: 'New Scholar',
+        phone: '9822011224',
+        seatId: null,
+      );
+      expect(resolveLocationLabel(unassignedStudent), equals('General Study Hall'));
+
+      // ── 3. Silent Alert FeedbackModel Serialization ──
+      final alertModel = FeedbackModel(
+        id: 'alert_001',
+        libraryId: 'lib_cozy',
+        studentId: testStudentWithDesk.id,
+        studentName: testStudentWithDesk.name,
+        studentPhone: testStudentWithDesk.phone,
+        seatNumber: resolveLocationLabel(testStudentWithDesk),
+        message: 'Someone is talking loudly on the phone near row 4.',
+        category: 'Noise Disturbance',
+        feedbackType: 'silent_alert',
+        status: 'unread',
+        createdAt: now,
+      );
+
+      final alertJson = alertModel.toJson();
+      expect(alertJson['feedbackType'], equals('silent_alert'));
+      expect(alertJson['status'], equals('unread'));
+      expect(alertJson['category'], equals('Noise Disturbance'));
+      expect(alertJson['seatNumber'], equals('Seat #46'));
+      expect(alertJson['studentName'], equals('Focused Scholar'));
+      expect(alertJson['message'], contains('talking loudly'));
+
+      // ── 4. Reception Resolution Lifecycle ──
+      final resolvedAlert = alertModel.copyWith(
+        status: 'resolved',
+        adminReply: 'Floor supervisor personally checked and restored pin-drop silence.',
+      );
+
+      expect(resolvedAlert.status, equals('resolved'));
+      expect(resolvedAlert.adminReply, contains('restored pin-drop silence'));
+    });
+
+    test('105. STUDENT EARLY EXIT, SEAT VACATE & PRO-RATA REFUND WIZARD WITH LEDGER PARITY', () {
+      final now = DateTime(2026, 11, 5, 12, 0, 0);
+
+      // ── 1. PlanCalculatorService Pro-Rata Exit Settlement Math ──
+      final samplePlan = PlanModel(
+        id: 'plan_standard_monthly',
+        libraryId: 'lib_cozy',
+        name: 'Full Day Standard',
+        price: 900.0,
+        duration: 1,
+        durationUnit: DurationUnit.months,
+        description: 'Standard plan',
+        gracePeriodDays: 0,
+        isActive: true,
+        isFeatured: false,
+        displayOrder: 1,
+      );
+
+      final cycleStart = DateTime(2026, 11, 1);
+      final cycleEnd = DateTime(2026, 11, 30); // 30-day cycle
+      final exitDate = DateTime(2026, 11, 10); // 10 days used (inclusive), 20 days unused
+      const totalPaid = 900.0;
+      const cancellationFee = 100.0;
+
+      final exitSettlement = PlanCalculatorService.calculateExitSettlement(
+        startDate: cycleStart,
+        originalEndDate: cycleEnd,
+        exitDate: exitDate,
+        totalPaid: totalPaid,
+        plan: samplePlan,
+        processingFee: cancellationFee,
+      );
+
+      expect(exitSettlement.totalCycleDays, equals(30));
+      expect(exitSettlement.usedDays, equals(10));
+      expect(exitSettlement.unusedDays, equals(20));
+      // 10 / 30 * 900 = 300 fair usage
+      expect(exitSettlement.fairUsageFee, equals(300.0));
+      // 900 - 300 = 600 gross refund
+      expect(exitSettlement.grossRefund, equals(600.0));
+      // 600 - 100 = 500 net refund
+      expect(exitSettlement.netRefund, equals(500.0));
+      expect(exitSettlement.formattedNetRefund, equals('₹500'));
+
+      // ── 2. Boundary Condition: Exit Near Expiry with Higher Fee (Net <= 0) ──
+      final lateExitDate = DateTime(2026, 11, 28); // 28 days used, 2 unused
+      final lateSettlement = PlanCalculatorService.calculateExitSettlement(
+        startDate: cycleStart,
+        originalEndDate: cycleEnd,
+        exitDate: lateExitDate,
+        totalPaid: totalPaid,
+        plan: samplePlan,
+        processingFee: cancellationFee,
+      );
+      expect(lateSettlement.usedDays, equals(28));
+      expect(lateSettlement.unusedDays, equals(2));
+      // 28 / 30 * 900 = 840 fair usage
+      expect(lateSettlement.fairUsageFee, equals(840.0));
+      expect(lateSettlement.grossRefund, equals(60.0));
+      // Gross 60 - Fee 100 = -40 => Clamped to 0
+      expect(lateSettlement.netRefund, equals(0.0));
+      expect(lateSettlement.formattedNetRefund, equals('₹0'));
+
+      // ── 3. Negative Payment Ledger Model Serialization Parity ──
+      const refundReceiptNumber = 'REC-2026-0099';
+      const refundDocId = 'pay_refund_105';
+      final negativeRefundPayment = PaymentModel(
+        id: refundDocId,
+        studentId: 'std_exit_01',
+        studentUserId: 'usr_exit_01',
+        amount: -exitSettlement.netRefund, // -₹500 in ledger
+        totalPlanFee: totalPaid,
+        remainingDue: 0.0,
+        method: 'UPI',
+        referenceNumber: 'UPI/20261105/982123',
+        date: exitDate,
+        receiptId: 'rec_doc_105',
+        receiptNumber: refundReceiptNumber,
+        status: PaymentStatus.refunded,
+        notes: 'Early Exit Settlement Voucher #$refundReceiptNumber: Used 10/30d. Net refund ₹500 via UPI.',
+        createdAt: exitDate,
+      );
+
+      final payJson = negativeRefundPayment.toJson();
+      expect(payJson['amount'], equals(-500.0));
+      expect(payJson['status'], equals('refunded'));
+      expect(payJson['paymentMethod'], equals('UPI'));
+      expect(payJson['receiptNumber'], equals(refundReceiptNumber));
+      expect(payJson['referenceNumber'], equals('UPI/20261105/982123'));
+
+      final parsedPayment = PaymentModel.fromJson(payJson);
+      expect(parsedPayment.amount, equals(-500.0));
+      expect(parsedPayment.status, equals(PaymentStatus.refunded));
+      expect(parsedPayment.method, equals('UPI'));
+      expect(parsedPayment.receiptNumber, equals(refundReceiptNumber));
+
+      // ── 4. Settlement Receipt Voucher Serialization Parity ──
+      final settlementReceipt = ReceiptModel(
+        id: 'rec_doc_105',
+        libraryId: 'lib_cozy',
+        receiptNumber: refundReceiptNumber,
+        studentId: 'std_exit_01',
+        studentUserId: 'usr_exit_01',
+        planId: samplePlan.id,
+        amount: exitSettlement.netRefund,
+        paymentMethod: 'UPI',
+        validFrom: cycleStart,
+        validTo: exitDate,
+        status: ReceiptStatus.active,
+        customFields: {
+          'isRefund': true,
+          'isEarlyExitSettlement': true,
+          'usedDays': exitSettlement.usedDays,
+          'totalCycleDays': exitSettlement.totalCycleDays,
+          'unusedDays': exitSettlement.unusedDays,
+          'fairUsageFee': exitSettlement.fairUsageFee,
+          'processingFee': cancellationFee,
+          'totalPaid': totalPaid,
+          'netRefund': exitSettlement.netRefund,
+          'refundMethod': 'UPI',
+          'referenceNumber': 'UPI/20261105/982123',
+          'exitDate': exitDate.toIso8601String(),
+        },
+        createdAt: exitDate,
+      );
+
+      final recJson = settlementReceipt.toJson();
+      expect(recJson['receiptNumber'], equals(refundReceiptNumber));
+      expect(recJson['amount'], equals(500.0));
+      expect(recJson['status'], equals('active'));
+      expect(recJson['customFields']['isRefund'], isTrue);
+      expect(recJson['customFields']['isEarlyExitSettlement'], isTrue);
+      expect(recJson['customFields']['netRefund'], equals(500.0));
+      expect(recJson['customFields']['usedDays'], equals(10));
+      expect(recJson['customFields']['processingFee'], equals(100.0));
+
+      final parsedReceipt = ReceiptModel.fromJson(recJson);
+      expect(parsedReceipt.receiptNumber, equals(refundReceiptNumber));
+      expect(parsedReceipt.amount, equals(500.0));
+      expect(parsedReceipt.customFields['isRefund'], isTrue);
+
+      // ── 5. Student Status & Dues Deallocation Invariant ──
+      final exitingStudent = createTestStudent(
+        id: 'std_exit_01',
+        name: 'Graduating Scholar',
+        phone: '9811002233',
+        seatId: 'seat_46',
+        membershipStatus: MembershipStatus.active,
+        pendingDueBalance: 300.0, // Had an outstanding partial due
+      );
+
+      final settledStudent = exitingStudent.copyWith(
+        membershipStatus: MembershipStatus.inactive,
+        clearSeat: true,
+        previousSeatId: exitingStudent.seatId,
+        pendingDueBalance: 0.0, // Dues wiped upon final settlement
+        notes: '[Exit Settlement] on 05 Nov 2026. Cycle: 10/30d. Net refund: ₹500 (Voucher: $refundReceiptNumber via UPI).',
+      );
+
+      expect(settledStudent.membershipStatus, equals(MembershipStatus.inactive));
+      expect(settledStudent.seatId, isNull);
+      expect(settledStudent.previousSeatId, equals('seat_46'));
+      expect(settledStudent.pendingDueBalance, equals(0.0));
+      expect(settledStudent.notes, contains('[Exit Settlement]'));
+      expect(settledStudent.notes, contains(refundReceiptNumber));
+
+      // ── 6. Waiting List Automatic Cascade Queue Matching ──
+      final waitlistEntries = [
+        WaitingListEntry(
+          id: 'wait_01',
+          libraryId: 'lib_cozy',
+          studentId: 'std_wait_01',
+          studentName: 'Next In Line',
+          studentPhone: '9899001122',
+          preferredSectionId: 'sec_quiet',
+          position: 1,
+          createdAt: now.subtract(const Duration(hours: 4)),
+        ),
+        WaitingListEntry(
+          id: 'wait_02',
+          libraryId: 'lib_cozy',
+          studentId: 'std_wait_02',
+          studentName: 'Second Candidate',
+          studentPhone: '9899001133',
+          preferredSectionId: 'sec_quiet',
+          position: 2,
+          createdAt: now.subtract(const Duration(hours: 2)),
+        ),
+      ];
+
+      // Simulated FIFO resolution matching freed section
+      final topCandidate = waitlistEntries.firstWhere(
+        (e) => e.preferredSectionId == 'sec_quiet',
+      );
+      expect(topCandidate.id, equals('wait_01'));
+      expect(topCandidate.studentName, equals('Next In Line'));
+
+      // ── 7. WhatsApp Early Exit Settlement Template Content Verification ──
+      final buffer = StringBuffer()
+        ..writeln('🚪 *Membership Early Exit & Settlement Confirmation*')
+        ..writeln()
+        ..writeln('Dear *${exitingStudent.name}*,')
+        ..writeln('Your early exit and account settlement has been successfully processed at *The Cozy Corner Study Centre*.')
+        ..writeln()
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('🧾 *SETTLEMENT SUMMARY*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('🧾 *Voucher Number:* $refundReceiptNumber')
+        ..writeln('📅 *Cycle Days Used:* ${exitSettlement.usedDays} of ${exitSettlement.totalCycleDays} days')
+        ..writeln('💺 *Seat Vacated:* Seat #46')
+        ..writeln('📊 *Fair Usage Charge:* ₹${exitSettlement.fairUsageFee.toStringAsFixed(0)}')
+        ..writeln('✂️ *Early Cancellation Fee:* ₹${cancellationFee.toStringAsFixed(0)}')
+        ..writeln('💵 *Net Refund Issued:* *₹${exitSettlement.netRefund.toStringAsFixed(0)}* (UPI)')
+        ..writeln('🔖 *Reference / UTR:* UPI/20261105/982123')
+        ..writeln()
+        ..writeln('Your desk has been vacated and your membership account marked as settled.')
+        ..writeln('Thank you for being part of our community. We wish you immense success in your academic and career goals! 🎓🌟');
+
+      final waMessage = buffer.toString();
+      expect(waMessage, contains('Membership Early Exit & Settlement Confirmation'));
+      expect(waMessage, contains(refundReceiptNumber));
+      expect(waMessage, contains('10 of 30 days'));
+      expect(waMessage, contains('Seat Vacated:* Seat #46'));
+      expect(waMessage, contains('Fair Usage Charge:* ₹300'));
+      expect(waMessage, contains('Early Cancellation Fee:* ₹100'));
+      expect(waMessage, contains('Net Refund Issued:* *₹500* (UPI)'));
+      expect(waMessage, contains('Reference / UTR:* UPI/20261105/982123'));
+    });
+
+    test('106. QUICK ACTION STUDIO & SMART PAYMENT PICKER: CATEGORIZATION, PRIORITY DEFAULTER SORTING & SEARCH ENGINE', () {
+      final now = DateTime(2026, 11, 5, 12, 0);
+      final in3Days = now.add(const Duration(days: 3));
+      final in15Days = now.add(const Duration(days: 15));
+
+      final studentA = createTestStudent(
+        id: 'std_a',
+        name: 'Aarav Sharma',
+        phone: '9820011223',
+        membershipNumber: 'CC20260001',
+        membershipStatus: MembershipStatus.active,
+        planEndDate: in15Days,
+        pendingDueBalance: 0.0,
+      );
+
+      final studentB = createTestStudent(
+        id: 'std_b',
+        name: 'Bharat Patil',
+        phone: '9820044556',
+        membershipNumber: 'CC20260002',
+        membershipStatus: MembershipStatus.active,
+        planEndDate: in15Days,
+        pendingDueBalance: 350.0, // High due
+      );
+
+      final studentC = createTestStudent(
+        id: 'std_c',
+        name: 'Chetan Deshmukh',
+        phone: '9820077889',
+        membershipNumber: 'CC20260003',
+        membershipStatus: MembershipStatus.active,
+        planEndDate: in15Days,
+        pendingDueBalance: 700.0, // Highest due
+      );
+
+      final studentD = createTestStudent(
+        id: 'std_d',
+        name: 'Divya Kadam',
+        phone: '9820099887',
+        membershipNumber: 'CC20260004',
+        membershipStatus: MembershipStatus.grace, // In grace period
+        planEndDate: in3Days,
+        pendingDueBalance: 0.0,
+      );
+
+      final allStudents = [studentA, studentB, studentC, studentD];
+
+      // ── 1. Smart Prioritization Sorting Invariants ──
+      // Defaulters at the top (highest dues first) -> Grace/Expiring -> Alphabetical
+      final sortedList = List<StudentModel>.from(allStudents)..sort((a, b) {
+        final aDue = a.pendingDueBalance ?? 0.0;
+        final bDue = b.pendingDueBalance ?? 0.0;
+
+        if (aDue > 0 && bDue <= 0) return -1;
+        if (bDue > 0 && aDue <= 0) return 1;
+        if (aDue > 0 && bDue > 0) return bDue.compareTo(aDue);
+
+        final aIsGrace = a.membershipStatus == MembershipStatus.grace;
+        final bIsGrace = b.membershipStatus == MembershipStatus.grace;
+        if (aIsGrace && !bIsGrace) return -1;
+        if (bIsGrace && !aIsGrace) return 1;
+
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+
+      expect(sortedList[0].id, equals('std_c'), reason: '₹700 due must be rank #1');
+      expect(sortedList[1].id, equals('std_b'), reason: '₹350 due must be rank #2');
+      expect(sortedList[2].id, equals('std_d'), reason: 'Grace period must be rank #3');
+      expect(sortedList[3].id, equals('std_a'), reason: 'Zero due active student must follow at rank #4');
+
+      // ── 2. Multi-field Search Filter Engine ──
+      List<StudentModel> searchStudents(List<StudentModel> list, String query) {
+        if (query.trim().isEmpty) return list;
+        final q = query.trim().toLowerCase();
+        return list.where((s) {
+          final name = s.name.toLowerCase();
+          final phone = s.phone.toLowerCase();
+          final memNo = (s.membershipNumber ?? '').toLowerCase();
+          final seat = (s.seatId ?? '').toLowerCase();
+          return name.contains(q) || phone.contains(q) || memNo.contains(q) || seat.contains(q);
+        }).toList();
+      }
+
+      // Match by Name
+      expect(searchStudents(allStudents, 'Bharat').length, equals(1));
+      expect(searchStudents(allStudents, 'bharat').first.id, equals('std_b'));
+
+      // Match by Phone
+      expect(searchStudents(allStudents, '9820077889').first.id, equals('std_c'));
+
+      // Match by #CC Admission ID
+      expect(searchStudents(allStudents, 'CC20260004').first.id, equals('std_d'));
+      expect(searchStudents(allStudents, 'cc20260001').first.id, equals('std_a'));
+
+      // ── 3. Quick Action Studio Defaulter Aggregate Metrics ──
+      final defaulters = allStudents.where((s) => (s.pendingDueBalance ?? 0) > 0).toList();
+      final totalDueAmount = defaulters.fold<double>(0, (acc, s) => acc + (s.pendingDueBalance ?? 0));
+      expect(defaulters.length, equals(2));
+      expect(totalDueAmount, equals(1050.0)); // 700 + 350
     });
   });
 }
