@@ -137,39 +137,7 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
       final newRef = _refController.text.trim();
       final newNotes = _notesController.text.trim();
       final newBank = _bankNameController.text.trim();
-      final delta = _amountDelta;
-
-      // 1. Calculate updated remaining due
-      double? updatedDue = widget.payment.remainingDue;
-      if (updatedDue != null) {
-        updatedDue = (updatedDue - delta).clamp(0.0, double.infinity);
-      }
-
-      final Map<String, dynamic> updateData = {
-        'amount': newAmount,
-        'method': _selectedMethod,
-        'paymentMethod': _selectedMethod,
-        'date': Timestamp.fromDate(_selectedDate),
-        'paymentDate': Timestamp.fromDate(_selectedDate),
-        if (newBank.isNotEmpty) 'methodDetails': newBank,
-        'referenceNumber': newRef.isNotEmpty ? newRef : null,
-        'notes': newNotes.isNotEmpty ? newNotes : null,
-        'status': _selectedStatus.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      if (updatedDue != null) {
-        updateData['remainingDue'] = updatedDue;
-      }
-
-      // Update payment record in Firestore
-      await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(widget.libraryId)
-          .collection('payments')
-          .doc(widget.payment.id)
-          .update(updateData);
-
-      // 2. Sync with Receipt doc if enabled
+      // Effective paid calculation anchored on settlement status
       final oldEffectivePaid = (widget.payment.status != PaymentStatus.refunded &&
               widget.payment.status != PaymentStatus.voided &&
               widget.payment.status != PaymentStatus.cancelled)
@@ -184,76 +152,122 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
 
       final deltaPaid = newEffectivePaid - oldEffectivePaid;
 
+      // 1. Calculate updated remaining due anchored on effective payment delta
+      double? updatedDue = widget.payment.remainingDue;
+      if (updatedDue != null) {
+        updatedDue = (updatedDue - deltaPaid).clamp(0.0, double.infinity);
+      }
+
+      // 2. Pre-resolve Receipt document reference if sync enabled
+      DocumentReference? targetReceiptRef;
       final targetReceiptId = widget.payment.receiptId;
       if (_syncReceipt && targetReceiptId != null && targetReceiptId.isNotEmpty) {
-        final receiptUpdate = <String, dynamic>{
-          'amount': newAmount,
-          'paidAmount': newEffectivePaid,
-          'paymentMethod': _selectedMethod,
-          'updatedAt': FieldValue.serverTimestamp(),
-        };
-
-        if (_selectedStatus == PaymentStatus.voided ||
-            _selectedStatus == PaymentStatus.cancelled ||
-            _selectedStatus == PaymentStatus.refunded) {
-          receiptUpdate['status'] = ReceiptStatus.voided.name;
-        } else if (_selectedStatus == PaymentStatus.paid ||
-            _selectedStatus == PaymentStatus.partial) {
-          receiptUpdate['status'] = ReceiptStatus.active.name;
-        }
-
-        // Try direct doc ID match first
-        final receiptDoc = FirebaseFirestore.instance
+        final directReceiptDoc = FirebaseFirestore.instance
             .collection('libraries')
             .doc(widget.libraryId)
             .collection('receipts')
             .doc(targetReceiptId);
-
-        final receiptSnap = await receiptDoc.get();
-        if (receiptSnap.exists) {
-          final rData = receiptSnap.data() ?? {};
-          final currentReceiptDue = (rData['remainingDue'] as num?)?.toDouble();
-          if (currentReceiptDue != null) {
-            receiptUpdate['remainingDue'] = (currentReceiptDue - deltaPaid).clamp(0.0, double.infinity);
-          }
-          await receiptDoc.update(receiptUpdate);
+        final directSnap = await directReceiptDoc.get();
+        if (directSnap.exists) {
+          targetReceiptRef = directReceiptDoc;
         } else {
-          // Fallback: match by receiptNumber
-          final snap = await FirebaseFirestore.instance
+          final querySnap = await FirebaseFirestore.instance
               .collection('libraries')
               .doc(widget.libraryId)
               .collection('receipts')
               .where('receiptNumber', isEqualTo: targetReceiptId)
               .limit(1)
               .get();
-          if (snap.docs.isNotEmpty) {
-            final rData = snap.docs.first.data();
-            final currentReceiptDue = (rData['remainingDue'] as num?)?.toDouble();
-            if (currentReceiptDue != null) {
-              receiptUpdate['remainingDue'] = (currentReceiptDue - deltaPaid).clamp(0.0, double.infinity);
-            }
-            await snap.docs.first.reference.update(receiptUpdate);
+          if (querySnap.docs.isNotEmpty) {
+            targetReceiptRef = querySnap.docs.first.reference;
           }
         }
       }
 
-      // 3. Recalculate Student Balance (Deterministic Delta Algorithm)
-      final studentDocRef = FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(widget.libraryId)
-          .collection('students')
-          .doc(widget.student.id);
+      // 3. Atomic Firestore Transaction: Guarantee 100% ledger parity across Payment, Receipt, and Student
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        // ── READS FIRST ──
+        final paymentRef = FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('payments')
+            .doc(widget.payment.id);
 
-      final freshStudentSnap = await studentDocRef.get();
-      final freshStudentData = freshStudentSnap.data() ?? {};
-      final currentDue = (freshStudentData['pendingDueBalance'] as num?)?.toDouble() ??
-          (widget.student.pendingDueBalance ?? 0.0);
+        final studentRef = FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('students')
+            .doc(widget.student.id);
 
-      final newStudentDue = (currentDue - deltaPaid).clamp(0.0, double.infinity);
+        final studentSnap = await tx.get(studentRef);
+        final studentData = studentSnap.data() ?? {};
 
-      await studentDocRef.update({
-        'pendingDueBalance': newStudentDue,
-        'updatedAt': FieldValue.serverTimestamp(),
+        double? currentReceiptDue;
+        if (targetReceiptRef != null) {
+          final receiptSnap = await tx.get(targetReceiptRef);
+          if (receiptSnap.exists) {
+            final rData = receiptSnap.data() as Map<String, dynamic>? ?? {};
+            currentReceiptDue = (rData['remainingDue'] as num?)?.toDouble();
+          }
+        }
+
+        // ── DETERMINISTIC CALCULATIONS ──
+        final currentDue = (studentData['pendingDueBalance'] as num?)?.toDouble() ??
+            (widget.student.pendingDueBalance ?? 0.0);
+        final newStudentDue = (currentDue - deltaPaid).clamp(0.0, double.infinity);
+
+        // ── WRITES ──
+        final Map<String, dynamic> updateData = {
+          'amount': newAmount,
+          'method': _selectedMethod,
+          'paymentMethod': _selectedMethod,
+          'date': Timestamp.fromDate(_selectedDate),
+          'paymentDate': Timestamp.fromDate(_selectedDate),
+          if (newBank.isNotEmpty) 'methodDetails': newBank,
+          'referenceNumber': newRef.isNotEmpty ? newRef : null,
+          'notes': newNotes.isNotEmpty ? newNotes : null,
+          'status': _selectedStatus.name,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (updatedDue != null) {
+          updateData['remainingDue'] = updatedDue;
+        }
+        tx.update(paymentRef, updateData);
+
+        if (targetReceiptRef != null) {
+          final receiptUpdate = <String, dynamic>{
+            'amount': newAmount,
+            'paidAmount': newEffectivePaid,
+            'paymentMethod': _selectedMethod,
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          if (_selectedStatus == PaymentStatus.voided ||
+              _selectedStatus == PaymentStatus.cancelled ||
+              _selectedStatus == PaymentStatus.refunded) {
+            receiptUpdate['status'] = ReceiptStatus.voided.name;
+          } else if (_selectedStatus == PaymentStatus.paid ||
+              _selectedStatus == PaymentStatus.partial) {
+            receiptUpdate['status'] = ReceiptStatus.active.name;
+          }
+          if (currentReceiptDue != null) {
+            receiptUpdate['remainingDue'] = (currentReceiptDue - deltaPaid).clamp(0.0, double.infinity);
+          }
+          tx.update(targetReceiptRef, receiptUpdate);
+        }
+
+        final studentUpdates = <String, dynamic>{
+          'pendingDueBalance': newStudentDue,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (newStudentDue <= 0.0) {
+          final currentNotes = (studentData['notes'] ?? '').toString();
+          if (currentNotes.contains('Pending Fee Payment')) {
+            studentUpdates['notes'] = currentNotes
+                .replaceAll(RegExp(r'\s*[-–—]?\s*Pending Fee Payment', caseSensitive: false), '')
+                .trim();
+          }
+        }
+        tx.update(studentRef, studentUpdates);
       });
 
       // 4. Audit Log Entry

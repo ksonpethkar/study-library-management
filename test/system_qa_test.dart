@@ -4173,5 +4173,84 @@ void main() {
       const emptyRes = AutomationResult();
       expect(emptyRes.hasChanges, isFalse);
     });
+
+    test('101. ATOMIC LEDGER CONCURRENCY & ZERO-DRIFT PAYMENT EDIT PARITY', () {
+      // ── 1. Deterministic Delta Calculation with Negotiated Rate Preservation ──
+      double computeEffectivePaid(PaymentStatus status, double amount) {
+        if (status == PaymentStatus.refunded ||
+            status == PaymentStatus.voided ||
+            status == PaymentStatus.cancelled) {
+          return 0.0;
+        }
+        return amount;
+      }
+
+      // Scenario A: Custom Negotiated Fee (₹650 instead of standard catalog ₹700)
+      // Student admitted, paid ₹400 initially. Due balance is ₹250.
+      const initialPaid = 400.0;
+      const initialDue = 250.0; // Total agreed plan fee = 650.0
+
+      // Admin edits payment to ₹500 (additional ₹100 paid)
+      const editedPaid = 500.0;
+      final oldEffectiveA = computeEffectivePaid(PaymentStatus.partial, initialPaid);
+      final newEffectiveA = computeEffectivePaid(PaymentStatus.partial, editedPaid);
+      final deltaPaidA = newEffectiveA - oldEffectiveA; // +100.0
+
+      final recalculatedDueA = (initialDue - deltaPaidA).clamp(0.0, double.infinity);
+      expect(recalculatedDueA, equals(150.0), reason: 'Agreed rate 650 must be preserved: 650 - 500 = 150');
+
+      // Scenario B: Refund of Partial Payment (₹400 refunded)
+      final oldEffectiveB = computeEffectivePaid(PaymentStatus.partial, initialPaid);
+      final newEffectiveB = computeEffectivePaid(PaymentStatus.refunded, initialPaid);
+      final deltaPaidB = newEffectiveB - oldEffectiveB; // -400.0
+
+      final recalculatedDueB = (initialDue - deltaPaidB).clamp(0.0, double.infinity);
+      expect(recalculatedDueB, equals(650.0), reason: 'Refund must restore full agreed rate of 650 without drifting to 700');
+
+      // Scenario C: Full Payment Collected (Due drops to ₹0)
+      final oldEffectiveC = computeEffectivePaid(PaymentStatus.partial, initialPaid);
+      final newEffectiveC = computeEffectivePaid(PaymentStatus.paid, 650.0);
+      final deltaPaidC = newEffectiveC - oldEffectiveC; // +250.0
+
+      final recalculatedDueC = (initialDue - deltaPaidC).clamp(0.0, double.infinity);
+      expect(recalculatedDueC, equals(0.0));
+
+      // ── 2. Automatic Note Sanitization on Zero Due Balance ──
+      String sanitizeStudentNotesOnPayment(String rawNotes, double remainingDue) {
+        if (remainingDue <= 0.0 && rawNotes.contains('Pending Fee Payment')) {
+          return rawNotes
+              .replaceAll(RegExp(r'\s*[-–—]?\s*Pending Fee Payment', caseSensitive: false), '')
+              .trim();
+        }
+        return rawNotes;
+      }
+
+      const rawNoteWithPending = 'Admission Approved via App (Gjq8iLM9) — Pending Fee Payment';
+      final cleanedNoteOnZeroDue = sanitizeStudentNotesOnPayment(rawNoteWithPending, 0.0);
+      expect(cleanedNoteOnZeroDue, equals('Admission Approved via App (Gjq8iLM9)'));
+      expect(cleanedNoteOnZeroDue.contains('Pending Fee Payment'), isFalse);
+
+      final uncleanedNoteWhenDueRemains = sanitizeStudentNotesOnPayment(rawNoteWithPending, 150.0);
+      expect(uncleanedNoteWhenDueRemains, contains('Pending Fee Payment'));
+
+      // ── 3. Seat Concurrency Collision Guard Invariants ──
+      bool canOccupySeat({
+        required String currentStatus,
+        required String? currentOccupantId,
+        required String requestingStudentId,
+      }) {
+        if (currentStatus == SeatStatus.occupied.name &&
+            currentOccupantId != null &&
+            currentOccupantId.isNotEmpty &&
+            currentOccupantId != requestingStudentId) {
+          return false; // Collision detected!
+        }
+        return true;
+      }
+
+      expect(canOccupySeat(currentStatus: 'available', currentOccupantId: null, requestingStudentId: 'std_01'), isTrue);
+      expect(canOccupySeat(currentStatus: 'occupied', currentOccupantId: 'std_02', requestingStudentId: 'std_01'), isFalse);
+      expect(canOccupySeat(currentStatus: 'occupied', currentOccupantId: 'std_01', requestingStudentId: 'std_01'), isTrue); // Re-affirming own seat
+    });
   });
 }

@@ -227,13 +227,6 @@ class WaitingListPromotionService {
         },
       });
     });
-        'sectionId': sectionId,
-        'holdHours': holdHours,
-        'expiresAt': expiresAt.toIso8601String(),
-      },
-    });
-
-    await batch.commit();
 
     // 4. Notify admin via in-app alert
     await AppNotificationService.sendNotification(
