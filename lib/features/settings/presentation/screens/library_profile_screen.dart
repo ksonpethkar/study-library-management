@@ -72,9 +72,78 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
   // 5. In-Place Advanced Overrides (Preserved for 100% backward compatibility)
   final _welcomeController = TextEditingController();
   final _upiIdController = TextEditingController();
+  final _wifiSsidController = TextEditingController();
+  final _wifiPasswordController = TextEditingController();
   late TextEditingController _whatsappTemplateController;
   late TextEditingController _receiptFooterController;
   int _reminderDays = 7;
+
+  // Brand Palette & Accent White-Labeling
+  int _selectedAccentColor = 0xFF5D4037;
+  final _hexColorController = TextEditingController(text: '#5D4037');
+
+  static const List<Map<String, dynamic>> _brandColorPresets = [
+    {
+      'name': 'Cozy Chocolate',
+      'subtitle': 'Warm study ambience',
+      'color': Color(0xFF5D4037),
+      'hex': '#5D4037',
+    },
+    {
+      'name': 'Royal Sapphire',
+      'subtitle': 'Focused corporate navy',
+      'color': Color(0xFF1E3A8A),
+      'hex': '#1E3A8A',
+    },
+    {
+      'name': 'Academic Emerald',
+      'subtitle': 'Forest calm & focus',
+      'color': Color(0xFF065F46),
+      'hex': '#065F46',
+    },
+    {
+      'name': 'Heritage Burgundy',
+      'subtitle': 'Classic university wine',
+      'color': Color(0xFF831843),
+      'hex': '#831843',
+    },
+    {
+      'name': 'Midnight Indigo',
+      'subtitle': 'Modern deep nocturnal',
+      'color': Color(0xFF312E81),
+      'hex': '#312E81',
+    },
+    {
+      'name': 'Slate Minimalist',
+      'subtitle': 'Cool neutral modern',
+      'color': Color(0xFF334155),
+      'hex': '#334155',
+    },
+    {
+      'name': 'Warm Terracotta',
+      'subtitle': 'Earthy autumn brick',
+      'color': Color(0xFFC2410C),
+      'hex': '#C2410C',
+    },
+    {
+      'name': 'Deep Oceanic Teal',
+      'subtitle': 'Vibrant balanced cyan',
+      'color': Color(0xFF0F766E),
+      'hex': '#0F766E',
+    },
+    {
+      'name': 'Electric Violet',
+      'subtitle': 'Creative premium purple',
+      'color': Color(0xFF581C87),
+      'hex': '#581C87',
+    },
+    {
+      'name': 'Obsidian Noir',
+      'subtitle': 'Sleek luxury charcoal',
+      'color': Color(0xFF18181B),
+      'hex': '#18181B',
+    },
+  ];
 
   String? _logoUrl;
   bool _isLoading = true;
@@ -157,12 +226,20 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         _welcomeController.text = loadedWelcome;
 
         _upiIdController.text = data['upiId'] ?? '';
+        _wifiSsidController.text = data['wifiSsid'] ?? data['wifiName'] ?? '';
+        _wifiPasswordController.text = data['wifiPassword'] ?? data['wifiPass'] ?? '';
         _whatsappTemplateController.text = data['whatsappWelcomeTemplate'] ?? '';
         _receiptFooterController.text = data['receiptFooterText'] ?? '';
         _reminderDays = data['renewalReminderDays'] is int
             ? data['renewalReminderDays'] as int
             : int.tryParse(data['renewalReminderDays']?.toString() ?? '7') ?? 7;
         _logoUrl = data['logoUrl'] as String?;
+        if (data['accentColor'] is int && data['accentColor'] != 0) {
+          _selectedAccentColor = data['accentColor'] as int;
+        } else {
+          _selectedAccentColor = 0xFF5D4037;
+        }
+        _hexColorController.text = '#${_selectedAccentColor.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
       }
     } catch (e) {
       if (mounted) {
@@ -317,7 +394,10 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         'receiptFooterText': _receiptFooterController.text.trim(),
         'renewalReminderDays': _reminderDays,
         'upiId': _upiIdController.text.trim(),
+        'wifiSsid': _wifiSsidController.text.trim(),
+        'wifiPassword': _wifiPasswordController.text.trim(),
         'logoUrl': _logoUrl ?? '',
+        'accentColor': _selectedAccentColor,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -347,6 +427,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         if (tagline.isNotEmpty) {
           prefs.setString('cached_library_tagline', tagline);
         }
+        prefs.setInt('cached_library_accent_color', _selectedAccentColor);
       } catch (_) { /* intentionally silent */ }
 
       // Invalidate cached library data
@@ -437,8 +518,11 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
     _managerContactController.dispose();
     _welcomeController.dispose();
     _upiIdController.dispose();
+    _wifiSsidController.dispose();
+    _wifiPasswordController.dispose();
     _whatsappTemplateController.dispose();
     _receiptFooterController.dispose();
+    _hexColorController.dispose();
     super.dispose();
   }
 
@@ -601,6 +685,71 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       );
     }
 
+    // Student 1-Tap Wi-Fi Hotspot Configuration
+    widgets.add(const SizedBox(height: 14));
+    widgets.add(
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.wifi_rounded, size: 18, color: Color(0xFF0284C7)),
+                const SizedBox(width: 8),
+                const Text(
+                  'Student 1-Tap Wi-Fi Hotspot',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text('1-Tap Copy', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Enrolled students can copy this password with a single tap in their app to connect laptops and phones.',
+              style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            _buildTwoColRow(
+              left: TextFormField(
+                controller: _wifiSsidController,
+                decoration: const InputDecoration(
+                  labelText: 'Wi-Fi Network Name (SSID)',
+                  hintText: 'e.g. CozyCorner_5G',
+                  prefixIcon: Icon(Icons.network_wifi_rounded),
+                  isDense: true,
+                  filled: true,
+                ),
+              ),
+              right: TextFormField(
+                controller: _wifiPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Wi-Fi Password',
+                  hintText: 'e.g. Study@Cozy2026',
+                  prefixIcon: Icon(Icons.password_rounded),
+                  isDense: true,
+                  filled: true,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
     return widgets;
   }
 
@@ -701,6 +850,305 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
           ...children,
         ],
       ),
+    );
+  }
+
+  Widget _buildBrandPaletteCard(ThemeData theme) {
+    final currentColor = Color(_selectedAccentColor);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return _buildBentoCard(
+      theme: theme,
+      icon: Icons.palette_rounded,
+      iconColor: currentColor,
+      title: 'Brand Palette & Theme Customization',
+      subtitle: 'Personalize your primary colors across admin consoles, student portals, and passes',
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: currentColor.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: currentColor.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: currentColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _hexColorController.text,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: currentColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+      children: [
+        // 1. Live Interactive Preview Canvas
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.black26 : currentColor.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: currentColor.withValues(alpha: 0.25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.visibility_rounded, size: 16, color: currentColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Real-Time Theme Preview',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: currentColor,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: currentColor,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'PREVIEW',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () {},
+                    style: FilledButton.styleFrom(
+                      backgroundColor: currentColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.add_task_rounded, size: 16),
+                    label: const Text('Primary Action'),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: currentColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: currentColor),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle_rounded, size: 14, color: currentColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Active Status Pill',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: currentColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white10 : Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: theme.colorScheme.outlineVariant),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.chair_rounded, size: 14, color: currentColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Desk 12 • Reserved',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // 2. Curated Palette Presets Grid
+        const Text(
+          'Curated Executive & Academic Palettes',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 240,
+            mainAxisExtent: 68,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+          ),
+          itemCount: _brandColorPresets.length,
+          itemBuilder: (context, index) {
+            final preset = _brandColorPresets[index];
+            final pColor = preset['color'] as Color;
+            final isSelected = _selectedAccentColor == pColor.toARGB32();
+
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedAccentColor = pColor.toARGB32();
+                  _hexColorController.text = preset['hex'] as String;
+                });
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? pColor.withValues(alpha: 0.12)
+                      : (isDark ? Colors.white.withValues(alpha: 0.03) : Colors.grey.shade50),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? pColor : theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: pColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: pColor.withValues(alpha: 0.35),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: isSelected
+                          ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                          : null,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            preset['name'] as String,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                              color: isSelected ? pColor : null,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            preset['subtitle'] as String,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+
+        const SizedBox(height: 18),
+        const Divider(height: 1),
+        const SizedBox(height: 16),
+
+        // 3. Custom Hex Color Input Field
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _hexColorController,
+                decoration: InputDecoration(
+                  labelText: 'Custom Brand Hex Code',
+                  hintText: '#1E3A8A',
+                  helperText: 'Enter any 6-digit RGB Hex color (e.g. #065F46 or 1E3A8A)',
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: currentColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: currentColor.withValues(alpha: 0.4),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+                onChanged: (val) {
+                  final clean = val.replaceAll('#', '').trim();
+                  if (clean.length == 6) {
+                    final intVal = int.tryParse('FF$clean', radix: 16);
+                    if (intVal != null) {
+                      setState(() {
+                        _selectedAccentColor = intVal;
+                      });
+                    }
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -882,6 +1330,9 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                           ],
                         ),
                       ),
+
+                      // ── 0. Brand Palette & Theme Studio ─────────────────
+                      _buildBrandPaletteCard(theme),
 
                       // ── 1. Basic Identity & Branding ─────────────────────
                       _buildBentoCard(

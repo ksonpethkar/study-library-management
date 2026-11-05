@@ -66,10 +66,12 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
   late final AnimationController _refreshAnimController;
   late final AnimationController _cardFlipController;
   late final Animation<double> _cardFlipAnimation;
+  bool _birthdayDismissed = false;
 
   @override
   void initState() {
     super.initState();
+    _checkBirthdayDismissed();
     _refreshAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 650),
@@ -109,6 +111,34 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     } else {
       _cardFlipController.forward();
     }
+  }
+
+  Future<void> _checkBirthdayDismissed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now();
+      final todayKey = 'birthday_dismissed_${now.year}_${now.month}_${now.day}';
+      if (prefs.getBool(todayKey) == true && mounted) {
+        setState(() => _birthdayDismissed = true);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _dismissBirthdayBanner(String studentId) async {
+    HapticFeedback.lightImpact();
+    setState(() => _birthdayDismissed = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now();
+      final todayKey = 'birthday_dismissed_${now.year}_${now.month}_${now.day}';
+      await prefs.setBool(todayKey, true);
+    } catch (_) {}
+  }
+
+  bool _isBirthdayToday(DateTime? dob) {
+    if (dob == null) return false;
+    final now = DateTime.now();
+    return dob.month == now.month && dob.day == now.day;
   }
 
   Future<void> _refreshAll() async {
@@ -494,6 +524,11 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 ),
                 const SizedBox(height: 20),
 
+                // Birthday Celebration Banner (Delightful immediate celebration for enrolled students)
+                if (!_birthdayDismissed && _isBirthdayToday(student.dob)) ...[
+                  _buildBirthdayBanner(context, theme, student, libraryName),
+                ],
+
                 // Active Announcement Banner (if any)
                 announcementsAsync.when(
                   data: (announcements) {
@@ -574,7 +609,11 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   effectiveStatus: student.effectiveMembershipStatus,
                   pendingSeatChange: pendingSeatChange,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+
+                // Wi-Fi 1-Tap Quick Access & Password Copy Card
+                _buildWifiCard(context, theme, library),
+                const SizedBox(height: 16),
 
                 // 4. Ergonomic Quick Services Dock (4-column primary + 2-item secondary)
                 _buildQuickServicesDock(context, theme, library),

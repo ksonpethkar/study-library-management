@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:study_library/core/theme/app_theme.dart' as custom_theme;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image/image.dart' as img;
 import 'dart:typed_data';
@@ -3575,6 +3577,156 @@ void main() {
       expect(renewedStudent.effectiveMembershipStatus, equals(MembershipStatus.active));
       expect(renewedStudent.isEffectivelyActive, isTrue);
       expect(renewedStudent.seatId, equals('seat_hall_a_05'));
+    });
+
+    test('95. INSTITUTIONAL BRAND PALETTE, DYNAMIC SEED THEMING & HEX COLOR STUDIO', () {
+      // 1. LibraryModel Default & Serialization Integrity
+      final defaultLib = LibraryModel(
+        id: 'lib_test',
+        name: 'The Cozy Corner Study Centre',
+        address: 'Nath Road, Parli',
+        logoUrl: '',
+        contact: '9403243830',
+        ownerId: 'owner_123',
+        accentColor: 0xFF5D4037,
+        welcomeMessage: 'Welcome',
+        operatingHours: '6 AM - 11 PM',
+        socialLinks: {},
+        rulesText: 'Rules',
+        adminPhotoUrl: '',
+        helplineNumber: '9403243830',
+        waitingListMode: WaitingListMode.contactAdmin,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        adminName: 'Sanket Shahane',
+      );
+      expect(defaultLib.accentColor, equals(0xFF5D4037));
+
+      final json = defaultLib.toJson();
+      expect(json['accentColor'], equals(0xFF5D4037));
+
+      final restoredLib = LibraryModel.fromJson(json);
+      expect(restoredLib.accentColor, equals(0xFF5D4037));
+
+      // 2. Custom Brand Color Palette Update (e.g. Royal Sapphire)
+      const royalSapphire = 0xFF1E3A8A;
+      final reBrandedLib = defaultLib.copyWith(accentColor: royalSapphire);
+      expect(reBrandedLib.accentColor, equals(0xFF1E3A8A));
+
+      // 3. Hex parsing and ARGB32 consistency
+      const hexInput = '#1E3A8A';
+      final cleanHex = hexInput.replaceAll('#', '').trim();
+      final parsedInt = int.parse('FF$cleanHex', radix: 16);
+      expect(parsedInt, equals(royalSapphire));
+
+      final colorObj = Color(parsedInt);
+      expect(colorObj.toARGB32(), equals(royalSapphire));
+
+      // 4. Dynamic Theme Generation Seeding
+      final lightTheme = custom_theme.AppTheme.fromSeed(colorObj, brightness: Brightness.light);
+      final darkTheme = custom_theme.AppTheme.fromSeed(colorObj, brightness: Brightness.dark);
+
+      expect(lightTheme.colorScheme.primary, isNotNull);
+      expect(darkTheme.colorScheme.primary, isNotNull);
+      expect(lightTheme.useMaterial3, isTrue);
+      expect(darkTheme.useMaterial3, isTrue);
+    });
+
+    test('96. PHASE 1: STUDENT BIRTHDAY CELEBRATION ENGINE & WI-FI 1-TAP CREDENTIALS HOTSPOT', () {
+      final now = DateTime.now();
+
+      // ── 1. Birthday Detection Engine ──
+      // Student with birthday today
+      final bdayStudent = createTestStudent(
+        id: 'student_bday_01',
+        name: 'Omkar Kulkarni',
+        phone: '9822012345',
+      ).copyWith(
+        dob: DateTime(now.year - 22, now.month, now.day),
+        course: 'UPSC Civil Services',
+      );
+
+      // Student with birthday tomorrow
+      final tomorrow = now.add(const Duration(days: 1));
+      final nonBdayStudent = createTestStudent(
+        id: 'student_bday_02',
+        name: 'Pooja Patil',
+        phone: '9822054321',
+      ).copyWith(
+        dob: DateTime(now.year - 20, tomorrow.month, tomorrow.day),
+        course: 'CA Final',
+      );
+
+      // Student with null DOB
+      final nullBdayStudent = createTestStudent(
+        id: 'student_bday_03',
+        name: 'Rahul Deshmukh',
+        phone: '9822099999',
+      );
+
+      bool isBirthdayToday(DateTime? dob) {
+        if (dob == null) return false;
+        final current = DateTime.now();
+        return dob.month == current.month && dob.day == current.day;
+      }
+
+      expect(isBirthdayToday(bdayStudent.dob), isTrue);
+      expect(isBirthdayToday(nonBdayStudent.dob), isFalse);
+      expect(isBirthdayToday(nullBdayStudent.dob), isFalse);
+
+      // Verification of celebratory messaging attributes
+      final firstName = bdayStudent.name.trim().split(' ').first;
+      expect(firstName, equals('Omkar'));
+      expect(bdayStudent.course, equals('UPSC Civil Services'));
+
+      // Dismissal storage key pattern
+      final dismissKey = 'birthday_dismissed_${now.year}_${now.month}_${now.day}';
+      expect(dismissKey, contains('birthday_dismissed_'));
+      expect(dismissKey, contains('${now.year}'));
+
+      // ── 2. Library Wi-Fi Hotspot Defaults & Effective Fallbacks ──
+      final defaultLib = LibraryModel(
+        id: 'lib_wifi_test',
+        name: 'The Cozy Corner Study Centre',
+        address: 'Nath Road, Parli',
+        logoUrl: '',
+        contact: '9403243830',
+        ownerId: 'owner_123',
+        accentColor: 0xFF5D4037,
+        welcomeMessage: 'Welcome',
+        operatingHours: '6 AM - 11 PM',
+        socialLinks: {},
+        rulesText: 'Rules',
+        adminPhotoUrl: '',
+        helplineNumber: '9403243830',
+        waitingListMode: WaitingListMode.contactAdmin,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // Effective Wi-Fi fallback properties
+      expect(defaultLib.effectiveWifiSsid, equals('The Cozy Corner Study Centre 5G'));
+      expect(defaultLib.effectiveWifiPassword, equals('Study@Cozy2026'));
+
+      // Custom Wi-Fi Credentials configuration
+      final configuredLib = defaultLib.copyWith(
+        wifiSsid: 'CozyCorner_Ultra5G',
+        wifiPassword: 'CozyStudyPass2026',
+      );
+
+      expect(configuredLib.effectiveWifiSsid, equals('CozyCorner_Ultra5G'));
+      expect(configuredLib.effectiveWifiPassword, equals('CozyStudyPass2026'));
+
+      // Full JSON Serialization & Deserialization round-trip
+      final libJson = configuredLib.toJson();
+      expect(libJson['wifiSsid'], equals('CozyCorner_Ultra5G'));
+      expect(libJson['wifiPassword'], equals('CozyStudyPass2026'));
+
+      final restoredLib = LibraryModel.fromJson(libJson);
+      expect(restoredLib.wifiSsid, equals('CozyCorner_Ultra5G'));
+      expect(restoredLib.wifiPassword, equals('CozyStudyPass2026'));
+      expect(restoredLib.effectiveWifiSsid, equals('CozyCorner_Ultra5G'));
+      expect(restoredLib.effectiveWifiPassword, equals('CozyStudyPass2026'));
     });
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +13,7 @@ import 'package:study_library/features/receipts/presentation/screens/receipt_pre
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/models/receipt_model.dart';
+import 'package:study_library/models/library_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 
@@ -557,7 +559,7 @@ class MyMembershipScreen extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _buildDynamicPerksGrid(theme, library?.facilities ?? const []),
+                      _buildDynamicPerksGrid(context, theme, library?.facilities ?? const [], library: library),
                     ],
                   ),
                 ),
@@ -660,7 +662,7 @@ class MyMembershipScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDynamicPerksGrid(ThemeData theme, List<String> facilities) {
+  Widget _buildDynamicPerksGrid(BuildContext context, ThemeData theme, List<String> facilities, {LibraryModel? library}) {
     final items = facilities.isNotEmpty
         ? facilities
         : const [
@@ -675,7 +677,7 @@ class MyMembershipScreen extends ConsumerWidget {
     Map<String, dynamic> getPerkMeta(String facility) {
       final lower = facility.toLowerCase();
       if (lower.contains('wi-fi') || lower.contains('wifi')) {
-        return {'icon': Icons.wifi_rounded, 'color': const Color(0xFF0284C7), 'sub': '5G Dual-Band Mesh'};
+        return {'icon': Icons.wifi_rounded, 'color': const Color(0xFF0284C7), 'sub': '5G Mesh • Tap to copy pass'};
       } else if (lower.contains('power') || lower.contains('socket')) {
         return {'icon': Icons.power_rounded, 'color': const Color(0xFF0D9488), 'sub': 'Individual Sockets'};
       } else if (lower.contains('water') || lower.contains('ro')) {
@@ -710,39 +712,91 @@ class MyMembershipScreen extends ConsumerWidget {
           runSpacing: 8,
           children: items.map((facility) {
             final meta = getPerkMeta(facility);
+            final isWifi = facility.toLowerCase().contains('wi-fi') || facility.toLowerCase().contains('wifi');
+
             return SizedBox(
               width: itemWidth,
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(meta['icon'] as IconData, size: 18, color: meta['color'] as Color),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            facility,
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            meta['sub'] as String,
-                            style: const TextStyle(fontSize: 9, color: Colors.grey),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                  onTap: isWifi
+                      ? () {
+                          final ssid = library?.effectiveWifiSsid ?? 'Cozy Corner 5G';
+                          final pass = library?.effectiveWifiPassword ?? 'Study@Cozy2026';
+                          HapticFeedback.mediumImpact();
+                          Clipboard.setData(ClipboardData(text: pass));
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.wifi_rounded, color: Colors.white, size: 20),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text('✅ Wi-Fi password copied! Network: "$ssid"'),
+                                  ),
+                                ],
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isWifi
+                          ? const Color(0xFF0284C7).withValues(alpha: 0.05)
+                          : theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isWifi
+                            ? const Color(0xFF0284C7).withValues(alpha: 0.35)
+                            : theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
                       ),
                     ),
-                  ],
+                    child: Row(
+                      children: [
+                        Icon(meta['icon'] as IconData, size: 18, color: meta['color'] as Color),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      facility,
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isWifi) ...[
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.copy_rounded, size: 11, color: Color(0xFF0284C7)),
+                                  ],
+                                ],
+                              ),
+                              Text(
+                                meta['sub'] as String,
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: isWifi ? const Color(0xFF0284C7) : Colors.grey,
+                                  fontWeight: isWifi ? FontWeight.w600 : FontWeight.normal,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             );

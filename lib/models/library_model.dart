@@ -43,6 +43,13 @@ class LibraryModel {
   final String managerContact;
   final String adminContact;
   final String googleMapsUrl;
+  final String wifiSsid;
+  final String wifiPassword;
+
+  String get effectiveWifiSsid =>
+      wifiSsid.trim().isNotEmpty ? wifiSsid.trim() : '${name.trim().isNotEmpty ? name.trim() : "Cozy Corner"} 5G';
+  String get effectiveWifiPassword =>
+      wifiPassword.trim().isNotEmpty ? wifiPassword.trim() : 'Study@Cozy2026';
 
   LibraryModel({
     required this.id,
@@ -87,6 +94,8 @@ class LibraryModel {
     this.managerContact = '',
     this.adminContact = '',
     this.googleMapsUrl = '',
+    this.wifiSsid = '',
+    this.wifiPassword = '',
   });
 
   factory LibraryModel.fromJson(Map<String, dynamic> json) {
@@ -138,6 +147,8 @@ class LibraryModel {
       managerContact: json['managerContact'] as String? ?? '',
       adminContact: json['adminContact'] as String? ?? '',
       googleMapsUrl: json['googleMapsUrl'] as String? ?? json['mapsUrl'] as String? ?? (json['socialLinks'] is Map ? (json['socialLinks']['maps'] as String? ?? '') : ''),
+      wifiSsid: json['wifiSsid'] as String? ?? json['wifiName'] as String? ?? '',
+      wifiPassword: json['wifiPassword'] as String? ?? json['wifiPass'] as String? ?? '',
     );
   }
 
@@ -179,6 +190,8 @@ class LibraryModel {
       'managerContact': managerContact,
       'adminContact': adminContact,
       'googleMapsUrl': googleMapsUrl,
+      'wifiSsid': wifiSsid,
+      'wifiPassword': wifiPassword,
     };
   }
 
@@ -218,6 +231,8 @@ class LibraryModel {
     String? managerContact,
     String? adminContact,
     String? googleMapsUrl,
+    String? wifiSsid,
+    String? wifiPassword,
   }) {
     return LibraryModel(
       id: id ?? this.id,
@@ -255,6 +270,8 @@ class LibraryModel {
       managerContact: managerContact ?? this.managerContact,
       adminContact: adminContact ?? this.adminContact,
       googleMapsUrl: googleMapsUrl ?? this.googleMapsUrl,
+      wifiSsid: wifiSsid ?? this.wifiSsid,
+      wifiPassword: wifiPassword ?? this.wifiPassword,
     );
   }
 
