@@ -130,7 +130,7 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
     final url = _localBridgeUrlController.text.trim();
     if (url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the Local Desk PC Bridge URL first!')),
+        const SnackBar(content: Text('Please enter the Reception Desk Connector address first!')),
       );
       return;
     }
@@ -142,7 +142,7 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
       setState(() => _isTestingBridge = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ok ? 'Desk PC Bridge Connected! ✅' : 'Could not reach Desk PC. Verify IP and port.'),
+          content: Text(ok ? 'Reception Desk Connector Connected! ✅' : 'Could not reach reception desk computer. Check local network connection.'),
           backgroundColor: ok ? Colors.green : Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -399,8 +399,8 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Local Desk PC WhatsApp Bridge', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                                  Text('Free background WhatsApp via reception computer', style: theme.textTheme.bodySmall),
+                                  Text('Reception Desk WhatsApp Connector', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                  Text('Free background WhatsApp via reception desk computer', style: theme.textTheme.bodySmall),
                                 ],
                               ),
                             ),
@@ -415,7 +415,7 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
                           TextField(
                             controller: _localBridgeUrlController,
                             decoration: const InputDecoration(
-                              labelText: 'Desk PC Bridge URL',
+                              labelText: 'Reception Desk Connector Address (URL)',
                               hintText: 'e.g. http://192.168.1.50:3000/send',
                               prefixIcon: Icon(Icons.link_rounded),
                               border: OutlineInputBorder(),
@@ -427,7 +427,7 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
                             icon: _isTestingBridge
                                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                                 : const Icon(Icons.wifi_tethering_rounded),
-                            label: const Text('Test Connection (Ping Desk PC)'),
+                            label: const Text('Test Reception Desk Connection'),
                           ),
                         ],
                       ],
@@ -458,8 +458,8 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Custom Webhook Endpoint', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                                  Text('Post JSON events to your own server or Zapier', style: theme.textTheme.bodySmall),
+                                  Text('External Automation Connector (Zapier, Make & Webhooks)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                  Text('Automatically trigger workflows in external apps (Zapier, Make, Cloud Webhook)', style: theme.textTheme.bodySmall),
                                 ],
                               ),
                             ),
@@ -474,8 +474,8 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
                           TextField(
                             controller: _customWebhookUrlController,
                             decoration: const InputDecoration(
-                              labelText: 'Webhook URL',
-                              hintText: 'https://your-service.com/webhook',
+                              labelText: 'Connector Webhook URL',
+                              hintText: 'https://hooks.zapier.com/hooks/catch/...',
                               prefixIcon: Icon(Icons.http_rounded),
                               border: OutlineInputBorder(),
                             ),

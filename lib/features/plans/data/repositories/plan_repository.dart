@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_library/models/plan_model.dart';
 
 class PlanRepository {
@@ -62,9 +63,40 @@ class PlanRepository {
     if (hasStudents) {
       throw Exception('Cannot delete a plan with active students.');
     }
-    await _plansRef(libraryId).doc(planId).update({
-      'deletedAt': DateTime.now().toIso8601String(),
+    
+    final planDoc = await _plansRef(libraryId).doc(planId).get();
+    final planData = planDoc.data() ?? {};
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final now = DateTime.now();
+
+    final batch = _firestore.batch();
+    batch.update(_plansRef(libraryId).doc(planId), {
+      'deletedAt': now.toIso8601String(),
     });
+
+    final recycleRef = _firestore
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('recycle_bin')
+        .doc(planId);
+
+    batch.set(recycleRef, {
+      ...planData,
+      'id': planId,
+      'type': 'plan',
+      'name': planData['name'] ?? 'Plan',
+      'displayName': planData['name'] ?? 'Plan',
+      'price': planData['price'],
+      'duration': planData['duration'],
+      'durationUnit': planData['durationUnit'],
+      'libraryId': libraryId,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'expiresAt': Timestamp.fromDate(now.add(const Duration(days: 30))),
+      'deletedBy': currentUser?.email ?? currentUser?.uid ?? 'admin',
+      'originalData': planData,
+    }, SetOptions(merge: true));
+
+    await batch.commit();
 
     try {
       await _firestore

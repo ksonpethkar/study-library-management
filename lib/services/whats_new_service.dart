@@ -1,10 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/constants/app_constants.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class ReleaseChange {
   final IconData icon;
@@ -12,6 +14,8 @@ class ReleaseChange {
   final String description;
   final String? badge;
   final String? rawIconName;
+  final String? actionRoute;
+  final String? actionLabel;
 
   const ReleaseChange({
     required this.icon,
@@ -19,6 +23,8 @@ class ReleaseChange {
     required this.description,
     this.badge,
     this.rawIconName,
+    this.actionRoute,
+    this.actionLabel,
   });
 
   Map<String, dynamic> toJson() {
@@ -27,6 +33,8 @@ class ReleaseChange {
       'title': title,
       'description': description,
       if (badge != null) 'badge': badge,
+      if (actionRoute != null) 'actionRoute': actionRoute,
+      if (actionLabel != null) 'actionLabel': actionLabel,
     };
   }
 
@@ -38,6 +46,8 @@ class ReleaseChange {
       description: (json['description'] ?? '').toString(),
       badge: json['badge'] as String?,
       rawIconName: iconStr,
+      actionRoute: json['actionRoute'] as String?,
+      actionLabel: json['actionLabel'] as String?,
     );
   }
 
@@ -134,6 +144,8 @@ class WhatsNewService {
       title: 'Priority Announcements & Expiration Control',
       description:
           'Create prioritized announcements (Urgent, Holiday, Maintenance, General) with optional auto-expiry dates, live read receipt metrics, and automatic sync to student notification centers.',
+      actionRoute: Routes.adminAnnouncements,
+      actionLabel: 'Open Announcements',
     ),
     const ReleaseChange(
       icon: Icons.arrow_back_rounded,
@@ -150,6 +162,8 @@ class WhatsNewService {
       title: 'Dynamic Student Pass Validity & Expiration Engine',
       description:
           'Pass status now evaluates dynamically based on wall-clock time and plan duration. Expired passes are automatically flagged in real time with 1-tap renewal payment recording.',
+      actionRoute: Routes.adminStudents,
+      actionLabel: 'View Students',
     ),
     const ReleaseChange(
       icon: Icons.qr_code_scanner_rounded,
@@ -158,6 +172,8 @@ class WhatsNewService {
       title: 'Instant QR Scan Expiration Verification',
       description:
           'Scanning a student QR instantly displays valid, grace, or expired states with instant action to record renewal payments directly from the check-in sheet.',
+      actionRoute: Routes.adminQrScanner,
+      actionLabel: 'Open Scanner',
     ),
     const ReleaseChange(
       icon: Icons.image_rounded,
@@ -182,6 +198,8 @@ class WhatsNewService {
       title: 'Admin Notification Center & Theme Toggle',
       description:
           'Quick 1-tap Dark/Light theme toggle and real-time Notification Center added directly to the Admin Dashboard header with live unread alert badges.',
+      actionRoute: Routes.adminHome,
+      actionLabel: 'Go to Dashboard',
     ),
     const ReleaseChange(
       icon: Icons.badge_rounded,
@@ -202,6 +220,8 @@ class WhatsNewService {
       title: 'Multi-Notice Carousel & Dedicated Notice Board',
       description:
           'Browse library announcements in a swipeable dashboard carousel with instant dismiss and view full historical circulars in the new Notice Board & Circulars hub.',
+      actionRoute: Routes.studentAnnouncements,
+      actionLabel: 'View Notices',
     ),
     const ReleaseChange(
       icon: Icons.arrow_back_rounded,
@@ -218,6 +238,8 @@ class WhatsNewService {
       title: 'Dynamic Pass Validity & 1-Tap Renewal',
       description:
           'Your Digital ID Card now dynamically reflects real-time status (Active, Grace, or Expired) with instant 1-tap renewal action to ensure your seat is retained.',
+      actionRoute: Routes.studentRenew,
+      actionLabel: 'Check Renewals',
     ),
     const ReleaseChange(
       icon: Icons.image_rounded,
@@ -250,6 +272,8 @@ class WhatsNewService {
       title: 'Accurate Study Privileges & Facilities',
       description:
           'The Perks and Environment sections now reflect only the genuine facilities provided by your library. Air Conditioning and extra perks only appear if actually equipped.',
+      actionRoute: Routes.studentHome,
+      actionLabel: 'Explore Facilities',
     ),
     const ReleaseChange(
       icon: Icons.support_agent_rounded,
@@ -258,6 +282,8 @@ class WhatsNewService {
       title: 'Direct Owner, Admin & Manager Helplines',
       description:
           'Access separate direct contact numbers for the Library Owner, Admin, and Manager with instant Call and WhatsApp buttons directly from your profile and dashboard.',
+      actionRoute: Routes.studentProfile,
+      actionLabel: 'View Contacts',
     ),
     const ReleaseChange(
       icon: Icons.chair_rounded,
@@ -266,6 +292,8 @@ class WhatsNewService {
       title: 'Universal Clean Seat Numbering',
       description:
           'Your assigned seat number is now formatted cleanly across all screens (Seat #2 [Cozy Hall]) instead of showing complex internal database coordinates.',
+      actionRoute: Routes.studentSeatMap,
+      actionLabel: 'View Seat Map',
     ),
     const ReleaseChange(
       icon: Icons.badge_rounded,
@@ -376,18 +404,14 @@ class WhatsNewService {
   /// Fetch remote features in background (non-blocking)
   static Future<List<ReleaseChange>?> fetchRemoteFeatures({required bool isStudent}) async {
     try {
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 3);
       final url = Uri.parse('$_updateJsonUrl?t=${DateTime.now().millisecondsSinceEpoch}');
-      final request = await client.getUrl(url);
-      request.headers.set(HttpHeaders.cacheControlHeader, 'no-cache, no-store');
-      final response = await request.close();
+      final response = await http.get(
+        url,
+        headers: {'Cache-Control': 'no-cache, no-store'},
+      ).timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
-        final body = await response.transform(utf8.decoder).join();
-        final json = jsonDecode(body) as Map<String, dynamic>;
-        client.close();
-
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
         final fieldName = isStudent ? 'studentFeatures' : 'adminFeatures';
         final rawFeatures = json[fieldName] ?? json['features'];
 
@@ -405,7 +429,6 @@ class WhatsNewService {
           }
         }
       }
-      client.close();
     } catch (_) { /* intentionally silent */ }
     return null;
   }
@@ -632,6 +655,31 @@ class _WhatsNewDialogState extends State<WhatsNewDialog> {
                                     fontSize: 11.5,
                                   ),
                                 ),
+                                if (item.actionRoute != null) ...[
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                      icon: const Icon(Icons.arrow_forward_rounded, size: 12),
+                                      label: Text(
+                                        item.actionLabel ?? 'Try It Now',
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                      onPressed: () {
+                                        widget.onDismiss?.call();
+                                        Navigator.of(context).pop();
+                                        context.push(item.actionRoute!);
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),

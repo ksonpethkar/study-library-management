@@ -91,6 +91,8 @@ class ReceiptRepository {
         await paymentDoc.set({
           'id': paymentDoc.id,
           'studentId': newReceipt.studentId,
+          if (newReceipt.studentUserId != null && newReceipt.studentUserId!.isNotEmpty)
+            'studentUserId': newReceipt.studentUserId,
           'amount': newReceipt.amount,
           'totalPlanFee': newReceipt.totalFee ?? newReceipt.amount,
           'remainingDue': newReceipt.remainingDue ?? 0.0,
@@ -237,13 +239,15 @@ class ReceiptRepository {
         .doc(receiptId);
     batch.set(libBinRef, recycleBinData);
 
-    final globalBinRef = _firestore.collection('recycle_bin').doc(receiptId);
-    batch.set(globalBinRef, recycleBinData);
-
     // 2. Hard-delete from receipts collection
     batch.delete(receiptRef);
 
     await batch.commit();
+
+    try {
+      final globalBinRef = _firestore.collection('recycle_bin').doc(receiptId);
+      await globalBinRef.set(recycleBinData);
+    } catch (_) {}
 
     // 3. Decrement revenue aggregate
     final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
@@ -351,6 +355,50 @@ class ReceiptRepository {
           'updatedAt': DateTime.now().toIso8601String(),
         });
       }
+    }
+  }
+
+  /// Backfill missing studentUserId on legacy receipts and payments for real-time visibility
+  Future<void> healStudentReceiptsAndPayments(String libraryId, String studentId, String studentUserId) async {
+    if (libraryId.isEmpty || studentId.isEmpty || studentUserId.isEmpty) return;
+    try {
+      final batch = _firestore.batch();
+      var hasUpdates = false;
+
+      final receiptsSnap = await _receiptsRef(libraryId)
+          .where('studentId', isEqualTo: studentId)
+          .limit(30)
+          .get();
+
+      for (final doc in receiptsSnap.docs) {
+        final data = doc.data();
+        if (data['studentUserId'] == null || (data['studentUserId'] as String).isEmpty) {
+          batch.update(doc.reference, {'studentUserId': studentUserId});
+          hasUpdates = true;
+        }
+      }
+
+      final paymentsSnap = await _firestore
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('payments')
+          .where('studentId', isEqualTo: studentId)
+          .limit(30)
+          .get();
+
+      for (final doc in paymentsSnap.docs) {
+        final data = doc.data();
+        if (data['studentUserId'] == null || (data['studentUserId'] as String).isEmpty) {
+          batch.update(doc.reference, {'studentUserId': studentUserId});
+          hasUpdates = true;
+        }
+      }
+
+      if (hasUpdates) {
+        await batch.commit();
+      }
+    } catch (_) {
+      // Non-blocking best-effort
     }
   }
 }

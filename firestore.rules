@@ -315,9 +315,9 @@ service cloud.firestore {
         allow update, delete: if false; // NEVER modifiable
       }
 
-      // ── Recycle bin — owner or staff with delete permission ───────────────
+      // ── Recycle bin — owner or active staff member ────────────────────────
       match /recycle_bin/{id} {
-        allow read, write: if isOwner(libraryId) || ownerOrStaffCan(libraryId, 'canDeleteStudents');
+        allow read, write: if isOwner(libraryId) || isActiveStaff(libraryId);
       }
 
       // ── Waiting list ──────────────────────────────────────────────────────
@@ -415,10 +415,10 @@ service cloud.firestore {
     }
 
     // ── Root recycle bin fallback ───────────────────────────────────────────
-    // SEC-H1 FIX: Only master admins can access root-level recycle bin.
-    // Previously any authenticated user could read/write deleted data.
     match /recycle_bin/{docId} {
-      allow read, write: if isMasterAdmin();
+      allow read, write: if isMasterAdmin() ||
+        (isAuth() && resource != null && isOwner(resource.data.get('libraryId', 'NONE'))) ||
+        (isAuth() && request.resource != null && isOwner(request.resource.data.get('libraryId', 'NONE')));
     }
 
     // ── Collection Group queries ─────────────────────────────────────────────

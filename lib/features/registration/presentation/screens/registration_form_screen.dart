@@ -11,6 +11,8 @@ import 'package:study_library/services/ocr_service.dart';
 import '../../data/ocr_parser.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/utils/app_validators.dart';
+import 'package:study_library/services/form_config_service.dart';
+import 'package:intl/intl.dart';
 import '../providers/registration_provider.dart';
 
 class RegistrationFormScreen extends ConsumerStatefulWidget {
@@ -229,6 +231,150 @@ class _RegistrationFormScreenState
       }
       return null;
     };
+  }
+
+  /// Returns the configured custom label or fallback with required asterisk if mandated
+  String _label(String id, String defaultLabel) {
+    final l = FormConfigService.getFieldLabel(_customFieldsConfig, id, defaultLabel);
+    return _isFieldRequired(id) ? '$l *' : l;
+  }
+
+  Widget _buildCustomFieldInput(Map<String, dynamic> f) {
+    final id = f['id'] as String? ?? '';
+    final label = f['label'] as String? ?? id;
+    final isRequired = f['required'] as bool? ?? false;
+    final type = f['type'] as String? ?? 'Text';
+    final ctrl = _customControllers[id];
+    if (ctrl == null) return const SizedBox.shrink();
+
+    if (type == 'Date') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14.0),
+        child: InkWell(
+          onTap: () async {
+            DateTime? initialDate;
+            try {
+              if (ctrl.text.isNotEmpty) {
+                initialDate = DateFormat('dd/MM/yyyy').parse(ctrl.text);
+              }
+            } catch (_) {}
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: initialDate ?? DateTime.now(),
+              firstDate: DateTime(1950),
+              lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+            );
+            if (picked != null) {
+              setState(() {
+                ctrl.text = DateFormat('dd/MM/yyyy').format(picked);
+              });
+            }
+          },
+          child: IgnorePointer(
+            child: TextFormField(
+              controller: ctrl,
+              decoration: InputDecoration(
+                labelText: '$label${isRequired ? ' *' : ''}',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.calendar_today_rounded, size: 20),
+                suffixIcon: const Icon(Icons.arrow_drop_down),
+              ),
+              validator: isRequired
+                  ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
+                  : null,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (type == 'Number') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14.0),
+        child: TextFormField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(
+            labelText: '$label${isRequired ? ' *' : ''}',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.numbers_rounded, size: 20),
+          ),
+          validator: isRequired
+              ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
+              : null,
+        ),
+      );
+    }
+
+    if (type == 'Dropdown') {
+      final rawOptions = f['options'];
+      final List<String> options = (rawOptions is List)
+          ? rawOptions.map((e) => e?.toString().trim() ?? '').where((e) => e.isNotEmpty).toList()
+          : [];
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14.0),
+        child: DropdownButtonFormField<String>(
+          initialValue: options.contains(ctrl.text) ? ctrl.text : null,
+          items: options
+              .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
+              .toList(),
+          onChanged: (val) {
+            setState(() {
+              ctrl.text = val ?? '';
+            });
+          },
+          decoration: InputDecoration(
+            labelText: '$label${isRequired ? ' *' : ''}',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.arrow_drop_down_circle_outlined, size: 20),
+          ),
+          validator: isRequired
+              ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
+              : null,
+        ),
+      );
+    }
+
+    // Default: Plain Text
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14.0),
+      child: TextFormField(
+        controller: ctrl,
+        decoration: InputDecoration(
+          labelText: '$label${isRequired ? ' *' : ''}',
+          border: const OutlineInputBorder(),
+        ),
+        validator: isRequired
+            ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildCategoryCustomFields(String category, {bool showSectionHeader = false, ThemeData? theme}) {
+    final customFields = _customFieldsConfig.where((f) {
+      final isBuiltin = f['builtin'] as bool? ?? false;
+      final cat = f['category']?.toString() ?? FormFieldCategory.custom;
+      final visible = f['visible'] as bool? ?? true;
+      return !isBuiltin && visible && cat == category;
+    }).toList();
+
+    if (customFields.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showSectionHeader && theme != null) ...[
+          const SizedBox(height: 16),
+          _sectionHeader(theme, 'Additional Information'),
+          const SizedBox(height: 12),
+        ],
+        ...customFields.map(_buildCustomFieldInput),
+      ],
+    );
   }
 
   @override
@@ -614,9 +760,7 @@ class _RegistrationFormScreenState
                     if (_isFieldVisible('fatherName')) ...[
                       _field(
                         controller: _fatherNameController,
-                        label: _isFieldRequired('fatherName')
-                            ? "Father's / Guardian's Name *"
-                            : "Father's / Guardian's Name",
+                        label: _label('fatherName', "Father's / Guardian's Name"),
                         hintText: "e.g. Suresh Sharma",
                         helperText: "Father or legal guardian's name",
                         trackKey: 'fatherName',
@@ -818,6 +962,9 @@ class _RegistrationFormScreenState
                       const SizedBox(height: 14),
                     ],
 
+                    // Category-aware custom fields for Personal Details
+                    _buildCategoryCustomFields(FormFieldCategory.personal),
+
                     // ── Contact ────────────────────────────────────────────
                     _sectionHeader(theme, 'Contact'),
                     const SizedBox(height: 12),
@@ -853,9 +1000,7 @@ class _RegistrationFormScreenState
                       const SizedBox(height: 14),
                       _field(
                         controller: _emergencyContactController,
-                        label: _isFieldRequired('emergencyContact')
-                            ? 'Emergency Contact Number *'
-                            : 'Emergency Contact Number',
+                        label: _label('emergencyContact', 'Emergency Contact Number'),
                         hintText: 'e.g. 9876543210',
                         helperText: 'Parents or family emergency contact number',
                         trackKey: 'emergencyContact',
@@ -1188,7 +1333,10 @@ class _RegistrationFormScreenState
                           );
                         },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
+                      // Category-aware custom fields for Government ID & KYC
+                      _buildCategoryCustomFields(FormFieldCategory.govId),
+                      const SizedBox(height: 10),
                     ],
 
                     // ── Address ────────────────────────────────────────────
@@ -1226,7 +1374,10 @@ class _RegistrationFormScreenState
                           ),
                         ),
                       ],
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
+                      // Category-aware custom fields for Contact & Residence
+                      _buildCategoryCustomFields(FormFieldCategory.contact),
+                      const SizedBox(height: 10),
                     ],
 
                     // ── Academic & Competitive Goals ─────────────────────────
@@ -1237,9 +1388,7 @@ class _RegistrationFormScreenState
                       if (_isFieldVisible('prep')) ...[
                         _field(
                           controller: _prepController,
-                          label: _isFieldRequired('prep')
-                              ? 'Exam / Target Course *'
-                              : 'Exam / Target Course',
+                          label: _label('prep', 'Exam / Target Course'),
                           hintText: 'e.g. MPSC, UPSC, NEET, JEE, Banking, RTO, CA',
                           helperText: 'Competitive exam or study target',
                           trackKey: 'prep',
@@ -1254,9 +1403,7 @@ class _RegistrationFormScreenState
                           if (_isFieldVisible('college')) ...[
                             _field(
                               controller: _collegeController,
-                              label: _isFieldRequired('college')
-                                  ? 'College / Institute *'
-                                  : 'College / Institute',
+                              label: _label('college', 'College / Institute'),
                               hintText: 'e.g. Govt Degree College',
                               helperText: 'Current College or University',
                               trackKey: 'college',
@@ -1268,9 +1415,7 @@ class _RegistrationFormScreenState
                           if (_isFieldVisible('course')) ...[
                             _field(
                               controller: _courseController,
-                              label: _isFieldRequired('course')
-                                  ? 'Course / Degree *'
-                                  : 'Course / Degree',
+                              label: _label('course', 'Course / Degree'),
                               hintText: 'e.g. B.Sc, B.Tech, MBA',
                               helperText: 'Current Degree or Branch',
                               trackKey: 'course',
@@ -1286,9 +1431,7 @@ class _RegistrationFormScreenState
                                 Expanded(
                                   child: _field(
                                     controller: _collegeController,
-                                    label: _isFieldRequired('college')
-                                        ? 'College / Institute *'
-                                        : 'College / Institute',
+                                    label: _label('college', 'College / Institute'),
                                     hintText: 'e.g. Govt Degree College',
                                     helperText: 'Current College or University',
                                     trackKey: 'college',
@@ -1302,9 +1445,7 @@ class _RegistrationFormScreenState
                                 Expanded(
                                   child: _field(
                                     controller: _courseController,
-                                    label: _isFieldRequired('course')
-                                        ? 'Course / Degree *'
-                                        : 'Course / Degree',
+                                    label: _label('course', 'Course / Degree'),
                                     hintText: 'e.g. B.Sc, B.Tech, MBA',
                                     helperText: 'Current Degree or Branch',
                                     trackKey: 'course',
@@ -1323,9 +1464,7 @@ class _RegistrationFormScreenState
                           if (_isFieldVisible('year')) ...[
                             _field(
                               controller: _yearController,
-                              label: _isFieldRequired('year')
-                                  ? 'Study Year / Semester *'
-                                  : 'Study Year / Semester',
+                              label: _label('year', 'Study Year / Semester'),
                               hintText: 'e.g. 2nd Year / 4th Sem',
                               helperText: 'Academic year of study',
                               trackKey: 'year',
@@ -1337,9 +1476,7 @@ class _RegistrationFormScreenState
                           if (_isFieldVisible('rollNumber')) ...[
                             _field(
                               controller: _rollNumberController,
-                              label: _isFieldRequired('rollNumber')
-                                  ? 'Roll / Enroll No. *'
-                                  : 'Roll / Enroll No.',
+                              label: _label('rollNumber', 'Roll / Enroll No.'),
                               hintText: 'e.g. 2024-ME-042',
                               helperText: 'College roll / ID',
                               trackKey: 'rollNumber',
@@ -1355,9 +1492,7 @@ class _RegistrationFormScreenState
                                 Expanded(
                                   child: _field(
                                     controller: _yearController,
-                                    label: _isFieldRequired('year')
-                                        ? 'Study Year / Semester *'
-                                        : 'Study Year / Semester',
+                                    label: _label('year', 'Study Year / Semester'),
                                     hintText: 'e.g. 2nd Year / 4th Sem',
                                     helperText: 'Academic year of study',
                                     trackKey: 'year',
@@ -1371,9 +1506,7 @@ class _RegistrationFormScreenState
                                 Expanded(
                                   child: _field(
                                     controller: _rollNumberController,
-                                    label: _isFieldRequired('rollNumber')
-                                        ? 'Roll / Enroll No. *'
-                                        : 'Roll / Enroll No.',
+                                    label: _label('rollNumber', 'Roll / Enroll No.'),
                                     hintText: 'e.g. 2024-ME-042',
                                     helperText: 'College roll / ID',
                                     trackKey: 'rollNumber',
@@ -1386,40 +1519,14 @@ class _RegistrationFormScreenState
                           const SizedBox(height: 14),
                         ],
                       ],
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
+                      // Category-aware custom fields for Academic & Competitive Goals
+                      _buildCategoryCustomFields(FormFieldCategory.academics),
+                      const SizedBox(height: 10),
                     ],
 
-                    if (_customControllers.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      _sectionHeader(theme, 'Additional Information'),
-                      const SizedBox(height: 12),
-                      ..._customFieldsConfig
-                          .where((f) =>
-                              (f['builtin'] as bool? ?? false) == false &&
-                              (f['visible'] as bool? ?? true))
-                          .map((f) {
-                        final id = f['id'] as String? ?? '';
-                        final label = f['label'] as String? ?? id;
-                        final isRequired = f['required'] as bool? ?? false;
-                        final ctrl = _customControllers[id];
-                        if (ctrl == null) return const SizedBox.shrink();
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 14.0),
-                          child: TextFormField(
-                            controller: ctrl,
-                            decoration: InputDecoration(
-                              labelText: '$label${isRequired ? ' *' : ''}',
-                              border: const OutlineInputBorder(),
-                            ),
-                            validator: isRequired
-                                ? (val) => (val == null || val.trim().isEmpty)
-                                    ? '$label is required'
-                                    : null
-                                : null,
-                          ),
-                        );
-                      }),
-                    ],
+                    // Custom & Additional Fields (Category: custom)
+                    _buildCategoryCustomFields(FormFieldCategory.custom, showSectionHeader: true, theme: theme),
 
                     const SizedBox(height: 32),
 

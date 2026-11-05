@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/firestore_paths.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:study_library/core/security/audit_logger.dart';
@@ -247,12 +248,13 @@ class StudentRepository {
       
       final binPayload = {
         ...studentData,
+        'id': studentId,
         'deletedAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(days: 30))),
         'type': 'student',
         'libraryId': libraryId,
+        'displayName': studentData['name'] ?? 'Student',
       };
-      final recycleBinRef = _firestore.collection(FirestorePaths.recycleBin).doc(studentId);
-      batch.set(recycleBinRef, binPayload);
       final libBinRef = _firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
@@ -607,19 +609,62 @@ class StudentRepository {
   Future<void> bulkDelete(String libraryId, List<String> studentIds) async {
     try {
       final batch = _firestore.batch();
+      final now = DateTime.now();
+      final currentUser = FirebaseAuth.instance.currentUser;
+
       for (final id in studentIds) {
         final ref = _firestore
             .collection(FirestorePaths.libraries)
             .doc(libraryId)
             .collection(FirestorePaths.students)
             .doc(id);
-            
-        // Move to recycle bin ideally, but keeping it simple as delete for bulk
+
+        final docSnap = await ref.get();
+        if (docSnap.exists) {
+          final studentData = docSnap.data() ?? {};
+          final binPayload = {
+            ...studentData,
+            'id': id,
+            'deletedAt': FieldValue.serverTimestamp(),
+            'expiresAt': Timestamp.fromDate(now.add(const Duration(days: 30))),
+            'type': 'student',
+            'libraryId': libraryId,
+            'deletedBy': currentUser?.email ?? currentUser?.uid ?? 'system',
+            'displayName': studentData['name'] ?? 'Student',
+          };
+
+          final libBinRef = _firestore
+              .collection(FirestorePaths.libraries)
+              .doc(libraryId)
+              .collection('recycle_bin')
+              .doc(id);
+          batch.set(libBinRef, binPayload);
+
+          // Free seat if occupied
+          final seatId = studentData['seatId'] as String?;
+          final sectionId = studentData['sectionId'] as String?;
+          if (seatId != null && seatId.isNotEmpty && sectionId != null && sectionId.isNotEmpty) {
+            final seatRef = _firestore
+                .collection(FirestorePaths.libraries)
+                .doc(libraryId)
+                .collection(FirestorePaths.sections)
+                .doc(sectionId)
+                .collection(FirestorePaths.seats)
+                .doc(seatId);
+            batch.update(seatRef, {
+              'status': 'available',
+              'isOccupied': false,
+              'studentId': null,
+              'studentName': null,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
         batch.delete(ref);
       }
       await batch.commit();
     } catch (e) {
-      throw Exception('Failed to delete students in bulk.');
+      throw Exception('Failed to delete students in bulk: $e');
     }
   }
 

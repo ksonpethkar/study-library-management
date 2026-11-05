@@ -9,6 +9,18 @@ import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
+class _RecycleBinEntry {
+  final String id;
+  final String type;
+  final Map<String, dynamic> data;
+
+  const _RecycleBinEntry({
+    required this.id,
+    required this.type,
+    required this.data,
+  });
+}
+
 class RecycleBinScreen extends ConsumerStatefulWidget {
   const RecycleBinScreen({super.key});
 
@@ -32,7 +44,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
     if (libraryId.isEmpty) return;
 
-    final type = data['type']?.toString().toLowerCase() ?? 'student';
+    final type = (data['type'] ?? 'student').toString().toLowerCase();
     String targetCollection;
     switch (type) {
       case 'student':
@@ -57,13 +69,22 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
         targetCollection = 'students';
     }
 
-    final restoreData = Map<String, dynamic>.from(data);
+    final rawData = data['originalData'] is Map
+        ? Map<String, dynamic>.from(data['originalData'] as Map)
+        : Map<String, dynamic>.from(data);
+
+    final restoreData = Map<String, dynamic>.from(rawData);
     restoreData.remove('deletedAt');
     restoreData.remove('type');
     restoreData.remove('libraryId');
     restoreData.remove('displayName');
     restoreData.remove('expiresAt');
     restoreData.remove('deletedBy');
+    restoreData.remove('originalData');
+
+    if (type == 'plan') {
+      restoreData['deletedAt'] = null;
+    }
 
     // Prevent double-booking / seat collision if restoring a student
     if (type == 'student' && restoreData['seatId'] != null) {
@@ -118,19 +139,14 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
           .collection(targetCollection)
           .doc(docId);
 
-      // Clean from both potential recycle_bin locations
       final libBinRef = FirebaseFirestore.instance
           .collection('libraries')
           .doc(libraryId)
           .collection('recycle_bin')
           .doc(docId);
-      final globalBinRef = FirebaseFirestore.instance
-          .collection('recycle_bin')
-          .doc(docId);
 
-      batch.set(targetRef, restoreData);
+      batch.set(targetRef, restoreData, SetOptions(merge: true));
       batch.delete(libBinRef);
-      batch.delete(globalBinRef);
 
       // If restoring a receipt, restore revenue aggregate
       if (type == 'receipt') {
@@ -145,7 +161,36 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
         }
       }
 
+      // If restoring an active payment, reduce the student's pending dues
+      if (type == 'payment') {
+        final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
+        final studentId = data['studentId'] as String?;
+        final payStatus = (data['status'] as String? ?? '').toLowerCase();
+        if (amt > 0 && studentId != null && studentId.isNotEmpty && payStatus != 'voided' && payStatus != 'refunded') {
+          try {
+            final sDoc = await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('students')
+                .doc(studentId)
+                .get();
+            if (sDoc.exists) {
+              final currentDue = (sDoc.data()?['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
+              final newDue = (currentDue - amt).clamp(0.0, double.infinity);
+              batch.update(sDoc.reference, {
+                'pendingDueBalance': newDue,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+            }
+          } catch (_) {}
+        }
+      }
+
       await batch.commit();
+
+      try {
+        await FirebaseFirestore.instance.collection('recycle_bin').doc(docId).delete();
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -243,10 +288,19 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
             .collection('recycle_bin')
             .doc(docId),
       );
+      // Also delete from plans if it was a soft-deleted plan
       batch.delete(
-        FirebaseFirestore.instance.collection('recycle_bin').doc(docId),
+        FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('plans')
+            .doc(docId),
       );
       await batch.commit();
+
+      try {
+        await FirebaseFirestore.instance.collection('recycle_bin').doc(docId).delete();
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -278,19 +332,36 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
           .collection('recycle_bin')
           .get();
 
-      final snap2 = await FirebaseFirestore.instance
-          .collection('recycle_bin')
-          .where('libraryId', isEqualTo: libraryId)
-          .get();
-
       final batch = FirebaseFirestore.instance.batch();
       for (final doc in snap1.docs) {
         batch.delete(doc.reference);
       }
-      for (final doc in snap2.docs) {
-        batch.delete(doc.reference);
+
+      // Also clean up any soft-deleted plans
+      final snapPlans = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('plans')
+          .get();
+      for (final doc in snapPlans.docs) {
+        if (doc.data()['deletedAt'] != null) {
+          batch.delete(doc.reference);
+        }
       }
+
       await batch.commit();
+
+      try {
+        final snap2 = await FirebaseFirestore.instance
+            .collection('recycle_bin')
+            .where('libraryId', isEqualTo: libraryId)
+            .get();
+        final rootBatch = FirebaseFirestore.instance.batch();
+        for (final doc in snap2.docs) {
+          rootBatch.delete(doc.reference);
+        }
+        await rootBatch.commit();
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -328,10 +399,19 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
         .collection('recycle_bin')
         .snapshots();
 
+    final plansStream = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('plans')
+        .snapshots();
+
     final globalBinStream = FirebaseFirestore.instance
         .collection('recycle_bin')
         .where('libraryId', isEqualTo: libraryId)
-        .snapshots();
+        .snapshots()
+        .handleError((e) {
+      debugPrint('Global bin query note: $e');
+    });
 
     return DefaultTabController(
       length: _tabs.length,
@@ -364,65 +444,130 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: libBinStream,
           builder: (context, snapshot1) {
+            if (snapshot1.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
+                      const SizedBox(height: 12),
+                      Text(
+                        AppErrorFormatter.toUserFriendly(snapshot1.error),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
             return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: globalBinStream,
-              builder: (context, snapshot2) {
-                if (snapshot1.connectionState == ConnectionState.waiting &&
-                    snapshot2.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+              stream: plansStream,
+              builder: (context, snapshotPlans) {
+                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: globalBinStream,
+                  builder: (context, snapshot2) {
+                    if (snapshot1.connectionState == ConnectionState.waiting &&
+                        !snapshot1.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                // Combine and de-duplicate by document ID
-                final itemMap = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
-                if (snapshot1.hasData) {
-                  for (final d in snapshot1.data!.docs) {
-                    itemMap[d.id] = d;
-                  }
-                }
-                if (snapshot2.hasData) {
-                  for (final d in snapshot2.data!.docs) {
-                    itemMap[d.id] = d;
-                  }
-                }
+                    // Combine and de-duplicate by document ID
+                    final itemMap = <String, _RecycleBinEntry>{};
 
-                final docs = itemMap.values.toList();
-                List<QueryDocumentSnapshot<Map<String, dynamic>>> filteredDocs;
+                    if (snapshot1.hasData && snapshot1.data != null) {
+                      for (final d in snapshot1.data!.docs) {
+                        final raw = d.data();
+                        final unwrap = (raw['originalData'] is Map)
+                            ? {...(raw['originalData'] as Map).cast<String, dynamic>(), ...raw}
+                            : raw;
+                        final type = (unwrap['type'] ?? 'student').toString().toLowerCase();
+                        itemMap[d.id] = _RecycleBinEntry(id: d.id, type: type, data: unwrap);
+                      }
+                    }
 
-                if (_selectedTab == 'Students') {
-                  filteredDocs = docs.where((d) => (d.data()['type'] ?? 'student') == 'student').toList();
-                } else if (_selectedTab == 'Receipts & Payments' || _selectedTab == 'Receipts' || _selectedTab == 'Payments') {
-                  filteredDocs = docs.where((d) => (d.data()['type'] ?? '') == 'receipt' || (d.data()['type'] ?? '') == 'payment').toList();
-                } else if (_selectedTab == 'Plans') {
-                  filteredDocs = docs.where((d) => (d.data()['type'] ?? '') == 'plan').toList();
-                } else if (_selectedTab == 'Sections') {
-                  filteredDocs = docs.where((d) => (d.data()['type'] ?? '') == 'section').toList();
-                } else if (_selectedTab == 'Announcements') {
-                  filteredDocs = docs.where((d) => (d.data()['type'] ?? '') == 'announcement').toList();
-                } else {
-                  filteredDocs = docs;
-                }
+                    if (snapshotPlans.hasData && snapshotPlans.data != null) {
+                      for (final d in snapshotPlans.data!.docs) {
+                        final pData = d.data();
+                        if (pData['deletedAt'] != null && !itemMap.containsKey(d.id)) {
+                          final merged = {
+                            ...pData,
+                            'id': d.id,
+                            'type': 'plan',
+                            'name': pData['name'] ?? 'Plan',
+                            'displayName': pData['name'] ?? 'Plan',
+                          };
+                          itemMap[d.id] = _RecycleBinEntry(id: d.id, type: 'plan', data: merged);
+                        }
+                      }
+                    }
 
-                if (filteredDocs.isEmpty) {
-                  return EmptyStateWidget(
-                    icon: Icons.delete_outline_rounded,
-                    title: 'No deleted ${_selectedTab == "All" ? "items" : _selectedTab.toLowerCase()} found!',
-                    message: 'Deleted items appear here for 30 days and can be restored anytime.',
-                  );
-                }
+                    if (snapshot2.hasData && snapshot2.data != null) {
+                      for (final d in snapshot2.data!.docs) {
+                        if (!itemMap.containsKey(d.id)) {
+                          final raw = d.data();
+                          final unwrap = (raw['originalData'] is Map)
+                              ? {...(raw['originalData'] as Map).cast<String, dynamic>(), ...raw}
+                              : raw;
+                          final type = (unwrap['type'] ?? 'student').toString().toLowerCase();
+                          itemMap[d.id] = _RecycleBinEntry(id: d.id, type: type, data: unwrap);
+                        }
+                      }
+                    }
 
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    setState(() {});
-                    await Future.delayed(const Duration(milliseconds: 400));
-                  },
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: filteredDocs.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final doc = filteredDocs[index];
-                      final data = doc.data();
-                      final type = (data['type'] ?? 'student').toString().toLowerCase();
+                    final entries = itemMap.values.toList();
+                    // Sort newest deletedAt first
+                    entries.sort((a, b) {
+                      final aDate = a.data['deletedAt'];
+                      final bDate = b.data['deletedAt'];
+                      final dtA = aDate is Timestamp ? aDate.toDate() : (aDate is String ? DateTime.tryParse(aDate) : null);
+                      final dtB = bDate is Timestamp ? bDate.toDate() : (bDate is String ? DateTime.tryParse(bDate) : null);
+                      if (dtA == null && dtB == null) return 0;
+                      if (dtA == null) return 1;
+                      if (dtB == null) return -1;
+                      return dtB.compareTo(dtA);
+                    });
+
+                    List<_RecycleBinEntry> filteredDocs;
+
+                    if (_selectedTab == 'Students') {
+                      filteredDocs = entries.where((e) => e.type == 'student').toList();
+                    } else if (_selectedTab == 'Receipts & Payments' || _selectedTab == 'Receipts' || _selectedTab == 'Payments') {
+                      filteredDocs = entries.where((e) => e.type == 'receipt' || e.type == 'payment').toList();
+                    } else if (_selectedTab == 'Plans') {
+                      filteredDocs = entries.where((e) => e.type == 'plan').toList();
+                    } else if (_selectedTab == 'Sections') {
+                      filteredDocs = entries.where((e) => e.type == 'section').toList();
+                    } else if (_selectedTab == 'Announcements') {
+                      filteredDocs = entries.where((e) => e.type == 'announcement').toList();
+                    } else {
+                      filteredDocs = entries;
+                    }
+
+                    if (filteredDocs.isEmpty) {
+                      return EmptyStateWidget(
+                        icon: Icons.delete_outline_rounded,
+                        title: 'No deleted ${_selectedTab == "All" ? "items" : _selectedTab.toLowerCase()} found!',
+                        message: 'Deleted items appear here for 30 days and can be restored anytime.',
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        setState(() {});
+                        await Future.delayed(const Duration(milliseconds: 400));
+                      },
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: filteredDocs.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final item = filteredDocs[index];
+                          final data = item.data;
+                          final type = item.type;
 
                       // Smart display name, subtitle and icon
                       String title;
@@ -432,7 +577,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
 
                       switch (type) {
                         case 'receipt':
-                          title = data['displayName'] ?? 'Receipt #${data['receiptNumber'] ?? doc.id}';
+                          title = data['displayName'] ?? 'Receipt #${data['receiptNumber'] ?? item.id}';
                           subtitle = 'Amount: ₹${(data['amount'] as num?)?.toDouble().toStringAsFixed(0) ?? 0} • Paid via: ${data['paymentMethod'] ?? 'Cash'}';
                           typeIcon = Icons.receipt_long_rounded;
                           typeColor = Colors.orange;
@@ -550,12 +695,12 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
                             IconButton(
                               icon: const Icon(Icons.restore_rounded, color: Colors.green),
                               tooltip: 'Restore $type',
-                              onPressed: () => _restoreItem(doc.id, data),
+                              onPressed: () => _restoreItem(item.id, data),
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete_forever_rounded, color: Colors.red),
                               tooltip: 'Delete Forever',
-                              onPressed: () => _deletePermanently(doc.id),
+                              onPressed: () => _deletePermanently(item.id),
                             ),
                           ],
                         ),
@@ -566,8 +711,10 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
               },
             );
           },
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  ),
+);
+}
 }

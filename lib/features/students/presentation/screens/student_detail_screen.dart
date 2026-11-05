@@ -34,6 +34,7 @@ import 'package:study_library/features/receipts/presentation/screens/receipt_pre
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/features/requests/presentation/widgets/admin_document_studio_dialog.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class StudentDetailScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -2299,75 +2300,147 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           itemBuilder: (context, index) {
                             final data = docs[index].data() as Map<String, dynamic>;
                             final payment = PaymentModel.fromJson({...data, 'id': docs[index].id});
+                            final isVoided = payment.status == PaymentStatus.voided || payment.status == PaymentStatus.cancelled;
                             final isRefunded = payment.status == PaymentStatus.refunded;
+                            final isInactive = isVoided || isRefunded;
+                            final isPartial = payment.status == PaymentStatus.partial;
+                            final isPending = payment.status == PaymentStatus.pending || payment.status == PaymentStatus.overdue;
 
-                            return InkWell(
-                              borderRadius: BorderRadius.circular(8),
-                              onTap: () => _showPaymentActionSheet(context, payment, s, libraryId),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: isRefunded
-                                            ? Colors.red.shade50
-                                            : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Icon(
-                                        isRefunded ? Icons.money_off_rounded : Icons.receipt_long_rounded,
-                                        color: isRefunded ? Colors.red : Theme.of(context).colorScheme.primary,
-                                        size: 20,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '₹${payment.amount.toStringAsFixed(0)} • ${payment.method}',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 15,
-                                              decoration: isRefunded ? TextDecoration.lineThrough : null,
-                                            ),
+                            Color badgeBg;
+                            Color badgeBorder;
+                            Color badgeTextColor;
+                            IconData badgeIcon;
+                            String badgeText;
+
+                            if (isVoided) {
+                              badgeBg = Colors.red.shade50;
+                              badgeBorder = Colors.red.shade300;
+                              badgeTextColor = Colors.red.shade900;
+                              badgeIcon = Icons.block_rounded;
+                              badgeText = 'VOIDED';
+                            } else if (isRefunded) {
+                              badgeBg = Colors.orange.shade50;
+                              badgeBorder = Colors.orange.shade300;
+                              badgeTextColor = Colors.orange.shade900;
+                              badgeIcon = Icons.replay_rounded;
+                              badgeText = 'REFUNDED';
+                            } else if (isPartial) {
+                              badgeBg = Colors.amber.shade50;
+                              badgeBorder = Colors.amber.shade300;
+                              badgeTextColor = Colors.amber.shade900;
+                              badgeIcon = Icons.timelapse_rounded;
+                              badgeText = 'PARTIAL';
+                            } else if (isPending) {
+                              badgeBg = Colors.orange.shade50;
+                              badgeBorder = Colors.orange.shade300;
+                              badgeTextColor = Colors.orange.shade900;
+                              badgeIcon = Icons.hourglass_top_rounded;
+                              badgeText = 'PENDING';
+                            } else {
+                              badgeBg = Colors.green.shade50;
+                              badgeBorder = Colors.green.shade300;
+                              badgeTextColor = Colors.green.shade900;
+                              badgeIcon = Icons.check_circle_rounded;
+                              badgeText = 'PAID';
+                            }
+
+                            return Opacity(
+                              opacity: isInactive ? 0.72 : 1.0,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () => _showPaymentActionSheet(context, payment, s, libraryId),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: isVoided
+                                              ? Colors.red.shade50
+                                              : (isRefunded
+                                                  ? Colors.orange.shade50
+                                                  : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5)),
+                                          border: Border.all(
+                                            color: isVoided
+                                                ? Colors.red.shade200
+                                                : (isRefunded ? Colors.orange.shade200 : Colors.transparent),
                                           ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            DateFormat.yMMMd().format(payment.date) +
-                                                (payment.installmentNumber != null
-                                                    ? ' • Inst #${payment.installmentNumber}'
-                                                    : '') +
-                                                (payment.remainingDue != null && payment.remainingDue! > 0
-                                                    ? ' (Due: ₹${payment.remainingDue!.toStringAsFixed(0)})'
-                                                    : ''),
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey.shade600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Chip(
-                                      label: Text(
-                                        payment.status.name.toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          color: isRefunded ? Colors.red.shade900 : Colors.green.shade900,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          isVoided
+                                              ? Icons.block_rounded
+                                              : (isRefunded ? Icons.money_off_rounded : Icons.receipt_long_rounded),
+                                          color: isVoided
+                                              ? Colors.red.shade700
+                                              : (isRefunded ? Colors.orange.shade700 : Theme.of(context).colorScheme.primary),
+                                          size: 20,
                                         ),
                                       ),
-                                      backgroundColor: isRefunded ? Colors.red.shade100 : Colors.green.shade100,
-                                      padding: EdgeInsets.zero,
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
-                                  ],
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '₹${payment.amount.toStringAsFixed(0)} • ${payment.method}',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                                decoration: isInactive ? TextDecoration.lineThrough : null,
+                                                decorationColor: isVoided
+                                                    ? Colors.red.shade700
+                                                    : (isRefunded ? Colors.orange.shade700 : null),
+                                                decorationThickness: 2,
+                                                color: isInactive ? Colors.grey.shade600 : null,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              DateFormat.yMMMd().format(payment.date) +
+                                                  (payment.installmentNumber != null
+                                                      ? ' • Inst #${payment.installmentNumber}'
+                                                      : '') +
+                                                  (payment.remainingDue != null && payment.remainingDue! > 0
+                                                      ? ' (Due: ₹${payment.remainingDue!.toStringAsFixed(0)})'
+                                                      : ''),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: badgeBg,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: badgeBorder),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(badgeIcon, size: 10, color: badgeTextColor),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              badgeText,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: badgeTextColor,
+                                                letterSpacing: 0.4,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                                    ],
+                                  ),
                                 ),
                               ),
                             );
@@ -2901,18 +2974,55 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Chip(
-                      label: Text(
-                        payment.status.name.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: payment.status == PaymentStatus.paid ? Colors.green.shade900 : Colors.red.shade900,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: (payment.status == PaymentStatus.voided || payment.status == PaymentStatus.cancelled)
+                            ? Colors.red.shade50
+                            : (payment.status == PaymentStatus.refunded
+                                ? Colors.orange.shade50
+                                : (payment.status == PaymentStatus.paid ? Colors.green.shade50 : Colors.amber.shade50)),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: (payment.status == PaymentStatus.voided || payment.status == PaymentStatus.cancelled)
+                              ? Colors.red.shade300
+                              : (payment.status == PaymentStatus.refunded
+                                  ? Colors.orange.shade300
+                                  : (payment.status == PaymentStatus.paid ? Colors.green.shade300 : Colors.amber.shade300)),
                         ),
                       ),
-                      backgroundColor: payment.status == PaymentStatus.paid
-                          ? Colors.green.shade100
-                          : Colors.red.shade100,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            (payment.status == PaymentStatus.voided || payment.status == PaymentStatus.cancelled)
+                                ? Icons.block_rounded
+                                : (payment.status == PaymentStatus.refunded
+                                    ? Icons.replay_rounded
+                                    : (payment.status == PaymentStatus.paid ? Icons.check_circle_rounded : Icons.timelapse_rounded)),
+                            size: 11,
+                            color: (payment.status == PaymentStatus.voided || payment.status == PaymentStatus.cancelled)
+                                ? Colors.red.shade900
+                                : (payment.status == PaymentStatus.refunded
+                                    ? Colors.orange.shade900
+                                    : (payment.status == PaymentStatus.paid ? Colors.green.shade900 : Colors.amber.shade900)),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            payment.status.name.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: (payment.status == PaymentStatus.voided || payment.status == PaymentStatus.cancelled)
+                                  ? Colors.red.shade900
+                                  : (payment.status == PaymentStatus.refunded
+                                      ? Colors.orange.shade900
+                                      : (payment.status == PaymentStatus.paid ? Colors.green.shade900 : Colors.amber.shade900)),
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -3085,19 +3195,47 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 },
               ),
 
-              // 5. Void Payment
-              if (payment.status != PaymentStatus.refunded)
+              // 5. Void Status or Void Action
+              if (payment.status == PaymentStatus.voided ||
+                  payment.status == PaymentStatus.cancelled ||
+                  payment.status == PaymentStatus.refunded) ...[
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.block_rounded, color: Colors.red.shade700, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'This transaction is already ${payment.status.name.toUpperCase()}. It is excluded from library revenue.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red.shade900,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
                 ListTile(
                   leading: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
                   title: const Text('Void / Cancel Payment', style: TextStyle(color: Colors.redAccent)),
-                  subtitle: const Text('Marks payment refunded and restores student due balance'),
+                  subtitle: const Text('Marks payment voided and restores student due balance'),
                   onTap: () async {
                     Navigator.pop(ctx);
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (c) => AlertDialog(
                         title: const Text('Void Payment?'),
-                        content: Text('Are you sure you want to void this ₹${payment.amount.toStringAsFixed(0)} payment? This will mark the record refunded.'),
+                        content: Text('Are you sure you want to void this ₹${payment.amount.toStringAsFixed(0)} payment? This will mark the record as VOIDED and restore the pending balance.'),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
                           FilledButton(
@@ -3114,7 +3252,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           .doc(libraryId)
                           .collection('payments')
                           .doc(payment.id)
-                          .update({'status': PaymentStatus.refunded.name, 'updatedAt': FieldValue.serverTimestamp()});
+                          .update({'status': PaymentStatus.voided.name, 'updatedAt': FieldValue.serverTimestamp()});
 
                       // If student had pending balance, restore it
                       final newDue = (s.pendingDueBalance ?? 0.0) + payment.amount;
@@ -3135,12 +3273,107 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
 
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Payment marked as void and refunded.'), backgroundColor: Colors.orange),
+                          const SnackBar(content: Text('Payment marked as VOIDED.'), backgroundColor: Colors.orange),
                         );
                       }
                     }
                   },
                 ),
+              ],
+
+              // 6. Move to Recycle Bin (Permanent soft-delete, 30 days recovery)
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                title: const Text('Move to Recycle Bin', style: TextStyle(color: Colors.red)),
+                subtitle: const Text('Removes payment and stores in Recycle Bin for 30 days'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (c) => AlertDialog(
+                      title: const Text('Move Payment to Recycle Bin?'),
+                      content: Text('Are you sure you want to delete this ₹${payment.amount.toStringAsFixed(0)} payment? It will be stored in the Recycle Bin and can be restored anytime within 30 days.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                        FilledButton(
+                          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                          onPressed: () => Navigator.pop(c, true),
+                          child: const Text('Move to Bin'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    final now = DateTime.now();
+                    final currentUser = FirebaseAuth.instance.currentUser;
+                    final binData = {
+                      'id': payment.id,
+                      'name': 'Payment ₹${payment.amount.toStringAsFixed(0)} (${payment.method})',
+                      'displayName': 'Payment ₹${payment.amount.toStringAsFixed(0)} (${s.name})',
+                      'type': 'payment',
+                      'libraryId': libraryId,
+                      'studentId': s.id,
+                      'amount': payment.amount,
+                      'method': payment.method,
+                      'date': payment.date.toIso8601String(),
+                      'deletedAt': now.toIso8601String(),
+                      'deletedBy': currentUser?.email ?? currentUser?.uid ?? 'admin',
+                      'expiresAt': now.add(const Duration(days: 30)).toIso8601String(),
+                      'originalData': payment.toJson(),
+                    };
+
+                    final batch = FirebaseFirestore.instance.batch();
+                    final binRef = FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('recycle_bin')
+                        .doc(payment.id);
+                    batch.set(binRef, binData);
+
+                    final payRef = FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('payments')
+                        .doc(payment.id);
+                    batch.delete(payRef);
+
+                    // If active payment is deleted, restore due balance on student
+                    if (payment.status != PaymentStatus.voided &&
+                        payment.status != PaymentStatus.refunded &&
+                        payment.status != PaymentStatus.cancelled) {
+                      final newDue = (s.pendingDueBalance ?? 0.0) + payment.amount;
+                      final studentRef = FirebaseFirestore.instance
+                          .collection('libraries')
+                          .doc(libraryId)
+                          .collection('students')
+                          .doc(s.id);
+                      batch.update(studentRef, {
+                        'pendingDueBalance': newDue,
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      });
+                    }
+
+                    await batch.commit();
+
+                    AuditLogger().log(
+                      action: AuditAction.deleted,
+                      entityType: AuditEntity.payment,
+                      libraryId: libraryId,
+                      entityId: payment.id,
+                      details: {'amount': payment.amount, 'studentId': s.id},
+                    ).ignore();
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Payment moved to Recycle Bin (available in Receipts & Payments tab).'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
             ],
           ),
         ),

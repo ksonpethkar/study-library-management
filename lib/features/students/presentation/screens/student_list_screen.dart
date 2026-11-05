@@ -10,10 +10,9 @@ import '../../../../core/providers/library_provider.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/models/student_model.dart';
 import 'dart:async';
-import 'dart:io';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:study_library/core/utils/file_download_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/widgets/loading_skeleton.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
@@ -136,61 +135,98 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
 
   List<StudentModel> _filteredStudents(List<StudentModel> all) {
     if (_searchQuery.isEmpty) return all;
+    final q = _searchQuery.toLowerCase().trim();
     return all.where((s) {
-      final q = _searchQuery;
-      return s.name.toLowerCase().contains(q) ||
-          s.phone.contains(q) ||
-          (s.membershipNumber?.toLowerCase().contains(q) ?? false) ||
-          s.email.toLowerCase().contains(q);
+      final nameMatch = s.name.toLowerCase().contains(q);
+      final phoneMatch = s.phone.contains(q);
+      final idMatch = s.membershipNumber?.toLowerCase().contains(q) ?? false;
+      final emailMatch = s.email.toLowerCase().contains(q);
+
+      final seatRaw = s.seatId?.toLowerCase() ?? '';
+      final seatLabel = SeatHelper.formatSeatLabel(seatId: s.seatId, includePrefix: false).toLowerCase();
+      final seatMatch = seatRaw.contains(q) ||
+          seatLabel == q ||
+          '#$seatLabel' == q ||
+          'seat $seatLabel'.contains(q) ||
+          'desk $seatLabel'.contains(q);
+
+      return nameMatch || phoneMatch || idMatch || emailMatch || seatMatch;
     }).toList();
   }
 
   Future<void> _runSearch(String query) async {
-    if (query.isEmpty) {
-      setState(() { _searchResults = null; _isSearching = false; });
+    final cleanQ = query.trim();
+    if (cleanQ.isEmpty) {
+      setState(() {
+        _searchResults = null;
+        _isSearching = false;
+      });
       return;
     }
     setState(() => _isSearching = true);
     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
-    if (libraryId.isEmpty) return;
-    
+    if (libraryId.isEmpty) {
+      setState(() => _isSearching = false);
+      return;
+    }
+
     try {
-      final snap = await FirebaseFirestore.instance
+      final localLoaded = ref.read(studentPageProvider).students;
+      final localMatches = _filteredStudents(localLoaded);
+      final List<StudentModel> serverResults = [];
+
+      // Query 1: Exact / prefix on name in TitleCase format (e.g. "Ashish" if user typed "ashish")
+      final titleQuery = cleanQ.length > 1
+          ? cleanQ[0].toUpperCase() + cleanQ.substring(1)
+          : cleanQ.toUpperCase();
+
+      final snapTitle = await FirebaseFirestore.instance
           .collection('libraries').doc(libraryId)
           .collection('students')
           .orderBy('name')
-          .startAt([query])
-          .endAt(['$query\uf8ff'])
-          .limit(20)
+          .startAt([titleQuery])
+          .endAt(['$titleQuery\uf8ff'])
+          .limit(15)
           .get();
-      final results = snap.docs.map((d) => StudentModel.fromJson({...d.data(), 'id': d.id})).toList();
-      
-      final snap2 = await FirebaseFirestore.instance
+      serverResults.addAll(snapTitle.docs.map((d) => StudentModel.fromJson({...d.data(), 'id': d.id})));
+
+      // Query 2: Membership ID
+      final snapId = await FirebaseFirestore.instance
           .collection('libraries').doc(libraryId)
           .collection('students')
-          .where('membershipNumber', isGreaterThanOrEqualTo: query.toUpperCase())
-          .where('membershipNumber', isLessThanOrEqualTo: '${query.toUpperCase()}\uf8ff')
+          .where('membershipNumber', isGreaterThanOrEqualTo: cleanQ.toUpperCase())
+          .where('membershipNumber', isLessThanOrEqualTo: '${cleanQ.toUpperCase()}\uf8ff')
           .limit(5)
           .get();
-      final results2 = snap2.docs.map((d) => StudentModel.fromJson({...d.data(), 'id': d.id})).toList();
-      
-      final snap3 = await FirebaseFirestore.instance
+      serverResults.addAll(snapId.docs.map((d) => StudentModel.fromJson({...d.data(), 'id': d.id})));
+
+      // Query 3: Phone number prefix
+      final snapPhone = await FirebaseFirestore.instance
           .collection('libraries').doc(libraryId)
           .collection('students')
-          .where('phone', isGreaterThanOrEqualTo: query)
-          .where('phone', isLessThanOrEqualTo: '$query\uf8ff')
+          .where('phone', isGreaterThanOrEqualTo: cleanQ)
+          .where('phone', isLessThanOrEqualTo: '$cleanQ\uf8ff')
           .limit(5)
           .get();
-      final results3 = snap3.docs.map((d) => StudentModel.fromJson({...d.data(), 'id': d.id})).toList();
-      
+      serverResults.addAll(snapPhone.docs.map((d) => StudentModel.fromJson({...d.data(), 'id': d.id})));
+
+      // Merge local matches and server results without duplicates
       final seen = <String>{};
-      final merged = [...results, ...results2, ...results3].where((s) => seen.add(s.id)).toList();
+      final merged = [...localMatches, ...serverResults].where((s) => seen.add(s.id)).toList();
+
       if (mounted) {
-        setState(() { _searchResults = merged; _isSearching = false; });
+        setState(() {
+          _searchResults = merged;
+          _isSearching = false;
+        });
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _isSearching = false);
+        final localLoaded = ref.read(studentPageProvider).students;
+        setState(() {
+          _searchResults = _filteredStudents(localLoaded);
+          _isSearching = false;
+        });
       }
     }
   }
@@ -207,6 +243,16 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
             : const Text('Students'),
         actions: [
           if (!_isSelectionMode) ...[
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              ),
+              icon: const Icon(Icons.person_add_rounded, size: 17),
+              label: const Text('Add Student', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              onPressed: () => _navigateToAddStudent(context),
+            ),
+            const SizedBox(width: 4),
             IconButton(
               icon: const Icon(Icons.refresh_rounded),
               tooltip: 'Refresh',
@@ -217,6 +263,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               tooltip: 'Import CSV',
               onPressed: () => context.push('/admin/students/import'),
             ),
+            const SizedBox(width: 8),
           ],
           if (_isSelectionMode) ...[
             IconButton(
@@ -390,6 +437,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   },
                   child: ListView.builder(
                     controller: _scrollController,
+                    padding: const EdgeInsets.only(bottom: 96),
                     itemCount: filtered.length + 1,
                     itemBuilder: (context, index) {
                       if (index == filtered.length) {
@@ -548,10 +596,17 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           ),
         ],
       ),
-      floatingActionButton: !_isSelectionMode ? FloatingActionButton(
-        onPressed: () => _navigateToAddStudent(context),
-        child: const Icon(Icons.person_add),
-      ) : null,
+      floatingActionButton: !_isSelectionMode
+          ? Container(
+              margin: const EdgeInsets.only(bottom: 72),
+              child: FloatingActionButton.extended(
+                heroTag: 'student_list_add_fab',
+                onPressed: () => _navigateToAddStudent(context),
+                icon: const Icon(Icons.person_add_rounded),
+                label: const Text('Add Student', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            )
+          : null,
     );
   }
 
@@ -638,75 +693,246 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   Future<void> _bulkExportCsv() async {
     final pageState = ref.read(studentPageProvider);
     final selected = pageState.students.where((s) => _selectedStudentIds.contains(s.id)).toList();
-    
+    if (selected.isEmpty) return;
+
     final buf = StringBuffer();
     buf.writeln('Name,Phone,Email,Membership ID,Plan,Status,Seat,Joined');
     for (final s in selected) {
-      buf.writeln('"${s.name}","${s.phone}","${s.email}","${s.membershipNumber ?? ''}","${s.planId ?? ''}","${s.membershipStatus.name}","${s.seatId ?? ''}","${s.createdAt?.toIso8601String() ?? ''}"');
+      final seatStr = SeatHelper.formatSeatLabel(seatId: s.seatId, includePrefix: false);
+      buf.writeln('"${s.name}","${s.phone}","${s.email}","${s.membershipNumber ?? ''}","${s.planId ?? ''}","${s.membershipStatus.name}","$seatStr","${s.createdAt?.toIso8601String() ?? ''}"');
     }
-    
+
     try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/students_export_${DateTime.now().millisecondsSinceEpoch}.csv');
-      await file.writeAsString(buf.toString());
-      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Students Export'));
-      if (mounted) setState(() { _isSelectionMode = false; _selectedStudentIds.clear(); });
+      final fileName = 'students_export_${DateTime.now().millisecondsSinceEpoch}.csv';
+      final bytes = utf8.encode(buf.toString());
+      await FileDownloadHelper.downloadFile(
+        fileName: fileName,
+        bytes: bytes,
+        mimeType: 'text/csv',
+      );
+      if (mounted) {
+        setState(() {
+          _isSelectionMode = false;
+          _selectedStudentIds.clear();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Successfully exported ${selected.length} students to $fileName')),
+        );
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
   }
 
   Future<void> _bulkAnnounce() async {
-    String? message;
+    final pageState = ref.read(studentPageProvider);
+    final selected = pageState.students.where((s) => _selectedStudentIds.contains(s.id)).toList();
+    if (selected.isEmpty) return;
+
+    final ctrl = TextEditingController();
     await showDialog(
       context: context,
       builder: (ctx) {
-        final ctrl = TextEditingController();
         return AlertDialog(
-          title: Text('Announce to ${_selectedStudentIds.length} students'),
-          content: TextFormField(
-            controller: ctrl,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: 'Enter your message...',
-              border: OutlineInputBorder(),
-            ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.campaign_rounded, color: Color(0xFF25D366)),
+              const SizedBox(width: 10),
+              Text('Message ${selected.length} Students'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Send a notice or payment reminder to the selected students.',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: ctrl,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'e.g. Dear students, please note that...',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            FilledButton(
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366)),
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: const Text('Send via WhatsApp'),
               onPressed: () {
-                message = ctrl.text.trim();
-                Navigator.pop(ctx);
+                final message = ctrl.text.trim();
+                if (message.isNotEmpty) {
+                  Navigator.pop(ctx);
+                  if (selected.length == 1) {
+                    final cleanPhone = selected.first.phone.replaceAll(RegExp(r'[^0-9]'), '');
+                    final encoded = Uri.encodeComponent(message);
+                    launchUrl(Uri.parse('https://wa.me/$cleanPhone?text=$encoded'), mode: LaunchMode.externalApplication);
+                    setState(() {
+                      _isSelectionMode = false;
+                      _selectedStudentIds.clear();
+                    });
+                  } else {
+                    _showWhatsAppBroadcastQueue(context, selected, message);
+                  }
+                }
               },
-              child: const Text('Send via WhatsApp'),
             ),
           ],
         );
       },
     );
-    
-    if (message == null || message!.isEmpty) return;
-    
-    final pageState = ref.read(studentPageProvider);
-    final selected = pageState.students.where((s) => _selectedStudentIds.contains(s.id)).toList();
-    
-    if (!mounted) return;
-    final phones = selected.where((s) => s.phone.isNotEmpty).map((s) => s.phone).toList();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Message prepared for ${phones.length} students. Opening WhatsApp...'),
-        duration: const Duration(seconds: 3),
+  }
+
+  void _showWhatsAppBroadcastQueue(BuildContext context, List<StudentModel> students, String message) {
+    final sentIds = <String>{};
+    final encoded = Uri.encodeComponent(message);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.7,
+              minChildSize: 0.5,
+              maxChildSize: 0.92,
+              expand: false,
+              builder: (_, scrollCtrl) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade400,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.campaign_rounded, color: Color(0xFF25D366), size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'WhatsApp Broadcast Queue',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  '${sentIds.length} / ${students.length} dispatched',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton.filledTonal(
+                            tooltip: 'Copy Message',
+                            icon: const Icon(Icons.copy_rounded, size: 18),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: message));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Message copied to clipboard!')),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                        ),
+                        child: Text(
+                          message,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12.5),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Expanded(
+                        child: ListView.separated(
+                          controller: scrollCtrl,
+                          itemCount: students.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (c, idx) {
+                            final s = students[idx];
+                            final cleanPhone = s.phone.replaceAll(RegExp(r'[^0-9]'), '');
+                            final isSent = sentIds.contains(s.id);
+
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              leading: CircleAvatar(
+                                radius: 18,
+                                child: Text(s.name.isNotEmpty ? s.name[0].toUpperCase() : '?'),
+                              ),
+                              title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                              subtitle: Text(
+                                '${s.phone}${s.seatId != null ? ' • Seat #${SeatHelper.formatSeatLabel(seatId: s.seatId, includePrefix: false)}' : ''}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              trailing: isSent
+                                  ? const Chip(
+                                      avatar: Icon(Icons.check_circle_rounded, color: Colors.green, size: 16),
+                                      label: Text('Sent', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11)),
+                                    )
+                                  : FilledButton.tonalIcon(
+                                      style: FilledButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                        backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.15),
+                                        foregroundColor: const Color(0xFF166534),
+                                      ),
+                                      icon: const Icon(Icons.send_rounded, size: 14),
+                                      label: const Text('Send', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                      onPressed: () async {
+                                        setSheetState(() => sentIds.add(s.id));
+                                        final url = Uri.parse('https://wa.me/$cleanPhone?text=$encoded');
+                                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                                      },
+                                    ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
-    
-    if (phones.isNotEmpty) {
-      final encoded = Uri.encodeComponent(message!);
-      final url = Uri.parse('https://wa.me/${phones.first.replaceAll(RegExp(r'[^0-9]'), '')}?text=$encoded');
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
-    
-    setState(() { _isSelectionMode = false; _selectedStudentIds.clear(); });
   }
 
   Color _getStatusColor(MembershipStatus status) {

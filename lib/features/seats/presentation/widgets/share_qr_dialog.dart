@@ -93,18 +93,27 @@ class _ShareQrDialogState extends ConsumerState<ShareQrDialog> {
               ),
 
               // The Live Entrance Poster Card Preview wrapped in RepaintBoundary for 300+ DPI PDF export
-              RepaintBoundary(
-                key: _posterCardKey,
-                child: StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: PosterConfigService.streamAmenities(widget.libraryId),
-                  builder: (context, snapshot) {
-                    final amenities = snapshot.data ?? PosterConfigService.defaultAmenities;
-                    return EntrancePosterCard(
-                      library: liveLibrary,
-                      libraryId: widget.libraryId,
-                      amenities: amenities,
-                    );
-                  },
+              Container(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: AspectRatio(
+                  aspectRatio: 210 / 297,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: RepaintBoundary(
+                      key: _posterCardKey,
+                      child: StreamBuilder<List<Map<String, dynamic>>>(
+                        stream: PosterConfigService.streamAmenities(widget.libraryId),
+                        builder: (context, snapshot) {
+                          final amenities = snapshot.data ?? PosterConfigService.defaultAmenities;
+                          return EntrancePosterCard(
+                            library: liveLibrary,
+                            libraryId: widget.libraryId,
+                            amenities: amenities,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
                 ),
               ),
 

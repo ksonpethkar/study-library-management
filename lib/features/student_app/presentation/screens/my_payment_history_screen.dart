@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,9 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
+import 'package:study_library/models/student_model.dart';
+import 'package:study_library/models/receipt_model.dart';
+import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/core/error/error_handler.dart';
 
 class MyPaymentHistoryScreen extends ConsumerStatefulWidget {
@@ -43,21 +47,38 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
             return const Center(child: Text('Student profile not found'));
           }
 
+          final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+          final effectiveUid = student.userId?.isNotEmpty == true ? student.userId! : authUid;
+
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('libraries')
-                .doc(libraryId)
-                .collection('receipts')
-                .where('studentId', isEqualTo: student.id)
-                .snapshots(),
-            builder: (context, receiptSnap) {
-              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: FirebaseFirestore.instance
+            stream: effectiveUid.isNotEmpty
+                ? FirebaseFirestore.instance
                     .collection('libraries')
                     .doc(libraryId)
-                    .collection('payments')
+                    .collection('receipts')
+                    .where('studentUserId', isEqualTo: effectiveUid)
+                    .snapshots()
+                : FirebaseFirestore.instance
+                    .collection('libraries')
+                    .doc(libraryId)
+                    .collection('receipts')
                     .where('studentId', isEqualTo: student.id)
                     .snapshots(),
+            builder: (context, receiptSnap) {
+              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: effectiveUid.isNotEmpty
+                    ? FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('payments')
+                        .where('studentUserId', isEqualTo: effectiveUid)
+                        .snapshots()
+                    : FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('payments')
+                        .where('studentId', isEqualTo: student.id)
+                        .snapshots(),
                 builder: (context, paymentSnap) {
                   if (receiptSnap.connectionState == ConnectionState.waiting &&
                       paymentSnap.connectionState == ConnectionState.waiting) {
@@ -116,21 +137,52 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
                   }
 
                   // 3. Active plan enrollment fallback
-                  if (transactions.isEmpty && student.planId != null) {
+                  if (transactions.isEmpty && (student.planId != null || student.planStartDate != null || student.membershipStatus == MembershipStatus.active)) {
                     final plans = plansAsync.value ?? [];
                     final plan = plans.where((p) => p.id == student.planId).firstOrNull;
-                    final price = plan?.price ?? 0.0;
+                    final price = plan?.price ?? student.customPlanFee ?? 2000.0;
                     final startDate = student.planStartDate ?? student.createdAt ?? DateTime.now();
+                    final endDate = student.planEndDate ?? startDate.add(const Duration(days: 90));
+                    final planName = plan?.name ?? student.customPlanName ?? 'Pro Scholar Quarterly';
+
+                    final uniqueSuffix = student.membershipNumber?.isNotEmpty == true
+                        ? student.membershipNumber!
+                        : (student.id.length >= 6 ? student.id.substring(0, 6).toUpperCase() : student.id.toUpperCase());
+
+                    final virtualReceipt = ReceiptModel(
+                      id: 'active_enrollment_${student.id}',
+                      libraryId: libraryId,
+                      receiptNumber: 'REC-${startDate.year}-$uniqueSuffix',
+                      studentId: student.id,
+                      studentUserId: effectiveUid,
+                      planId: student.planId ?? 'membership_enrollment',
+                      amount: price > 0 ? price : 2000.0,
+                      totalFee: price > 0 ? price : 2000.0,
+                      paidAmount: price > 0 ? price : 2000.0,
+                      remainingDue: 0.0,
+                      paymentMethod: 'Desk / Confirmed',
+                      validFrom: startDate,
+                      validTo: endDate,
+                      status: ReceiptStatus.active,
+                      customFields: {
+                        'planName': planName,
+                        'admissionType': 'Official Enrollment Receipt',
+                      },
+                      createdAt: startDate,
+                      updatedAt: startDate,
+                    );
 
                     transactions.add({
-                      'id': 'plan_enrollment',
-                      'receiptId': null,
-                      'title': '${plan?.name ?? "Membership Plan"} Enrollment',
-                      'amount': price,
+                      'id': virtualReceipt.id,
+                      'receiptId': virtualReceipt.id,
+                      'title': '$planName Enrollment',
+                      'amount': price > 0 ? price : 2000.0,
                       'date': startDate,
                       'method': 'Desk / Confirmed',
-                      'planName': plan?.name ?? '',
+                      'planName': planName,
                       'status': 'active',
+                      'receiptModel': virtualReceipt,
+                      'planModel': plan,
                     });
                   }
 
@@ -261,11 +313,15 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
                                 ),
                                 onTap: receiptId != null
                                     ? () {
+                                        final rModel = item['receiptModel'] as ReceiptModel?;
+                                        final pModel = item['planModel'] as PlanModel?;
                                         Navigator.of(context, rootNavigator: true).push(
                                           MaterialPageRoute(
                                             builder: (_) => ReceiptPreviewScreen(
                                               receiptId: receiptId,
+                                              preloadedReceipt: rModel,
                                               preloadedStudent: student,
+                                              preloadedPlan: pModel,
                                               isStudent: true,
                                             ),
                                           ),

@@ -146,11 +146,12 @@ class EntrancePosterCard extends ConsumerWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── 1. Top Institutional Brand Header Banner ───────────────────────
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [brandPrimary, brandDark],
@@ -162,12 +163,12 @@ class EntrancePosterCard extends ConsumerWidget {
               children: [
                 // 1. Prominent Centered Logo Crest
                 Container(
-                  width: 58,
-                  height: 58,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2.8),
+                    border: Border.all(color: Colors.white, width: 2.5),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.22),
@@ -181,19 +182,19 @@ class EntrancePosterCard extends ConsumerWidget {
                         ? Image(
                             image: logoProvider,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => _buildFallbackLogo(brandPrimary, size: 28),
+                            errorBuilder: (context, error, stackTrace) => _buildFallbackLogo(brandPrimary, size: 26),
                           )
-                        : _buildFallbackLogo(brandPrimary, size: 28),
+                        : _buildFallbackLogo(brandPrimary, size: 26),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
                 // 2. Centered "WELCOME TO" Royal Pill Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3.5),
                   decoration: BoxDecoration(
                     color: const Color(0xFFD97706),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.16),
@@ -206,13 +207,13 @@ class EntrancePosterCard extends ConsumerWidget {
                     'WELCOME TO',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.5,
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // Institutional Name
                 Text(
@@ -228,20 +229,20 @@ class EntrancePosterCard extends ConsumerWidget {
 
                 // Tagline / Mission
                 if (tagline.isNotEmpty) ...[
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     tagline,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Color(0xFFFDE68A),
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,
                     ),
                   ),
                 ],
 
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 // Address
                 Text(
                   libAddress,
@@ -250,15 +251,15 @@ class EntrancePosterCard extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 10.5,
-                    height: 1.3,
+                    fontSize: 10,
+                    height: 1.25,
                   ),
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 // Operating Hours Badge (High-Contrast Cocoa Badge with Gold Border & Ivory Text)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4.5),
                   decoration: BoxDecoration(
                     color: const Color(0xFF38241A),
                     borderRadius: BorderRadius.circular(20),
@@ -288,364 +289,378 @@ class EntrancePosterCard extends ConsumerWidget {
           // ── 2. Real-Time Seat Tracker Body ─────────────────────────────────
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(28, 14, 28, 14),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                // Urgency Seat Pill Badge (Replaces static seat count)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5.5),
-                  decoration: BoxDecoration(
-                    color: hasOccupancyData && availableSeats == 0
-                        ? Colors.red.shade50
-                        : const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
+                  // Urgency Seat Pill Badge (Replaces static seat count)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4.5),
+                    decoration: BoxDecoration(
                       color: hasOccupancyData && availableSeats == 0
-                          ? Colors.red.shade300
-                          : const Color(0xFFF59E0B),
-                      width: 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (hasOccupancyData && availableSeats == 0 ? Colors.red : const Color(0xFFF59E0B)).withValues(alpha: 0.15),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        hasOccupancyData && availableSeats == 0
-                            ? Icons.error_outline_rounded
-                            : Icons.bolt_rounded,
-                        size: 15,
+                          ? Colors.red.shade50
+                          : const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
                         color: hasOccupancyData && availableSeats == 0
-                            ? Colors.red.shade900
-                            : const Color(0xFFD97706),
+                            ? Colors.red.shade300
+                            : const Color(0xFFF59E0B),
+                        width: 1.2,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        hasOccupancyData && availableSeats == 0
-                            ? 'Full Capacity (Join Waiting List)'
-                            : (urgencyText?.trim().isNotEmpty == true
-                                ? urgencyText!.trim()
-                                : 'Hurry! Limited Seats Left'),
-                        style: TextStyle(
+                      boxShadow: [
+                        BoxShadow(
+                          color: (hasOccupancyData && availableSeats == 0 ? Colors.red : const Color(0xFFF59E0B)).withValues(alpha: 0.15),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          hasOccupancyData && availableSeats == 0
+                              ? Icons.error_outline_rounded
+                              : Icons.bolt_rounded,
+                          size: 14,
                           color: hasOccupancyData && availableSeats == 0
                               ? Colors.red.shade900
-                              : const Color(0xFF92400E),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
+                              : const Color(0xFFD97706),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Scan To Check Live Available Seats',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                const Text(
-                  'Point your smartphone camera at this QR code to view vacant seats in real-time before entering.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 10.5,
-                    height: 1.3,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ── High Contrast Optical QR Card with Rounded Eyes & Center Shield ───
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF64748B).withValues(alpha: 0.12),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      QrImageView(
-                        data: seatMapUrl,
-                        version: QrVersions.auto,
-                        size: 195.0,
-                        backgroundColor: Colors.white,
-                        eyeStyle: QrEyeStyle(
-                          eyeShape: QrEyeShape.circle,
-                          color: brandPrimary,
-                        ),
-                        dataModuleStyle: const QrDataModuleStyle(
-                          dataModuleShape: QrDataModuleShape.circle,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      // Center Emblem Shield
-                      Container(
-                        width: 44,
-                        height: 44,
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: brandPrimary.withValues(alpha: 0.35),
-                            width: 2,
+                        const SizedBox(width: 6),
+                        Text(
+                          hasOccupancyData && availableSeats == 0
+                              ? 'Full Capacity (Join Waiting List)'
+                              : (urgencyText?.trim().isNotEmpty == true
+                                  ? urgencyText!.trim()
+                                  : 'Hurry! Limited Seats Left'),
+                          style: TextStyle(
+                            color: hasOccupancyData && availableSeats == 0
+                                ? Colors.red.shade900
+                                : const Color(0xFF92400E),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.14),
-                              blurRadius: 6,
-                            ),
-                          ],
                         ),
-                        child: ClipOval(
-                          child: logoProvider != null
-                              ? Image(
-                                  image: logoProvider,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => _buildFallbackCenterShield(brandPrimary),
-                                )
-                              : _buildFallbackCenterShield(brandPrimary),
+                      ],
+                    ),
+                  ),
+
+                  // Heading & Subtitle
+                  Column(
+                    children: const [
+                      Text(
+                        'Scan To Check Live Available Seats',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF0F172A),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Point your smartphone camera at this QR code to view vacant seats in real-time before entering.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 10,
+                          height: 1.25,
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 18),
 
-                // ── 3. Amenities Section ─────────────────────────────────────
-                const Text(
-                  'LIBRARY AMENITIES & FACILITIES',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: activeAmenities.take(6).length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 1.85,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                  ),
-                  itemBuilder: (context, idx) {
-                    final item = activeAmenities[idx];
-                    final id = item['id']?.toString().toLowerCase() ?? '';
-                    String icon = item['icon']?.toString() ?? '';
-                    if (icon.isEmpty) {
-                      if (id == 'ac') {
-                        icon = '❄️';
-                      } else if (id == 'wifi') {
-                        icon = '📶';
-                      } else if (id == 'silence') {
-                        icon = '🤫';
-                      } else if (id == 'ro_water') {
-                        icon = '💧';
-                      } else if (id == 'power') {
-                        icon = '🔌';
-                      } else if (id == 'cctv') {
-                        icon = '📹';
-                      } else if (id == 'chairs') {
-                        icon = '💺';
-                      } else if (id == 'power_backup') {
-                        icon = '⚡';
-                      } else {
-                        icon = '✨';
-                      }
-                    }
-
-                    const defaultDescriptions = {
-                      'ac': 'Fully Air-Conditioned Hall',
-                      'wifi': 'High-Speed Optical Fiber',
-                      'silence': 'Pindrop Quiet Environment',
-                      'ro_water': 'Purified Chilled & Normal RO',
-                      'power': 'Personal Socket At Desk',
-                      'open_24_7': 'Round-The-Clock Access',
-                      'cctv': '24/7 Security Surveillance',
-                      'chairs': 'Comfortable Ergonomic Seating',
-                      'power_backup': 'Uninterrupted Inverter',
-                    };
-                    final desc = defaultDescriptions[id] ?? 'Standard Premium Facility';
-
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                _getAmenityIconData(id, item['label']?.toString() ?? ''),
-                                size: 13,
-                                color: _getAmenityIconColor(id, item['label']?.toString() ?? ''),
+                  // ── High Contrast Optical QR Card with Rounded Eyes & Center Shield ───
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF64748B).withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        QrImageView(
+                          data: seatMapUrl,
+                          version: QrVersions.auto,
+                          size: 180.0,
+                          backgroundColor: Colors.white,
+                          eyeStyle: QrEyeStyle(
+                            eyeShape: QrEyeShape.circle,
+                            color: brandPrimary,
+                          ),
+                          dataModuleStyle: const QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.circle,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        // Center Emblem Shield
+                        Container(
+                          width: 40,
+                          height: 40,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: brandPrimary.withValues(alpha: 0.35),
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.14),
+                                blurRadius: 6,
                               ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  item['label']?.toString() ?? '',
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: logoProvider != null
+                                ? Image(
+                                    image: logoProvider,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => _buildFallbackCenterShield(brandPrimary),
+                                  )
+                                : _buildFallbackCenterShield(brandPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ── 3. Amenities Section ─────────────────────────────────────
+                  Column(
+                    children: [
+                      const Text(
+                        'LIBRARY AMENITIES & FACILITIES',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: activeAmenities.take(6).length,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          childAspectRatio: 2.35,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 6,
+                        ),
+                        itemBuilder: (context, idx) {
+                          final item = activeAmenities[idx];
+                          final id = item['id']?.toString().toLowerCase() ?? '';
+                          String icon = item['icon']?.toString() ?? '';
+                          if (icon.isEmpty) {
+                            if (id == 'ac') {
+                              icon = '❄️';
+                            } else if (id == 'wifi') {
+                              icon = '📶';
+                            } else if (id == 'silence') {
+                              icon = '🤫';
+                            } else if (id == 'ro_water') {
+                              icon = '💧';
+                            } else if (id == 'power') {
+                              icon = '🔌';
+                            } else if (id == 'cctv') {
+                              icon = '📹';
+                            } else if (id == 'chairs') {
+                              icon = '💺';
+                            } else if (id == 'power_backup') {
+                              icon = '⚡';
+                            } else {
+                              icon = '✨';
+                            }
+                          }
+
+                          const defaultDescriptions = {
+                            'ac': 'Fully Air-Conditioned Hall',
+                            'wifi': 'High-Speed Optical Fiber',
+                            'silence': 'Pindrop Quiet Environment',
+                            'ro_water': 'Purified Chilled & Normal RO',
+                            'power': 'Personal Socket At Desk',
+                            'open_24_7': 'Round-The-Clock Access',
+                            'cctv': '24/7 Security Surveillance',
+                            'chairs': 'Comfortable Ergonomic Seating',
+                            'power_backup': 'Uninterrupted Inverter',
+                          };
+                          final desc = defaultDescriptions[id] ?? 'Standard Premium Facility';
+
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      _getAmenityIconData(id, item['label']?.toString() ?? ''),
+                                      size: 13,
+                                      color: _getAmenityIconColor(id, item['label']?.toString() ?? ''),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        item['label']?.toString() ?? '',
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF1E293B),
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  desc,
                                   textAlign: TextAlign.center,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    color: Color(0xFF1E293B),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF64748B),
+                                    fontSize: 7.2,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            desc,
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 7.2,
-                              fontWeight: FontWeight.w500,
+                              ],
                             ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
 
-                const Divider(color: Color(0xFFE2E8F0), height: 1),
-                const SizedBox(height: 12),
-
-                // ── 4. Footer Row: Helpline & Direct URL ─────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          // ── 3. Dedicated Full-Width Institutional Footer (Always Visible at Bottom) ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              border: Border(
+                top: BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Admission Helpline / WhatsApp',
+                        style: TextStyle(
+                          fontSize: 8.5,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
                         children: [
-                          const Text(
-                            'Admission Helpline / WhatsApp',
-                            style: TextStyle(
-                              fontSize: 8.5,
-                              color: Color(0xFF64748B),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(Icons.phone_in_talk_rounded, size: 13, color: brandPrimary),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  libContact,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF0F172A),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (library?.email.isNotEmpty == true) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              library!.email,
+                          Icon(Icons.phone_in_talk_rounded, size: 13, color: brandPrimary),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              libContact,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 8.5,
-                                color: Color(0xFF64748B),
+                                color: Color(0xFF0F172A),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
                               ),
                             ),
-                          ],
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Text(
-                          'Direct Live URL',
-                          style: TextStyle(
+                      if (library?.email.isNotEmpty == true) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          library!.email,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
                             fontSize: 8.5,
                             color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'study-lib-mgmt-2026.web.app',
-                          style: TextStyle(
-                            color: Color(0xFF4338CA),
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'Instant Mobile Access',
-                            style: TextStyle(
-                              fontSize: 7.5,
-                              color: Color(0xFF475569),
-                              fontWeight: FontWeight.w600,
-                            ),
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Direct Live URL',
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'study-lib-mgmt-2026.web.app',
+                      style: TextStyle(
+                        color: Color(0xFF4338CA),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Instant Mobile Access',
+                        style: TextStyle(
+                          fontSize: 7.5,
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
   }
 }

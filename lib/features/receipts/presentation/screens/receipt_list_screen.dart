@@ -262,21 +262,23 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
               final studentName = studentNameMap[receipt.studentId] ?? 'Student';
               return StaggeredListItem(
                 index: index,
-                child: Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-                child: ListTile(
+                child: Opacity(
+                  opacity: isVoided ? 0.72 : 1.0,
+                  child: Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+                    child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 6),
                       onTap: () => context.push('/admin/receipts/${receipt.id}'),
                       leading: CircleAvatar(
                         backgroundColor: isVoided
-                            ? Colors.grey.withValues(alpha: 0.12)
+                            ? Colors.red.shade50
                             : Colors.green.withValues(alpha: 0.12),
                         child: Icon(
                           isVoided
-                              ? Icons.cancel_outlined
+                              ? Icons.block_rounded
                               : Icons.receipt_rounded,
-                          color: isVoided ? Colors.grey : Colors.green,
+                          color: isVoided ? Colors.red.shade700 : Colors.green,
                         ),
                       ),
                       title: Row(
@@ -292,8 +294,11 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
                             '₹${receipt.amount.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
+                              decoration: isVoided ? TextDecoration.lineThrough : null,
+                              decorationColor: isVoided ? Colors.red.shade700 : null,
+                              decorationThickness: 2,
                               color: isVoided
-                                  ? Colors.grey
+                                  ? Colors.grey.shade600
                                   : Theme.of(context).colorScheme.primary,
                             ),
                           ),
@@ -330,19 +335,29 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
                             ),
                           if (isVoided)
                             Container(
-                              margin: const EdgeInsets.only(top: 3),
+                              margin: const EdgeInsets.only(top: 4),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                  horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade200,
+                                color: Colors.red.shade50,
                                 borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.red.shade200),
                               ),
-                              child: const Text(
-                                'VOIDED',
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.block_rounded, size: 10, color: Colors.red.shade800),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'VOIDED',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red.shade800,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                         ],
@@ -354,9 +369,10 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
                         onPressed: () =>
                             _showAdminActions(context, receipt, libraryId),
                       ),
-                    ), // ListTile
-                ), // Card
-              ); // StaggeredListItem
+                    ),
+                  ),
+                ),
+              );
             },
           );
         },

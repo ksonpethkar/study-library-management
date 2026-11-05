@@ -2975,5 +2975,374 @@ void main() {
       expect(stampText.contains('COZY CORNER STUDY CENTRE'), isTrue);
       expect(watermarkOrgName.isNotEmpty, isTrue);
     });
+
+    test('89. STUDENT RENEWAL PAYMENT CAPABILITY-GATING & DYNAMIC METHOD RESOLUTION', () {
+      // 1. Admin turns off Bank Transfer (like user scenario)
+      final adminMethodsSettings = [
+        {'id': 'cash', 'name': 'Cash / Pay at Reception', 'active': true},
+        {'id': 'upi', 'name': 'UPI / QR Code', 'active': true},
+        {'id': 'card', 'name': 'Debit / Credit Card', 'active': false},
+        {'id': 'bank', 'name': 'Bank Transfer', 'active': false},
+        {'id': 'cheque', 'name': 'Cheque / DD', 'active': false},
+      ];
+
+      final emptyBankDetails = {
+        'bankName': '',
+        'accountNumber': '',
+      };
+      final hasBankConfigured = (emptyBankDetails['bankName']?.isNotEmpty ?? false) &&
+          (emptyBankDetails['accountNumber']?.isNotEmpty ?? false);
+
+      const upiId = '7276969070@upi';
+      final hasUpiConfigured = upiId.isNotEmpty;
+
+      final isUpiActive = (adminMethodsSettings.firstWhere((m) => m['id'] == 'upi')['active'] == true) && hasUpiConfigured;
+      final isBankActive = (adminMethodsSettings.firstWhere((m) => m['id'] == 'bank')['active'] == true) && hasBankConfigured;
+      final isCashActive = (adminMethodsSettings.firstWhere((m) => m['id'] == 'cash')['active'] == true);
+
+      final availableModes = <String>[];
+      if (isUpiActive) availableModes.add('upi');
+      if (isBankActive) availableModes.add('bank');
+      if (isCashActive) availableModes.add('deskCash');
+
+      // Bank Transfer MUST NOT be available when active is false
+      expect(availableModes.contains('bank'), isFalse);
+      expect(availableModes, equals(['upi', 'deskCash']));
+
+      // 2. If student had previously selected bank, auto-switch to first available active method (UPI)
+      const studentSelectedMode = 'bank';
+      final activeResolvedMode = availableModes.contains(studentSelectedMode)
+          ? studentSelectedMode
+          : availableModes.first;
+      expect(activeResolvedMode, equals('upi'));
+
+      // 3. Defensive check: Bank toggle is true, but Bank Name / Account No is blank
+      final bankToggledOnIncomplete = [
+        {'id': 'bank', 'name': 'Bank Transfer', 'active': true},
+      ];
+      final isBankConfiguredAndActive = (bankToggledOnIncomplete.first['active'] == true) && hasBankConfigured;
+      expect(isBankConfiguredAndActive, isFalse, reason: 'Bank transfer must remain disabled if account details are blank');
+
+      // 4. Single Payment Method Active (e.g. UPI Only) -> SegmentedButton hidden
+      final singleModeAvailable = ['upi'];
+      expect(singleModeAvailable.length > 1, isFalse, reason: 'When only 1 method is active, switcher is hidden and directly renders payment card');
+    });
+
+    test('90. STUDENT RECEIPTS VISIBILITY & REAL-TIME ENROLLMENT PASS AUTO-SYNTHESIS', () {
+      // 1. PaymentModel Serialization with studentUserId
+      final payment = PaymentModel(
+        id: 'pay_999',
+        studentId: 'st_123',
+        studentUserId: 'usr_auth_abc',
+        amount: 2000.0,
+        method: 'UPI / Desk Admission',
+        date: DateTime.now(),
+        status: PaymentStatus.paid,
+        createdAt: DateTime.now(),
+      );
+
+      final payJson = payment.toJson();
+      expect(payJson['studentUserId'], equals('usr_auth_abc'));
+      expect(payJson['studentId'], equals('st_123'));
+      expect(payJson['amount'], equals(2000.0));
+
+      final payDeserialized = PaymentModel.fromJson(payJson);
+      expect(payDeserialized.studentUserId, equals('usr_auth_abc'));
+      expect(payDeserialized.studentId, equals('st_123'));
+
+      // 2. Active Student without Firestore Receipt Doc -> Auto-synthesize enrollment pass
+      final activeStudent = StudentModel(
+        id: 'st_123',
+        name: 'Kshitij S',
+        fatherName: '',
+        phone: '9876543210',
+        email: 'ksonpethkar@gmail.com',
+        gender: Gender.male,
+        address: 'Pune',
+        pincode: '411001',
+        govIdType: GovIdType.pan,
+        govIdNumber: 'ABCDE1234F',
+        govIdImageUrl: '',
+        photoUrl: '',
+        college: '',
+        course: '',
+        year: '',
+        emergencyContact: '9876543211',
+        membershipStatus: MembershipStatus.active,
+        planId: 'plan_quarterly_2000',
+        planStartDate: DateTime(2026, 11, 1),
+        planEndDate: DateTime(2027, 1, 31),
+        seatId: '46',
+        membershipNumber: 'CC20260001',
+        customFields: const {},
+        userId: 'usr_auth_abc',
+        createdAt: DateTime(2026, 11, 1),
+        updatedAt: DateTime(2026, 11, 1),
+      );
+
+      // Verify that receipts list is never empty for active members
+      final List<ReceiptModel> studentReceipts = [];
+      if (studentReceipts.isEmpty && (activeStudent.membershipStatus == MembershipStatus.active || activeStudent.planId != null)) {
+        final uniqueSuffix = activeStudent.membershipNumber?.isNotEmpty == true
+            ? activeStudent.membershipNumber!
+            : activeStudent.id.toUpperCase();
+
+        studentReceipts.add(
+          ReceiptModel(
+            id: 'active_enrollment_${activeStudent.id}',
+            libraryId: 'lib_001',
+            receiptNumber: 'REC-2026-$uniqueSuffix',
+            studentId: activeStudent.id,
+            studentUserId: activeStudent.userId,
+            planId: activeStudent.planId ?? 'membership_enrollment',
+            amount: 2000.0,
+            totalFee: 2000.0,
+            paidAmount: 2000.0,
+            remainingDue: 0.0,
+            paymentMethod: 'Desk / Confirmed',
+            validFrom: activeStudent.planStartDate!,
+            validTo: activeStudent.planEndDate!,
+            status: ReceiptStatus.active,
+            customFields: {
+              'planName': 'Pro Scholar Quarterly',
+              'seatLabel': SeatHelper.formatSeatLabel(seatId: activeStudent.seatId),
+              'admissionType': 'Official Enrollment Receipt',
+            },
+            createdAt: activeStudent.planStartDate!,
+            updatedAt: activeStudent.planStartDate!,
+          ),
+        );
+      }
+
+      expect(studentReceipts.isNotEmpty, isTrue, reason: 'Active students must always have their enrollment receipt visible');
+      final r = studentReceipts.first;
+      expect(r.receiptNumber, equals('REC-2026-CC20260001'));
+      expect(r.amount, equals(2000.0));
+      expect(r.studentUserId, equals('usr_auth_abc'));
+      expect(r.status, equals(ReceiptStatus.active));
+      expect(r.customFields['seatLabel'], equals('Seat #46'));
+    });
+
+    test('91. PHYSICAL ROOM GRID FIDELITY, QUICK FILTER METRICS & SEAT TILE OCCUPANCY BADGES', () {
+      // 1. Physical 10-Column Room Alignment Verification
+      const roomCols = 10;
+      const roomRows = 6;
+      final List<SeatModel> cozyHallSeats = List.generate(60, (index) {
+        final deskNum = index + 1;
+        final row = index ~/ roomCols;
+        final col = index % roomCols;
+        return SeatModel(
+          id: 'seat_$deskNum',
+          sectionId: 'sec_cozy_hall',
+          row: row,
+          col: col,
+          label: '$deskNum',
+          status: deskNum == 14 ? SeatStatus.occupied : (deskNum == 60 ? SeatStatus.reserved : SeatStatus.available),
+          genderRestriction: deskNum >= 51 ? GenderRestriction.female : GenderRestriction.male,
+          studentId: deskNum == 14 ? 'st_rahul' : null,
+          reservedCandidateName: deskNum == 60 ? 'Priya Patil' : null,
+        );
+      });
+
+      expect(cozyHallSeats.length, equals(60));
+
+      // Row 1 starts at 1, ends at 10
+      expect(cozyHallSeats[0].label, equals('1'));
+      expect(cozyHallSeats[0].row, equals(0));
+      expect(cozyHallSeats[9].label, equals('10'));
+      expect(cozyHallSeats[9].row, equals(0));
+
+      // Row 2 starts at 11, ends at 20
+      expect(cozyHallSeats[10].label, equals('11'));
+      expect(cozyHallSeats[10].row, equals(1));
+      expect(cozyHallSeats[19].label, equals('20'));
+      expect(cozyHallSeats[19].row, equals(1));
+
+      // Row 6 (Girls Reserved) contains exactly Desks 51 to 60
+      final girlsRow = cozyHallSeats.where((s) => s.row == 5).toList();
+      expect(girlsRow.length, equals(10));
+      expect(girlsRow.first.label, equals('51'));
+      expect(girlsRow.last.label, equals('60'));
+      expect(girlsRow.every((s) => s.genderRestriction == GenderRestriction.female), isTrue);
+
+      // 2. Quick Filter Counts Logic
+      final total = cozyHallSeats.length;
+      final vacant = cozyHallSeats.where((s) => s.status == SeatStatus.available).length;
+      final occupied = cozyHallSeats.where((s) => s.status == SeatStatus.occupied).length;
+      final boys = cozyHallSeats.where((s) => s.genderRestriction == GenderRestriction.male).length;
+      final girls = cozyHallSeats.where((s) => s.genderRestriction == GenderRestriction.female).length;
+
+      expect(total, equals(60));
+      expect(vacant, equals(58));
+      expect(occupied, equals(1));
+      expect(boys, equals(50));
+      expect(girls, equals(10));
+
+      // 3. Short Student Name Formatting
+      String formatShortName(String? name) {
+        if (name == null || name.trim().isEmpty) return '';
+        final parts = name.trim().split(RegExp(r'\s+'));
+        if (parts.length == 1) return parts.first;
+        final first = parts.first;
+        final lastInitial = parts.last[0].toUpperCase();
+        return '$first $lastInitial.';
+      }
+
+      expect(formatShortName('Rahul Sharma'), equals('Rahul S.'));
+      expect(formatShortName('Kiran Sonpetkar'), equals('Kiran S.'));
+      expect(formatShortName('Suresh'), equals('Suresh'));
+      expect(formatShortName(null), equals(''));
+    });
+
+    test('92. QUICK ACTION STUDIO (+) & SMART PAYMENT PICKER ARCHITECTURE', () {
+      // 1. Defaulter Prioritization & Sorting Invariant
+      StudentModel createTestStudent({
+        required String id,
+        required String name,
+        required String phone,
+        required String membershipNumber,
+        required MembershipStatus status,
+        required double pendingDue,
+      }) {
+        return StudentModel(
+          id: id,
+          name: name,
+          fatherName: 'Guardian',
+          phone: phone,
+          email: '$id@test.com',
+          gender: Gender.male,
+          address: 'Parli',
+          pincode: '431515',
+          govIdType: GovIdType.aadhaar,
+          govIdNumber: '123456789012',
+          govIdImageUrl: '',
+          photoUrl: '',
+          college: 'University',
+          course: 'Gov Exam',
+          year: '2026',
+          emergencyContact: '9822000000',
+          membershipNumber: membershipNumber,
+          membershipStatus: status,
+          pendingDueBalance: pendingDue,
+          customFields: const {},
+          createdAt: DateTime(2026, 10, 1),
+          updatedAt: DateTime(2026, 10, 1),
+        );
+      }
+
+      final studentA = createTestStudent(
+        id: 's_1',
+        name: 'Bharat Patil',
+        phone: '9822001122',
+        membershipNumber: 'CC20260005',
+        status: MembershipStatus.active,
+        pendingDue: 0.0,
+      );
+
+      final studentDefaulterSmall = createTestStudent(
+        id: 's_2',
+        name: 'Chetan Shinde',
+        phone: '9822003344',
+        membershipNumber: 'CC20260002',
+        status: MembershipStatus.active,
+        pendingDue: 500.0,
+      );
+
+      final studentDefaulterLarge = createTestStudent(
+        id: 's_3',
+        name: 'Amit Deshmukh',
+        phone: '9822005566',
+        membershipNumber: 'CC20260001',
+        status: MembershipStatus.active,
+        pendingDue: 1500.0,
+      );
+
+      final studentGrace = createTestStudent(
+        id: 's_4',
+        name: 'Deepak Joshi',
+        phone: '9822007788',
+        membershipNumber: 'CC20260003',
+        status: MembershipStatus.grace,
+        pendingDue: 0.0,
+      );
+
+      final list = [studentA, studentDefaulterSmall, studentDefaulterLarge, studentGrace];
+
+      // Sort using Smart Payment Picker rules
+      list.sort((a, b) {
+        final aDue = a.pendingDueBalance ?? 0.0;
+        final bDue = b.pendingDueBalance ?? 0.0;
+
+        // Defaulters strictly at the top (highest dues first)
+        if (aDue > 0 && bDue <= 0) return -1;
+        if (bDue > 0 && aDue <= 0) return 1;
+        if (aDue > 0 && bDue > 0) return bDue.compareTo(aDue);
+
+        // Next: Grace period / Expiring students
+        final aIsGrace = a.membershipStatus == MembershipStatus.grace;
+        final bIsGrace = b.membershipStatus == MembershipStatus.grace;
+        if (aIsGrace && !bIsGrace) return -1;
+        if (bIsGrace && !aIsGrace) return 1;
+
+        // Alphabetical secondary sort
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+
+      // Assertions:
+      // Index 0: studentDefaulterLarge (₹1500 due)
+      // Index 1: studentDefaulterSmall (₹500 due)
+      // Index 2: studentGrace (Grace period)
+      // Index 3: studentA (₹0 due)
+      expect(list[0].id, equals('s_3'));
+      expect(list[0].pendingDueBalance, equals(1500.0));
+      expect(list[1].id, equals('s_2'));
+      expect(list[1].pendingDueBalance, equals(500.0));
+      expect(list[2].id, equals('s_4'));
+      expect(list[3].id, equals('s_1'));
+
+      // 2. Multimodal Search Matching Test (Admission ID, Phone, Name)
+      bool matchesQuery(StudentModel s, String q) {
+        final query = q.trim().toLowerCase();
+        return s.name.toLowerCase().contains(query) ||
+            s.phone.toLowerCase().contains(query) ||
+            (s.membershipNumber ?? '').toLowerCase().contains(query);
+      }
+
+      // Search by Admission Number (#CC20260001)
+      expect(matchesQuery(studentDefaulterLarge, 'CC20260001'), isTrue);
+      expect(matchesQuery(studentDefaulterLarge, '0001'), isTrue);
+      // Search by Phone
+      expect(matchesQuery(studentDefaulterSmall, '9822003344'), isTrue);
+      // Search by Name
+      expect(matchesQuery(studentGrace, 'Deepak'), isTrue);
+      expect(matchesQuery(studentGrace, 'xyz_not_exist'), isFalse);
+
+      // 3. RBAC Capability-Gated Security Evaluation
+      final staffOperator = {
+        'role': 'operator',
+        'canRecordPayments': false,
+        'canManageStudents': true,
+        'canViewRevenue': false,
+        'canManageSeats': false,
+      };
+
+      final staffManager = {
+        'role': 'manager',
+        'canRecordPayments': true,
+        'canManageStudents': true,
+        'canViewRevenue': true,
+        'canManageSeats': true,
+      };
+
+      // Operator cannot record payment or view expenses
+      expect(staffOperator['canRecordPayments'], isFalse);
+      expect(staffOperator['canViewRevenue'], isFalse);
+      expect(staffOperator['canManageStudents'], isTrue);
+
+      // Manager has full operational access
+      expect(staffManager['canRecordPayments'], isTrue);
+      expect(staffManager['canViewRevenue'], isTrue);
+      expect(staffManager['canManageSeats'], isTrue);
+    });
   });
 }

@@ -8,6 +8,7 @@ import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/features/students/data/repositories/student_repository.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
+import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 
 final studentRepositoryProvider = Provider<StudentRepository>((ref) {
   return StudentRepository();
@@ -76,6 +77,10 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
     if (snap.docs.isNotEmpty) {
       final doc = snap.docs.first;
       final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
+      // Backfill missing studentUserId on legacy receipts and payments for real-time visibility
+      if (model.userId != null && model.userId!.isNotEmpty) {
+        ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, model.userId!).ignore();
+      }
       // Update cache for next offline launch
       try {
         final prefs = ref.read(sharedPreferencesProvider);
@@ -97,6 +102,9 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
           // Backfill userId for future speed
           doc.reference.update({'userId': uid}).ignore();
           final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
+          if (uid.isNotEmpty) {
+            ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, uid).ignore();
+          }
           try {
             final prefs = ref.read(sharedPreferencesProvider);
             await prefs.setString(cacheKey, jsonEncode(model.toJson()));

@@ -5,6 +5,7 @@ enum PaymentStatus { paid, partial, pending, overdue, refunded, voided, cancelle
 class PaymentModel {
   final String id;
   final String studentId;
+  final String? studentUserId;
   final double amount;
   final String method;
   final String? methodDetails;
@@ -25,6 +26,7 @@ class PaymentModel {
   PaymentModel({
     required this.id,
     required this.studentId,
+    this.studentUserId,
     required this.amount,
     required this.method,
     this.methodDetails,
@@ -47,6 +49,7 @@ class PaymentModel {
     return PaymentModel(
       id: json['id'] as String? ?? '',
       studentId: json['studentId'] as String? ?? '',
+      studentUserId: json['studentUserId'] as String?,
       amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
       totalPlanFee: (json['totalPlanFee'] as num?)?.toDouble(),
       remainingDue: (json['remainingDue'] as num?)?.toDouble(),
@@ -70,6 +73,7 @@ class PaymentModel {
     return {
       'id': id,
       'studentId': studentId,
+      if (studentUserId != null) 'studentUserId': studentUserId,
       'amount': amount,
       'method': method,
       'paymentMethod': method,
@@ -93,6 +97,7 @@ class PaymentModel {
   PaymentModel copyWith({
     String? id,
     String? studentId,
+    String? studentUserId,
     double? amount,
     String? method,
     String? methodDetails,
@@ -113,6 +118,7 @@ class PaymentModel {
     return PaymentModel(
       id: id ?? this.id,
       studentId: studentId ?? this.studentId,
+      studentUserId: studentUserId ?? this.studentUserId,
       amount: amount ?? this.amount,
       method: method ?? this.method,
       methodDetails: methodDetails ?? this.methodDetails,

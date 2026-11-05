@@ -34,6 +34,7 @@ import 'package:study_library/features/holidays/presentation/screens/holiday_cal
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
+import 'package:study_library/features/payments/presentation/widgets/smart_payment_picker_sheet.dart';
 import 'package:intl/intl.dart';
 
 class DashboardMetrics {
@@ -305,87 +306,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
   }
 
   void _showRecordPaymentPicker(BuildContext context) {
-    final students = ref.read(studentsStreamProvider).value ?? [];
-    if (students.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No students registered yet. Add a student first.')),
-      );
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        String searchQuery = '';
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            final filtered = students.where((s) {
-              final q = searchQuery.toLowerCase();
-              return s.name.toLowerCase().contains(q) || s.phone.contains(q);
-            }).toList();
-
-            return DraggableScrollableSheet(
-              expand: false,
-              initialChildSize: 0.7,
-              maxChildSize: 0.9,
-              builder: (ctx, scrollController) {
-                return Column(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Search student by name or phone...',
-                          prefixIcon: const Icon(Icons.search),
-                          isDense: true,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onChanged: (val) => setSheetState(() => searchQuery = val),
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    Expanded(
-                      child: filtered.isEmpty
-                          ? const Center(child: Text('No matching students found'))
-                          : ListView.separated(
-                              controller: scrollController,
-                              itemCount: filtered.length,
-                              separatorBuilder: (_, _) => const Divider(height: 1),
-                              itemBuilder: (context, index) {
-                                final student = filtered[index];
-                                return ListTile(
-                                  leading: CircleAvatar(
-                                    child: Text(student.name.isNotEmpty ? student.name[0].toUpperCase() : '?'),
-                                  ),
-                                  title: Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text(student.phone),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () {
-                                    Navigator.pop(ctx);
-                                    context.push('/admin/payments/record/${student.id}');
-                                  },
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
-    );
+    SmartPaymentPickerSheet.show(context, ref);
   }
 
   @override

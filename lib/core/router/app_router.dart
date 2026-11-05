@@ -178,9 +178,66 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: Routes.splash,
+    errorPageBuilder: (context, state) {
+      final loc = state.uri.toString();
+      // Auto-recover seamlessly if path has /app/ prefix
+      if (loc.startsWith('/app/')) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final stripped = loc.substring(4);
+          GoRouter.of(context).go(stripped);
+        });
+        return const MaterialPage(
+          child: Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          ),
+        );
+      }
+      return MaterialPage(
+        child: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.compass_calibration_outlined, size: 64, color: Colors.brown),
+                  const SizedBox(height: 16),
+                  const Text('Page Not Found', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'The requested location ($loc) does not exist.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: () => GoRouter.of(context).go(Routes.splash),
+                    icon: const Icon(Icons.home_rounded),
+                    label: const Text('Return to Home'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
     // ── Security: Role-based redirect guard ─────────────────────────────────
     redirect: (context, state) {
-      final path = state.uri.toString();
+      final uri = state.uri;
+      final rawPath = uri.path;
+
+      // Normalize if path starts with '/app' (e.g. '/app/admin/students/...' -> '/admin/students/...')
+      if (rawPath.startsWith('/app/')) {
+        final stripped = rawPath.substring(4);
+        final query = uri.hasQuery ? '?${uri.query}' : '';
+        return '$stripped$query';
+      }
+      if (rawPath == '/app') {
+        return Routes.splash;
+      }
+
+      final path = uri.toString();
 
       // Public routes — always accessible
       final publicRoutes = [

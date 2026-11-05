@@ -41,14 +41,19 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
   bool _isSlideMode = false;
   bool? _dragSelectMode; // true = selecting, false = deselecting
   final Set<String> _dragProcessedSeatIds = {};
+  String _activeFilter = 'all'; // 'all', 'available', 'occupied', 'boys', 'girls'
 
   List<int> _getColumnTiers(double width) {
+    final roomCols = widget.cols > 0 ? widget.cols : 10;
     if (width > 1200) {
-      return const [20, 16, 12, 10, 8, 6, 4];
+      final list = <int>{20, 16, 12, roomCols, 8, 6, 4}.toList()..sort((a, b) => b.compareTo(a));
+      return list;
     } else if (width > 800) {
-      return const [16, 12, 10, 8, 6, 4];
+      final list = <int>{16, 12, roomCols, 8, 6, 4}.toList()..sort((a, b) => b.compareTo(a));
+      return list;
     } else if (width > 500) {
-      return const [10, 8, 6, 5, 4, 3];
+      final list = <int>{roomCols, 8, 6, 5, 4, 3}.toList()..sort((a, b) => b.compareTo(a));
+      return list;
     } else {
       // Mobile phone screens (360px - 500px): Clean 4-tier column scale with comfortable 3-column default
       return const [5, 4, 3, 2];
@@ -185,13 +190,15 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
 
         if (!_hasInitializedColumns) {
           _hasInitializedColumns = true;
-          // Set comfortable default tier: 3 on mobile phones (< 440px), 4 on small tablets, middle tier on tablet/desktop
-          if (width < 440) {
+          // Set comfortable default: physical room layout on tablet/desktop, comfortable fit on mobile
+          if (width >= 650 && widget.cols > 0) {
+            _columns = widget.cols; // Always match physical room columns (e.g. 10 for Cozy Hall) on desktop/tablet!
+          } else if (width < 440) {
             _columns = 3;
-          } else if (width <= 600) {
+          } else if (width <= 650) {
             _columns = 4;
           } else {
-            _columns = tiers[tiers.length ~/ 2];
+            _columns = widget.cols > 0 ? widget.cols : tiers[tiers.length ~/ 2];
           }
         } else {
           // Clamp columns if device rotated or screen resized
@@ -260,9 +267,59 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
-            // Interactive Actions Toolbar (Slide-to-Select, Select All, Web/Mobile Zoom Actions)
+            // Quick Filter Chips Bar (Live dynamic counts)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  _buildFilterChip(
+                    'all',
+                    'All Desks',
+                    sectionSeats.length,
+                    Theme.of(context).colorScheme.primary,
+                    Icons.apps_rounded,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'available',
+                    'Vacant',
+                    sectionSeats.where((s) => s.status == SeatStatus.available).length,
+                    const Color(0xFF10B981),
+                    Icons.event_seat_rounded,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'occupied',
+                    'Occupied',
+                    sectionSeats.where((s) => s.status == SeatStatus.occupied).length,
+                    const Color(0xFFEF4444),
+                    Icons.person_rounded,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'boys',
+                    'Boys Zone',
+                    sectionSeats.where((s) => s.genderRestriction == GenderRestriction.male).length,
+                    const Color(0xFF1976D2),
+                    Icons.male_rounded,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'girls',
+                    'Girls Zone',
+                    sectionSeats.where((s) => s.genderRestriction == GenderRestriction.female).length,
+                    const Color(0xFFE91E63),
+                    Icons.female_rounded,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Interactive Actions Toolbar (Slide-to-Select, Select All, Room View, Web/Mobile Zoom Actions)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
@@ -363,6 +420,53 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                         ),
                       ),
                     ),
+
+                  // Room View Toggle Button (Snap directly to physical room columns)
+                  if (widget.cols > 0) ...[
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: () => _setColumns(widget.cols),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: _columns == widget.cols
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _columns == widget.cols
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.transparent,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.meeting_room_rounded,
+                              size: 14,
+                              color: _columns == widget.cols
+                                  ? Theme.of(context).colorScheme.onPrimaryContainer
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              width < 420 ? '${widget.cols} Col' : '🏛️ Room View (${widget.cols})',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: _columns == widget.cols
+                                    ? Theme.of(context).colorScheme.onPrimaryContainer
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
 
                   const Spacer(),
 
@@ -598,60 +702,171 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                             )
                         : null,
                     onPanEnd: (_isSlideMode || hasSelection) ? (_) => _handleDragEnd() : null,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      child: GridView.builder(
-                        key: ValueKey<int>(_columns),
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: _columns,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                          childAspectRatio: childAspectRatio,
-                        ),
-                        itemCount: sortedSeats.length,
-                        itemBuilder: (context, index) {
-                          final seat = sortedSeats[index];
-                          final isSelected = selectedSeats.containsKey(seat.id);
-                          final student = seat.studentId != null ? studentMap[seat.studentId] : null;
-
-                          return RepaintBoundary(
-                            key: ValueKey(seat.id),
-                            child: SeatTile(
-                              seat: seat,
-                              isSelected: isSelected,
-                              columns: _columns,
-                              studentName: student?.name,
-                              shiftName: (student?.customFields['shift'] as String?) ??
-                                  (student?.planId != null ? 'Active Plan' : null),
-                              sectionColor: widget.sectionColor != null ? Color(widget.sectionColor!) : null,
-                              onTap: () {
-                                if (_isSlideMode || selectedSeats.isNotEmpty) {
-                                  ref
-                                      .read(selectedSeatsProvider.notifier)
-                                      .toggleSelection(seat.id, widget.sectionId);
-                                } else {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    builder: (context) => SeatDetailSheet(
-                                      seat: seat,
-                                      sectionId: widget.sectionId,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Top Spatial Orientation Banner (Entrance & Front Reception)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.door_front_door_outlined, size: 14, color: Theme.of(context).colorScheme.primary),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Front Reception & Main Entrance',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? Colors.white70 : const Color(0xFF334155),
                                     ),
-                                  );
-                                }
-                              },
-                              onLongPress: () {
-                                setState(() => _isSlideMode = true);
-                                ref
-                                    .read(selectedSeatsProvider.notifier)
-                                    .toggleSelection(seat.id, widget.sectionId);
-                              },
-                            ), // SeatTile
-                          ); // RepaintBoundary
-                        },
-                      ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.wifi_rounded, size: 13, color: Color(0xFF10B981)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'High-Speed Wi-Fi Zone',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Interactive Desk Grid
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          child: GridView.builder(
+                            key: ValueKey<int>(_columns),
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: _columns,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: childAspectRatio,
+                            ),
+                            itemCount: sortedSeats.length,
+                            itemBuilder: (context, index) {
+                              final seat = sortedSeats[index];
+                              final isSelected = selectedSeats.containsKey(seat.id);
+                              final student = seat.studentId != null ? studentMap[seat.studentId] : null;
+
+                              bool isDimmed = false;
+                              if (_activeFilter == 'available') {
+                                isDimmed = seat.status != SeatStatus.available;
+                              } else if (_activeFilter == 'occupied') {
+                                isDimmed = seat.status != SeatStatus.occupied;
+                              } else if (_activeFilter == 'boys') {
+                                isDimmed = seat.genderRestriction != GenderRestriction.male;
+                              } else if (_activeFilter == 'girls') {
+                                isDimmed = seat.genderRestriction != GenderRestriction.female;
+                              }
+
+                              return RepaintBoundary(
+                                key: ValueKey(seat.id),
+                                child: SeatTile(
+                                  seat: seat,
+                                  isSelected: isSelected,
+                                  isDimmed: isDimmed,
+                                  columns: _columns,
+                                  student: student,
+                                  studentName: student?.name,
+                                  shiftName: (student?.customFields['shift'] as String?) ??
+                                      (student?.planId != null ? 'Active Plan' : null),
+                                  sectionColor: widget.sectionColor != null ? Color(widget.sectionColor!) : null,
+                                  onTap: () {
+                                    if (_isSlideMode || selectedSeats.isNotEmpty) {
+                                      ref
+                                          .read(selectedSeatsProvider.notifier)
+                                          .toggleSelection(seat.id, widget.sectionId);
+                                    } else {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        builder: (context) => SeatDetailSheet(
+                                          seat: seat,
+                                          sectionId: widget.sectionId,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  onLongPress: () {
+                                    setState(() => _isSlideMode = true);
+                                    ref
+                                        .read(selectedSeatsProvider.notifier)
+                                        .toggleSelection(seat.id, widget.sectionId);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+
+                        // Bottom Spatial Orientation Banner (Silent Zone & Restrooms)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.volume_off_rounded, size: 14, color: Color(0xFF0D9488)),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Deep Silent Reading Zone',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.water_drop_outlined, size: 13, color: Color(0xFF3B82F6)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Water & Restrooms ➔',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -672,6 +887,64 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildFilterChip(
+    String key,
+    String label,
+    int count,
+    Color activeColor,
+    IconData icon,
+  ) {
+    final isSelected = _activeFilter == key;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _activeFilter = isSelected ? 'all' : key;
+        });
+        HapticFeedback.selectionClick();
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? activeColor.withValues(alpha: 0.18)
+              : (isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? activeColor
+                : (isDark ? Colors.white12 : Colors.black12),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected ? activeColor : (isDark ? Colors.white60 : Colors.black54),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              '$label ($count)',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected
+                    ? activeColor
+                    : (isDark ? Colors.white70 : Colors.black87),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

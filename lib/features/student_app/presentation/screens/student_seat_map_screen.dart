@@ -1402,7 +1402,9 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                               children: [
                                 const Icon(Icons.person_rounded, color: Colors.white70, size: 18),
                                 const SizedBox(width: 8),
-                                Text('${SeatHelper.formatSeatLabel(rawLabel: seat.label)} is currently occupied by another student.'),
+                                Expanded(
+                                  child: Text('${SeatHelper.formatSeatLabel(rawLabel: seat.label)} is occupied by another student. Tap any green desk to select it.'),
+                                ),
                               ],
                             ),
                             behavior: SnackBarBehavior.floating,
@@ -1417,7 +1419,9 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                               children: [
                                 const Icon(Icons.build_rounded, color: Colors.amber, size: 18),
                                 const SizedBox(width: 8),
-                                Text('${SeatHelper.formatSeatLabel(rawLabel: seat.label)} is currently under maintenance.'),
+                                Expanded(
+                                  child: Text('${SeatHelper.formatSeatLabel(rawLabel: seat.label)} is under routine maintenance. Please pick any green available desk.'),
+                                ),
                               ],
                             ),
                             behavior: SnackBarBehavior.floating,

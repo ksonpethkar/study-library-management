@@ -11,7 +11,6 @@ import 'package:study_library/features/announcements/presentation/screens/announ
 import 'package:study_library/features/holidays/presentation/screens/holiday_calendar_screen.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/models/announcement_model.dart';
-import 'package:study_library/models/holiday_model.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 class StudentAnnouncementsScreen extends ConsumerStatefulWidget {
@@ -173,7 +172,7 @@ class _StudentAnnouncementsScreenState
     final studentAsync = ref.watch(currentStudentProvider);
     final student = studentAsync.value;
     final studentId = student?.id ?? '';
-    final libraryId = rawLibraryId.isNotEmpty ? rawLibraryId : (student?.libraryId ?? '');
+    final libraryId = rawLibraryId;
     final announcementsAsync = ref.watch(announcementsStreamProvider);
     final holidaysAsync = ref.watch(holidaysStreamProvider);
     final holidays = holidaysAsync.value ?? [];

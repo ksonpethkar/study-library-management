@@ -23,6 +23,7 @@ import 'package:study_library/core/providers/theme_provider.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/widgets/facility_tour_sheet.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   const MyProfileScreen({super.key});
@@ -71,66 +72,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         if (mounted) setState(() => _isUploadingPhoto = false);
       }
     }
-  }
-
-  void _showRulesDialog(String libraryId) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.6,
-          maxChildSize: 0.85,
-          builder: (context, scrollController) {
-            return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              future: FirebaseFirestore.instance.collection('libraries').doc(libraryId).get(),
-              builder: (context, snapshot) {
-                final rules = snapshot.data?.data()?['rulesText'] as String? ??
-                    '1. Maintain complete silence in all study areas.\n'
-                    '2. Cell phones must be kept on silent mode.\n'
-                    '3. Seat reservations are strictly non-transferable.\n'
-                    '4. Outside food is not allowed in reading halls.\n'
-                    '5. Always carry your digital student ID.\n'
-                    '6. Keep the study spaces clean and tidy.';
-
-                return Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: ListView(
-                    controller: scrollController,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          margin: const EdgeInsets.only(bottom: 20),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade400,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Icon(Icons.gavel_rounded, color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 12),
-                          Text('Library Rules & Guidelines', style: Theme.of(context).textTheme.titleLarge),
-                        ],
-                      ),
-                      const Divider(height: 24),
-                      Text(rules, style: const TextStyle(fontSize: 15, height: 1.6)),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
   }
 
   void _showHolidaysSheet(String libraryId) {
@@ -986,9 +927,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                         ),
                         child: const Icon(Icons.gavel_rounded, color: Color(0xFF7C3AED), size: 20),
                       ),
-                      title: const Text('Library Rules & Guidelines', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      title: const Text('Library Facilities & Rules Tour', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _showRulesDialog(libraryId),
+                      onTap: () => FacilityTourSheet.show(context, force: true),
                     ),
                     const Divider(height: 1),
                     ListTile(

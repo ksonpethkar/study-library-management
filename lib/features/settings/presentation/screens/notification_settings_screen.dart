@@ -126,7 +126,7 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
           ),
           SwitchListTile(
             title: const Text('Announcement Push Notifications'),
-            subtitle: const Text('Send FCM push to all students on new announcements'),
+            subtitle: const Text('Send instant push alert to all students on new announcements'),
             value: _announcementPush,
             onChanged: _allNotifications ? (val) => setState(() => _announcementPush = val) : null,
           ),

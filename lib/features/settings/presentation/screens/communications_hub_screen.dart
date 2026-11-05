@@ -237,14 +237,14 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       final lib = ref.read(currentLibraryProvider).value;
       final libName = lib?.name.isNotEmpty == true ? lib!.name : 'The Cozy Corner Study Centre';
       await NotificationService.showNotification(
-        title: '📅 Test: Plan Expiring in 3 Days (T-3)',
-        body: 'Hello Student, your membership for Seat #2 at $libName completes in 3 days. Renew now to retain your seat!',
+        title: '📅 Test: Plan Expiring in 3 Days',
+        body: 'Hello Student, your membership for Seat #2 at $libName completes in 3 days. Renew now to retain your reserved desk!',
         channelId: NotificationService.channelGeneral,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Multi-Stage Renewal (T-3) test prompt delivered to status bar! 📲'),
+            content: Text('Upcoming renewal reminder preview delivered to status bar! 📲'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
@@ -386,7 +386,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
     final url = _localBridgeUrlController.text.trim();
     if (url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the Local Desk PC Bridge URL first!')),
+        const SnackBar(content: Text('Please enter the Reception Desk Connector address first!')),
       );
       return;
     }
@@ -398,7 +398,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       setState(() => _isTestingBridge = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ok ? 'Desk PC Bridge Connected! ✅' : 'Could not reach Desk PC. Verify local IP and port.'),
+          content: Text(ok ? 'Reception Desk Connector Connected! ✅' : 'Could not reach reception desk computer. Check local network connection.'),
           backgroundColor: ok ? Colors.green : Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -564,7 +564,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Mobile & Web Push Notifications', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('100% Free Firebase Cloud Messaging (FCM)', style: theme.textTheme.bodySmall),
+                          Text('100% Free Instant Mobile & Web Notifications (In-App Push Alerts)', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -649,8 +649,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Local Desk PC WhatsApp Bridge', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Automated background WhatsApp via reception computer', style: theme.textTheme.bodySmall),
+                          Text('Reception Desk WhatsApp Connector', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Automated background WhatsApp via reception desk computer', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -665,7 +665,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                   TextField(
                     controller: _localBridgeUrlController,
                     decoration: const InputDecoration(
-                      labelText: 'Desk PC Bridge URL',
+                      labelText: 'Reception Desk Connector Address (URL)',
                       hintText: 'e.g. http://192.168.1.50:3000/send',
                       prefixIcon: Icon(Icons.link_rounded),
                       border: OutlineInputBorder(),
@@ -677,7 +677,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                     icon: _isTestingBridge
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.wifi_tethering_rounded),
-                    label: const Text('Test Connection (Ping Desk PC)'),
+                    label: const Text('Test Reception Desk Connection'),
                   ),
                 ],
               ],
@@ -823,8 +823,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Custom Webhook Endpoint', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Post JSON events to your own server or Zapier', style: theme.textTheme.bodySmall),
+                          Text('External Automation Connector (Zapier, Make & Webhooks)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Automatically trigger workflows in external apps (Zapier, Make, Cloud Webhook)', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -839,8 +839,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                   TextField(
                     controller: _customWebhookUrlController,
                     decoration: const InputDecoration(
-                      labelText: 'Webhook URL',
-                      hintText: 'https://your-service.com/webhook',
+                      labelText: 'Connector Webhook URL',
+                      hintText: 'https://hooks.zapier.com/hooks/catch/...',
                       prefixIcon: Icon(Icons.http_rounded),
                       border: OutlineInputBorder(),
                     ),
@@ -929,8 +929,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Multi-Stage Renewal Engine (Phase 1)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Eliminates collection chasing with staged alerts', style: theme.textTheme.bodySmall),
+                          Text('Automated Multi-Stage Renewal Reminders', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Sends timely reminders before and after membership expiry', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -944,16 +944,16 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                   const Divider(height: 20),
                   const Text('Automated Lifecycle Alerts Dispatched:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  _buildStageChip('T-3 Days', 'Upcoming renewal reminder to student app & push', Colors.indigo),
+                  _buildStageChip('3 Days Before', 'Friendly renewal reminder sent to student app', Colors.indigo),
                   const SizedBox(height: 4),
-                  _buildStageChip('T-0 Today', 'Urgent expiration notice + 1-Tap UPI payment link', Colors.amber.shade900),
+                  _buildStageChip('Expiry Day', 'Due date notification with 1-Tap UPI renewal link', Colors.amber.shade900),
                   const SizedBox(height: 4),
-                  _buildStageChip('T+2 Grace', 'Final warning: desk released to waitlist tomorrow', Colors.red.shade800),
+                  _buildStageChip('Grace Period', 'Courtesy warning before seat is opened to waitlist', Colors.red.shade800),
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: _triggerTestRenewalPush,
                     icon: const Icon(Icons.send_to_mobile_rounded, size: 16),
-                    label: const Text('Send Test T-3 Push Prompt (This Device)'),
+                    label: const Text('Send Test Renewal Reminder (This Device)'),
                   ),
                 ],
               ],
@@ -989,8 +989,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Owner's Daily Executive Digests (Phase 2)", style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Automated operational & financial clarity zero searching', style: theme.textTheme.bodySmall),
+                          Text("Daily Library Summary & Financial Briefing", style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Automated morning briefing and closing financial summary', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -1069,8 +1069,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Automated Waiting-List Cascade (Phase 3)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Fills vacated seats within hours automatically', style: theme.textTheme.bodySmall),
+                          Text('Automatic Waitlist Seat Allocation', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Fills newly opened desks quickly and fairly', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -1083,7 +1083,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                 if (_waitlistCascade && _allNotifications) ...[
                   const Divider(height: 20),
                   Text(
-                    'When a student vacates a seat after grace expiry, the desk is held exclusively for 2 hours for candidate #1. If unclaimed within 2 hours, it automatically cascades to candidate #2.',
+                    'When a seat becomes available, it is held for 2 hours for the first student on the waiting list. If not claimed within 2 hours, it automatically moves to the next student in line.',
                     style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 10),
@@ -1092,7 +1092,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                     icon: _isTestingCascade
                         ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.sync_rounded, size: 16),
-                    label: Text(_isTestingCascade ? 'Scanning Holds...' : 'Run Waiting List Cascade Check Now'),
+                    label: Text(_isTestingCascade ? 'Scanning Waitlist...' : 'Check & Assign Available Waitlist Seats'),
                   ),
                 ],
               ],
@@ -1248,7 +1248,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
-              child: Text('Error loading queue: ${snapshot.error}'),
+              child: Text(AppErrorFormatter.toUserFriendly(snapshot.error, actionContext: 'announcement')),
             ),
           );
         }

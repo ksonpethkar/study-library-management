@@ -8,6 +8,7 @@ import 'package:study_library/models/payment_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class EditPaymentScreen extends ConsumerStatefulWidget {
   final PaymentModel payment;
@@ -301,6 +302,101 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
     }
   }
 
+  Future<void> _deletePaymentToRecycleBin() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Move Payment to Recycle Bin?'),
+        content: Text(
+          'Are you sure you want to delete this ₹${widget.payment.amount.toStringAsFixed(0)} payment record? It will be stored in the Recycle Bin and can be restored anytime within 30 days.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Move to Bin'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      setState(() => _isSaving = true);
+      try {
+        final now = DateTime.now();
+        final currentUser = FirebaseAuth.instance.currentUser;
+        final binData = {
+          'id': widget.payment.id,
+          'name': 'Payment ₹${widget.payment.amount.toStringAsFixed(0)} (${widget.payment.method})',
+          'displayName': 'Payment ₹${widget.payment.amount.toStringAsFixed(0)} (${widget.student.name})',
+          'type': 'payment',
+          'libraryId': widget.libraryId,
+          'studentId': widget.student.id,
+          'amount': widget.payment.amount,
+          'method': widget.payment.method,
+          'date': widget.payment.date.toIso8601String(),
+          'deletedAt': now.toIso8601String(),
+          'deletedBy': currentUser?.email ?? currentUser?.uid ?? 'admin',
+          'expiresAt': now.add(const Duration(days: 30)).toIso8601String(),
+          'originalData': widget.payment.toJson(),
+        };
+
+        final batch = FirebaseFirestore.instance.batch();
+        final binRef = FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('recycle_bin')
+            .doc(widget.payment.id);
+        batch.set(binRef, binData);
+
+        final payRef = FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('payments')
+            .doc(widget.payment.id);
+        batch.delete(payRef);
+
+        // Restore due balance on student
+        final newDue = (widget.student.pendingDueBalance ?? 0.0) + widget.payment.amount;
+        final studentRef = FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('students')
+            .doc(widget.student.id);
+        batch.update(studentRef, {
+          'pendingDueBalance': newDue,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        await batch.commit();
+
+        AuditLogger().log(
+          action: AuditAction.deleted,
+          entityType: AuditEntity.payment,
+          libraryId: widget.libraryId,
+          entityId: widget.payment.id,
+          details: {'amount': widget.payment.amount, 'studentId': widget.student.id},
+        ).ignore();
+
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Payment moved to Recycle Bin (available in Receipts & Payments tab).'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isSaving = false);
+          AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'payment');
+        }
+      }
+    }
+  }
+
   Widget _buildCard({
     required ThemeData theme,
     required IconData icon,
@@ -377,6 +473,13 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
       appBar: AppBar(
         title: const Text('Edit Payment Details'),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+            tooltip: 'Move to Recycle Bin',
+            onPressed: _isSaving ? null : _deletePaymentToRecycleBin,
+          ),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(

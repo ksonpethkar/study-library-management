@@ -433,12 +433,14 @@ class StudentProvisioningService {
               final payRef = _firestore.collection('libraries').doc(libraryId).collection('payments').doc();
               paymentId = payRef.id;
               await payRef.set({
+                'id': paymentId,
                 'studentId': targetStudentId,
+                if (studentUserId.isNotEmpty) 'studentUserId': studentUserId,
                 'studentName': data['studentName'] ?? sData['name'] ?? 'Student',
                 'amount': amount,
                 'paymentMethod': paymentMethod,
                 'method': paymentMethod,
-                'status': 'completed',
+                'status': 'paid',
                 'paymentDate': FieldValue.serverTimestamp(),
                 'date': FieldValue.serverTimestamp(),
                 'createdAt': FieldValue.serverTimestamp(),
@@ -448,13 +450,19 @@ class StudentProvisioningService {
 
               final recRef = _firestore.collection('libraries').doc(libraryId).collection('receipts').doc();
               receiptId = recRef.id;
+              final recNum = 'REC-${DateTime.now().year}-${recRef.id.substring(0, recRef.id.length >= 6 ? 6 : recRef.id.length).toUpperCase()}';
               await recRef.set({
+                'id': recRef.id,
+                'libraryId': libraryId,
+                'receiptNumber': recNum,
                 'paymentId': paymentId,
                 'studentId': targetStudentId,
+                if (studentUserId.isNotEmpty) 'studentUserId': studentUserId,
                 'studentName': data['studentName'] ?? sData['name'] ?? 'Student',
                 'amount': amount,
                 'method': paymentMethod,
                 'paymentMethod': paymentMethod,
+                'status': 'active',
                 'issuedAt': FieldValue.serverTimestamp(),
                 'description': 'Plan Renewal - $requestedPlanName',
                 'createdAt': FieldValue.serverTimestamp(),

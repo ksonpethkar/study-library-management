@@ -50,6 +50,30 @@
         "destination": "/app/index.html"
       },
       {
+        "source": "/biometric-lock",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/admin/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/student/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/login",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/terms",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/privacy-policy",
+        "destination": "/app/index.html"
+      },
+      {
         "source": "/test",
         "destination": "/test/index.html"
       },

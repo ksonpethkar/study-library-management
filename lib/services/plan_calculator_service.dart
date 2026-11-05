@@ -302,7 +302,7 @@ class PlanCalculatorService {
         final rawBridgePrice = currentMonthProrated + plan.price;
         // Clean round to 10 for cash/UPI handling
         bridgePrice = ((rawBridgePrice / 10).round() * 10.0);
-        bridgeCycleLabel = 'Bridge Pass: Rest of ${_monthName(startDay.month)} (${daysRemainingInCurrentMonth}d) + Full ${_monthName(nextMonthStart.month)}';
+        bridgeCycleLabel = 'Combined Pass: Rest of ${_monthName(startDay.month)} (${daysRemainingInCurrentMonth}d) + Full ${_monthName(nextMonthStart.month)}';
       }
 
       if (isBridgeBundle && hasBridgeOption && bridgeEndDate != null && bridgePrice != null) {
@@ -406,7 +406,7 @@ class PlanCalculatorService {
           endDate: nextEnd,
           price: plan.price,
           isProrated: false,
-          explanation: 'Advance Renewal: Continuous coverage starting ${_monthName(nextStart.month)} ${nextStart.day} until ${_monthName(nextEnd.month)} ${nextEnd.day}.',
+          explanation: 'Seamless Renewal: Continuous desk access starting ${_monthName(nextStart.month)} ${nextStart.day} until ${_monthName(nextEnd.month)} ${nextEnd.day}.',
           smartCalc: smartCalc,
         );
       }
@@ -426,7 +426,7 @@ class PlanCalculatorService {
           endDate: cycleEnd,
           price: plan.price,
           isProrated: false,
-          explanation: 'Continuous Grace Renewal ($daysSinceExpiry days past expiry): Backdated to ${_monthName(backdatedStart.month)} ${backdatedStart.day} to retain your continuous seat registration.',
+          explanation: 'Courtesy Retention ($daysSinceExpiry days past plan end): Keeps your reserved desk and seat assignment protected from ${_monthName(backdatedStart.month)} ${backdatedStart.day}.',
           smartCalc: smartCalc,
         );
       }
@@ -444,7 +444,7 @@ class PlanCalculatorService {
         endDate: smartCalc.endDate,
         price: smartCalc.proratedPrice,
         isProrated: smartCalc.isProrated,
-        explanation: 'Gap Renewal: Welcome back after a break of $daysSinceExpiry days! Starts fresh from today (${_monthName(today.month)} ${today.day}) with fair pro-rata pricing.',
+        explanation: 'Welcome back after a study break of $daysSinceExpiry days! Starts fresh from today (${_monthName(today.month)} ${today.day}) with fair remaining days pricing.',
         smartCalc: smartCalc,
       );
     }

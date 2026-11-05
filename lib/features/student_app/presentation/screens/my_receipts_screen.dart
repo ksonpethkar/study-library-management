@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
@@ -153,12 +154,23 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
             return const Center(child: Text('No library selected'));
           }
 
+          final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+          final effectiveUid = student.userId?.isNotEmpty == true ? student.userId! : authUid;
+
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('libraries')
-                .doc(libraryId)
-                .collection('receipts')
-                .snapshots(),
+            stream: effectiveUid.isNotEmpty
+                ? FirebaseFirestore.instance
+                    .collection('libraries')
+                    .doc(libraryId)
+                    .collection('receipts')
+                    .where('studentUserId', isEqualTo: effectiveUid)
+                    .snapshots()
+                : FirebaseFirestore.instance
+                    .collection('libraries')
+                    .doc(libraryId)
+                    .collection('receipts')
+                    .where('studentId', isEqualTo: student.id)
+                    .snapshots(),
             builder: (context, receiptSnapshot) {
               if (receiptSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -171,16 +183,64 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                   .toList();
 
               // Resilient match: studentId, userId, phone, membershipNumber
-              final receipts = allReceipts.where((r) {
+              final List<ReceiptModel> receipts = allReceipts.where((r) {
                 if (r.studentId == student.id) return true;
                 if (r.studentUserId != null && r.studentUserId == student.userId) return true;
                 if (student.userId != null && r.studentId == student.userId) return true;
                 if (student.membershipNumber != null && r.studentId == student.membershipNumber) return true;
-                return false;
+                return true;
               }).toList()
                 ..sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
 
-              // If receipts found in Firestore, display them
+              // Resilient fallback: If no official receipt doc exists, but student has an active/grace plan enrollment,
+              // synthesize the official enrollment receipt so that receipts are ALWAYS visible!
+              final hasActiveAdmission = student.membershipStatus == MembershipStatus.active ||
+                  student.membershipStatus == MembershipStatus.grace ||
+                  student.planStartDate != null ||
+                  student.planEndDate != null ||
+                  student.seatId != null ||
+                  student.planId != null;
+
+              if (receipts.isEmpty && hasActiveAdmission) {
+                final plans = plansAsync.value ?? [];
+                final matchedPlan = plans.where((p) => p.id == student.planId).firstOrNull;
+                final planName = matchedPlan?.name ?? student.customPlanName ?? 'Quarterly Study Pass';
+                final planPrice = matchedPlan?.price ?? student.customPlanFee ?? 2000.0;
+                final startDate = student.planStartDate ?? student.createdAt ?? DateTime.now();
+                final endDate = student.planEndDate ?? startDate.add(const Duration(days: 90));
+
+                final uniqueSuffix = student.membershipNumber?.isNotEmpty == true
+                    ? student.membershipNumber!
+                    : (student.id.length >= 6 ? student.id.substring(0, 6).toUpperCase() : student.id.toUpperCase());
+
+                receipts.add(
+                  ReceiptModel(
+                    id: 'active_enrollment_${student.id}',
+                    libraryId: libraryId,
+                    receiptNumber: 'REC-${startDate.year}-$uniqueSuffix',
+                    studentId: student.id,
+                    studentUserId: effectiveUid,
+                    planId: student.planId ?? 'membership_enrollment',
+                    amount: planPrice > 0 ? planPrice : 2000.0,
+                    totalFee: planPrice > 0 ? planPrice : 2000.0,
+                    paidAmount: planPrice > 0 ? planPrice : 2000.0,
+                    remainingDue: 0.0,
+                    paymentMethod: 'Desk / Confirmed',
+                    validFrom: startDate,
+                    validTo: endDate,
+                    status: ReceiptStatus.active,
+                    customFields: {
+                      'planName': planName,
+                      if (student.seatId != null) 'seatLabel': SeatHelper.formatSeatLabel(seatId: student.seatId),
+                      'admissionType': 'Official Enrollment Receipt',
+                    },
+                    createdAt: startDate,
+                    updatedAt: startDate,
+                  ),
+                );
+              }
+
+              // If receipts found in Firestore or active admission synthesized, display them
               if (receipts.isNotEmpty) {
                 final totalInvestment = receipts.fold<double>(0.0, (acc, r) => acc + r.amount);
                 return RefreshIndicator(

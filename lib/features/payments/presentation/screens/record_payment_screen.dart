@@ -84,6 +84,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   String? _studentPreviousSeatId;
   String? _studentPreviousSectionId;
   String? _studentNotes;
+  String? _studentUserId;
   bool _isLoadingStudent = true;
 
   List<String> _paymentMethods = ['Cash', 'UPI / QR', 'Debit / Credit Card', 'Bank Transfer', 'Cheque / DD'];
@@ -168,6 +169,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           _studentPreviousSeatId = prevSeatId;
           _studentPreviousSectionId = prevSectionId;
           _studentNotes = data['notes'] as String?;
+          _studentUserId = (data['userId'] ?? data['studentUserId']) as String?;
           if (data['customPlanName'] != null) {
             _customPlanNameController.text = data['customPlanName'] as String;
             _selectedPlanName = data['customPlanName'] as String;
@@ -517,6 +519,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           libraryId: libraryId,
           receiptNumber: receiptNumber,
           studentId: widget.studentId,
+          studentUserId: _studentUserId,
           planId: _selectedPlanId ?? 'custom',
           amount: amount,
           totalFee: totalFee,
@@ -572,6 +575,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       final payment = PaymentModel(
         id: '',
         studentId: widget.studentId,
+        studentUserId: _studentUserId,
         amount: amount,
         totalPlanFee: totalFee,
         remainingDue: remainingDue,

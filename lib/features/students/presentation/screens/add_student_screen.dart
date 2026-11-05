@@ -12,6 +12,9 @@ import 'package:study_library/features/seats/presentation/providers/seat_provide
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/models/student_model.dart';
+import 'package:study_library/models/receipt_model.dart';
+import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:flutter/services.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
@@ -379,6 +382,48 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
               _selectedSeatId!,
               studentId,
             );
+      }
+
+      // If student was created with an active plan, auto-generate official initial admission receipt & payment record
+      if (status == MembershipStatus.active && _selectedPlanId != null) {
+        try {
+          final plans = ref.read(plansStreamProvider).value ?? [];
+          final plan = plans.where((p) => p.id == _selectedPlanId).firstOrNull;
+          final effectiveFee = _selectedPlanId == 'custom'
+              ? (double.tryParse(_customPlanFeeController.text.trim()) ?? 0.0)
+              : (plan?.price ?? 0.0);
+          final effectivePlanName = _selectedPlanId == 'custom'
+              ? (_customPlanNameController.text.trim().isNotEmpty ? _customPlanNameController.text.trim() : 'Custom Plan')
+              : (plan?.name ?? 'Standard Plan');
+
+          final receiptRepo = ReceiptRepository();
+          final nextRecNum = await receiptRepo.getNextReceiptNumber(libraryId);
+          final rec = ReceiptModel(
+            id: '',
+            libraryId: libraryId,
+            receiptNumber: nextRecNum,
+            studentId: studentId,
+            studentUserId: null,
+            planId: _selectedPlanId!,
+            amount: effectiveFee,
+            totalFee: effectiveFee,
+            paidAmount: effectiveFee,
+            remainingDue: 0.0,
+            paymentMethod: 'Cash',
+            validFrom: planStartDate ?? DateTime.now(),
+            validTo: planEndDate ?? (planStartDate ?? DateTime.now()).add(const Duration(days: 30)),
+            customFields: {
+              'planName': effectivePlanName,
+              if (_selectedSeatId != null) 'seatLabel': SeatHelper.formatSeatLabel(seatId: _selectedSeatId),
+              'admissionType': 'New Student Admission',
+            },
+            status: ReceiptStatus.active,
+            createdAt: DateTime.now(),
+          );
+          await receiptRepo.generateReceipt(libraryId, rec, recordMatchingPayment: true);
+        } catch (e) {
+          debugPrint('Silent initial receipt generation error: $e');
+        }
       }
 
       // Invalidate stream so UI refreshes immediately

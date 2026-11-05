@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/services/seat_allocation_pdf_service.dart';
 import 'package:study_library/core/widgets/loading_skeleton.dart';
 import 'package:study_library/core/widgets/staggered_list_item.dart';
-import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 import '../providers/seat_providers.dart';
@@ -242,144 +241,16 @@ class SeatMapScreen extends ConsumerWidget {
                       ],
                     ),
                     subtitle: _SectionSubtitle(section: section),
-                    trailing: PopupMenuButton<String>(
+                    trailing: IconButton(
                       icon: const Icon(Icons.more_vert, size: 20),
                       tooltip: 'Section Options',
-                      onSelected: (val) async {
-                        final seatRepo = ref.read(seatRepositoryProvider);
-                        if (val == 'edit') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => AddSectionScreen(
-                                libraryId: libraryId,
-                                section: section,
-                              ),
-                            ),
-                          );
-                        } else if (val == 'details') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => SectionDetailScreen(sectionId: section.id),
-                            ),
-                          );
-                        } else if (val == 'toggle_status') {
-                          _toggleSectionStatus(context, ref, libraryId, section);
-                        } else if (val == 'duplicate') {
-                          _showDuplicateSectionDialog(context, ref, libraryId, section);
-                        } else if (val == 'delete') {
-                          _confirmDeleteSection(context, ref, libraryId, section);
-                        } else if (val == 'select_all') {
-                          final seats = await seatRepo.getSeatsOnce(
-                            libraryId,
-                            section.id,
-                          );
-                          final map = {
-                            for (final s in seats)
-                              if (!s.id.startsWith('missing_'))
-                                s.id: section.id,
-                          };
-                          ref
-                              .read(selectedSeatsProvider.notifier)
-                              .selectMultiple(map);
-                        } else if (val == 'deselect') {
-                          final seats = await seatRepo.getSeatsOnce(
-                            libraryId,
-                            section.id,
-                          );
-                          ref
-                              .read(selectedSeatsProvider.notifier)
-                              .deselectMultiple(seats.map((s) => s.id));
-                        }
-                      },
-                      itemBuilder: (ctx) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit_outlined, size: 18),
-                              SizedBox(width: 8),
-                              Text('Edit Section'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'details',
-                          child: Row(
-                            children: [
-                              Icon(Icons.dashboard_outlined, size: 18),
-                              SizedBox(width: 8),
-                              Text('Section Details'),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'toggle_status',
-                          child: Row(
-                            children: [
-                              Icon(
-                                section.isActive
-                                    ? Icons.build_circle_outlined
-                                    : Icons.check_circle_outline,
-                                size: 18,
-                                color: section.isActive
-                                    ? Colors.amber.shade800
-                                    : Colors.green,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                section.isActive
-                                    ? 'Set Maintenance'
-                                    : 'Set Active',
-                              ),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'duplicate',
-                          child: Row(
-                            children: [
-                              Icon(Icons.copy_rounded, size: 18),
-                              SizedBox(width: 8),
-                              Text('Duplicate Section'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuDivider(),
-                        const PopupMenuItem(
-                          value: 'select_all',
-                          child: Row(
-                            children: [
-                              Icon(Icons.select_all, size: 18),
-                              SizedBox(width: 8),
-                              Text('Select All in Section'),
-                            ],
-                          ),
-                        ),
-                        if (hasSelectedInSection)
-                          const PopupMenuItem(
-                            value: 'deselect',
-                            child: Row(
-                              children: [
-                                Icon(Icons.deselect, size: 18),
-                                SizedBox(width: 8),
-                                Text('Deselect Section'),
-                              ],
-                            ),
-                          ),
-                        const PopupMenuDivider(),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text('Delete Section', style: TextStyle(color: Colors.red)),
-                            ],
-                          ),
-                        ),
-                      ],
+                      onPressed: () => _showSectionOptionsSheet(
+                        context,
+                        ref,
+                        libraryId,
+                        section,
+                        hasSelectedInSection,
+                      ),
                     ),
                     children: [
                       Padding(
@@ -499,6 +370,186 @@ class SeatMapScreen extends ConsumerWidget {
               ),
             )
           : null,
+    );
+  }
+
+  void _showSectionOptionsSheet(
+    BuildContext context,
+    WidgetRef ref,
+    String libraryId,
+    SectionModel section,
+    bool hasSelectedInSection,
+  ) {
+    final seatRepo = ref.read(seatRepositoryProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sectionColor = Color(section.color != 0 ? section.color : 0xFF5D4037);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => Container(
+        constraints: const BoxConstraints(maxWidth: 550),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 16,
+              offset: Offset(0, -4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.black12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: sectionColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.meeting_room_rounded,
+                    color: sectionColor,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        section.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${section.rows} Rows × ${section.cols} Columns • ${section.capacity} Desks',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.pop(sheetCtx),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit Section'),
+              subtitle: const Text('Change name, rows, columns, or color'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddSectionScreen(
+                      libraryId: libraryId,
+                      section: section,
+                    ),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.dashboard_outlined),
+              title: const Text('Section Details'),
+              subtitle: const Text('Occupancy breakdown and statistics'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SectionDetailScreen(sectionId: section.id),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                section.isActive ? Icons.build_circle_outlined : Icons.check_circle_outline,
+                color: section.isActive ? Colors.amber.shade800 : Colors.green,
+              ),
+              title: Text(section.isActive ? 'Set Maintenance Mode' : 'Restore Active Mode'),
+              subtitle: Text(section.isActive ? 'Mark entire hall under maintenance' : 'Hall is ready for study'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _toggleSectionStatus(context, ref, libraryId, section);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: const Text('Duplicate Section'),
+              subtitle: const Text('Clone this hall layout into a new section'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _showDuplicateSectionDialog(context, ref, libraryId, section);
+              },
+            ),
+            ListTile(
+              leading: Icon(hasSelectedInSection ? Icons.deselect : Icons.select_all_rounded),
+              title: Text(hasSelectedInSection ? 'Deselect Section' : 'Select All Desks in Section'),
+              subtitle: Text(hasSelectedInSection ? 'Clear selection in this section' : 'Select all desks for bulk operations'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                if (hasSelectedInSection) {
+                  final seats = await seatRepo.getSeatsOnce(libraryId, section.id);
+                  ref.read(selectedSeatsProvider.notifier).deselectMultiple(seats.map((s) => s.id));
+                } else {
+                  final seats = await seatRepo.getSeatsOnce(libraryId, section.id);
+                  final map = {
+                    for (final s in seats)
+                      if (!s.id.startsWith('missing_')) s.id: section.id,
+                  };
+                  ref.read(selectedSeatsProvider.notifier).selectMultiple(map);
+                }
+              },
+            ),
+            const Divider(height: 16),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+              title: const Text('Delete Section', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              subtitle: const Text('Permanently remove this hall and seats'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _confirmDeleteSection(context, ref, libraryId, section);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -641,7 +692,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      AppSnackbar.showError(context, e);
+                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
                     }
                   }
                 },
@@ -671,7 +722,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      AppSnackbar.showError(context, e);
+                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
                     }
                   }
                 },
@@ -701,7 +752,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      AppSnackbar.showError(context, e);
+                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
                     }
                   }
                 },
@@ -745,7 +796,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      AppSnackbar.showError(context, e);
+                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
                     }
                   }
                 },
@@ -777,7 +828,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      AppSnackbar.showError(context, e);
+                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
                     }
                   }
                 },
@@ -809,7 +860,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      AppSnackbar.showError(context, e);
+                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
                     }
                   }
                 },
@@ -869,7 +920,7 @@ class SeatMapScreen extends ConsumerWidget {
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        AppSnackbar.showError(context, e);
+                        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
                       }
                     }
                   }

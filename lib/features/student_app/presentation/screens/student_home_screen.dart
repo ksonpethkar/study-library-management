@@ -32,6 +32,7 @@ import 'package:study_library/services/app_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/services/quick_actions_service.dart';
 import 'package:study_library/core/widgets/update_reminder_dialog.dart';
+import 'package:study_library/core/widgets/facility_tour_sheet.dart';
 import 'package:study_library/core/error/error_handler.dart';
 
 /// Real-time stream of the current student's pending registration request.
@@ -156,6 +157,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
       if (context.mounted) {
         WhatsNewService.checkAndShow(context, isStudent: true);
         UpdateReminderDialog.checkAndShow(context, ref);
+        FacilityTourSheet.checkAndShow(context);
       }
     });
 
@@ -1790,14 +1792,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           children: [
             Expanded(
               child: _SecondaryQuickAction(
-                icon: Icons.gavel_rounded,
-                label: 'Rules & Conduct',
+                icon: Icons.explore_rounded,
+                label: 'Facilities & Rules',
                 color: const Color(0xFF7C3AED),
-                onTap: () => _showRulesDialog(
-                  context,
-                  library?.rulesText ??
-                      '1. Maintain strict silence in reading halls.\n2. Keep mobile phones on silent.\n3. Return study materials to designated racks.\n4. Eating inside reading halls is prohibited.',
-                ),
+                onTap: () => FacilityTourSheet.show(context, force: true),
               ),
             ),
             const SizedBox(width: 10),
@@ -2065,27 +2063,6 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             ],
           ],
         ),
-      ),
-    );
-  }
-
-  void _showRulesDialog(BuildContext context, String rules) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.gavel_rounded, color: Color(0xFF4F46E5)),
-            SizedBox(width: 8),
-            Text('Library Rules'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Text(rules, style: const TextStyle(height: 1.5)),
-        ),
-        actions: [
-          FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),
-        ],
       ),
     );
   }

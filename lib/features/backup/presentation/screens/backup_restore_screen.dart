@@ -33,7 +33,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
 
     setState(() {
       _isBackingUp = true;
-      _statusText = 'Generating full JSON export...';
+      _statusText = 'Preparing secure library backup file...';
     });
 
     try {
@@ -409,7 +409,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                 )
                               : const Icon(Icons.download_rounded),
-                          label: const Text('Export JSON Backup'),
+                          label: const Text('Export Full Library Backup'),
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -446,7 +446,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                             : const Icon(Icons.download_rounded),
                         label: const FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text('Export JSON Backup'),
+                          child: Text('Export Full Library Backup'),
                         ),
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),

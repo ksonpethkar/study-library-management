@@ -18,10 +18,14 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
   bool _bankExpanded = false;
   bool _methodsExpanded = true;
   bool _policiesExpanded = false;
-  // UPI Controllers
+  bool _merchantGuideExpanded = false;
+
+  // UPI Controllers & Limit Tier
+  String _accountType = 'p2p'; // 'p2p' (Personal Savings, max 2k deep link) or 'merchant' (P2M, up to 1L+)
   final _upiIdController = TextEditingController();
   final _payeeNameController = TextEditingController();
   final _upiPhoneController = TextEditingController();
+  final _mccController = TextEditingController(text: '8299'); // 8299 = Educational / Library / Coaching Services
 
   // Bank Transfer Controllers
   final _bankNameController = TextEditingController();
@@ -67,6 +71,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     _upiIdController.dispose();
     _payeeNameController.dispose();
     _upiPhoneController.dispose();
+    _mccController.dispose();
 
     _bankNameController.dispose();
     _accountNumberController.dispose();
@@ -127,6 +132,8 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
               ? data['payeeName'].toString()
               : defaultPayee;
           _upiPhoneController.text = data['upiPhone']?.toString() ?? rawPhone;
+          _accountType = data['accountType']?.toString() == 'merchant' ? 'merchant' : 'p2p';
+          _mccController.text = data['mcc']?.toString().isNotEmpty == true ? data['mcc'].toString() : '8299';
 
           // Bank Details
           if (data['bankDetails'] is Map) {
@@ -238,6 +245,8 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
         'upiId': upiId,
         'payeeName': payeeName,
         'upiPhone': upiPhone,
+        'accountType': _accountType,
+        'mcc': _mccController.text.trim().isNotEmpty ? _mccController.text.trim() : '8299',
         'bankDetails': bankDetails,
         'cashDetails': cashDetails,
         'chequeDetails': chequeDetails,
@@ -613,7 +622,10 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     final currentPayee = _payeeNameController.text.trim();
     final upiVpaRegex = RegExp(r'^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$');
     final isUpiValid = currentUpi.isNotEmpty && upiVpaRegex.hasMatch(currentUpi);
-    final previewUri = 'upi://pay?pa=$currentUpi&pn=${Uri.encodeComponent(currentPayee)}&cu=INR';
+    final mccVal = _mccController.text.trim().isNotEmpty ? _mccController.text.trim() : '8299';
+    final previewUri = _accountType == 'merchant'
+        ? 'upi://pay?pa=$currentUpi&pn=${Uri.encodeComponent(currentPayee)}&mc=$mccVal&cu=INR'
+        : 'upi://pay?pa=$currentUpi&pn=${Uri.encodeComponent(currentPayee)}&cu=INR';
 
     final hasBankDetails = _bankNameController.text.isNotEmpty && _accountNumberController.text.isNotEmpty;
 
@@ -746,6 +758,155 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
                             prefixIcon: Icon(Icons.phone_rounded),
                             border: OutlineInputBorder(),
                             helperText: 'Students can share renewal payment screenshot directly to this number',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── UPI Tier & Account Type (P2P vs P2M Merchant) ──
+                        const Text(
+                          'UPI Account Type & Limit Tier',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        const SizedBox(height: 6),
+                        SegmentedButton<String>(
+                          segments: const [
+                            ButtonSegment(
+                              value: 'p2p',
+                              label: Text('Personal Savings (P2P)'),
+                              icon: Icon(Icons.person_outline_rounded, size: 16),
+                            ),
+                            ButtonSegment(
+                              value: 'merchant',
+                              label: Text('Business Merchant (P2M)'),
+                              icon: Icon(Icons.verified_rounded, size: 16),
+                            ),
+                          ],
+                          selected: {_accountType},
+                          onSelectionChanged: (val) => setState(() => _accountType = val.first),
+                        ),
+                        const SizedBox(height: 10),
+
+                        if (_accountType == 'p2p')
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7).withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                            ),
+                            child: const Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFFB45309)),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'NPCI ₹2,000 Web Deep Link Rule Active',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF92400E)),
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        'Banks cap pre-filled deep links at ₹2,000 for personal savings UPI IDs. For student plans > ₹2,000, our system automatically activates Smart Assisted Intent (Payee pre-filled, student enters amount) so payments never fail.',
+                                        style: TextStyle(fontSize: 11, color: Color(0xFF78350F), height: 1.3),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.check_circle_outline_rounded, size: 18, color: Color(0xFF047857)),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Verified Merchant (P2M) Active: Dynamic QRs & deep links support up to ₹1,00,000+ with pre-filled amounts without bank link limits.',
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF065F46), fontWeight: FontWeight.w500),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _mccController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Merchant Category Code (MCC)',
+                              hintText: '8299',
+                              prefixIcon: Icon(Icons.category_outlined),
+                              border: OutlineInputBorder(),
+                              helperText: 'Default 8299 = Educational / Coaching / Library Services',
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+
+                        // Collapsible Merchant Upgrade Guide
+                        Container(
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                          ),
+                          child: Theme(
+                            data: theme.copyWith(dividerColor: Colors.transparent),
+                            child: ExpansionTile(
+                              initiallyExpanded: _merchantGuideExpanded,
+                              onExpansionChanged: (exp) => setState(() => _merchantGuideExpanded = exp),
+                              tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                              leading: const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFFD97706), size: 20),
+                              title: const Text(
+                                'How to get a FREE Business Merchant QR (No ₹2,000 limit)',
+                                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                              ),
+                              children: const [
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'To allow students to pay any amount (₹3,800, ₹7,200, ₹15,000) in 1 tap without any bank limit errors:',
+                                        style: TextStyle(fontSize: 11.5, height: 1.35),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        '1. Install Google Pay for Business, PhonePe Business, or Paytm for Business on your phone.',
+                                        style: TextStyle(fontSize: 11.5, height: 1.3),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        '2. Register using your Aadhaar/PAN & Bank Account (Takes 3 minutes, 100% free, 0% commission on UPI).',
+                                        style: TextStyle(fontSize: 11.5, height: 1.3),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        '3. Set category to "Education / Coaching / Library" (MCC 8299).',
+                                        style: TextStyle(fontSize: 11.5, height: 1.3),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        '4. Copy your Merchant UPI ID (e.g. cozycorner@okbizaxis) and paste it into the Library UPI ID field above, then select "Business Merchant (P2M)".',
+                                        style: TextStyle(fontSize: 11.5, height: 1.3, fontWeight: FontWeight.w600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),

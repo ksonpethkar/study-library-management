@@ -38,6 +38,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
   bool _isBridgeSelected = false;
   RenewalTiming _timingMode = RenewalTiming.advance;
   RenewalPaymentMode _paymentMode = RenewalPaymentMode.upi;
+  bool _forceLockedQr = false;
 
   final _notesController = TextEditingController();
   final _transactionRefController = TextEditingController();
@@ -641,11 +642,11 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                 children: [
                                   Text(
                                     renewalCalc.type == RenewalType.advance
-                                        ? 'Continuous Advance Renewal'
+                                        ? 'Seamless Renewal (Continuous Access)'
                                         : (renewalCalc.type == RenewalType.backdatedGrace
-                                            ? 'Backdated Grace Renewal'
+                                            ? 'Courtesy Retention Period (Seat Protected)'
                                             : (renewalCalc.type == RenewalType.gapRenewal
-                                                ? 'Gap Renewal (Break of 10+ Days)'
+                                                ? 'Fresh Start (After Study Break)'
                                                 : 'New Membership Period')),
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
@@ -694,11 +695,11 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                             ),
                           ),
                           title: const Text(
-                            'Bridge Pass Bundle (Available from Day 20)',
+                            'Month-End Combined Pass (Available from Day 20)',
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
                           ),
                           subtitle: Text(
-                            'Cover rest of current month (${renewalCalc.smartCalc.daysRemaining}d) + full next month in one single payment of ${renewalCalc.smartCalc.formattedBridgePrice}. Saves renewal hassle on the 1st!',
+                            'Pay for remaining days of this month (${renewalCalc.smartCalc.daysRemaining}d) + full next month together (${renewalCalc.smartCalc.formattedBridgePrice}). Enjoy non-stop access without renewing again on the 1st!',
                             style: const TextStyle(fontSize: 11.5),
                           ),
                           value: _isBridgeSelected,
@@ -844,7 +845,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
 
                       // UPI checks
                       final customUpi = payData['upiId']?.toString().trim();
-                      final libUpi = library?.upiId?.trim();
+                      final libUpi = library?.upiId.trim();
                       final upiId = (customUpi != null && customUpi.isNotEmpty)
                           ? customUpi
                           : ((libUpi != null && libUpi.isNotEmpty)
@@ -1152,7 +1153,19 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                             ? payData['payeeName'].toString()
                             : (library?.name.isNotEmpty == true ? library!.name : 'Study Library');
 
-                        final upiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}&am=$planPriceStr&cu=INR&tn=${Uri.encodeComponent("Renewal - ${student.name}")}';
+                        final isMerchant = payData['accountType'] == 'merchant';
+                        final mcc = payData['mcc']?.toString() ?? (isMerchant ? '8299' : null);
+                        final mccParam = (mcc != null && mcc.isNotEmpty) ? '&mc=$mcc' : '';
+                        final isAboveLimit = effectivePrice > 2000 && !isMerchant;
+
+                        // Smart URI Routing:
+                        // NPCI caps pre-filled deep links at ₹2,000 for personal savings (P2P) VPAs.
+                        // For amounts > ₹2,000, we default to Open-Amount Intent (Payee pre-filled, student enters amount)
+                        // to guarantee zero bank rejection errors.
+                        final lockedUpiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}$mccParam&am=$planPriceStr&cu=INR&tn=${Uri.encodeComponent("Renewal - ${student.name}")}';
+                        final openUpiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}$mccParam&cu=INR&tn=${Uri.encodeComponent("Renewal - ${student.name}")}';
+
+                        final activeUpiUri = (isAboveLimit && !_forceLockedQr) ? openUpiUri : lockedUpiUri;
 
                         paymentCard = Card(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -1187,7 +1200,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                 child: Column(
                                   children: [
                                     QrImageView(
-                                      data: upiUri,
+                                      data: activeUpiUri,
                                       version: QrVersions.auto,
                                       size: 160.0,
                                       backgroundColor: Colors.white,
@@ -1196,9 +1209,9 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        const Text(
-                                          'Pay ',
-                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                                        Text(
+                                          (isAboveLimit && !_forceLockedQr) ? 'Pay ' : 'Pay ',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
                                         ),
                                         AnimatedRollingPrice(
                                           targetPrice: effectivePrice,
@@ -1214,27 +1227,102 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                       'Google Pay • PhonePe • Paytm • BHIM • Any UPI',
                                       style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                                     ),
+                                    if (isAboveLimit) ...[
+                                      const SizedBox(height: 6),
+                                      InkWell(
+                                        onTap: () => setState(() => _forceLockedQr = !_forceLockedQr),
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          child: Text(
+                                            _forceLockedQr
+                                                ? 'Switch to Open-Amount QR (Prevents Bank ₹2k Limit)'
+                                                : 'Lock ₹$planPriceStr in QR',
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              color: theme.colorScheme.primary,
+                                              fontWeight: FontWeight.w600,
+                                              decoration: TextDecoration.underline,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
+
+                              // Bank Security Notice for > ₹2,000 on Personal P2P VPAs
+                              if (isAboveLimit) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF3C7).withValues(alpha: 0.8),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.shield_outlined, size: 18, color: Color(0xFFB45309)),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Bank Security Notice (> ₹2,000)',
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF92400E)),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Per NPCI bank rules on deep links above ₹2,000, your UPI app will open with Payee pre-selected. Please enter ₹$planPriceStr and your UPI PIN to complete payment without limit errors.',
+                                              style: const TextStyle(fontSize: 11, color: Color(0xFF78350F), height: 1.35),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+
                               const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('UPI ID: $upiId', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                    const SizedBox(width: 6),
-                                    TactileCopyButton(
-                                      copyText: upiId,
-                                      successMessage: 'UPI ID copied to clipboard!',
-                                    ),
-                                  ],
-                                ),
+
+                              // 1-Tap Copy Action Chips
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                alignment: WrapAlignment.center,
+                                children: [
+                                  ActionChip(
+                                    avatar: const Icon(Icons.currency_rupee_rounded, size: 14),
+                                    label: Text('Copy ₹$planPriceStr', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                                    onPressed: () {
+                                      Clipboard.setData(ClipboardData(text: planPriceStr));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Amount ₹$planPriceStr copied to clipboard!'),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  ActionChip(
+                                    avatar: const Icon(Icons.copy_rounded, size: 14),
+                                    label: Text('Copy UPI ID ($upiId)', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5)),
+                                    onPressed: () {
+                                      Clipboard.setData(ClipboardData(text: upiId));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('UPI ID $upiId copied to clipboard!'),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 12),
 
@@ -1244,12 +1332,12 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                 label: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Text('Pay '),
+                                    Text(isAboveLimit ? 'Open UPI App & Pay ' : 'Pay '),
                                     AnimatedRollingPrice(
                                       targetPrice: effectivePrice,
                                       style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                                     ),
-                                    const Text(' via UPI App'),
+                                    Text(isAboveLimit ? '' : ' via UPI App'),
                                   ],
                                 ),
                                 style: FilledButton.styleFrom(
@@ -1259,16 +1347,30 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
                                 onPressed: () async {
-                                  final uri = Uri.parse(upiUri);
+                                  // Auto-copy exact amount to clipboard for seamless user convenience
+                                  await Clipboard.setData(ClipboardData(text: planPriceStr));
+
+                                  final uri = Uri.parse(activeUpiUri);
                                   try {
                                     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                    if (!launched && context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Could not launch UPI app directly. Please scan the QR code above or copy the UPI ID.'),
-                                          backgroundColor: Colors.orange,
-                                        ),
-                                      );
+                                    if (context.mounted) {
+                                      if (isAboveLimit && launched) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('UPI App opened! Amount ₹$planPriceStr copied. Enter amount & UPI PIN to pay.'),
+                                            backgroundColor: const Color(0xFF0D9488),
+                                            behavior: SnackBarBehavior.floating,
+                                            duration: const Duration(seconds: 4),
+                                          ),
+                                        );
+                                      } else if (!launched) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Could not launch UPI app directly. Please scan the QR code above or copy the UPI ID.'),
+                                            backgroundColor: Colors.orange,
+                                          ),
+                                        );
+                                      }
                                     }
                                   } catch (e) {
                                     if (context.mounted) {
@@ -1321,8 +1423,9 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                               ],
                             ],
                           ),
-                        );
-                      }
+                        ),
+                      );
+                    }
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

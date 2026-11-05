@@ -136,6 +136,107 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
     }
   }
 
+  Future<void> _importGazettedHolidays(BuildContext context, String libraryId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Import 2026 Gazetted Holidays'),
+        content: const Text(
+          'This will import major official holidays for 2026 (Republic Day, Holi, Independence Day, Gandhi Jayanti, Diwali, Christmas, etc.) into your library calendar and sync them to student notice boards.\n\nProceed with import?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.download_rounded),
+            label: const Text('Import Holidays'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final standardHolidays = [
+      {'reason': 'Republic Day', 'date': DateTime(2026, 1, 26)},
+      {'reason': 'Maha Shivratri', 'date': DateTime(2026, 2, 15)},
+      {'reason': 'Holi', 'date': DateTime(2026, 3, 4)},
+      {'reason': 'Good Friday', 'date': DateTime(2026, 4, 3)},
+      {'reason': 'Dr. B.R. Ambedkar Jayanti', 'date': DateTime(2026, 4, 14)},
+      {'reason': 'Independence Day', 'date': DateTime(2026, 8, 15)},
+      {'reason': 'Ganesh Chaturthi', 'date': DateTime(2026, 9, 14)},
+      {'reason': 'Mahatma Gandhi Jayanti', 'date': DateTime(2026, 10, 2)},
+      {'reason': 'Dussehra (Vijayadashami)', 'date': DateTime(2026, 10, 20)},
+      {'reason': 'Diwali (Deepavali)', 'date': DateTime(2026, 11, 8)},
+      {'reason': 'Guru Nanak Jayanti', 'date': DateTime(2026, 11, 24)},
+      {'reason': 'Christmas Day', 'date': DateTime(2026, 12, 25)},
+    ];
+
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final holCol = FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('holidays');
+      final annCol = FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('announcements');
+
+      for (final item in standardHolidays) {
+        final reason = item['reason'] as String;
+        final date = item['date'] as DateTime;
+        final newDoc = holCol.doc();
+
+        final holiday = HolidayModel(
+          id: newDoc.id,
+          libraryId: libraryId,
+          date: date,
+          reason: reason,
+          isFullDay: true,
+          createdAt: DateTime.now(),
+          membershipExtended: false,
+          extensionDays: 0,
+        );
+        batch.set(newDoc, holiday.toJson());
+
+        final annDoc = annCol.doc('holiday_${newDoc.id}');
+        final dateFormatted = DateFormat('EEEE, MMMM d, yyyy').format(date);
+        batch.set(annDoc, {
+          'id': annDoc.id,
+          'libraryId': libraryId,
+          'title': 'Holiday Closure: $reason',
+          'message': '$reason ($dateFormatted) — The library will remain closed for the full day. Please plan your study schedule accordingly.',
+          'type': 'broadcast',
+          'priority': 'holiday',
+          'isActive': true,
+          'readBy': [],
+          'createdAt': DateTime.now().toIso8601String(),
+          'expiresAt': DateTime(date.year, date.month, date.day, 23, 59, 59).toIso8601String(),
+        });
+      }
+
+      await batch.commit();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully imported ${standardHolidays.length} official holidays!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'holiday');
+      }
+    }
+  }
+
   String? _getRelativeDateLabel(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -164,6 +265,14 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
           onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
         ),
         title: const Text('Holidays & Closures'),
+        actions: [
+          if (libraryId != null && libraryId.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.playlist_add_check_rounded),
+              tooltip: 'Import Gazetted Holidays',
+              onPressed: () => _importGazettedHolidays(context, libraryId),
+            ),
+        ],
       ),
       body: libraryId == null || libraryId.isEmpty
           ? Center(
@@ -249,10 +358,22 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          FilledButton.icon(
-                            onPressed: () => _showAddHolidayDialog(context, libraryId),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Holiday'),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 12,
+                            runSpacing: 10,
+                            children: [
+                              FilledButton.icon(
+                                onPressed: () => _showAddHolidayDialog(context, libraryId),
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add Holiday'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () => _importGazettedHolidays(context, libraryId),
+                                icon: const Icon(Icons.playlist_add_check_rounded),
+                                label: const Text('Import 2026 Gazetted Holidays'),
+                              ),
+                            ],
                           ),
                         ],
                         ),
@@ -686,6 +807,33 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
       );
 
       await newDoc.set(holiday.toJson());
+
+      // Auto-sync as a holiday circular in announcements collection so student notice board reflects it
+      try {
+        final annDocRef = FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('announcements')
+            .doc('holiday_${newDoc.id}');
+
+        final dateFormatted = DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate!);
+        final extMessage = _extendActiveMemberships
+            ? '\n\n✓ All active student memberships have been automatically extended by +1 day for this closure.'
+            : '\n\nPlease plan your self-study schedule accordingly.';
+
+        await annDocRef.set({
+          'id': annDocRef.id,
+          'libraryId': widget.libraryId,
+          'title': 'Holiday Closure: ${_reasonController.text.trim()}',
+          'message': '${_reasonController.text.trim()} ($dateFormatted) — The library will be ${_isFullDay ? "closed for the full day" : "partially open"}.$extMessage',
+          'type': 'broadcast',
+          'priority': 'holiday',
+          'isActive': true,
+          'readBy': [],
+          'createdAt': DateTime.now().toIso8601String(),
+          'expiresAt': DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 23, 59, 59).toIso8601String(),
+        });
+      } catch (_) { /* intentionally silent */ }
 
       // If compensatory extension is requested, extend all active students by 1 day
       int extendedCount = 0;

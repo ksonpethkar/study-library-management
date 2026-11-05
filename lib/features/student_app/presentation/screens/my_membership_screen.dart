@@ -11,6 +11,7 @@ import 'package:study_library/features/plans/presentation/providers/plan_provide
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
+import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 
@@ -768,22 +769,39 @@ class _StudentTransactionsSection extends StatelessWidget {
     final theme = Theme.of(context);
     final dateFormat = DateFormat('dd MMM yyyy');
 
+    final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final effectiveUid = student.userId?.isNotEmpty == true ? student.userId! : authUid;
+
     // Stream both receipts and payments for the student
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('receipts')
-          .where('studentId', isEqualTo: student.id)
-          .snapshots(),
-      builder: (context, receiptSnap) {
-        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
+      stream: effectiveUid.isNotEmpty
+          ? FirebaseFirestore.instance
               .collection('libraries')
               .doc(libraryId)
-              .collection('payments')
+              .collection('receipts')
+              .where('studentUserId', isEqualTo: effectiveUid)
+              .snapshots()
+          : FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('receipts')
               .where('studentId', isEqualTo: student.id)
               .snapshots(),
+      builder: (context, receiptSnap) {
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: effectiveUid.isNotEmpty
+              ? FirebaseFirestore.instance
+                  .collection('libraries')
+                  .doc(libraryId)
+                  .collection('payments')
+                  .where('studentUserId', isEqualTo: effectiveUid)
+                  .snapshots()
+              : FirebaseFirestore.instance
+                  .collection('libraries')
+                  .doc(libraryId)
+                  .collection('payments')
+                  .where('studentId', isEqualTo: student.id)
+                  .snapshots(),
           builder: (context, paymentSnap) {
             if (receiptSnap.connectionState == ConnectionState.waiting &&
                 paymentSnap.connectionState == ConnectionState.waiting) {
@@ -847,20 +865,52 @@ class _StudentTransactionsSection extends StatelessWidget {
             }
 
             // 3. If no receipt/payment exists, but membership plan is active:
-            if (items.isEmpty && student.planId != null) {
+            if (items.isEmpty && (student.planId != null || student.planStartDate != null || student.membershipStatus == MembershipStatus.active)) {
               final plan = plans.where((p) => p.id == student.planId).firstOrNull;
-              final planPrice = plan?.price ?? 0.0;
+              final planPrice = plan?.price ?? student.customPlanFee ?? 2000.0;
               final startDate = student.planStartDate ?? student.createdAt ?? DateTime.now();
+              final endDate = student.planEndDate ?? startDate.add(const Duration(days: 90));
+              final planName = plan?.name ?? student.customPlanName ?? 'Pro Scholar Quarterly';
+
+              final uniqueSuffix = student.membershipNumber?.isNotEmpty == true
+                  ? student.membershipNumber!
+                  : (student.id.length >= 6 ? student.id.substring(0, 6).toUpperCase() : student.id.toUpperCase());
+
+              final virtualReceipt = ReceiptModel(
+                id: 'active_enrollment_${student.id}',
+                libraryId: libraryId,
+                receiptNumber: 'REC-${startDate.year}-$uniqueSuffix',
+                studentId: student.id,
+                studentUserId: effectiveUid,
+                planId: student.planId ?? 'membership_enrollment',
+                amount: planPrice > 0 ? planPrice : 2000.0,
+                totalFee: planPrice > 0 ? planPrice : 2000.0,
+                paidAmount: planPrice > 0 ? planPrice : 2000.0,
+                remainingDue: 0.0,
+                paymentMethod: 'Desk / Confirmed',
+                validFrom: startDate,
+                validTo: endDate,
+                status: ReceiptStatus.active,
+                customFields: {
+                  'planName': planName,
+                  if (student.seatId != null) 'seatLabel': SeatHelper.formatSeatLabel(seatId: student.seatId),
+                  'admissionType': 'Official Enrollment Receipt',
+                },
+                createdAt: startDate,
+                updatedAt: startDate,
+              );
 
               items.add({
-                'id': 'plan_enrollment',
-                'receiptId': null,
-                'title': '${plan?.name ?? "Membership Plan"} Enrollment',
-                'amount': planPrice,
+                'id': virtualReceipt.id,
+                'receiptId': virtualReceipt.id,
+                'title': '$planName Enrollment',
+                'amount': planPrice > 0 ? planPrice : 2000.0,
                 'date': startDate,
                 'method': 'Desk / Confirmed',
                 'status': 'active',
-                'isOfficialReceipt': false,
+                'isOfficialReceipt': true,
+                'receiptModel': virtualReceipt,
+                'planModel': plan,
               });
             }
 
@@ -958,11 +1008,15 @@ class _StudentTransactionsSection extends StatelessWidget {
                             icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
                             tooltip: 'View Official Receipt',
                             onPressed: () {
+                              final rModel = item['receiptModel'] as ReceiptModel?;
+                              final pModel = item['planModel'] as PlanModel?;
                               Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
                                   builder: (_) => ReceiptPreviewScreen(
                                     receiptId: receiptId,
+                                    preloadedReceipt: rModel,
                                     preloadedStudent: student,
+                                    preloadedPlan: pModel,
                                     isStudent: true,
                                   ),
                                 ),
@@ -972,11 +1026,15 @@ class _StudentTransactionsSection extends StatelessWidget {
                         : null,
                     onTap: () {
                       if (receiptId != null) {
+                        final rModel = item['receiptModel'] as ReceiptModel?;
+                        final pModel = item['planModel'] as PlanModel?;
                         Navigator.of(context, rootNavigator: true).push(
                           MaterialPageRoute(
                             builder: (_) => ReceiptPreviewScreen(
                               receiptId: receiptId,
+                              preloadedReceipt: rModel,
                               preloadedStudent: student,
+                              preloadedPlan: pModel,
                               isStudent: true,
                             ),
                           ),
