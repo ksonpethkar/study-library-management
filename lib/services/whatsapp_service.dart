@@ -64,63 +64,87 @@ class WhatsAppService {
     String? receiptUrl,
     String? libraryHelpline,
     String? paymentDate,
+    String? adminTemplate,
     BuildContext? context,
   }) async {
     final formattedDate = paymentDate ?? DateFormat('dd MMM yyyy').format(DateTime.now());
-    final dueBlock = (remainingDue != null && remainingDue > 0)
-        ? '⚠️ *Remaining Balance Due:* ₹${remainingDue.toStringAsFixed(0)}\n'
-        : '💰 *Balance Due:* ₹0.00 (Fully Settled)\n';
 
-    final buffer = StringBuffer()
-      ..writeln('✅ *Payment Received — Fee Receipt*')
-      ..writeln()
-      ..writeln('Dear *$studentName*,')
-      ..writeln('Thank you for your payment. Your official fee receipt has been recorded at *$libraryName*.')
-      ..writeln()
-      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-      ..writeln('🧾 *RECEIPT PARTICULARS*')
-      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-      ..writeln('🧾 *Receipt Number:* $receiptNumber')
-      ..writeln('📅 *Payment Date:* $formattedDate')
-      ..writeln('💳 *Amount Received:* *₹${amount.toStringAsFixed(0)}*');
+    String finalMessage;
+    if (adminTemplate != null && adminTemplate.trim().isNotEmpty) {
+      finalMessage = MessageTemplateService.substitute(
+        adminTemplate,
+        studentName: studentName,
+        libraryName: libraryName,
+        amount: amount.toStringAsFixed(0),
+        receiptNumber: receiptNumber,
+        planName: planName,
+        seatLabel: seatLabel,
+        validFromDate: validFromDate,
+        expiryDate: expiryDate,
+        paymentMethod: paymentMethod,
+        dueAmount: remainingDue?.toStringAsFixed(0) ?? '0',
+        receiptUrl: receiptUrl,
+        libraryHelpline: libraryHelpline,
+        paymentDate: formattedDate,
+      );
+    } else {
+      final dueBlock = (remainingDue != null && remainingDue > 0)
+          ? '⚠️ *Remaining Balance Due:* ₹${remainingDue.toStringAsFixed(0)}\n'
+          : '💰 *Balance Due:* ₹0.00 (Fully Settled)\n';
 
-    if (paymentMethod != null && paymentMethod.isNotEmpty) {
-      buffer.writeln('💳 *Payment Mode:* $paymentMethod');
-    }
-    if (planName != null && planName.isNotEmpty) {
-      buffer.writeln('📦 *Subscription Plan:* $planName');
-    }
-    if (seatLabel != null && seatLabel.isNotEmpty) {
-      buffer.writeln('💺 *Seat Number:* $seatLabel');
-    }
-    if (validFromDate != null && expiryDate != null) {
-      buffer.writeln('🗓️ *Validity:* $validFromDate to $expiryDate');
-    } else if (expiryDate != null) {
-      buffer.writeln('🗓️ *Valid Until:* $expiryDate');
-    }
+      final buffer = StringBuffer()
+        ..writeln('✅ *Payment Received — Fee Receipt*')
+        ..writeln()
+        ..writeln('Dear *$studentName*,')
+        ..writeln('Thank you for your payment. Your official fee receipt has been recorded at *$libraryName*.')
+        ..writeln()
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('🧾 *RECEIPT PARTICULARS*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('🧾 *Receipt Number:* $receiptNumber')
+        ..writeln('📅 *Payment Date:* $formattedDate')
+        ..writeln('💳 *Amount Received:* *₹${amount.toStringAsFixed(0)}*');
 
-    buffer.write(dueBlock);
+      if (paymentMethod != null && paymentMethod.isNotEmpty) {
+        buffer.writeln('💳 *Payment Mode:* $paymentMethod');
+      }
+      if (planName != null && planName.isNotEmpty) {
+        buffer.writeln('📦 *Subscription Plan:* $planName');
+      }
+      if (seatLabel != null && seatLabel.isNotEmpty) {
+        buffer.writeln('💺 *Seat Number:* $seatLabel');
+      }
+      if (validFromDate != null && expiryDate != null) {
+        buffer.writeln('🗓️ *Validity:* $validFromDate to $expiryDate');
+      } else if (expiryDate != null) {
+        buffer.writeln('🗓️ *Valid Until:* $expiryDate');
+      }
 
-    if (receiptUrl != null && receiptUrl.isNotEmpty) {
+      buffer.write(dueBlock);
+
+      if (receiptUrl != null && receiptUrl.isNotEmpty) {
+        buffer
+          ..writeln()
+          ..writeln('🔗 *View & Download Official Receipt:*')
+          ..writeln(receiptUrl);
+      }
+
+      if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+        buffer
+          ..writeln()
+          ..writeln('📞 *Helpline:* $libraryHelpline');
+      }
+
       buffer
         ..writeln()
-        ..writeln('🔗 *View & Download Official Receipt:*')
-        ..writeln(receiptUrl);
-    }
+        ..writeln('Thank you for choosing *$libraryName*! 🙏');
 
-    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
-      buffer
-        ..writeln()
-        ..writeln('📞 *Helpline:* $libraryHelpline');
+      finalMessage = buffer.toString();
     }
-
-    buffer
-      ..writeln()
-      ..writeln('Thank you for choosing *$libraryName*! 🙏');
 
     return await sendMessage(
       phone,
-      buffer.toString(),
+      finalMessage,
       context: context,
       recipientName: studentName,
       title: 'Fee Receipt Preview',
@@ -139,52 +163,71 @@ class WhatsAppService {
     String? membershipId,
     String? libraryHelpline,
     String? libraryUpiId,
+    String? adminTemplate,
     BuildContext? context,
   }) async {
-    final buffer = StringBuffer()
-      ..writeln('📌 *Fee Balance Reminder — $libraryName*')
-      ..writeln()
-      ..writeln('Dear *$studentName*,')
-      ..writeln('Greetings from $libraryName! This is a gentle reminder regarding your pending fee balance for your *${planName ?? "membership"}* subscription.')
-      ..writeln()
-      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-      ..writeln('💰 *DUES DETAILS*')
-      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-      ..writeln('👤 *Student Name:* $studentName');
+    String finalMessage;
+    if (adminTemplate != null && adminTemplate.trim().isNotEmpty) {
+      finalMessage = MessageTemplateService.substitute(
+        adminTemplate,
+        studentName: studentName,
+        libraryName: libraryName,
+        dueAmount: dueAmount.toStringAsFixed(0),
+        planName: planName,
+        seatLabel: seatLabel,
+        dueDate: dueDate,
+        membershipId: membershipId,
+        libraryHelpline: libraryHelpline,
+        libraryUpiId: libraryUpiId,
+      );
+    } else {
+      final buffer = StringBuffer()
+        ..writeln('📌 *Fee Balance Reminder — $libraryName*')
+        ..writeln()
+        ..writeln('Dear *$studentName*,')
+        ..writeln('Greetings from $libraryName! This is a gentle reminder regarding your pending fee balance for your *${planName ?? "membership"}* subscription.')
+        ..writeln()
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💰 *DUES DETAILS*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('👤 *Student Name:* $studentName');
 
-    if (membershipId != null && membershipId.isNotEmpty) {
-      buffer.writeln('🆔 *Admission ID:* $membershipId');
+      if (membershipId != null && membershipId.isNotEmpty) {
+        buffer.writeln('🆔 *Admission ID:* $membershipId');
+      }
+      if (seatLabel != null && seatLabel.isNotEmpty) {
+        buffer.writeln('💺 *Allocated Seat:* $seatLabel');
+      }
+
+      buffer.writeln('💵 *Pending Balance Due:* *₹${dueAmount.toStringAsFixed(0)}*');
+
+      if (dueDate != null && dueDate.isNotEmpty) {
+        buffer.writeln('🗓️ *Due Date:* $dueDate');
+      }
+
+      buffer
+        ..writeln()
+        ..writeln('To ensure uninterrupted study hours and retain your dedicated seat, kindly settle the balance at the reception desk.');
+
+      if (libraryUpiId != null && libraryUpiId.isNotEmpty) {
+        buffer.writeln('📲 *UPI ID / GPay / PhonePe:* `$libraryUpiId`');
+      }
+
+      if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+        buffer.writeln('📞 *Helpline:* $libraryHelpline');
+      }
+
+      buffer
+        ..writeln()
+        ..writeln('Warm regards,')
+        ..writeln('*Admin Desk · $libraryName*');
+
+      finalMessage = buffer.toString();
     }
-    if (seatLabel != null && seatLabel.isNotEmpty) {
-      buffer.writeln('💺 *Allocated Seat:* $seatLabel');
-    }
-
-    buffer.writeln('💵 *Pending Balance Due:* *₹${dueAmount.toStringAsFixed(0)}*');
-
-    if (dueDate != null && dueDate.isNotEmpty) {
-      buffer.writeln('🗓️ *Due Date:* $dueDate');
-    }
-
-    buffer
-      ..writeln()
-      ..writeln('To ensure uninterrupted study hours and retain your dedicated seat, kindly settle the balance at the reception desk.');
-
-    if (libraryUpiId != null && libraryUpiId.isNotEmpty) {
-      buffer.writeln('📲 *UPI ID / GPay / PhonePe:* `$libraryUpiId`');
-    }
-
-    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
-      buffer.writeln('📞 *Helpline:* $libraryHelpline');
-    }
-
-    buffer
-      ..writeln()
-      ..writeln('Warm regards,')
-      ..writeln('*Admin Desk · $libraryName*');
 
     return await sendMessage(
       phone,
-      buffer.toString(),
+      finalMessage,
       context: context,
       recipientName: studentName,
       title: 'Fee Due Reminder Preview',
@@ -269,6 +312,7 @@ class WhatsAppService {
     String? expiryDate,
     String? libraryHelpline,
     String? libraryUpiId,
+    String? adminTemplate,
     BuildContext? context,
   }) async {
     final libName = libraryName.isNotEmpty ? libraryName : 'Study Library';
@@ -281,7 +325,18 @@ class WhatsAppService {
         : '';
 
     String message;
-    if (daysRemaining > 3) {
+    if (adminTemplate != null && adminTemplate.trim().isNotEmpty) {
+      message = MessageTemplateService.substitute(
+        adminTemplate,
+        studentName: studentName,
+        libraryName: libName,
+        seatLabel: seatLabel,
+        expiryDate: expiryDate,
+        libraryHelpline: libraryHelpline,
+        libraryUpiId: libraryUpiId,
+        daysRemaining: daysRemaining.toString(),
+      );
+    } else if (daysRemaining > 3) {
       message = '⏳ *Upcoming Plan Renewal Notice*\n\n'
           'Dear *$studentName*,\n'
           'Hope your study and exam preparation are going smoothly!\n\n'
@@ -424,32 +479,45 @@ class WhatsAppService {
     String sectionName = '',
     int holdHours = 2,
     String? libraryHelpline,
+    String? adminTemplate,
     BuildContext? context,
   }) async {
     final libName = libraryName.isNotEmpty ? libraryName : 'The Cozy Corner Study Centre';
-    final buffer = StringBuffer()
-      ..writeln('🎉 *Seat Opportunity Alert — $libName*')
-      ..writeln()
-      ..writeln('Dear *$studentName*,')
-      ..writeln('Good news! A desk has just been vacated and you are *#1 on our Waiting List*! 🌟')
-      ..writeln()
-      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-      ..writeln('💺 *RESERVED DESK DETAILS*')
-      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-      ..writeln('📍 Section: *${sectionName.isNotEmpty ? sectionName : "Main Hall"}*')
-      ..writeln('💺 Desk: *Seat #$seatLabel*')
-      ..writeln('⏳ Hold Timer: *Priority $holdHours-Hour Reservation*')
-      ..writeln('━━━━━━━━━━━━━━━━━━━━━\n')
-      ..writeln('We are holding this desk exclusively for you for the next *$holdHours hours*. Please visit the reception desk or reply to confirm your admission before the timer expires.\n');
+    String finalMessage;
+    if (adminTemplate != null && adminTemplate.trim().isNotEmpty) {
+      finalMessage = MessageTemplateService.substitute(
+        adminTemplate,
+        studentName: studentName,
+        libraryName: libName,
+        seatLabel: seatLabel,
+        libraryHelpline: libraryHelpline,
+      );
+    } else {
+      final buffer = StringBuffer()
+        ..writeln('🎉 *Seat Opportunity Alert — $libName*')
+        ..writeln()
+        ..writeln('Dear *$studentName*,')
+        ..writeln('Good news! A desk has just been vacated and you are *#1 on our Waiting List*! 🌟')
+        ..writeln()
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('💺 *RESERVED DESK DETAILS*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+        ..writeln('📍 Section: *${sectionName.isNotEmpty ? sectionName : "Main Hall"}*')
+        ..writeln('💺 Desk: *Seat #$seatLabel*')
+        ..writeln('⏳ Hold Timer: *Priority $holdHours-Hour Reservation*')
+        ..writeln('━━━━━━━━━━━━━━━━━━━━━\n')
+        ..writeln('We are holding this desk exclusively for you for the next *$holdHours hours*. Please visit the reception desk or reply to confirm your admission before the timer expires.\n');
 
-    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
-      buffer.writeln('📞 Reception Helpline: $libraryHelpline');
+      if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+        buffer.writeln('📞 Reception Helpline: $libraryHelpline');
+      }
+      buffer.writeln('\nWe look forward to welcoming you! 📚✨');
+      finalMessage = buffer.toString();
     }
-    buffer.writeln('\nWe look forward to welcoming you! 📚✨');
 
     return await sendMessage(
       phone,
-      buffer.toString(),
+      finalMessage,
       context: context,
       recipientName: studentName,
       title: 'Waitlist Priority Hold Offer',
