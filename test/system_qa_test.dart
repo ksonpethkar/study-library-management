@@ -3972,7 +3972,7 @@ void main() {
       }
 
       // Safe student with 14 days remaining -> No alert
-      final safeStudent = _makeStudent(
+      final safeStudent = createTestStudent(
         id: 'std_safe',
         name: 'Safe Scholar',
         phone: '9876543210',
@@ -3984,7 +3984,7 @@ void main() {
       expect(shouldTriggerRenewalBanner(safeStudent), isFalse);
 
       // Student with exactly 7 days remaining -> Triggers proactive seat protection alert
-      final weekStudent = _makeStudent(
+      final weekStudent = createTestStudent(
         id: 'std_7d',
         name: 'Proactive Scholar',
         phone: '9876543211',
@@ -3996,7 +3996,7 @@ void main() {
       expect(shouldTriggerRenewalBanner(weekStudent), isTrue);
 
       // Student with 2 days remaining -> Triggers alert
-      final urgentStudent = _makeStudent(
+      final urgentStudent = createTestStudent(
         id: 'std_2d',
         name: 'Urgent Scholar',
         phone: '9876543212',
@@ -4008,7 +4008,7 @@ void main() {
       expect(shouldTriggerRenewalBanner(urgentStudent), isTrue);
 
       // Student in grace period -> Triggers alert
-      final graceStudent = _makeStudent(
+      final graceStudent = createTestStudent(
         id: 'std_grace',
         name: 'Grace Scholar',
         phone: '9876543213',
@@ -4019,7 +4019,7 @@ void main() {
       expect(shouldTriggerRenewalBanner(graceStudent), isTrue);
 
       // Expired student -> Triggers alert
-      final expiredStudent = _makeStudent(
+      final expiredStudent = createTestStudent(
         id: 'std_exp',
         name: 'Expired Scholar',
         phone: '9876543214',
@@ -4046,15 +4046,15 @@ void main() {
       }
 
       final deskLabel = SeatHelper.formatSeatLabel(seatId: 'seat_46');
-      expect(deskLabel, equals('Seat 46'));
+      expect(deskLabel, equals('Seat #46'));
 
-      expect(generateSeatProtectionTitle(weekStudent, deskLabel), equals('🔒 Desk Seat 46 Reservation Active'));
-      expect(generateSeatProtectionTitle(urgentStudent, deskLabel), equals('🔒 Desk Seat 46 Held For You (2 Days Left)'));
-      expect(generateSeatProtectionTitle(graceStudent, deskLabel), equals('🔒 Desk Seat 46 Held For You (-1 Days Left)'));
-      expect(generateSeatProtectionTitle(expiredStudent, deskLabel), equals('⚠️ Desk Seat 46 In Grace Hold'));
+      expect(generateSeatProtectionTitle(weekStudent, deskLabel), equals('🔒 Desk Seat #46 Reservation Active'));
+      expect(generateSeatProtectionTitle(urgentStudent, deskLabel), equals('🔒 Desk Seat #46 Held For You (2 Days Left)'));
+      expect(generateSeatProtectionTitle(graceStudent, deskLabel), equals('🔒 Desk Seat #46 Held For You (-1 Days Left)'));
+      expect(generateSeatProtectionTitle(expiredStudent, deskLabel), equals('⚠️ Desk Seat #46 In Grace Hold'));
 
-      expect(generateRenewalCtaLabel(weekStudent, deskLabel), equals('🔒 Keep Desk Seat 46 • 1-Tap Renew'));
-      expect(generateRenewalCtaLabel(graceStudent, deskLabel), equals('🔒 Keep Desk Seat 46 • 1-Tap Renew'));
+      expect(generateRenewalCtaLabel(weekStudent, deskLabel), equals('🔒 Keep Desk Seat #46 • 1-Tap Renew'));
+      expect(generateRenewalCtaLabel(graceStudent, deskLabel), equals('🔒 Keep Desk Seat #46 • 1-Tap Renew'));
 
       // ── 3. Desk Preservation in Renewal State Calculation ──
       final effectiveDeskId = weekStudent.seatId ?? weekStudent.previousSeatId;
@@ -4063,7 +4063,7 @@ void main() {
       expect(keepSeatDefault, isTrue);
 
       final lockInCtaText = '🔒 Lock In $deskLabel (';
-      expect(lockInCtaText, equals('🔒 Lock In Seat 46 ('));
+      expect(lockInCtaText, equals('🔒 Lock In Seat #46 ('));
 
       // ── 4. Resilient Receipt Multi-Key Visibility Logic ──
       // Simulates matching both admin-created receipts (studentId) and student-claimed receipts (studentUserId)

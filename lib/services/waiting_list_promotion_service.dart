@@ -66,71 +66,91 @@ class WaitingListPromotionService {
     required String seatId,
     required String seatLabel,
   }) async {
-    final batch = _firestore.batch();
     final libRef = _firestore.collection(FirestorePaths.libraries).doc(libraryId);
-
-    // 1. If student exists, update student record; if not, create student doc
-    String studentDocId = entry.studentId;
-    if (studentDocId.isEmpty) {
-      // Create student document
-      final newStudentRef = libRef.collection(FirestorePaths.students).doc();
-      studentDocId = newStudentRef.id;
-      batch.set(newStudentRef, {
-        'id': studentDocId,
-        'libraryId': libraryId,
-        'name': entry.studentName,
-        'phone': entry.studentPhone,
-        'seatId': seatId,
-        'sectionId': sectionId,
-        'membershipStatus': 'active',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } else {
-      final studentRef = libRef.collection(FirestorePaths.students).doc(studentDocId);
-      batch.update(studentRef, {
-        'seatId': seatId,
-        'sectionId': sectionId,
-        'membershipStatus': 'active',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-
-    // 2. Mark seat as occupied
     final seatRef = libRef
         .collection(FirestorePaths.sections)
         .doc(sectionId)
         .collection(FirestorePaths.seats)
         .doc(seatId);
-
-    batch.update(seatRef, {
-      'status': SeatStatus.occupied.name,
-      'studentId': studentDocId,
-      'studentName': entry.studentName,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    // 3. Remove entry from waiting list
     final waitRef = libRef.collection(FirestorePaths.waitingList).doc(entry.id);
-    batch.delete(waitRef);
-
-    // 4. Log audit entry
     final auditRef = libRef.collection(FirestorePaths.auditLog).doc();
-    batch.set(auditRef, {
-      'action': 'waiting_list_promoted',
-      'entityType': 'seat',
-      'entityId': seatId,
-      'userId': 'admin_promotion_pipeline',
-      'timestamp': FieldValue.serverTimestamp(),
-      'details': {
-        'candidateName': entry.studentName,
-        'candidatePhone': entry.studentPhone,
-        'seatLabel': seatLabel,
-        'sectionId': sectionId,
-      },
-    });
 
-    await batch.commit();
+    String studentDocId = entry.studentId;
+    final newStudentRef =
+        studentDocId.isEmpty ? libRef.collection(FirestorePaths.students).doc() : null;
+    if (studentDocId.isEmpty) {
+      studentDocId = newStudentRef!.id;
+    }
+    final studentRef = libRef.collection(FirestorePaths.students).doc(studentDocId);
+
+    // Atomic Transaction: Guarantee zero collisions during promotion
+    await _firestore.runTransaction((tx) async {
+      // 1. READS FIRST
+      final seatSnap = await tx.get(seatRef);
+      if (!seatSnap.exists) {
+        throw Exception('Target seat does not exist.');
+      }
+      final seatData = seatSnap.data() ?? {};
+      final currentOccupant = seatData['studentId'] as String?;
+      final currentStatus = seatData['status'] as String?;
+
+      if (currentStatus == SeatStatus.occupied.name &&
+          currentOccupant != null &&
+          currentOccupant.isNotEmpty &&
+          currentOccupant != studentDocId) {
+        throw Exception('Seat is already occupied by another student.');
+      }
+
+      // 2. WRITES
+      if (newStudentRef != null) {
+        tx.set(newStudentRef, {
+          'id': studentDocId,
+          'libraryId': libraryId,
+          'name': entry.studentName,
+          'phone': entry.studentPhone,
+          'seatId': seatId,
+          'sectionId': sectionId,
+          'membershipStatus': 'active',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        tx.update(studentRef, {
+          'seatId': seatId,
+          'sectionId': sectionId,
+          'membershipStatus': 'active',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      tx.update(seatRef, {
+        'status': SeatStatus.occupied.name,
+        'studentId': studentDocId,
+        'studentName': entry.studentName,
+        'reservationType': null,
+        'reservedCandidateId': null,
+        'reservedCandidateName': null,
+        'reservationExpiresAt': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      tx.delete(waitRef);
+
+      tx.set(auditRef, {
+        'action': 'waiting_list_promoted',
+        'entityType': 'seat',
+        'entityId': seatId,
+        'userId': 'admin_promotion_pipeline',
+        'timestamp': FieldValue.serverTimestamp(),
+        'details': {
+          'candidateName': entry.studentName,
+          'candidatePhone': entry.studentPhone,
+          'seatLabel': seatLabel,
+          'sectionId': sectionId,
+          'operation': 'Waiting List Promotion (Atomic Transaction)',
+        },
+      });
+    });
   }
 
   /// Automated 2-hour reservation hold placed on a vacated seat for candidate #1
@@ -145,49 +165,68 @@ class WaitingListPromotionService {
   }) async {
     final now = DateTime.now();
     final expiresAt = now.add(Duration(hours: holdHours));
-    final batch = _firestore.batch();
     final libRef = _firestore.collection(FirestorePaths.libraries).doc(libraryId);
-
-    // 1. Put seat in reserved status with waitlist hold
     final seatRef = libRef
         .collection(FirestorePaths.sections)
         .doc(sectionId)
         .collection(FirestorePaths.seats)
         .doc(seatId);
-
-    batch.update(seatRef, {
-      'status': SeatStatus.reserved.name,
-      'reservationType': 'waitlist_hold',
-      'reservedCandidateId': entry.id,
-      'reservedCandidateName': entry.studentName,
-      'reservationExpiresAt': Timestamp.fromDate(expiresAt),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    // 2. Update candidate in waiting list to 'offered'
     final waitRef = libRef.collection(FirestorePaths.waitingList).doc(entry.id);
-    batch.update(waitRef, {
-      'status': 'offered',
-      'offeredSeatId': seatId,
-      'offeredSectionId': sectionId,
-      'offeredSeatLabel': seatLabel,
-      'reservationExpiresAt': Timestamp.fromDate(expiresAt),
-      'notifiedAt': FieldValue.serverTimestamp(),
-    });
-
-    // 3. Log audit event
     final auditRef = libRef.collection(FirestorePaths.auditLog).doc();
-    batch.set(auditRef, {
-      'action': 'waiting_list_hold_placed',
-      'entityType': 'seat',
-      'entityId': seatId,
-      'userId': 'system_automation',
-      'timestamp': FieldValue.serverTimestamp(),
-      'details': {
-        'candidateId': entry.id,
-        'candidateName': entry.studentName,
-        'candidatePhone': entry.studentPhone,
-        'seatLabel': seatLabel,
+
+    // Atomic Transaction: Guarantee candidate hold does not overwrite active seat
+    await _firestore.runTransaction((tx) async {
+      // 1. READS FIRST
+      final seatSnap = await tx.get(seatRef);
+      if (!seatSnap.exists) {
+        throw Exception('Seat does not exist.');
+      }
+      final sData = seatSnap.data() ?? {};
+      final currentStatus = sData['status'] as String?;
+      final currentOccupant = sData['studentId'] as String?;
+      if (currentStatus == SeatStatus.occupied.name &&
+          currentOccupant != null &&
+          currentOccupant.isNotEmpty) {
+        throw Exception('Cannot place hold: Seat is currently occupied.');
+      }
+
+      // 2. WRITES
+      tx.update(seatRef, {
+        'status': SeatStatus.reserved.name,
+        'reservationType': 'waitlist_hold',
+        'reservedCandidateId': entry.id,
+        'reservedCandidateName': entry.studentName,
+        'reservationExpiresAt': Timestamp.fromDate(expiresAt),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      tx.update(waitRef, {
+        'status': 'offered',
+        'offeredSeatId': seatId,
+        'offeredSectionId': sectionId,
+        'offeredSeatLabel': seatLabel,
+        'reservationExpiresAt': Timestamp.fromDate(expiresAt),
+        'notifiedAt': FieldValue.serverTimestamp(),
+      });
+
+      tx.set(auditRef, {
+        'action': 'waiting_list_hold_placed',
+        'entityType': 'seat',
+        'entityId': seatId,
+        'userId': 'system_automation',
+        'timestamp': FieldValue.serverTimestamp(),
+        'details': {
+          'candidateId': entry.id,
+          'candidateName': entry.studentName,
+          'candidatePhone': entry.studentPhone,
+          'seatLabel': seatLabel,
+          'sectionId': sectionId,
+          'holdHours': holdHours,
+          'expiresAt': expiresAt.toIso8601String(),
+          'operation': 'Waitlist Hold Placed (Atomic Transaction)',
+        },
+      });
+    });
         'sectionId': sectionId,
         'holdHours': holdHours,
         'expiresAt': expiresAt.toIso8601String(),
