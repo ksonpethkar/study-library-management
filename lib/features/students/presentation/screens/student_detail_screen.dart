@@ -40,8 +40,13 @@ import 'package:study_library/models/waiting_list_model.dart';
 
 class StudentDetailScreen extends ConsumerStatefulWidget {
   final String studentId;
+  final bool isEmbeddedInSplitView;
 
-  const StudentDetailScreen({super.key, required this.studentId});
+  const StudentDetailScreen({
+    super.key,
+    required this.studentId,
+    this.isEmbeddedInSplitView = false,
+  });
 
   @override
   ConsumerState<StudentDetailScreen> createState() => _StudentDetailScreenState();
@@ -1009,7 +1014,6 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
 
                           // 2. Generate official Refund Voucher / Settlement Receipt & record negative ledger payment
                           String? voucherNumber;
-                          String? receiptDocId;
                           if (exitCalc.netRefund > 0) {
                             final receiptRepo = ReceiptRepository();
                             voucherNumber = await receiptRepo.getNextReceiptNumber(libraryId);
@@ -1019,7 +1023,6 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                 .doc(libraryId)
                                 .collection('receipts')
                                 .doc();
-                            receiptDocId = receiptDoc.id;
 
                             final settlementReceipt = ReceiptModel(
                               id: receiptDoc.id,
@@ -1151,7 +1154,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                 referenceNumber: refCtrl.text.trim().isNotEmpty ? refCtrl.text.trim() : null,
                                 seatLabel: formattedSeatLabel,
                                 libraryHelpline: libModel?.phone,
-                                context: context,
+                                context: context.mounted ? context : null,
                               );
                             } catch (e) {
                               debugPrint('Error launching WhatsApp settlement confirmation: $e');
@@ -1608,6 +1611,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     });
 
     if (isLoading) {
+      if (widget.isEmbeddedInSplitView) {
+        return const Center(child: CircularProgressIndicator());
+      }
       return Scaffold(
         appBar: AppBar(
           leading: IconButton(
@@ -1627,6 +1633,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     }
 
     if (student == null) {
+      if (widget.isEmbeddedInSplitView) {
+        return const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.person_off_rounded, size: 48, color: Colors.grey),
+              SizedBox(height: 12),
+              Text('Student record not found', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        );
+      }
       return Scaffold(
         appBar: AppBar(
           leading: IconButton(
@@ -1668,27 +1686,41 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     final s = student!;
     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
 
-    return PopScope(
-      canPop: context.canPop(),
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          // Cannot pop (this screen is the root). Navigate to student list.
-          context.go('/admin/students');
-        }
-      },
-      child: Scaffold(
+    final scaffoldContent = Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/admin/students');
-            }
-          },
+        automaticallyImplyLeading: !widget.isEmbeddedInSplitView,
+        leading: widget.isEmbeddedInSplitView
+            ? Padding(
+                padding: const EdgeInsets.only(left: 12.0),
+                child: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  child: Icon(Icons.person_rounded, size: 20, color: Theme.of(context).colorScheme.primary),
+                ),
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/admin/students');
+                  }
+                },
+              ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.isEmbeddedInSplitView ? s.name : 'Student Details',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            if (widget.isEmbeddedInSplitView)
+              Text(
+                '${s.phone} • Desk ${seatLabel.isNotEmpty ? seatLabel : (s.seatId ?? "Unallocated")}',
+                style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+              ),
+          ],
         ),
-        title: const Text('Student Details'),
         actions: [
           // WhatsApp quick-message button
           if (s.phone.isNotEmpty)
@@ -2779,8 +2811,21 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           ],
         ),
       ),
-    ), // close Scaffold
-    ); // close PopScope
+    ); // close Scaffold
+
+    if (widget.isEmbeddedInSplitView) {
+      return scaffoldContent;
+    }
+
+    return PopScope(
+      canPop: context.canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          context.go('/admin/students');
+        }
+      },
+      child: scaffoldContent,
+    );
   }
 
 

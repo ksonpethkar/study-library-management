@@ -269,7 +269,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       // ── Web Base Path Normalization & Wildcard Aliases ─────────────────────
-      // Transparently maps '/', '/app', and '/app/*' into the application route hierarchy
+      // Transparently maps '/', '/app', and multi-segment '/app/*' paths into the application route hierarchy
       GoRoute(
         path: '/',
         redirect: (context, state) => Routes.splash,
@@ -279,11 +279,49 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) => Routes.splash,
       ),
       GoRoute(
-        path: '/app/:subpath(.*)',
+        path: '/app/login',
+        redirect: (context, state) => Routes.login,
+      ),
+      GoRoute(
+        path: '/app/splash',
+        redirect: (context, state) => Routes.splash,
+      ),
+      GoRoute(
+        path: '/app/:p1',
         redirect: (context, state) {
-          final sub = state.pathParameters['subpath'] ?? '';
+          final p1 = state.pathParameters['p1'] ?? '';
           final q = state.uri.hasQuery ? '?${state.uri.query}' : '';
-          return '/$sub$q';
+          return '/$p1$q';
+        },
+      ),
+      GoRoute(
+        path: '/app/:p1/:p2',
+        redirect: (context, state) {
+          final p1 = state.pathParameters['p1'] ?? '';
+          final p2 = state.pathParameters['p2'] ?? '';
+          final q = state.uri.hasQuery ? '?${state.uri.query}' : '';
+          return '/$p1/$p2$q';
+        },
+      ),
+      GoRoute(
+        path: '/app/:p1/:p2/:p3',
+        redirect: (context, state) {
+          final p1 = state.pathParameters['p1'] ?? '';
+          final p2 = state.pathParameters['p2'] ?? '';
+          final p3 = state.pathParameters['p3'] ?? '';
+          final q = state.uri.hasQuery ? '?${state.uri.query}' : '';
+          return '/$p1/$p2/$p3$q';
+        },
+      ),
+      GoRoute(
+        path: '/app/:p1/:p2/:p3/:p4',
+        redirect: (context, state) {
+          final p1 = state.pathParameters['p1'] ?? '';
+          final p2 = state.pathParameters['p2'] ?? '';
+          final p3 = state.pathParameters['p3'] ?? '';
+          final p4 = state.pathParameters['p4'] ?? '';
+          final q = state.uri.hasQuery ? '?${state.uri.query}' : '';
+          return '/$p1/$p2/$p3/$p4$q';
         },
       ),
       GoRoute(

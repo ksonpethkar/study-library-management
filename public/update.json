@@ -1,12 +1,12 @@
 {
-  "versionCode": 57,
-  "latestVersionCode": 57,
-  "latestBuild": 57,
-  "latestVersion": "1.5.49",
-  "versionName": "1.5.49+57",
-  "apkSize": "51.8 MB",
-  "releaseNotes": "v1.5.49: Quick Action Studio (+) upgrade with categorized daily operations, instant petty cash expense logging, smart payment picker prioritizing overdue defaulters with live dues badges, and staff RBAC validation.",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.49/StudyLibrary.apk",
+  "versionCode": 59,
+  "latestVersionCode": 59,
+  "latestBuild": 59,
+  "latestVersion": "1.5.50",
+  "versionName": "1.5.50+59",
+  "apkSize": "52.4 MB",
+  "releaseNotes": "v1.5.50: Student delight & safety automation update featuring Birthday celebrations, 1-tap Wi-Fi copy, course exam countdown timer, 1-tap seat protection renewals, quiet desk reception alerts, and 10-second front desk billing.",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.50/StudyLibrary.apk",
   "mandatory": false,
   "organization": {
     "name": "The Cozy Corner Study Centre",
@@ -19,54 +19,60 @@
   },
   "studentFeatures": [
     {
+      "icon": "cake",
+      "badge": "Student Delight",
+      "title": "Birthday Celebration & 1-Tap Wi-Fi Copy",
+      "description": "Celebrate your special day with cozy greetings and copy the high-speed library Wi-Fi password with a single tap directly from your dashboard."
+    },
+    {
+      "icon": "timer",
+      "badge": "Focus Radar",
+      "title": "Exam Countdown Widget for Your Course",
+      "description": "Stay locked in on your academic dreams with a live daily countdown timer dynamically tailored to your course (UPSC, MPSC, NEET, JEE, GATE, Banking, etc.)."
+    },
+    {
+      "icon": "lock",
+      "badge": "Seat Protection",
+      "title": "Guaranteed Seat Hold & 1-Tap Renewal",
+      "description": "Never lose your favorite desk. Active students get an exclusive seat reservation hold badge and a streamlined 1-tap renewal flow to lock in their seat effortlessly."
+    },
+    {
+      "icon": "volume_off",
+      "badge": "Quiet Study",
+      "title": "Silent Reception & Noise Help Button",
+      "description": "Study in complete peace. Discreetly alert reception about noise, AC temperature, Wi-Fi issues, or desk hygiene without leaving your seat or causing a disturbance."
+    },
+    {
       "icon": "campaign",
       "badge": "Notice Board",
       "title": "Multi-Notice Carousel & Dedicated Notice Board",
       "description": "Browse library announcements in a swipeable dashboard carousel with instant dismiss and view full historical circulars in the new Notice Board & Circulars hub."
-    },
-    {
-      "icon": "navigation",
-      "badge": "Seamless Nav",
-      "title": "Smart Back Navigation & Zero Accidental Exits",
-      "description": "Pressing back from your Profile, Receipts, or Membership smoothly returns to your Home dashboard. Explicit back buttons added across all pages with double-tap exit protection."
-    },
-    {
-      "icon": "badge",
-      "badge": "Smart Pass",
-      "title": "Real-Time Pass Validity & Dynamic Status",
-      "description": "Your digital student pass automatically updates to Active, Grace Period, or Expired based on your plan end date, with instant 1-tap renewal to retain your study seat."
-    },
-    {
-      "icon": "event_seat",
-      "badge": "Seat Radar",
-      "title": "Dynamic Seat Radar & Change In Progress Tracking",
-      "description": "Your allocated desk card alerts you with clear guidance when your membership is in grace or expired, and tracks pending desk change requests in real time."
-    },
-    {
-      "icon": "edit_note",
-      "badge": "Smooth Edit",
-      "title": "Instant Profile Photo Upload & Hardened Permissions",
-      "description": "Updating your profile photo and details is now instant and error-free, backed by hardened cloud security rules."
     }
   ],
   "adminFeatures": [
     {
-      "icon": "campaign",
-      "badge": "Announcements",
-      "title": "Priority Circulars, Auto-Expiry & Read Receipts",
-      "description": "Publish urgent, maintenance, or holiday circulars with auto-expiry dates, broadcast them to notifications, and see real-time student read counts."
+      "icon": "volume_off",
+      "badge": "Front Desk",
+      "title": "Live Quiet Desk Assistance Stream",
+      "description": "Real-time alert banner on the admin console alerting front desk staff immediately with student desk numbers when quiet assistance or noise help is requested."
     },
     {
-      "icon": "verified_user",
-      "badge": "Real-Time Sync",
-      "title": "Dynamic Student Validity & Expiration Engine",
-      "description": "Student membership evaluation runs dynamically in real time. Expired passes are automatically flagged with instant check-in verification."
+      "icon": "payments",
+      "badge": "Billing",
+      "title": "10-Second Express Counter Billing & Atomic Seat Parity",
+      "description": "Lightning-fast cash payment recording with instant receipts and zero-drift concurrency safety ensuring double-allocations are impossible."
     },
     {
-      "icon": "security",
-      "badge": "Zero Errors",
-      "title": "Hardened Firestore Rules & Dynamic Attribution",
-      "description": "Fine-grained Firestore Security Rules allow student photo updates, seat changes, and personal notifications while maintaining strict zero-trust isolation."
+      "icon": "receipt",
+      "badge": "Receipts",
+      "title": "Resilient Multi-Key Receipt Retrieval",
+      "description": "Multi-field indexing ensures every student fee receipt is immediately visible in student and admin histories across student IDs, auth UIDs, and mobile numbers."
+    },
+    {
+      "icon": "bolt",
+      "badge": "Quick Action Studio",
+      "title": "Categorized Quick Action Studio & Instant Petty Cash",
+      "description": "Upgraded the bottom (+) button into a high-speed Quick Action Studio grouped into Daily Transactions and Admissions/Notices with petty cash expense logging."
     }
   ]
 }

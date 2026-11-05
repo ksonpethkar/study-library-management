@@ -23,6 +23,12 @@ import 'package:study_library/core/providers/theme_provider.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:flutter/foundation.dart';
+import 'package:study_library/core/constants/app_constants.dart';
+import 'package:study_library/services/whats_new_service.dart';
+import 'package:study_library/services/force_update_service.dart';
+import 'package:study_library/core/utils/web_reload_helper.dart';
+import 'package:study_library/core/widgets/update_reminder_dialog.dart';
 import 'package:study_library/core/widgets/facility_tour_sheet.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
@@ -323,6 +329,147 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _checkForUpdates() async {
+    HapticFeedback.lightImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 12),
+            Text('Checking for updates…'),
+          ],
+        ),
+        duration: Duration(milliseconds: 1400),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    await ref.read(updateServiceProvider.notifier).checkForUpdate(manualCheck: true);
+
+    if (!mounted) return;
+    final updateState = ref.read(updateServiceProvider);
+
+    if (updateState.status == UpdateStatus.optionalUpdate ||
+        updateState.status == UpdateStatus.forceUpdate) {
+      if (kIsWeb) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✨ A newer web version is available!'),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Reload',
+              textColor: Colors.amberAccent,
+              onPressed: () => reloadAppWeb(),
+            ),
+          ),
+        );
+      } else {
+        UpdateReminderDialog.checkAndShow(context, ref);
+      }
+    } else if (updateState.status == UpdateStatus.checkFailed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(updateState.errorMessage ?? 'Could not reach update server. Check your connection.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(kIsWeb
+              ? 'Student portal is running the latest version (${AppConstants.appVersion}).'
+              : 'Your app is on the latest version (${AppConstants.appVersion})!'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    }
+  }
+
+  void _showAboutDialog(dynamic library) {
+    final theme = Theme.of(context);
+    final libName = (library is LibraryModel && library.name.isNotEmpty) ? library.name : 'The Cozy Corner Study Centre';
+    final libAddress = (library is LibraryModel && library.address.isNotEmpty) ? library.address : 'Front Of Reliance Fashion Factory, Nath Road, Parli-431515';
+    final libContact = (library is LibraryModel && library.contact.isNotEmpty) ? library.contact : '+91 94032 43830';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.local_library_rounded, color: Color(0xFF5D4037), size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                libName,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Cozy Corner Study Centre & Silent Reading Hall is equipped with dedicated personal desks, ergonomic chairs, high-speed Wi-Fi, and 24/7 security surveillance.',
+              style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Expanded(child: Text(libAddress, style: const TextStyle(fontSize: 12))),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.phone_outlined, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(libContact, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('App Version', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  Text(
+                    'v${AppConstants.appVersion}+${AppConstants.buildNumber}',
+                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
@@ -976,9 +1123,98 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
+
+              // 5. Modern Settings Group 3: App Updates, Legal & Info
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF7C3AED), size: 20),
+                      ),
+                      title: const Text("What's New in Cozy Corner", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('Explore latest student tools & automations', style: TextStyle(fontSize: 11)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => WhatsNewService.showChangelog(context, isStudent: true),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.system_update_rounded, color: Color(0xFF0284C7), size: 20),
+                      ),
+                      title: const Text('Check for Updates', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Text('v${AppConstants.appVersion}+${AppConstants.buildNumber} • Tap to check', style: const TextStyle(fontSize: 11)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: _checkForUpdates,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF64748B).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.description_outlined, color: Color(0xFF475569), size: 20),
+                      ),
+                      title: const Text('Terms of Service', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('Study hall guidelines & membership policy', style: TextStyle(fontSize: 11)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => context.push(Routes.terms),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF64748B).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.shield_outlined, color: Color(0xFF475569), size: 20),
+                      ),
+                      title: const Text('Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('Data protection & privacy guidelines', style: TextStyle(fontSize: 11)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => context.push(Routes.privacyPolicy),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB), size: 20),
+                      ),
+                      title: const Text('About Cozy Corner', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('Facility details & system info', style: TextStyle(fontSize: 11)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => _showAboutDialog(library),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 20),
 
-              // 5. Danger Zone Sign Out
+              // 6. Danger Zone Sign Out
               OutlinedButton.icon(
                 icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 18),
                 label: Text('Sign Out from ${library?.name ?? "Study Centre"}', style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),

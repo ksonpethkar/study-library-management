@@ -16,6 +16,7 @@ import 'package:study_library/core/utils/file_download_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/widgets/loading_skeleton.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'student_detail_screen.dart';
 
 enum StudentSortOrder {
   recent,
@@ -44,6 +45,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   Set<String> _selectedStudentIds = {};
   final Set<String> _swipeThresholdReached = {};
   bool _isSelectionMode = false;
+  String? _desktopSelectedStudentId;
   late final ScrollController _scrollController;
   
   final List<String> _filters = [
@@ -352,257 +354,268 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           ]
         ],
       ),
-      body: Column(
-        children: [
-          if (!_isSelectionMode)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Row(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isSplitDesktop = constraints.maxWidth >= 1024;
+          final streamStudents = ref.watch(studentsStreamProvider).value;
+          final students = (streamStudents != null && streamStudents.isNotEmpty)
+              ? streamStudents
+              : (studentState.students.isNotEmpty ? studentState.students : (streamStudents ?? []));
+
+          if (studentState.isLoading && students.isEmpty && !_isSearching) {
+            return const StudentListSkeleton(count: 6);
+          }
+          if (studentState.error != null && students.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search by name, phone, ID, or desk...',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _searchQuery = '';
-                                    _searchResults = null;
-                                  });
-                                },
-                              )
-                            : null,
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      onChanged: (v) {
-                        setState(() => _searchQuery = v.toLowerCase().trim());
-                        _debounce?.cancel();
-                        _debounce = Timer(const Duration(milliseconds: 400), () => _runSearch(v.trim()));
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  PopupMenuButton<StudentSortOrder>(
-                    tooltip: 'Sort Students',
-                    icon: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.colorScheme.outlineVariant),
-                      ),
-                      child: Icon(Icons.sort_rounded, size: 20, color: theme.colorScheme.primary),
-                    ),
-                    onSelected: (order) => setState(() => _selectedSortOrder = order),
-                    itemBuilder: (ctx) => [
-                      PopupMenuItem(
-                        value: StudentSortOrder.recent,
-                        child: Row(
-                          children: [
-                            Icon(Icons.history_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.recent ? theme.colorScheme.primary : null),
-                            const SizedBox(width: 8),
-                            const Text('Recent Admissions First'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: StudentSortOrder.seatNumber,
-                        child: Row(
-                          children: [
-                            Icon(Icons.chair_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.seatNumber ? theme.colorScheme.primary : null),
-                            const SizedBox(width: 8),
-                            const Text('Desk Number (1 → 100)'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: StudentSortOrder.nameAsc,
-                        child: Row(
-                          children: [
-                            Icon(Icons.sort_by_alpha_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.nameAsc ? theme.colorScheme.primary : null),
-                            const SizedBox(width: 8),
-                            const Text('Name (A → Z)'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: StudentSortOrder.expirySoon,
-                        child: Row(
-                          children: [
-                            Icon(Icons.event_busy_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.expirySoon ? theme.colorScheme.primary : null),
-                            const SizedBox(width: 8),
-                            const Text('Expiring Soonest First'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: StudentSortOrder.highestDue,
-                        child: Row(
-                          children: [
-                            Icon(Icons.money_off_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.highestDue ? theme.colorScheme.primary : null),
-                            const SizedBox(width: 8),
-                            const Text('Highest Dues / Defaulters'),
-                          ],
-                        ),
-                      ),
-                    ],
+                  Text('Error: ${studentState.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => ref.read(studentPageProvider.notifier).refresh(),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
                   ),
                 ],
               ),
-            ),
-          if (!_isSelectionMode)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-              child: Row(
-                children: _filters.map((f) => Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: ChoiceChip(
-                    label: Text(f),
-                    selected: _selectedFilter == f,
-                    onSelected: (s) {
-                      if (s) setState(() => _selectedFilter = f);
-                    },
+            );
+          }
+
+          final searchResults = _searchResults ?? _filteredStudents(students);
+          var filtered = searchResults.where((s) => _matchesFilter(s, _selectedFilter)).toList();
+          _applySort(filtered);
+
+          // If on wide desktop workbench (>= 1024px)
+          if (isSplitDesktop) {
+            if (filtered.isNotEmpty &&
+                (_desktopSelectedStudentId == null ||
+                    !filtered.any((s) => s.id == _desktopSelectedStudentId))) {
+              _desktopSelectedStudentId = filtered.first.id;
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Left 380px Workbench Rail
+                SizedBox(
+                  width: 380,
+                  child: Column(
+                    children: [
+                      if (!_isSelectionMode) ...[
+                        _buildSearchBar(theme),
+                        _buildFilterChips(),
+                      ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
+                          border: Border(bottom: BorderSide(color: theme.dividerColor, width: 0.5)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${filtered.length} Scholars',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: theme.colorScheme.primary),
+                            ),
+                            Text(
+                              'Sort: ${_getSortLabel(_selectedSortOrder)}',
+                              style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: filtered.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.search_off_rounded, size: 40, color: theme.colorScheme.outline),
+                                      const SizedBox(height: 8),
+                                      const Text('No matching students', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      const SizedBox(height: 4),
+                                      Text('Try changing your search or filter', style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600)),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: () async {
+                                  await ref.read(studentPageProvider.notifier).loadFirst();
+                                },
+                                child: ListView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.only(top: 4, bottom: 96),
+                                  itemCount: filtered.length,
+                                  itemBuilder: (context, index) {
+                                    final student = filtered[index];
+                                    final isMultiSelected = _selectedStudentIds.contains(student.id);
+                                    final isFocused = student.id == _desktopSelectedStudentId;
+
+                                    return PressableScale(
+                                      scaleFactor: 0.99,
+                                      onTap: () {
+                                        if (_isSelectionMode) {
+                                          HapticFeedback.selectionClick();
+                                          setState(() {
+                                            isMultiSelected
+                                                ? _selectedStudentIds.remove(student.id)
+                                                : _selectedStudentIds.add(student.id);
+                                            if (_selectedStudentIds.isEmpty) _isSelectionMode = false;
+                                          });
+                                        } else {
+                                          HapticFeedback.selectionClick();
+                                          setState(() {
+                                            _desktopSelectedStudentId = student.id;
+                                          });
+                                        }
+                                      },
+                                      onLongPress: () {
+                                        HapticFeedback.heavyImpact();
+                                        setState(() {
+                                          _isSelectionMode = true;
+                                          _selectedStudentIds.add(student.id);
+                                        });
+                                      },
+                                      child: _buildDesktopRosterCard(
+                                        student: student,
+                                        isFocused: isFocused,
+                                        isMultiSelected: isMultiSelected,
+                                        theme: theme,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                      ),
+                    ],
                   ),
-                )).toList(),
-              ),
-            ),
-          Expanded(
-            child: Builder(
-              builder: (context) {
-                // Prefer full real-time stream for accurate filtering across all students; fallback to paginated
-                final streamStudents = ref.watch(studentsStreamProvider).value;
-                final students = (streamStudents != null && streamStudents.isNotEmpty)
-                    ? streamStudents
-                    : (studentState.students.isNotEmpty ? studentState.students : (streamStudents ?? []));
+                ),
 
-                if (studentState.isLoading && students.isEmpty && !_isSearching) {
-                  return const StudentListSkeleton(count: 6);
-                }
-                if (studentState.error != null && students.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('Error: ${studentState.error}'),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () => ref.read(studentPageProvider.notifier).refresh(),
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
+                // Vertical Divider Rail
+                VerticalDivider(width: 1, thickness: 1, color: theme.dividerColor.withValues(alpha: 0.5)),
+
+                // Right Pane: Active Student Detail Dossier or Empty State
+                Expanded(
+                  child: _desktopSelectedStudentId != null
+                      ? StudentDetailScreen(
+                          key: ValueKey(_desktopSelectedStudentId),
+                          studentId: _desktopSelectedStudentId!,
+                          isEmbeddedInSplitView: true,
+                        )
+                      : _buildDesktopEmptyWorkbench(theme),
+                ),
+              ],
+            );
+          }
+
+          // Otherwise: Mobile (<720) or Tablet Grid (720-1023)
+          return Column(
+            children: [
+              if (!_isSelectionMode) ...[
+                _buildSearchBar(theme),
+                _buildFilterChips(),
+              ],
+              Expanded(
+                child: students.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.people_outline, size: 64, color: theme.colorScheme.outline),
+                            const SizedBox(height: 16),
+                            Text('No students yet', style: theme.textTheme.titleLarge),
+                            const SizedBox(height: 8),
+                            Text('Add your first student to get started', style: theme.textTheme.bodyMedium),
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
+                              onPressed: () => _navigateToAddStudent(context),
+                              icon: const Icon(Icons.person_add),
+                              label: const Text('Add Student'),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                }
-                final searchResults = _searchResults ?? _filteredStudents(students);
-                var filtered = searchResults.where((s) => _matchesFilter(s, _selectedFilter)).toList();
-                _applySort(filtered);
+                      )
+                    : filtered.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.search_off_rounded, size: 64, color: theme.colorScheme.outline),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _selectedFilter == 'Due Soon'
+                                      ? 'No students expiring in the next 14 days'
+                                      : (_selectedFilter == 'Has Dues'
+                                          ? 'No students with pending dues'
+                                          : 'No matching students'),
+                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                if (_selectedFilter != 'All') ...[
+                                  const SizedBox(height: 12),
+                                  FilledButton.tonalIcon(
+                                    onPressed: () => setState(() => _selectedFilter = 'All'),
+                                    icon: const Icon(Icons.people_alt_rounded),
+                                    label: const Text('Show All Students'),
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                Text('Try changing your search or filter', style: theme.textTheme.bodyMedium),
+                              ],
+                            ),
+                          )
+                        : constraints.maxWidth >= 720
+                            ? RefreshIndicator(
+                                onRefresh: () async {
+                                  await ref.read(studentPageProvider.notifier).loadFirst();
+                                },
+                                child: GridView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 2.85,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 8,
+                                  ),
+                                  itemCount: filtered.length,
+                                  itemBuilder: (context, index) {
+                                    final student = filtered[index];
+                                    final isSelected = _selectedStudentIds.contains(student.id);
 
-                if (students.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.people_outline, size: 64, color: theme.colorScheme.outline),
-                        const SizedBox(height: 16),
-                        Text('No students yet', style: theme.textTheme.titleLarge),
-                        const SizedBox(height: 8),
-                        Text('Add your first student to get started', style: theme.textTheme.bodyMedium),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: () => _navigateToAddStudent(context),
-                          icon: const Icon(Icons.person_add),
-                          label: const Text('Add Student'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                if (filtered.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off_rounded, size: 64, color: theme.colorScheme.outline),
-                        const SizedBox(height: 16),
-                        Text(_selectedFilter == 'Due Soon' ? 'No students expiring in the next 14 days' : (_selectedFilter == 'Has Dues' ? 'No students with pending dues' : 'No matching students'), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                        if (_selectedFilter != 'All') ...[
-                          const SizedBox(height: 12),
-                          FilledButton.tonalIcon(
-                            onPressed: () => setState(() => _selectedFilter = 'All'),
-                            icon: const Icon(Icons.people_alt_rounded),
-                            label: const Text('Show All Students'),
-                          ),
-                        ],
-                        const SizedBox(height: 8),
-                        Text('Try changing your search or filter', style: theme.textTheme.bodyMedium),
-                      ],
-                    ),
-                  );
-                }
-
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isDesktop = constraints.maxWidth >= 720;
-
-                    if (isDesktop) {
-                      return RefreshIndicator(
-                        onRefresh: () async {
-                          await ref.read(studentPageProvider.notifier).loadFirst();
-                        },
-                        child: GridView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 2.85,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 8,
-                          ),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final student = filtered[index];
-                            final isSelected = _selectedStudentIds.contains(student.id);
-
-                            return PressableScale(
-                              scaleFactor: 0.98,
-                              onTap: () {
-                                if (_isSelectionMode) {
-                                  HapticFeedback.selectionClick();
-                                  setState(() {
-                                    isSelected
-                                        ? _selectedStudentIds.remove(student.id)
-                                        : _selectedStudentIds.add(student.id);
-                                    if (_selectedStudentIds.isEmpty) _isSelectionMode = false;
-                                  });
-                                } else {
-                                  HapticFeedback.lightImpact();
-                                  context.go('/admin/students/${student.id}');
-                                }
-                              },
-                              onLongPress: () {
-                                HapticFeedback.heavyImpact();
-                                setState(() {
-                                  _isSelectionMode = true;
-                                  _selectedStudentIds.add(student.id);
-                                });
-                              },
-                              child: _buildStudentCardContent(student, isSelected, theme),
-                            );
-                          },
-                        ),
-                      );
-                    }
-
-                    return RefreshIndicator(
+                                    return PressableScale(
+                                      scaleFactor: 0.98,
+                                      onTap: () {
+                                        if (_isSelectionMode) {
+                                          HapticFeedback.selectionClick();
+                                          setState(() {
+                                            isSelected
+                                                ? _selectedStudentIds.remove(student.id)
+                                                : _selectedStudentIds.add(student.id);
+                                            if (_selectedStudentIds.isEmpty) _isSelectionMode = false;
+                                          });
+                                        } else {
+                                          HapticFeedback.lightImpact();
+                                          context.go('/admin/students/${student.id}');
+                                        }
+                                      },
+                                      onLongPress: () {
+                                        HapticFeedback.heavyImpact();
+                                        setState(() {
+                                          _isSelectionMode = true;
+                                          _selectedStudentIds.add(student.id);
+                                        });
+                                      },
+                                      child: _buildStudentCardContent(student, isSelected, theme),
+                                    );
+                                  },
+                                ),
+                              )
+                            : RefreshIndicator(
                       onRefresh: () async {
                         await ref.read(studentPageProvider.notifier).loadFirst();
                       },
@@ -761,15 +774,13 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                 );
                         },
                       ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+                    ),
+              ),
+            ],
+          );
+        },
       ),
-      floatingActionButton: !_isSelectionMode
+    floatingActionButton: !_isSelectionMode
           ? Container(
               margin: const EdgeInsets.only(bottom: 72),
               child: FloatingActionButton.extended(
@@ -1560,6 +1571,382 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     );
   }
 
+  Widget _buildSearchBar(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by name, phone, ID, or desk...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                            _searchResults = null;
+                          });
+                        },
+                      )
+                    : null,
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              onChanged: (v) {
+                setState(() => _searchQuery = v.toLowerCase().trim());
+                _debounce?.cancel();
+                _debounce = Timer(const Duration(milliseconds: 400), () => _runSearch(v.trim()));
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          PopupMenuButton<StudentSortOrder>(
+            tooltip: 'Sort Students',
+            icon: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+              ),
+              child: Icon(Icons.sort_rounded, size: 20, color: theme.colorScheme.primary),
+            ),
+            onSelected: (order) => setState(() => _selectedSortOrder = order),
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                value: StudentSortOrder.recent,
+                child: Row(
+                  children: [
+                    Icon(Icons.history_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.recent ? theme.colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    const Text('Recent Admissions First'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: StudentSortOrder.seatNumber,
+                child: Row(
+                  children: [
+                    Icon(Icons.chair_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.seatNumber ? theme.colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    const Text('Desk Number (1 → 100)'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: StudentSortOrder.nameAsc,
+                child: Row(
+                  children: [
+                    Icon(Icons.sort_by_alpha_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.nameAsc ? theme.colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    const Text('Name (A → Z)'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: StudentSortOrder.expirySoon,
+                child: Row(
+                  children: [
+                    Icon(Icons.event_busy_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.expirySoon ? theme.colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    const Text('Expiring Soonest First'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: StudentSortOrder.highestDue,
+                child: Row(
+                  children: [
+                    Icon(Icons.money_off_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.highestDue ? theme.colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    const Text('Highest Dues / Defaulters'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+      child: Row(
+        children: _filters.map((f) => Padding(
+          padding: const EdgeInsets.only(right: 8.0),
+          child: ChoiceChip(
+            label: Text(f),
+            selected: _selectedFilter == f,
+            onSelected: (s) {
+              if (s) setState(() => _selectedFilter = f);
+            },
+          ),
+        )).toList(),
+      ),
+    );
+  }
+
+  String _getSortLabel(StudentSortOrder order) {
+    switch (order) {
+      case StudentSortOrder.recent:
+        return 'Recent';
+      case StudentSortOrder.seatNumber:
+        return 'Desk #';
+      case StudentSortOrder.nameAsc:
+        return 'Name';
+      case StudentSortOrder.expirySoon:
+        return 'Expiring';
+      case StudentSortOrder.highestDue:
+        return 'Dues';
+    }
+  }
+
+  Widget _buildDesktopRosterCard({
+    required StudentModel student,
+    required bool isFocused,
+    required bool isMultiSelected,
+    required ThemeData theme,
+  }) {
+    final statusColor = _getStatusColor(student.membershipStatus);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+      decoration: BoxDecoration(
+        color: isFocused
+            ? theme.colorScheme.primaryContainer.withValues(alpha: isDark ? 0.35 : 0.45)
+            : (isMultiSelected
+                ? theme.colorScheme.secondaryContainer.withValues(alpha: 0.3)
+                : theme.cardColor),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isFocused
+              ? theme.colorScheme.primary
+              : (isMultiSelected
+                  ? theme.colorScheme.secondary
+                  : (isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0))),
+          width: isFocused ? 1.8 : 1.0,
+        ),
+        boxShadow: isFocused
+            ? [
+                BoxShadow(
+                  color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(11),
+                    bottomLeft: Radius.circular(11),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  child: Row(
+                    children: [
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                            backgroundImage: ImageService.getImageProvider(student.photoUrl),
+                            child: ImageService.getImageProvider(student.photoUrl) == null
+                                ? Text(
+                                    student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  )
+                                : null,
+                          ),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 9,
+                              height: 9,
+                              decoration: BoxDecoration(
+                                color: statusColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: theme.cardColor,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              student.name,
+                              style: TextStyle(
+                                fontWeight: isFocused ? FontWeight.w800 : FontWeight.w700,
+                                fontSize: 13,
+                                color: isFocused ? theme.colorScheme.primary : null,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                if (student.seatId != null && student.seatId!.isNotEmpty) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'Desk #${SeatHelper.formatSeatLabel(seatId: student.seatId, includePrefix: false)}',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                ],
+                                Text(
+                                  student.phone,
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      if (_isSelectionMode)
+                        Icon(
+                          isMultiSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                          color: isMultiSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
+                          size: 20,
+                        )
+                      else ...[
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if ((student.pendingDueBalance ?? 0) > 0) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.12),
+                                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Due ₹${student.pendingDueBalance!.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                            ],
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                student.membershipStatus.name.toUpperCase(),
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (isFocused) ...[
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right_rounded, size: 16, color: theme.colorScheme.primary),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopEmptyWorkbench(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.space_dashboard_rounded, size: 56, color: theme.colorScheme.primary),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Reception Student Workbench',
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 360,
+            child: Text(
+              'Select any scholar on the left roster to view their live dossier, collect dues, allocate desks, or issue digital passes.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7), fontSize: 13.5, height: 1.4),
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () => _navigateToAddStudent(context),
+            icon: const Icon(Icons.person_add_rounded, size: 18),
+            label: const Text('Add New Student'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Quick add student form — inline for now

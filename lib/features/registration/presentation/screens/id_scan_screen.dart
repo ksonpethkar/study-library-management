@@ -6,7 +6,6 @@ import '../providers/registration_provider.dart';
 import '../../data/ocr_parser.dart';
 import 'package:study_library/services/ocr_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
-import 'package:study_library/core/utils/error_formatter.dart';
 
 class IdScanScreen extends ConsumerStatefulWidget {
   const IdScanScreen({super.key});
@@ -89,10 +88,41 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
           : 'Analyzing ID with OCR & QR...';
     });
 
+    // ── Resilient Document Attachment ─────────────────────────────────────────
+    // Always persist the attached document image immediately so the user never
+    // loses their scanned file even if OCR is incomplete or unavailable.
+    final baseUpdates = <String, dynamic>{
+      if (isBackSide) ...{
+        'govIdBackDataUrl': dataUrl,
+        'govIdBackImageUrl': dataUrl,
+        'govIdBackImagePath': dataUrl,
+        'govIdBackFileName': doc.fileName,
+      } else ...{
+        'govIdType': _selectedType.name,
+        'govIdDataUrl': dataUrl,
+        'govIdImageUrl': dataUrl,
+        'govIdImagePath': dataUrl,
+        'govIdFileName': doc.fileName,
+      },
+    };
+    ref.read(registrationNotifierProvider.notifier).updateFields(baseUpdates);
+
     try {
       final ocrService = OcrService();
-      final qrString = await ocrService.decodeQrBytes(bytes);
-      final rawText = await ocrService.processImageBytes(bytes);
+      String? qrString;
+      String rawText = '';
+
+      try {
+        qrString = await ocrService.decodeQrBytes(bytes);
+      } catch (qrErr) {
+        debugPrint('[IdScanScreen] QR decode non-fatal error: $qrErr');
+      }
+
+      try {
+        rawText = await ocrService.processImageBytes(bytes);
+      } catch (ocrErr) {
+        debugPrint('[IdScanScreen] OCR text process non-fatal error: $ocrErr');
+      }
 
       if (isBackSide) {
         // For back side: only extract address/PIN — don't overwrite name/DOB
@@ -142,18 +172,18 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
           'govIdImageUrl': dataUrl,
           'govIdImagePath': dataUrl,
           'govIdFileName': doc.fileName,
-          if (result.name != null) 'name': result.name,
-          if (result.fatherName != null) 'fatherName': result.fatherName,
-          if (result.dob != null) 'dob': result.dob,
-          if (result.gender != null) 'gender': result.gender,
-          if (result.idNumber != null) 'govIdNumber': result.idNumber,
-          if (result.address != null) 'address': result.address,
-          if (result.pinCode != null) 'pinCode': result.pinCode,
-          if (result.phone != null) 'phone': result.phone,
-          if (result.bloodGroup != null) 'bloodGroup': result.bloodGroup,
-          if (result.college != null) 'college': result.college,
-          if (result.course != null) 'course': result.course,
-          if (result.rollNumber != null) 'rollNumber': result.rollNumber,
+          if (result.name != null && result.name!.trim().isNotEmpty) 'name': result.name!.trim(),
+          if (result.fatherName != null && result.fatherName!.trim().isNotEmpty) 'fatherName': result.fatherName!.trim(),
+          if (result.dob != null && result.dob!.trim().isNotEmpty) 'dob': result.dob!.trim(),
+          if (result.gender != null && result.gender!.trim().isNotEmpty) 'gender': result.gender!.trim(),
+          if (result.idNumber != null && result.idNumber!.trim().isNotEmpty) 'govIdNumber': result.idNumber!.trim(),
+          if (result.address != null && result.address!.trim().isNotEmpty) 'address': result.address!.trim(),
+          if (result.pinCode != null && result.pinCode!.trim().isNotEmpty) 'pinCode': result.pinCode!.trim(),
+          if (result.phone != null && result.phone!.trim().isNotEmpty) 'phone': result.phone!.trim(),
+          if (result.bloodGroup != null && result.bloodGroup!.trim().isNotEmpty) 'bloodGroup': result.bloodGroup!.trim(),
+          if (result.college != null && result.college!.trim().isNotEmpty) 'college': result.college!.trim(),
+          if (result.course != null && result.course!.trim().isNotEmpty) 'course': result.course!.trim(),
+          if (result.rollNumber != null && result.rollNumber!.trim().isNotEmpty) 'rollNumber': result.rollNumber!.trim(),
         });
 
         ref.read(ocrResultProvider.notifier).setResult({
@@ -175,14 +205,33 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
         if (mounted) setState(() { _isProcessing = false; _frontScanned = true; });
         if (mounted) _showAutoFillPreview(result);
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[IdScanScreen] Resilient fallback caught: $e\n$st');
       if (mounted) {
-        setState(() => _isProcessing = false);
-        AppErrorFormatter.showErrorSnackBar(
-          context,
-          e,
-          actionContext: 'gov_id',
-          onRetry: () => ref.read(registrationStepProvider.notifier).goTo(2),
+        setState(() {
+          _isProcessing = false;
+          _frontScanned = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.greenAccent),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('ID Photo attached! Please verify your details in the registration form.'),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1E293B),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Proceed',
+              textColor: Colors.amberAccent,
+              onPressed: () => ref.read(registrationStepProvider.notifier).goTo(2),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     }
@@ -322,8 +371,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                             Expanded(
                               child: Text(
                                 e.key == 'gender'
-                                    ? e.value.substring(0, 1).toUpperCase() +
-                                        e.value.substring(1)
+                                    ? (e.value.isNotEmpty ? e.value[0].toUpperCase() + e.value.substring(1) : '')
                                     : e.value,
                                 style: const TextStyle(fontSize: 13),
                                 maxLines: 2,

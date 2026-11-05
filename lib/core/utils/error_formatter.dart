@@ -89,7 +89,10 @@ class AppErrorFormatter {
       if (str.contains('permission') || str.contains('denied')) {
         return 'Permission was not granted. Please allow camera or file access in your browser/device settings.';
       }
-      return 'Camera or document access was unavailable. Please choose an ID photo or PDF file from your device.';
+      if (str.contains('camera') || str.contains('hardware') || str.contains('media') || str.contains('notreadable')) {
+        return 'Camera was unavailable. Please choose an ID photo or PDF file from your device.';
+      }
+      return 'Could not read text automatically from the ID. Please verify details in the form or try a clearer photo.';
     }
 
     if (actionContext == 'camera' || str.contains('notreadableerror') || str.contains('video source') || str.contains('camera')) {

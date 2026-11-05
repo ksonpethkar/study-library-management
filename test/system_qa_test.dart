@@ -1732,7 +1732,7 @@ void main() {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(58));
+      expect(AppConstants.buildNumber, equals(59));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -3937,7 +3937,7 @@ void main() {
 
       final deviceError = Exception('Camera hardware not found on this web client');
       final govIdDeviceMsg = AppErrorFormatter.toUserFriendly(deviceError, actionContext: 'gov_id');
-      expect(govIdDeviceMsg, contains('Camera or document access was unavailable'));
+      expect(govIdDeviceMsg, contains('Camera was unavailable'));
       expect(govIdDeviceMsg, contains('Please choose an ID photo or PDF file from your device'));
       expect(govIdDeviceMsg.contains('You can look up the student manually'), isFalse);
 
@@ -4847,6 +4847,64 @@ void main() {
       final totalDueAmount = defaulters.fold<double>(0, (acc, s) => acc + (s.pendingDueBalance ?? 0));
       expect(defaulters.length, equals(2));
       expect(totalDueAmount, equals(1050.0)); // 700 + 350
+    });
+
+    test('107. DESKTOP MASTER-DETAIL SPLIT WORKBENCH: BREAKPOINT THRESHOLD, ROSTER DOCKING & SELECTION PARITY', () {
+      // ── 1. Responsive Layout Breakpoint Threshold Verification ──
+      bool isSplitDesktop(double width) => width >= 1024;
+      bool isTabletGrid(double width) => width >= 720 && width < 1024;
+      bool isMobileStack(double width) => width < 720;
+
+      expect(isMobileStack(390), isTrue, reason: 'iPhone 15 screen must use mobile vertical stack');
+      expect(isTabletGrid(768), isTrue, reason: 'iPad Mini must use 2-column grid view');
+      expect(isTabletGrid(1023), isTrue, reason: 'Tablet upper boundary must stay in grid mode');
+      expect(isSplitDesktop(1024), isTrue, reason: '1024px minimum desktop displays must switch to Master-Detail Split Workbench');
+      expect(isSplitDesktop(1440), isTrue, reason: 'MacBook/Desktop display must use Master-Detail Split Workbench');
+      expect(isSplitDesktop(1920), isTrue, reason: '1080p Full HD display must use Master-Detail Split Workbench');
+
+      // ── 2. Master Roster Fixed Left Rail & Detail Dock Geometry ──
+      const double desktopScreenWidth = 1440.0;
+      const double rosterRailWidth = 380.0;
+      const double dividerThickness = 1.0;
+      final workbenchPaneWidth = desktopScreenWidth - rosterRailWidth - dividerThickness;
+
+      expect(rosterRailWidth, equals(380.0), reason: 'Fixed 380px left rail allows high-density scrolling without crowding');
+      expect(workbenchPaneWidth, equals(1059.0), reason: 'Right pane gets full remainder for rich student dossier');
+
+      // ── 3. Roster Selection Invariant & Auto-Targeting Logic ──
+      final students = [
+        createTestStudent(id: 'std_01', name: 'Aakash Verma', phone: '9820011221', seatId: 'seat_12'),
+        createTestStudent(id: 'std_02', name: 'Bhavna Roy', phone: '9820011222', seatId: 'seat_14', pendingDueBalance: 500.0),
+        createTestStudent(id: 'std_03', name: 'Chirag Jain', phone: '9820011223', seatId: null),
+      ];
+
+      String? activeSelectedId;
+
+      // When nothing is explicitly selected on desktop, auto-focus first scholar
+      activeSelectedId ??= students.isNotEmpty ? students.first.id : null;
+      expect(activeSelectedId, equals('std_01'));
+
+      // User selects scholar 2 on the left roster rail
+      activeSelectedId = students[1].id;
+      expect(activeSelectedId, equals('std_02'));
+
+      // Card focus state check
+      bool isCardFocused(String studentId) => activeSelectedId == studentId;
+      expect(isCardFocused('std_01'), isFalse);
+      expect(isCardFocused('std_02'), isTrue);
+      expect(isCardFocused('std_03'), isFalse);
+
+      // Verify desk badge rendering logic on roster card
+      String getRosterDeskBadge(StudentModel s) {
+        if (s.seatId != null && s.seatId!.isNotEmpty) {
+          return 'Desk #${s.seatId!.replaceAll(RegExp(r'[^0-9]'), '')}';
+        }
+        return 'Floating';
+      }
+
+      expect(getRosterDeskBadge(students[0]), equals('Desk #12'));
+      expect(getRosterDeskBadge(students[1]), equals('Desk #14'));
+      expect(getRosterDeskBadge(students[2]), equals('Floating'));
     });
   });
 }

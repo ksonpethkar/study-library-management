@@ -126,7 +126,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.50+58';
+  static const String currentVersionIdentifier = '1.5.50+59';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -135,8 +135,38 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.49)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.50)
   static final List<ReleaseChange> adminChanges = [
+    const ReleaseChange(
+      icon: Icons.volume_off_rounded,
+      rawIconName: 'volume_off',
+      badge: 'Front Desk',
+      title: 'Live Quiet Desk Assistance Stream',
+      description:
+          'Real-time alert banner on the admin console alerting front desk staff immediately with student desk numbers when quiet assistance or noise help is requested.',
+      actionRoute: Routes.adminFeedback,
+      actionLabel: 'View Desk Alerts',
+    ),
+    const ReleaseChange(
+      icon: Icons.point_of_sale_rounded,
+      rawIconName: 'point_of_sale',
+      badge: 'Billing & Parity',
+      title: '10-Second Express Counter Billing & Atomic Seat Parity',
+      description:
+          'Lightning-fast cash payment recording with instant digital receipts and zero-drift concurrency safety ensuring double-seat allocations are completely prevented.',
+      actionRoute: Routes.adminHome,
+      actionLabel: 'Collect Fee',
+    ),
+    const ReleaseChange(
+      icon: Icons.receipt_long_rounded,
+      rawIconName: 'receipt_long',
+      badge: 'Receipts',
+      title: 'Resilient Multi-Key Receipt Retrieval',
+      description:
+          'Multi-field indexing ensures every student fee receipt is immediately visible in student and admin histories across student IDs, auth UIDs, and mobile numbers.',
+      actionRoute: Routes.adminReceipts,
+      actionLabel: 'View Receipts',
+    ),
     const ReleaseChange(
       icon: Icons.bolt_rounded,
       rawIconName: 'bolt',
@@ -231,8 +261,48 @@ class WhatsNewService {
     ),
   ];
 
-  /// Student-Friendly Highlights (v1.5.48)
+  /// Student-Friendly Highlights (v1.5.50)
   static final List<ReleaseChange> studentChanges = [
+    const ReleaseChange(
+      icon: Icons.cake_rounded,
+      rawIconName: 'cake',
+      badge: 'Student Delight',
+      title: 'Birthday Celebration & 1-Tap Wi-Fi Password Copy',
+      description:
+          'Celebrate your special day with festive greetings and copy the high-speed study Wi-Fi password with a single tap directly from your dashboard.',
+      actionRoute: Routes.studentHome,
+      actionLabel: 'View Dashboard',
+    ),
+    const ReleaseChange(
+      icon: Icons.timer_outlined,
+      rawIconName: 'timer',
+      badge: 'Focus Radar',
+      title: 'Exam Countdown Widget for Your Course',
+      description:
+          'Stay locked in on your academic dreams with a live daily countdown timer dynamically tailored to your course (UPSC, MPSC, NEET, JEE, GATE, Banking, etc.).',
+      actionRoute: Routes.studentHome,
+      actionLabel: 'Check Countdown',
+    ),
+    const ReleaseChange(
+      icon: Icons.lock_rounded,
+      rawIconName: 'lock',
+      badge: 'Seat Protection',
+      title: 'Guaranteed Seat Hold & 1-Tap Renewal Flow',
+      description:
+          'Never lose your favorite desk. Active students get an exclusive seat reservation hold badge and a streamlined 1-tap renewal flow to lock in their seat effortlessly.',
+      actionRoute: Routes.studentRenew,
+      actionLabel: 'Review Renewals',
+    ),
+    const ReleaseChange(
+      icon: Icons.volume_off_rounded,
+      rawIconName: 'volume_off',
+      badge: 'Quiet Study',
+      title: 'Silent Reception & Noise Help Button',
+      description:
+          'Study in complete peace. Discreetly alert reception about noise, AC temperature, Wi-Fi issues, or desk hygiene without leaving your seat or causing a disturbance.',
+      actionRoute: Routes.studentFeedback,
+      actionLabel: 'Explore Help Desk',
+    ),
     const ReleaseChange(
       icon: Icons.campaign_rounded,
       rawIconName: 'campaign',
