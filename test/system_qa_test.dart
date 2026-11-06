@@ -1736,7 +1736,7 @@ void main() {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(61));
+      expect(AppConstants.buildNumber, equals(62));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -3968,7 +3968,7 @@ void main() {
     });
 
     test('99. PHASE 3: "SEAT #XX HELD FOR YOU" 1-TAP RENEWAL GUARANTEE & MULTI-KEY RECEIPT VISIBILITY', () {
-      final now = DateTime(2026, 11, 5);
+      final now = DateTime.now();
 
       // ── 1. Renewal Banner 7-Day Window Trigger Invariants ──
       bool shouldTriggerRenewalBanner(StudentModel s) {
@@ -5062,9 +5062,9 @@ void main() {
 
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+61'));
+      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+62'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(61));
+      expect(AppConstants.buildNumber, equals(62));
 
       // 2. Student-facing release changes include all 4 automation features
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
@@ -5085,7 +5085,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.50+61'));
+      expect(formattedVersion, equals('v1.5.50+62'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -5356,6 +5356,70 @@ void main() {
 
       final clearedSeat14 = seat14.copyWith(clearReservation: true);
       expect(clearedSeat14.reservationType, isNull);
+    });
+
+    test('115. PREDICTIVE CHURN ALERT ENGINE, GRACE RECURRENCE & RETENTION AUDIT (SECTION 4)', () {
+      final now = DateTime.now();
+
+      // 1. Healthy active student with settled fees and 20 days remaining
+      final healthyStudent = createTestStudent(
+        id: 'stud_healthy_01',
+        name: 'Sneha Kulkarni',
+        phone: '9822114455',
+        membershipStatus: MembershipStatus.active,
+        planStartDate: now.subtract(const Duration(days: 10)),
+        planEndDate: now.add(const Duration(days: 20)),
+        pendingDueBalance: 0.0,
+      );
+      expect(healthyStudent.isAtChurnRisk, isFalse);
+      expect(healthyStudent.churnRiskReason, isNull);
+
+      // 2. Student in Grace Period
+      final graceStudent = createTestStudent(
+        id: 'stud_grace_01',
+        name: 'Pratik Deshmukh',
+        phone: '9822336677',
+        membershipStatus: MembershipStatus.grace,
+        planStartDate: now.subtract(const Duration(days: 35)),
+        planEndDate: now.subtract(const Duration(days: 2)),
+        graceEndDate: now.add(const Duration(days: 1)),
+        pendingDueBalance: 0.0,
+      );
+      expect(graceStudent.isAtChurnRisk, isTrue);
+      expect(graceStudent.churnRiskReason?.toLowerCase(), contains('grace period'));
+
+      // 3. Active student with pending dues and expiring in 2 days
+      final duesStudent = createTestStudent(
+        id: 'stud_dues_01',
+        name: 'Nitin Pawar',
+        phone: '9822558899',
+        membershipStatus: MembershipStatus.active,
+        planStartDate: now.subtract(const Duration(days: 28)),
+        planEndDate: now.add(const Duration(days: 2)),
+        pendingDueBalance: 600.0,
+      );
+      expect(duesStudent.isAtChurnRisk, isTrue);
+      expect(duesStudent.churnRiskReason, contains('Unpaid dues ₹600 pending'));
+
+      // 4. Expired student without renewal
+      final expiredStudent = createTestStudent(
+        id: 'stud_expired_01',
+        name: 'Vikas Jadhav',
+        phone: '9822770011',
+        membershipStatus: MembershipStatus.expired,
+        planStartDate: now.subtract(const Duration(days: 45)),
+        planEndDate: now.subtract(const Duration(days: 15)),
+        pendingDueBalance: 0.0,
+      );
+      expect(expiredStudent.isAtChurnRisk, isTrue);
+      expect(expiredStudent.churnRiskReason, contains('without renewal'));
+
+      // 5. Churn Cohort Filtering
+      final cohort = [healthyStudent, graceStudent, duesStudent, expiredStudent];
+      final atRiskOnly = cohort.where((s) => s.isAtChurnRisk).toList();
+      expect(atRiskOnly.length, equals(3));
+      expect(atRiskOnly.map((s) => s.id), containsAll(['stud_grace_01', 'stud_dues_01', 'stud_expired_01']));
+      expect(atRiskOnly.map((s) => s.id), isNot(contains('stud_healthy_01')));
     });
   });
 }

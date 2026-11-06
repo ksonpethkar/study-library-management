@@ -2899,12 +2899,51 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         );
                       }
                     }(),
+                    // Admission Source Row (if student was created from an online admission request)
+                    () {
+                      final rawReqId = s.customFields['originalRequestId']?.toString().trim() ??
+                          s.customFields['requestId']?.toString().trim() ??
+                          s.customFields['admissionRequestId']?.toString().trim();
+                      if (rawReqId == null || rawReqId.isEmpty) return const SizedBox.shrink();
+
+                      return _buildDetailRow(
+                        context,
+                        'Admission Source',
+                        'Online Registration',
+                        Icons.app_registration_rounded,
+                        trailingAction: Tooltip(
+                          message: 'View Admission Request',
+                          child: InkWell(
+                            onTap: () => context.push('/admin/requests/$rawReqId'),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'View Request',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Icon(Icons.arrow_forward_rounded, size: 13, color: Theme.of(context).colorScheme.primary),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }(),
                     Consumer(
                       builder: (context, ref, _) {
                         final formConfigAsync = ref.watch(formConfigStreamProvider);
                         final fieldsList = formConfigAsync.value ?? [];
                         final customEntries = s.customFields.entries.where(
-                          (e) => e.key != 'note' && e.value != null && e.value.toString().trim().isNotEmpty,
+                          (e) => !_isInternalKey(e.key) && e.value != null && e.value.toString().trim().isNotEmpty,
                         ).toList();
 
                         if (customEntries.isEmpty) return const SizedBox.shrink();
@@ -2915,7 +2954,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             const SizedBox(height: 8),
                             const Divider(height: 16),
                             Text(
-                              'Custom & Admission Fields',
+                              'Additional Information',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
@@ -2926,7 +2965,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             for (final entry in customEntries)
                               _buildDetailRow(
                                 context,
-                                FormConfigService.getFieldLabel(fieldsList, entry.key, entry.key),
+                                FormConfigService.getFieldLabel(
+                                  fieldsList,
+                                  entry.key,
+                                  _formatFieldKey(entry.key),
+                                ),
                                 entry.value.toString(),
                                 Icons.tune_rounded,
                               ),
@@ -3806,6 +3849,50 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
         ),
       ),
     );
+  }
+
+  static bool _isInternalKey(String key) {
+    final k = key.trim().toLowerCase();
+    return k.startsWith('_') ||
+        const {
+          'note',
+          'notes',
+          'originalrequestid',
+          'requestid',
+          'admissionrequestid',
+          'shift',
+          'shiftname',
+          'studentuserid',
+          'userid',
+          'libraryid',
+          'deletedat',
+          'adminnotes',
+          'isrefund',
+          'planname',
+          'planid',
+          'customplanname',
+          'systemaudit',
+          'fcmtoken',
+          'fcmtokens',
+          'deviceinfo',
+          'status',
+          'type',
+        }.contains(k);
+  }
+
+  static String _formatFieldKey(String key) {
+    if (key.isEmpty) return key;
+    final spaced = key
+        .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}')
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .trim();
+    if (spaced.isEmpty) return key;
+    return spaced
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
   }
 
   String _sanitizeDisplayNote(String? rawNote, StudentModel s) {

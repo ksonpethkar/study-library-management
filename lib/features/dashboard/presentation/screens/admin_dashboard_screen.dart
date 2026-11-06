@@ -44,6 +44,7 @@ class DashboardMetrics {
   final int activeStudentsCount;
   final int totalStudentsCount;
   final int defaultersCount;
+  final int churnRiskCount;
   final double totalDueAmount;
   final List<StudentModel> recentStudents;
 
@@ -54,6 +55,7 @@ class DashboardMetrics {
     this.activeStudentsCount = 0,
     this.totalStudentsCount = 0,
     this.defaultersCount = 0,
+    this.churnRiskCount = 0,
     this.totalDueAmount = 0.0,
     this.recentStudents = const [],
   });
@@ -69,6 +71,7 @@ class DashboardMetrics {
           activeStudentsCount == other.activeStudentsCount &&
           totalStudentsCount == other.totalStudentsCount &&
           defaultersCount == other.defaultersCount &&
+          churnRiskCount == other.churnRiskCount &&
           totalDueAmount == other.totalDueAmount &&
           recentStudents.length == other.recentStudents.length;
 
@@ -80,6 +83,7 @@ class DashboardMetrics {
         activeStudentsCount,
         totalStudentsCount,
         defaultersCount,
+        churnRiskCount,
         totalDueAmount,
         recentStudents.length,
       );
@@ -98,9 +102,13 @@ final dashboardMetricsProvider = Provider<DashboardMetrics>((ref) {
   int renewalsDue = 0;
   int activeCount = 0;
   int defaultersCount = 0;
+  int churnRiskCount = 0;
   double totalDue = 0.0;
 
   for (final s in allStudents) {
+    if (s.isAtChurnRisk) {
+      churnRiskCount++;
+    }
     if (s.membershipStatus == MembershipStatus.active || s.membershipStatus == MembershipStatus.grace) {
       activeCount++;
     }
@@ -134,6 +142,7 @@ final dashboardMetricsProvider = Provider<DashboardMetrics>((ref) {
     activeStudentsCount: activeCount,
     totalStudentsCount: allStudents.length,
     defaultersCount: defaultersCount,
+    churnRiskCount: churnRiskCount,
     totalDueAmount: totalDue,
     recentStudents: allStudents.take(5).toList(),
   );
@@ -713,6 +722,89 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                                 color: theme.brightness == Brightness.dark
                                     ? const Color(0xFFFDE68A)
                                     : const Color(0xFF92400E),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Predictive Churn & Retention Alert Card
+                    if (metrics.churnRiskCount > 0) ...[
+                      InkWell(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          context.go(Uri(path: Routes.adminStudents, queryParameters: {'filter': 'At Risk'}).toString());
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: theme.brightness == Brightness.dark
+                                ? const Color(0xFF3B1E12)
+                                : const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: theme.brightness == Brightness.dark
+                                  ? const Color(0xFFEA580C).withValues(alpha: 0.4)
+                                  : const Color(0xFFFDBA74),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFEA580C).withValues(
+                                  alpha: theme.brightness == Brightness.dark ? 0.1 : 0.08,
+                                ),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEA580C).withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.warning_amber_rounded, size: 20, color: Color(0xFFC2410C)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${metrics.churnRiskCount} Student${metrics.churnRiskCount > 1 ? "s" : ""} at Risk of Churn',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.brightness == Brightness.dark
+                                            ? const Color(0xFFFED7AA)
+                                            : const Color(0xFF9A3412),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'In grace period or overdue fees. Tap to review & retain.',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: theme.brightness == Brightness.dark
+                                            ? const Color(0xFFE2E8F0)
+                                            : const Color(0xFF475569),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 14,
+                                color: theme.brightness == Brightness.dark
+                                    ? const Color(0xFFFED7AA)
+                                    : const Color(0xFF9A3412),
                               ),
                             ],
                           ),

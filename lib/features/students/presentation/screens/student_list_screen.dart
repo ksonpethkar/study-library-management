@@ -53,6 +53,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     'Active',
     'Due Soon',
     'Has Dues',
+    'At Risk',
     'Expired',
     'Grace',
     'Pending',
@@ -67,6 +68,9 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     }
     if (lower == 'has dues' || lower == 'has_dues' || lower == 'defaulters' || lower == 'dues') {
       return 'Has Dues';
+    }
+    if (lower == 'at risk' || lower == 'at_risk' || lower == 'churn' || lower == 'churn_risk') {
+      return 'At Risk';
     }
     if (lower == 'active') return 'Active';
     if (lower == 'expired') return 'Expired';
@@ -92,6 +96,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
             e.isBefore(now.add(const Duration(days: 14)));
       case 'Has Dues':
         return (s.pendingDueBalance ?? 0) > 0;
+      case 'At Risk':
+        return s.isAtChurnRisk;
       case 'Active':
         return s.membershipStatus == MembershipStatus.active;
       case 'Expired':
@@ -1520,6 +1526,34 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
+                                if (student.isAtChurnRisk) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text('⚠️', style: TextStyle(fontSize: 9)),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          student.churnRiskReason ?? 'Churn Risk',
+                                          style: const TextStyle(
+                                            color: Color(0xFFB45309),
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
                                 if ((student.pendingDueBalance ?? 0) > 0) ...[
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -1857,6 +1891,27 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
+                            if (student.isAtChurnRisk) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  student.churnRiskReason ?? 'Churn Risk',
+                                  style: const TextStyle(
+                                    color: Color(0xFFB45309),
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                            ],
                             if ((student.pendingDueBalance ?? 0) > 0) ...[
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),

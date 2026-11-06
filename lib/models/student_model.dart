@@ -732,4 +732,42 @@ class StudentModel {
     final end = DateTime(planEndDate!.year, planEndDate!.month, planEndDate!.day);
     return end.difference(today).inDays;
   }
+
+  /// Evaluates whether the student has predictive churn risk.
+  /// Risk factors per Blueprint Section 4:
+  /// 1. Currently in grace period
+  /// 2. Has outstanding fee balance (> 0) with impending expiry or expired
+  /// 3. Plan expired without renewal
+  bool get isAtChurnRisk {
+    if (membershipStatus == MembershipStatus.grace) return true;
+    if (membershipStatus == MembershipStatus.expired || isExpired) return true;
+    final due = pendingDueBalance ?? 0;
+    if (due > 0) {
+      final days = daysRemaining;
+      if (days != null && days <= 5) return true;
+    }
+    return false;
+  }
+
+  /// Explanatory reason for churn risk
+  String? get churnRiskReason {
+    if (membershipStatus == MembershipStatus.grace) {
+      if (graceEndDate != null) {
+        final days = graceEndDate!.difference(DateTime.now()).inDays;
+        return days <= 0 ? 'Grace period ending today' : 'In grace period ($days days left)';
+      }
+      return 'In grace period';
+    }
+    if (membershipStatus == MembershipStatus.expired || isExpired) {
+      final days = daysRemaining;
+      return days != null && days < 0
+          ? 'Expired ${-days}d ago without renewal'
+          : 'Membership expired without renewal';
+    }
+    final due = pendingDueBalance ?? 0;
+    if (due > 0) {
+      return 'Unpaid dues ₹${due.toStringAsFixed(0)} pending';
+    }
+    return null;
+  }
 }

@@ -128,7 +128,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
 
         _customControllers.clear();
         for (final entry in s.customFields.entries) {
-          if (entry.key != 'note') {
+          if (!_isInternalKey(entry.key)) {
             _customControllers[entry.key] = TextEditingController(text: entry.value?.toString() ?? '');
           }
         }
@@ -684,7 +684,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                       final allKeys = {
                         ...customFields.map((f) => f['id'] as String),
                         ..._customControllers.keys,
-                      };
+                      }.where((k) => !_isInternalKey(k)).toList();
 
                       if (allKeys.isEmpty) return const SizedBox.shrink();
 
@@ -698,12 +698,12 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 24),
-                          _buildSectionHeader(context, 'Custom & Admission Fields', Icons.tune_rounded),
+                          _buildSectionHeader(context, 'Additional Information', Icons.tune_rounded),
                           const SizedBox(height: 12),
                           for (final fid in allKeys)
                             Builder(
                               builder: (ctx) {
-                                final f = customFields.where((el) => el['id'] == fid).firstOrNull ?? {'id': fid, 'label': fid, 'type': 'Text'};
+                                final f = customFields.where((el) => el['id'] == fid).firstOrNull ?? {'id': fid, 'label': _formatFieldKey(fid), 'type': 'Text'};
                                 return _buildCustomFieldItem(ctx, f);
                               },
                             ),
@@ -846,5 +846,49 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
             : null,
       ),
     );
+  }
+
+  static bool _isInternalKey(String key) {
+    final k = key.trim().toLowerCase();
+    return k.startsWith('_') ||
+        const {
+          'note',
+          'notes',
+          'originalrequestid',
+          'requestid',
+          'admissionrequestid',
+          'shift',
+          'shiftname',
+          'studentuserid',
+          'userid',
+          'libraryid',
+          'deletedat',
+          'adminnotes',
+          'isrefund',
+          'planname',
+          'planid',
+          'customplanname',
+          'systemaudit',
+          'fcmtoken',
+          'fcmtokens',
+          'deviceinfo',
+          'status',
+          'type',
+        }.contains(k);
+  }
+
+  static String _formatFieldKey(String key) {
+    if (key.isEmpty) return key;
+    final spaced = key
+        .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}')
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .trim();
+    if (spaced.isEmpty) return key;
+    return spaced
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
   }
 }

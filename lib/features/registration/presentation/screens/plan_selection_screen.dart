@@ -51,6 +51,20 @@ class PlanSelectionScreen extends ConsumerWidget {
                 }
 
                 final baseMonthly = PlanCalculatorService.getBaseMonthlyPrice(activePlans);
+                final now = DateTime.now();
+                final daysInCurrentMonth = DateTime(now.year, now.month + 1, 0).day;
+                final daysRemainingInMonth = (daysInCurrentMonth - now.day + 1).clamp(1, daysInCurrentMonth);
+                final monthEnd = DateTime(now.year, now.month + 1, 0);
+                const monthNames = [
+                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                ];
+                final currentMonthName = monthNames[now.month - 1];
+                final isProratedSeason = now.day > 1;
+
+                final selectedPlan = activePlans.where((p) => p.id == selectedPlanId).firstOrNull;
+                final selectedSmartCalc = selectedPlan != null
+                    ? PlanCalculatorService.calculateSmartPlan(plan: selectedPlan)
+                    : null;
 
                 return RadioGroup<String>(
                   groupValue: selectedPlanId ?? '',
@@ -71,7 +85,113 @@ class PlanSelectionScreen extends ConsumerWidget {
                         'Select the study pass duration that fits your schedule. Multi-month plans include exclusive savings.',
                         style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 12),
+
+                      // Current Monthly Billing Cycle & Desk Payment Reassurance Banner
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: theme.brightness == Brightness.dark
+                                ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                                : [const Color(0xFFEFF6FF), const Color(0xFFE0E7FF)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: theme.brightness == Brightness.dark
+                                ? const Color(0xFF3B82F6).withValues(alpha: 0.3)
+                                : const Color(0xFF93C5FD),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.calendar_month_rounded, size: 20, color: Color(0xFF2563EB)),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Current Cycle: ${now.day.toString().padLeft(2, '0')} $currentMonthName → ${monthEnd.day} $currentMonthName',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                                      ),
+                                      Text(
+                                        isProratedSeason
+                                            ? '$daysRemainingInMonth days remaining in $currentMonthName • Fair Pro-rata Applied'
+                                            : 'Full monthly cycle • 30 days complete coverage',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: theme.brightness == Brightness.dark
+                                              ? Colors.grey.shade300
+                                              : const Color(0xFF1E40AF),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF16A34A).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.4)),
+                                  ),
+                                  child: Text(
+                                    '$daysRemainingInMonth Days',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF16A34A),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: theme.brightness == Brightness.dark
+                                    ? Colors.black26
+                                    : Colors.white.withValues(alpha: 0.75),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.storefront_rounded, size: 15, color: Color(0xFFD97706)),
+                                  const SizedBox(width: 7),
+                                  Expanded(
+                                    child: Text(
+                                      'Pay at Front Desk: No online transaction needed now. Pay pro-rata fee at library desk upon verification.',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: theme.brightness == Brightness.dark
+                                            ? Colors.amber.shade200
+                                            : const Color(0xFF92400E),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       ...activePlans.map((plan) {
                         final isSelected = selectedPlanId == plan.id;
                         final origPrice = plan.getEffectiveOriginalPrice(baseMonthlyPrice: baseMonthly);

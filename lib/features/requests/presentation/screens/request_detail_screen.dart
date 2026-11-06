@@ -1592,10 +1592,13 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             _buildDiffRow('Course', (data['currentData'] as Map?)?['course'], (data['proposedData'] as Map?)?['course']),
             _buildDiffRow('Year / Semester', (data['currentData'] as Map?)?['year'], (data['proposedData'] as Map?)?['year']),
             if ((data['proposedData'] as Map?)?['customFields'] is Map) ...[
-              ...((data['proposedData'] as Map)['customFields'] as Map).entries.map((e) {
+              ...((data['proposedData'] as Map)['customFields'] as Map)
+                  .entries
+                  .where((e) => !_isInternalKey(e.key.toString()))
+                  .map((e) {
                 final curMap = (data['currentData'] as Map?)?['customFields'] as Map?;
                 final curVal = curMap?[e.key];
-                return _buildDiffRow(e.key.toString(), curVal, e.value);
+                return _buildDiffRow(_formatFieldKey(e.key.toString()), curVal, e.value);
               }),
             ],
           ],
@@ -2047,13 +2050,24 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               ],
             ],
 
-            // Section 5: Custom Fields
-            if (studentData['customFields'] is Map && (studentData['customFields'] as Map).isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _buildSubheading('Custom Information'),
-              ...((studentData['customFields'] as Map).entries.map((e) {
-                return _buildRow(e.key.toString(), e.value?.toString() ?? '—');
-              })),
+            // Section 5: Additional Information
+            if (studentData['customFields'] is Map) ...[
+              () {
+                final cfMap = (studentData['customFields'] as Map)
+                    .entries
+                    .where((e) => !_isInternalKey(e.key.toString()) && e.value != null && e.value.toString().trim().isNotEmpty)
+                    .toList();
+                if (cfMap.isEmpty) return const SizedBox.shrink();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    _buildSubheading('Additional Information'),
+                    ...cfMap.map((e) => _buildRow(_formatFieldKey(e.key.toString()), e.value.toString())),
+                  ],
+                );
+              }(),
             ],
           ],
         ),
@@ -2924,5 +2938,49 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       adminTemplate: library?.whatsappWelcomeTemplate ?? '',
       context: context,
     );
+  }
+
+  static bool _isInternalKey(String key) {
+    final k = key.trim().toLowerCase();
+    return k.startsWith('_') ||
+        const {
+          'note',
+          'notes',
+          'originalrequestid',
+          'requestid',
+          'admissionrequestid',
+          'shift',
+          'shiftname',
+          'studentuserid',
+          'userid',
+          'libraryid',
+          'deletedat',
+          'adminnotes',
+          'isrefund',
+          'planname',
+          'planid',
+          'customplanname',
+          'systemaudit',
+          'fcmtoken',
+          'fcmtokens',
+          'deviceinfo',
+          'status',
+          'type',
+        }.contains(k);
+  }
+
+  static String _formatFieldKey(String key) {
+    if (key.isEmpty) return key;
+    final spaced = key
+        .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}')
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .trim();
+    if (spaced.isEmpty) return key;
+    return spaced
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
   }
 }
