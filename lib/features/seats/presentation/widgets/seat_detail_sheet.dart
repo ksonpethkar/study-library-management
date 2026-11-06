@@ -10,6 +10,7 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
+import 'package:study_library/services/app_notification_service.dart';
 
 import '../providers/seat_providers.dart';
 
@@ -118,19 +119,36 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
     try {
       final updates = <String, dynamic>{'status': newStatus.name};
 
-      // If changing from occupied to anything else, clear studentId
+      // If changing from occupied to anything else, clear studentId & preserve previousSeatId
       if (widget.seat.status == SeatStatus.occupied &&
           newStatus != SeatStatus.occupied) {
         updates['studentId'] = null;
 
-        // Also clear the student's seatId
+        // Also clear the student's seatId and preserve previousSeatId for seamless recovery
         if (widget.seat.studentId != null) {
+          final occupantId = widget.seat.studentId!;
           await FirebaseFirestore.instance
               .collection('libraries')
               .doc(libraryId)
               .collection('students')
-              .doc(widget.seat.studentId)
-              .update({'seatId': null, 'sectionId': null});
+              .doc(occupantId)
+              .update({
+                'seatId': null,
+                'sectionId': null,
+                'previousSeatId': widget.seat.id,
+              });
+
+          if (newStatus == SeatStatus.maintenance) {
+            AppNotificationService.sendNotification(
+              libraryId: libraryId,
+              title: 'Desk Maintenance Notice',
+              body: 'Seat ${widget.seat.label} has been placed under maintenance. Please visit reception for immediate temporary desk reallocation.',
+              type: 'seat',
+              targetRole: 'student',
+              targetUserId: occupantId,
+              actionRoute: '/student/home',
+            );
+          }
         }
       }
 

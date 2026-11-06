@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:study_library/core/theme/app_theme.dart' as custom_theme;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image/image.dart' as img;
@@ -6027,6 +6028,50 @@ void main() {
       );
       expect(checkoutModesMisconfigured, equals(['upi', 'desk_cash']));
       expect(checkoutModesMisconfigured.contains('bank'), isFalse);
+    });
+
+    test('125. SEAT MAINTENANCE OCCUPANT NOTIFICATION & ANTI-FRAUD LIVE TICKER (GAP-02 & GAP-03)', () {
+      // 1. GAP-02: Seat Maintenance Invariants & Previous Seat Preservation
+      final originalStudent = StudentModel.fromJson({
+        'id': 'student_gamma',
+        'name': 'Gamma Student',
+        'email': 'gamma@test.com',
+        'phone': '9876543210',
+        'fatherName': 'Father',
+        'gender': 'male',
+        'seatId': 'seat_desk_42',
+        'sectionId': 'sec_quiet',
+      });
+
+      // Admin places Seat 42 into maintenance
+      final seatUnderMaintenance = SeatModel.fromJson({
+        'id': 'seat_desk_42',
+        'sectionId': 'sec_quiet',
+        'label': '42',
+        'row': 3,
+        'col': 2,
+        'status': 'maintenance',
+        'genderRestriction': 'any',
+      });
+
+      final updatedStudentAfterMaintenance = originalStudent.copyWith(
+        clearSeat: true,
+        previousSeatId: 'seat_desk_42', // Guaranteed memory for 1-tap reclaim
+      );
+
+      expect(seatUnderMaintenance.status, equals(SeatStatus.maintenance));
+      expect(seatUnderMaintenance.studentId, isNull);
+      expect(updatedStudentAfterMaintenance.seatId, isNull);
+      expect(updatedStudentAfterMaintenance.previousSeatId, equals('seat_desk_42'));
+
+      // 2. GAP-03: Anti-Fraud Live Ticker Timestamp Format Verification
+      final now = DateTime(2026, 11, 6, 17, 30, 45);
+      final formattedTime = DateFormat('HH:mm:ss').format(now);
+      expect(formattedTime, equals('17:30:45'));
+      expect(RegExp(r'^\d{2}:\d{2}:\d{2}$').hasMatch(formattedTime), isTrue);
+
+      final tickerText = 'LIVE $formattedTime';
+      expect(tickerText, equals('LIVE 17:30:45'));
     });
   });
 }

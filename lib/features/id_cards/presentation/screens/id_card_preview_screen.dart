@@ -983,11 +983,51 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                         'Member Since ${DateFormat('MMM yyyy').format(student.effectiveAdmissionDate)}',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 9,
+                          fontSize: 8.5,
                           fontFamily: 'monospace',
                           fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.4,
                         ),
+                      ),
+                      // Anti-Screenshot Live Clock Ticker
+                      StreamBuilder(
+                        stream: Stream.periodic(const Duration(seconds: 1)),
+                        builder: (context, _) {
+                          final now = DateTime.now();
+                          final timeStr = DateFormat('HH:mm:ss').format(now);
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4), width: 0.6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 4.5,
+                                  height: 4.5,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF10B981),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 3.5),
+                                Text(
+                                  'LIVE $timeStr',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6EE7B7),
+                                    fontSize: 8,
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                       Text(
                         student.membershipNumber != null && student.membershipNumber!.isNotEmpty
@@ -995,10 +1035,10 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                             : (student.id.length >= 8 ? 'PASS ID: ${student.id.substring(0, 8).toUpperCase()}' : 'STUDENT PASS'),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 9.5,
+                          fontSize: 9,
                           fontFamily: 'monospace',
                           fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
+                          letterSpacing: 0.6,
                         ),
                       ),
                     ],
