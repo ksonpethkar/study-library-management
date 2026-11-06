@@ -799,6 +799,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
           );
         }
 
+        final sortedSeats = [...seats]..sort(SeatHelper.compareSeats);
         final screenWidth = MediaQuery.of(context).size.width;
         final crossAxisCount = section.cols > 0 ? section.cols : 10;
         // On mobile phones (< 500px), a 10-column grid requires at least 44px per desk (440px total)
@@ -807,10 +808,10 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
         final bool isSmallScreen = screenWidth < (minGridWidth + 48);
 
         final grid = GridView.builder(
-          key: ValueKey('grid_${section.id}_${seats.length}'),
+          key: ValueKey('grid_${section.id}_${sortedSeats.length}'),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: seats.length,
+          itemCount: sortedSeats.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 8,
@@ -818,7 +819,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
             childAspectRatio: 1.0,
           ),
           itemBuilder: (context, index) {
-            final seat = seats[index];
+            final seat = sortedSeats[index];
             final isOccupied = seat.status == SeatStatus.occupied ||
                 (seat.studentId != null && seat.studentId!.isNotEmpty);
             final isMaintenance = seat.status == SeatStatus.maintenance;

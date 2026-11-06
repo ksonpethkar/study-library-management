@@ -1,3 +1,6 @@
+import 'dart:math';
+import 'package:study_library/models/seat_model.dart';
+
 /// Utility helper to format and resolve human-friendly seat labels and numbers
 /// across the entire application (avoiding raw database IDs like `1790647291016_r0_c4`).
 class SeatHelper {
@@ -107,5 +110,95 @@ class SeatHelper {
       return '${sectionName.trim()} • $seatText';
     }
     return seatText;
+  }
+
+  /// Normalizes a seat label or ID for natural sequential sorting by removing common prefixes
+  /// like "Seat #", "Seat", "Desk #", "Desk", "#".
+  static String normalizeForComparison(String input) {
+    if (input.isEmpty) return input;
+    final cleaned = input
+        .replaceFirst(RegExp(r'^(?:Seat|Desk)[\s#_\-:]*', caseSensitive: false), '')
+        .replaceFirst(RegExp(r'^[#_\-:\s]+'), '')
+        .trim();
+    return cleaned.isNotEmpty ? cleaned : input;
+  }
+
+  /// Naturally compares two strings alphanumeric-wise so that numeric segments are compared
+  /// as values rather than ASCII characters (e.g. "2" < "12", "A2" < "A10", "Desk 2" < "Desk 12").
+  static int compareNatural(String a, String b) {
+    if (a == b) return 0;
+    final normA = normalizeForComparison(a);
+    final normB = normalizeForComparison(b);
+
+    final regex = RegExp(r'(\d+|\D+)');
+    final matchesA = regex.allMatches(normA).map((m) => m.group(0)!).toList();
+    final matchesB = regex.allMatches(normB).map((m) => m.group(0)!).toList();
+    final len = min(matchesA.length, matchesB.length);
+
+    for (int i = 0; i < len; i++) {
+      final partA = matchesA[i];
+      final partB = matchesB[i];
+
+      final isDigitA = partA.isNotEmpty && partA.codeUnitAt(0) >= 48 && partA.codeUnitAt(0) <= 57;
+      final isDigitB = partB.isNotEmpty && partB.codeUnitAt(0) >= 48 && partB.codeUnitAt(0) <= 57;
+
+      if (isDigitA && isDigitB) {
+        final numA = BigInt.tryParse(partA);
+        final numB = BigInt.tryParse(partB);
+        if (numA != null && numB != null) {
+          final cmp = numA.compareTo(numB);
+          if (cmp != 0) return cmp;
+        } else {
+          final cmp = partA.compareTo(partB);
+          if (cmp != 0) return cmp;
+        }
+      } else {
+        final cmp = partA.toLowerCase().compareTo(partB.toLowerCase());
+        if (cmp != 0) return cmp;
+        final rawCmp = partA.compareTo(partB);
+        if (rawCmp != 0) return rawCmp;
+      }
+    }
+    return matchesA.length.compareTo(matchesB.length);
+  }
+
+  /// Naturally compares two SeatModel instances sequentially.
+  /// If both seats belong to different sections, compares section IDs.
+  /// Then naturally compares seat labels (e.g. 1, 2, ... 10, 11, 12).
+  /// Falls back to row/col coordinate sorting if labels are identical or empty.
+  static int compareSeats(SeatModel a, SeatModel b) {
+    if (a.sectionId.isNotEmpty && b.sectionId.isNotEmpty && a.sectionId != b.sectionId) {
+      final secCmp = compareNatural(a.sectionId, b.sectionId);
+      if (secCmp != 0) return secCmp;
+    }
+    final labelA = a.label.trim().isNotEmpty ? a.label : a.id;
+    final labelB = b.label.trim().isNotEmpty ? b.label : b.id;
+    final cmp = compareNatural(labelA, labelB);
+    if (cmp != 0) return cmp;
+
+    final rowCmp = a.row.compareTo(b.row);
+    if (rowCmp != 0) return rowCmp;
+    return a.col.compareTo(b.col);
+  }
+
+  /// Naturally compares two seat maps (e.g. from Firestore JSON) sequentially.
+  static int compareSeatMaps(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final secA = (a['sectionId'] ?? '').toString();
+    final secB = (b['sectionId'] ?? '').toString();
+    if (secA.isNotEmpty && secB.isNotEmpty && secA != secB) {
+      final secCmp = compareNatural(secA, secB);
+      if (secCmp != 0) return secCmp;
+    }
+    final labelA = (a['label'] ?? a['id'] ?? '').toString();
+    final labelB = (b['label'] ?? b['id'] ?? '').toString();
+    final cmp = compareNatural(labelA, labelB);
+    if (cmp != 0) return cmp;
+
+    final rA = (a['row'] as num?)?.toInt() ?? 0;
+    final rB = (b['row'] as num?)?.toInt() ?? 0;
+    if (rA != rB) return rA.compareTo(rB);
+    final cA = (a['col'] as num?)?.toInt() ?? 0;
+    final cB = (b['col'] as num?)?.toInt() ?? 0;
+    return cA.compareTo(cB);
   }
 }

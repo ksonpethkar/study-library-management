@@ -6,6 +6,7 @@ import '../../../../core/constants/firestore_paths.dart';
 
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/seat_model.dart';
+import '../../../../core/utils/seat_helper.dart';
 
 class SeatRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -1049,9 +1050,11 @@ class SeatRepository {
         .collection(FirestorePaths.seats)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
+          final list = snapshot.docs
               .map((doc) => SeatModel.fromJson({...doc.data(), 'id': doc.id}))
               .toList();
+          list.sort(SeatHelper.compareSeats);
+          return list;
         });
   }
 
@@ -1066,9 +1069,11 @@ class SeatRepository {
         .doc(sectionId)
         .collection(FirestorePaths.seats)
         .get();
-    return snapshot.docs
+    final list = snapshot.docs
         .map((doc) => SeatModel.fromJson({...doc.data(), 'id': doc.id}))
         .toList();
+    list.sort(SeatHelper.compareSeats);
+    return list;
   }
 
   Stream<List<SeatModel>> getAvailableSeats(
@@ -1085,7 +1090,7 @@ class SeatRepository {
     }
 
     yield* query.snapshots().map((snapshot) {
-      return snapshot.docs
+      final list = snapshot.docs
           .map(
             (doc) => SeatModel.fromJson({
               ...doc.data() as Map<String, dynamic>,
@@ -1093,6 +1098,8 @@ class SeatRepository {
             }),
           )
           .toList();
+      list.sort(SeatHelper.compareSeats);
+      return list;
     });
   }
 

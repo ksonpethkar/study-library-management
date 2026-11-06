@@ -14,6 +14,7 @@ import 'package:study_library/models/section_model.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 
 class WaitingListScreen extends ConsumerStatefulWidget {
@@ -1342,7 +1343,8 @@ class _AvailableSeatsSectionTile extends ConsumerWidget {
                     .where((s) =>
                         s.status == SeatStatus.available &&
                         !s.id.startsWith('missing_'))
-                    .toList();
+                    .toList()
+                  ..sort(SeatHelper.compareSeats);
 
                 if (availableSeats.isEmpty) {
                   return const Text(

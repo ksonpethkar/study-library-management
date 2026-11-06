@@ -1949,7 +1949,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                           Expanded(
                             child: seatsAsync.when(
                               data: (seats) {
-                                final available = seats.where((s) => s.status == SeatStatus.available).toList();
+                                final available = seats.where((s) => s.status == SeatStatus.available).toList()
+                                  ..sort(SeatHelper.compareSeats);
                                 if (available.isEmpty) {
                                   return Center(
                                     child: Column(

@@ -4969,7 +4969,8 @@ class _SectionItem extends ConsumerWidget {
       children: [
         seatsAsync.when(
           data: (seats) {
-            final availableSeats = seats.where((s) => s.status == SeatStatus.available).toList();
+            final availableSeats = seats.where((s) => s.status == SeatStatus.available).toList()
+              ..sort(SeatHelper.compareSeats);
             if (availableSeats.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(16.0),

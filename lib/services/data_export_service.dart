@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/file_download_helper.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 
 enum ExportDateRange {
   allTime,
@@ -237,12 +238,8 @@ class DataExportService {
       if (kDebugMode) debugPrint('Error fetching direct seats: $e');
     }
 
-    // Natural sort: A1, A2, B1, 1, 2, 3...
-    allSeats.sort((a, b) {
-      final labelA = (a['label'] ?? a['id'] ?? '').toString();
-      final labelB = (b['label'] ?? b['id'] ?? '').toString();
-      return labelA.compareTo(labelB);
-    });
+    // Natural sequential sort: 1, 2, ... 10, 11, 12, A1, A2, B1...
+    allSeats.sort(SeatHelper.compareSeatMaps);
 
     return allSeats;
   }

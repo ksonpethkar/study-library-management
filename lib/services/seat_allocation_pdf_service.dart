@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/pdf_font_service.dart';
 
 class SeatAllocationPdfService {
@@ -98,12 +99,7 @@ class SeatAllocationPdfService {
             .get();
 
         final seats = seatsSnap.docs.map((d) => {...d.data(), 'id': d.id}).toList();
-        seats.sort((a, b) {
-          final rA = (a['row'] as num?)?.toInt() ?? 0;
-          final rB = (b['row'] as num?)?.toInt() ?? 0;
-          if (rA != rB) return rA.compareTo(rB);
-          return ((a['col'] as num?)?.toInt() ?? 0).compareTo((b['col'] as num?)?.toInt() ?? 0);
-        });
+        seats.sort(SeatHelper.compareSeatMaps);
 
         // Strip emoji icons to prevent Helvetica fallback tofu boxes in PDF
         final typeLabel = switch (sectionType) {

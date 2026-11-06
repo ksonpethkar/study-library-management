@@ -11,6 +11,7 @@ import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 
 import '../providers/seat_providers.dart';
 
@@ -948,7 +949,8 @@ class _TransferSectionTile extends ConsumerWidget {
                         s.status == SeatStatus.available &&
                         s.id != sourceSeatId &&
                         !s.id.startsWith('missing_'))
-                    .toList();
+                    .toList()
+                  ..sort(SeatHelper.compareSeats);
 
                 if (availableSeats.isEmpty) {
                   return const Text(
@@ -1220,7 +1222,8 @@ class _SwapSectionTile extends ConsumerWidget {
                         s.studentId != null &&
                         s.studentId!.isNotEmpty &&
                         !s.id.startsWith('missing_'))
-                    .toList();
+                    .toList()
+                  ..sort(SeatHelper.compareSeats);
 
                 if (occupiedSeats.isEmpty) {
                   return const Text(

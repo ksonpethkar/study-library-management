@@ -1279,12 +1279,8 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
             .where((s) => s.deletedAt == null)
             .toList();
 
-        // Sort by row and col
-        seats.sort((a, b) {
-          final rowCmp = a.row.compareTo(b.row);
-          if (rowCmp != 0) return rowCmp;
-          return a.col.compareTo(b.col);
-        });
+        // Natural sequential sort: 1, 2, 3... 10, 11, 12, A1, A2...
+        seats.sort(SeatHelper.compareSeats);
 
         final screenWidth = MediaQuery.of(context).size.width;
         final crossAxisCount = screenWidth > 800 ? 8 : (screenWidth > 500 ? 6 : (screenWidth < 440 ? 3 : 4));

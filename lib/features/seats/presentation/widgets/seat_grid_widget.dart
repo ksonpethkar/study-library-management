@@ -9,6 +9,7 @@ import '../providers/seat_providers.dart';
 import 'seat_tile.dart';
 import 'seat_detail_sheet.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 
 class SeatGridWidget extends ConsumerStatefulWidget {
   final String libraryId;
@@ -594,14 +595,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                   return const Center(child: Text('No seats initialized.'));
                 }
 
-                final sortedSeats = [...seats]..sort((a, b) {
-                  final aNum = int.tryParse(a.label.replaceAll(RegExp(r'[^0-9]'), ''));
-                  final bNum = int.tryParse(b.label.replaceAll(RegExp(r'[^0-9]'), ''));
-                  if (aNum != null && bNum != null && aNum != bNum) {
-                    return aNum.compareTo(bNum);
-                  }
-                  return a.label.compareTo(b.label);
-                });
+                final sortedSeats = [...seats]..sort(SeatHelper.compareSeats);
 
                 final double childAspectRatio = _columns <= 2 ? 1.35 : (_columns <= 3 ? 1.15 : (_columns <= 5 ? 1.05 : 0.98));
 
