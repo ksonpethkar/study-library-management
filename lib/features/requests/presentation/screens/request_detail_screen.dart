@@ -20,6 +20,7 @@ import 'package:study_library/features/seats/presentation/providers/seat_provide
 import '../widgets/admin_document_studio_dialog.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/services/plan_calculator_service.dart';
 
 class RequestDetailScreen extends ConsumerStatefulWidget {
   final String requestId;
@@ -647,9 +648,12 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                         const SizedBox(height: 16),
                       ],
 
-                      // 3. Requested Plan & Membership Cycle Card (For Renewals)
+                      // 3. Requested Plan & Membership Cycle Card (For Renewals or Registrations)
                       if (isRenewal) ...[
                         _buildRenewalPlanCard(theme: theme, data: data),
+                        const SizedBox(height: 16),
+                      ] else if (isRegistration) ...[
+                        _buildRegistrationPlanCard(theme: theme, data: data, studentData: studentData),
                         const SizedBox(height: 16),
                       ],
 
@@ -1430,6 +1434,120 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegistrationPlanCard({
+    required ThemeData theme,
+    required Map<String, dynamic> data,
+    required Map<String, dynamic> studentData,
+  }) {
+    final planName = (data['planName'] ?? studentData['planName'] ?? 'Cozy Study Plan').toString();
+    final planId = (data['planId'] ?? studentData['planId'])?.toString();
+
+    double? proratedFee = (data['proratedFee'] as num?)?.toDouble() ??
+        (studentData['proratedFee'] as num?)?.toDouble();
+    double? fullPlanPrice = (data['planPrice'] as num?)?.toDouble() ??
+        (studentData['planPrice'] as num?)?.toDouble();
+    int? daysRemaining = (data['daysRemaining'] as num?)?.toInt() ??
+        (studentData['daysRemaining'] as num?)?.toInt();
+    final cycleStartStr = (data['cycleStartDate'] ?? studentData['cycleStartDate']) as String?;
+    final cycleEndStr = (data['cycleEndDate'] ?? studentData['cycleEndDate']) as String?;
+    DateTime? cycleStart = cycleStartStr != null ? DateTime.tryParse(cycleStartStr) : null;
+    DateTime? cycleEnd = cycleEndStr != null ? DateTime.tryParse(cycleEndStr) : null;
+
+    if ((proratedFee == null || fullPlanPrice == null) && planId != null && planId.isNotEmpty) {
+      final plans = ref.watch(plansStreamProvider).value ?? [];
+      final matchedPlan = plans.where((p) => p.id == planId).firstOrNull;
+      if (matchedPlan != null) {
+        final calc = PlanCalculatorService.calculateSmartPlan(plan: matchedPlan);
+        proratedFee ??= calc.proratedPrice;
+        fullPlanPrice ??= matchedPlan.price;
+        daysRemaining ??= calc.daysRemaining;
+        cycleStart ??= calc.startDate;
+        cycleEnd ??= calc.endDate;
+      }
+    }
+
+    final isProrated = proratedFee != null && fullPlanPrice != null && proratedFee < fullPlanPrice;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.4), width: 1.2),
+      ),
+      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.18),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.point_of_sale_rounded, color: theme.colorScheme.primary, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Requested Study Pass & Desk Collection',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Prorated calendar cycle fee payable upon student arrival',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+                if (proratedFee != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF16A34A).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      '₹${proratedFee.toStringAsFixed(0)} Due',
+                      style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF16A34A), fontSize: 13),
+                    ),
+                  ),
+              ],
+            ),
+            const Divider(height: 24),
+            _buildRow('Selected Plan', planName, isBold: true),
+            if (fullPlanPrice != null)
+              _buildRow('Standard Monthly Rate', '₹${fullPlanPrice.toStringAsFixed(0)} / month'),
+            if (cycleStart != null && cycleEnd != null)
+              _buildRow(
+                'Current Billing Cycle',
+                '${_formatDate(cycleStart)}  →  ${_formatDate(cycleEnd)}${daysRemaining != null ? " ($daysRemaining Days Remaining)" : ""}',
+                color: const Color(0xFF1565C0),
+                isBold: true,
+              ),
+            _buildRow(
+              'Amount Payable at Reception',
+              '₹${(proratedFee ?? fullPlanPrice ?? 0).toStringAsFixed(0)} ${isProrated ? "(Fair Pro-rata applied)" : "(Full Month)"}',
+              color: const Color(0xFF16A34A),
+              isBold: true,
+            ),
+            _buildRow(
+              'Payment Settlement',
+              '🏢 Front Desk (Collect via Cash or UPI when activating admission)',
+            ),
           ],
         ),
       ),
@@ -2295,11 +2413,19 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     final effectivePlanId = planId ?? (studentData['planId'] ?? data['planId'])?.toString();
 
     double defaultAmount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+    if (defaultAmount <= 0) {
+      final proratedFee = (data['proratedFee'] as num?)?.toDouble() ??
+          (studentData['proratedFee'] as num?)?.toDouble();
+      if (proratedFee != null && proratedFee > 0) {
+        defaultAmount = proratedFee;
+      }
+    }
     if (defaultAmount <= 0 && effectivePlanId != null && effectivePlanId.isNotEmpty) {
       final plans = ref.read(plansStreamProvider).value ?? [];
       final matchedPlan = plans.where((p) => p.id == effectivePlanId).firstOrNull;
       if (matchedPlan != null) {
-        defaultAmount = matchedPlan.price.toDouble();
+        final smartCalc = PlanCalculatorService.calculateSmartPlan(plan: matchedPlan);
+        defaultAmount = smartCalc.proratedPrice;
       }
     }
 

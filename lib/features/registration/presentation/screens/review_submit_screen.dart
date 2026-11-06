@@ -348,6 +348,12 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
           .collection('requests')
           .doc();
 
+      final allPlans = ref.read(plansStreamProvider).value ?? [];
+      final selectedPlan = allPlans.where((p) => p.id == selectedPlanId).firstOrNull;
+      final smartCalc = selectedPlan != null
+          ? PlanCalculatorService.calculateSmartPlan(plan: selectedPlan)
+          : null;
+
       final studentData = {
         'name': regData['name'] ?? '',
         'fatherName': regData['fatherName'] ?? '',
@@ -374,6 +380,13 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'customFields': regData['customFields'] ?? {},
         'planId': selectedPlanId,
         'planName': resolvedPlanName,
+        'proratedFee': smartCalc?.proratedPrice,
+        'planPrice': selectedPlan?.price,
+        'daysRemaining': smartCalc?.daysRemaining,
+        'cycleStartDate': smartCalc?.startDate.toIso8601String(),
+        'cycleEndDate': smartCalc?.endDate.toIso8601String(),
+        'isProrated': smartCalc?.isProrated ?? false,
+        'paymentMode': 'desk_collection',
         'userId': currentUser.uid,
         'requestedSeatId': seatDetails.isAutoAssign ? null : seatDetails.seatId,
         'requestedSeatLabel': seatDetails.isAutoAssign ? 'Auto-Assign' : seatDetails.seatLabel,
@@ -393,6 +406,13 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'studentData': studentData,
         'planId': selectedPlanId,
         'planName': resolvedPlanName,
+        'proratedFee': smartCalc?.proratedPrice,
+        'planPrice': selectedPlan?.price,
+        'daysRemaining': smartCalc?.daysRemaining,
+        'cycleStartDate': smartCalc?.startDate.toIso8601String(),
+        'cycleEndDate': smartCalc?.endDate.toIso8601String(),
+        'isProrated': smartCalc?.isProrated ?? false,
+        'paymentMode': 'desk_collection',
         'requestedSeatId': seatDetails.isAutoAssign ? null : seatDetails.seatId,
         'requestedSeatLabel': seatDetails.isAutoAssign ? 'Auto-Assign' : seatDetails.seatLabel,
         'requestedSectionId': seatDetails.sectionId,
@@ -667,6 +687,10 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                           final saved = selectedPlan?.getSavingsAmount(baseMonthlyPrice: baseMonthly);
                           final hasDiscount = origPrice != null && selectedPlan != null && origPrice > selectedPlan.price;
                           final dailyRate = selectedPlan != null ? PlanCalculatorService.getDailyRate(selectedPlan) : 0.0;
+                          final smartCalc = selectedPlan != null ? PlanCalculatorService.calculateSmartPlan(plan: selectedPlan) : null;
+                          final now = DateTime.now();
+                          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                          final currentMonthName = monthNames[now.month - 1];
 
                           return Card(
                             elevation: 0,
@@ -741,25 +765,65 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                         Column(
                                           crossAxisAlignment: CrossAxisAlignment.end,
                                           children: [
-                                            if (hasDiscount)
+                                            if (smartCalc != null && smartCalc.isProrated) ...[
                                               Text(
-                                                '₹${origPrice.toStringAsFixed(0)}',
+                                                'Full Month: ₹${selectedPlan.price.toStringAsFixed(0)}',
                                                 style: TextStyle(
                                                   decoration: TextDecoration.lineThrough,
                                                   decorationColor: Colors.grey.shade500,
                                                   color: Colors.grey.shade500,
-                                                  fontSize: 13,
+                                                  fontSize: 12,
                                                   fontWeight: FontWeight.w500,
                                                   fontFeatures: const [FontFeature.tabularFigures()],
                                                 ),
                                               ),
-                                            Text(
-                                              '₹${selectedPlan.price.toStringAsFixed(0)}',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w900,
-                                                fontSize: 22,
-                                                color: hasDiscount ? Colors.green.shade800 : theme.colorScheme.primary,
-                                                fontFeatures: const [FontFeature.tabularFigures()],
+                                              Text(
+                                                '₹${smartCalc.formattedProratedPrice}',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 22,
+                                                  color: theme.colorScheme.primary,
+                                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                                ),
+                                              ),
+                                            ] else ...[
+                                              if (hasDiscount)
+                                                Text(
+                                                  '₹${origPrice.toStringAsFixed(0)}',
+                                                  style: TextStyle(
+                                                    decoration: TextDecoration.lineThrough,
+                                                    decorationColor: Colors.grey.shade500,
+                                                    color: Colors.grey.shade500,
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w500,
+                                                    fontFeatures: const [FontFeature.tabularFigures()],
+                                                  ),
+                                                ),
+                                              Text(
+                                                '₹${selectedPlan.price.toStringAsFixed(0)}',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 22,
+                                                  color: hasDiscount ? Colors.green.shade800 : theme.colorScheme.primary,
+                                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                                ),
+                                              ),
+                                            ],
+                                            Container(
+                                              margin: const EdgeInsets.only(top: 3),
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.brown.shade50,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: Colors.brown.shade200, width: 0.8),
+                                              ),
+                                              child: Text(
+                                                'Pay at Desk',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.brown.shade900,
+                                                ),
                                               ),
                                             ),
                                           ],
@@ -832,6 +896,38 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                           ),
                                       ],
                                     ),
+                                    if (smartCalc != null && smartCalc.isProrated) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.shade50,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: Colors.amber.shade300, width: 0.8),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(Icons.calendar_month_rounded, size: 16, color: Colors.amber.shade900),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  'Active Cycle: Today (${now.day} $currentMonthName) → ${smartCalc.endDate.day} $currentMonthName',
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.amber.shade900),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '• ${smartCalc.daysRemaining} days remaining in current monthly cycle.\n'
+                                              '• Amount Due at Reception Desk: ₹${smartCalc.formattedProratedPrice} (Cash / UPI on physical arrival).',
+                                              style: TextStyle(fontSize: 11.5, height: 1.4, color: Colors.brown.shade800),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ] else ...[
                                     const Text('No plan selected. Administrator will assign one on approval.'),
                                   ],

@@ -2648,6 +2648,15 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               padding: const EdgeInsets.symmetric(horizontal: 4),
                               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
+                          if (s.hasPowerSurcharge)
+                            Chip(
+                              avatar: const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFFD97706)),
+                              label: Text('AC / POWER (+₹${(s.powerSurchargeAmount ?? 150.0).toStringAsFixed(0)})'),
+                              backgroundColor: const Color(0xFFFEF3C7),
+                              labelStyle: const TextStyle(color: Color(0xFFB45309), fontWeight: FontWeight.bold, fontSize: 11),
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
                         ],
                       ),
                     ],

@@ -1218,6 +1218,30 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                               ),
                             ),
                           ),
+                        if (student.hasPowerSurcharge)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAB308).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFFEAB308).withValues(alpha: 0.5)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.bolt_rounded, size: 10, color: Color(0xFFFDE047)),
+                                SizedBox(width: 2),
+                                Text(
+                                  'AC POWER',
+                                  style: TextStyle(
+                                    color: Color(0xFFFDE047),
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ],

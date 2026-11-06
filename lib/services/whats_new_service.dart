@@ -126,7 +126,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.50+62';
+  static const String currentVersionIdentifier = '1.5.50+63';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -137,6 +137,16 @@ class WhatsNewService {
 
   /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.50)
   static final List<ReleaseChange> adminChanges = [
+    const ReleaseChange(
+      icon: Icons.shield_rounded,
+      rawIconName: 'shield',
+      badge: 'Anti-Fraud & Ledger',
+      title: 'Anti-Fraud UTR Replay Defense & AC Power Surcharge',
+      description:
+          'Automated bank/UPI UTR duplicate detection across payments preventing screenshot reuse, dedicated high-wattage power amenity toggle, and dynamic custom field regex validation.',
+      actionRoute: Routes.adminHome,
+      actionLabel: 'Collect Fee',
+    ),
     const ReleaseChange(
       icon: Icons.volume_off_rounded,
       rawIconName: 'volume_off',

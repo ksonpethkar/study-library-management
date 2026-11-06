@@ -7,6 +7,7 @@ import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/models/payment_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/student_model.dart';
+import 'package:study_library/features/payments/data/repositories/payment_repository.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -137,6 +138,52 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
       final newRef = _refController.text.trim();
       final newNotes = _notesController.text.trim();
       final newBank = _bankNameController.text.trim();
+
+      // Check for duplicate UTR / Reference Number across library (excluding this payment)
+      if (newRef.isNotEmpty && newRef.length >= 6) {
+        final repo = ref.read(paymentRepositoryProvider);
+        final dupPayment = await repo.findDuplicateUtr(
+          widget.libraryId,
+          newRef,
+          excludePaymentId: widget.payment.id,
+        );
+        if (dupPayment != null) {
+          if (!mounted) return;
+          final dateStr = '${dupPayment.date.day}/${dupPayment.date.month}/${dupPayment.date.year}';
+          final confirmUtr = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Row(
+                children: const [
+                  Icon(Icons.warning_amber_rounded, color: Colors.deepOrange),
+                  SizedBox(width: 8),
+                  Text('Duplicate UTR / Ref Warning'),
+                ],
+              ),
+              content: Text(
+                'Transaction reference "$newRef" is already linked to another payment recorded on $dateStr '
+                '(${dupPayment.receiptNumber != null ? "Receipt #${dupPayment.receiptNumber}, " : ""}₹${dupPayment.amount.toStringAsFixed(0)}).\n\n'
+                'Are you sure you want to save this reference?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel & Review'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Proceed Anyway'),
+                ),
+              ],
+            ),
+          );
+          if (confirmUtr != true) {
+            setState(() => _isSaving = false);
+            return;
+          }
+        }
+      }
       // Effective paid calculation anchored on settlement status
       final oldEffectivePaid = (widget.payment.status != PaymentStatus.refunded &&
               widget.payment.status != PaymentStatus.voided &&

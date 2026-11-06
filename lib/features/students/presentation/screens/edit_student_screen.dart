@@ -751,6 +751,8 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
     final label = f['label'] as String? ?? id;
     final isRequired = f['required'] as bool? ?? false;
     final fType = f['type']?.toString() ?? 'Text';
+    final customPattern = f['pattern'] as String?;
+    final patternError = f['patternError'] as String?;
     final ctrl = _customControllers[id] ??= TextEditingController();
     final options = (f['options'] as List?)?.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList() ?? [];
 
@@ -825,9 +827,21 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
             prefixIcon: const Icon(Icons.numbers_rounded),
             border: const OutlineInputBorder(),
           ),
-          validator: isRequired
-              ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
-              : null,
+          validator: (val) {
+            if (isRequired && (val == null || val.trim().isEmpty)) {
+              return '$label is required';
+            }
+            if (customPattern != null && customPattern.isNotEmpty) {
+              return AppValidators.validatePattern(
+                val,
+                customPattern,
+                errorMessage: patternError,
+                required: isRequired,
+                label: label,
+              );
+            }
+            return null;
+          },
         ),
       );
     }
@@ -841,9 +855,21 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
           prefixIcon: const Icon(Icons.edit_note_rounded),
           border: const OutlineInputBorder(),
         ),
-        validator: isRequired
-            ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
-            : null,
+        validator: (val) {
+          if (isRequired && (val == null || val.trim().isEmpty)) {
+            return '$label is required';
+          }
+          if (customPattern != null && customPattern.isNotEmpty) {
+            return AppValidators.validatePattern(
+              val,
+              customPattern,
+              errorMessage: patternError,
+              required: isRequired,
+              label: label,
+            );
+          }
+          return null;
+        },
       ),
     );
   }

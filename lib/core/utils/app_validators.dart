@@ -468,6 +468,40 @@ class AppValidators {
     if (v.isEmpty) return '$label is required';
     return null;
   }
+
+  /// Validates a value against an arbitrary regular expression pattern.
+  /// Used for tenant-custom dynamic fields like University Roll Number,
+  /// Vehicle Registration Number, College ID, Hall Ticket, etc.
+  static String? validatePattern(
+    String? value,
+    String? regexPattern, {
+    String? errorMessage,
+    bool required = false,
+    String label = 'Field',
+  }) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) {
+      return required ? '$label is required' : null;
+    }
+    if (regexPattern == null || regexPattern.trim().isEmpty) {
+      return null;
+    }
+    try {
+      final reg = RegExp(regexPattern);
+      if (!reg.hasMatch(v)) {
+        return errorMessage ?? '$label format is invalid';
+      }
+    } catch (_) {
+      // Invalid regex pattern configured in database, allow input rather than crashing
+      return null;
+    }
+    return null;
+  }
+
+  /// Round monetary amount to nearest integer rupee to prevent fractional paise drift.
+  static double roundRupee(double amount) {
+    return amount.roundToDouble();
+  }
 }
 
 /// TextInputFormatter to force uppercase characters.

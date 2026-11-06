@@ -125,6 +125,7 @@ class StudentModel {
   final double? customPlanFee;
   final bool isStickyCustomPrice;
   final String? customDiscountReason;
+  final DateTime? admissionDate; // Historical enrollment / admission date (decoupled from server insertion)
   final DateTime? planStartDate;
   final DateTime? planEndDate;
   final DateTime? graceEndDate;
@@ -151,6 +152,8 @@ class StudentModel {
   final DateTime? freezeStartDate;
   final DateTime? freezeEndDate;
   final String? freezeReason;
+  final bool hasPowerSurcharge;
+  final double? powerSurchargeAmount;
 
   /// Evaluates whether the student is currently on an active study vacation / membership freeze
   bool get isCurrentlyFrozen {
@@ -176,6 +179,9 @@ class StudentModel {
     }
     return 'Competitive Exam';
   }
+
+  /// Official effective admission date with backward-compatible fallback to cycle start or creation timestamp
+  DateTime get effectiveAdmissionDate => admissionDate ?? planStartDate ?? createdAt ?? DateTime.now();
 
   /// Automatic smart fallback date resolution if student has not set a specific custom date.
   /// Looks at known competitive exams in India to provide an intelligent countdown target.
@@ -269,6 +275,7 @@ class StudentModel {
     this.customPlanFee,
     this.isStickyCustomPrice = false,
     this.customDiscountReason,
+    this.admissionDate,
     this.planStartDate,
     this.planEndDate,
     this.graceEndDate,
@@ -295,6 +302,8 @@ class StudentModel {
     this.freezeStartDate,
     this.freezeEndDate,
     this.freezeReason,
+    this.hasPowerSurcharge = false,
+    this.powerSurchargeAmount,
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
@@ -346,6 +355,7 @@ class StudentModel {
       customPlanFee: (json['customPlanFee'] as num?)?.toDouble() ?? (json['customFee'] as num?)?.toDouble(),
       isStickyCustomPrice: json['isStickyCustomPrice'] == true,
       customDiscountReason: json['customDiscountReason'] as String?,
+      admissionDate: _parseDate(json['admissionDate']) ?? _parseDate(json['joiningDate']),
       planStartDate: _parseDate(json['planStartDate']),
       planEndDate: _parseDate(json['planEndDate']),
       graceEndDate: _parseDate(json['graceEndDate']),
@@ -372,6 +382,8 @@ class StudentModel {
       freezeStartDate: _parseDate(json['freezeStartDate']),
       freezeEndDate: _parseDate(json['freezeEndDate']),
       freezeReason: json['freezeReason'] as String?,
+      hasPowerSurcharge: json['hasPowerSurcharge'] == true,
+      powerSurchargeAmount: (json['powerSurchargeAmount'] as num?)?.toDouble(),
     );
   }
 
@@ -404,6 +416,7 @@ class StudentModel {
       if (customPlanFee != null) 'customPlanFee': customPlanFee,
       if (isStickyCustomPrice) 'isStickyCustomPrice': true,
       if (customDiscountReason != null) 'customDiscountReason': customDiscountReason,
+      if (admissionDate != null) 'admissionDate': admissionDate!.toIso8601String(),
       if (planStartDate != null) 'planStartDate': planStartDate!.toIso8601String(),
       if (planEndDate != null) 'planEndDate': planEndDate!.toIso8601String(),
       if (graceEndDate != null) 'graceEndDate': graceEndDate!.toIso8601String(),
@@ -430,6 +443,8 @@ class StudentModel {
       if (freezeStartDate != null) 'freezeStartDate': freezeStartDate!.toIso8601String(),
       if (freezeEndDate != null) 'freezeEndDate': freezeEndDate!.toIso8601String(),
       if (freezeReason != null) 'freezeReason': freezeReason,
+      if (hasPowerSurcharge) 'hasPowerSurcharge': true,
+      if (powerSurchargeAmount != null) 'powerSurchargeAmount': powerSurchargeAmount,
     };
   }
 
@@ -462,6 +477,7 @@ class StudentModel {
     double? customPlanFee,
     bool? isStickyCustomPrice,
     String? customDiscountReason,
+    DateTime? admissionDate,
     DateTime? planStartDate,
     DateTime? planEndDate,
     DateTime? graceEndDate,
@@ -489,6 +505,8 @@ class StudentModel {
     DateTime? freezeEndDate,
     String? freezeReason,
     bool clearFreeze = false,
+    bool? hasPowerSurcharge,
+    double? powerSurchargeAmount,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -518,6 +536,7 @@ class StudentModel {
       customPlanFee: customPlanFee ?? this.customPlanFee,
       isStickyCustomPrice: isStickyCustomPrice ?? this.isStickyCustomPrice,
       customDiscountReason: customDiscountReason ?? this.customDiscountReason,
+      admissionDate: admissionDate ?? this.admissionDate,
       planStartDate: planStartDate ?? this.planStartDate,
       planEndDate: planEndDate ?? this.planEndDate,
       graceEndDate: graceEndDate ?? this.graceEndDate,
@@ -544,6 +563,8 @@ class StudentModel {
       freezeStartDate: clearFreeze ? null : (freezeStartDate ?? this.freezeStartDate),
       freezeEndDate: clearFreeze ? null : (freezeEndDate ?? this.freezeEndDate),
       freezeReason: clearFreeze ? null : (freezeReason ?? this.freezeReason),
+      hasPowerSurcharge: hasPowerSurcharge ?? this.hasPowerSurcharge,
+      powerSurchargeAmount: powerSurchargeAmount ?? this.powerSurchargeAmount,
     );
   }
 

@@ -17,6 +17,7 @@ class PaymentModel {
   final String? receiptId;
   final String? receiptNumber;
   final double? totalPlanFee;
+  final double? powerSurchargeAmount;
   final double? remainingDue;
   final int? installmentNumber;
   final PaymentStatus status;
@@ -38,6 +39,7 @@ class PaymentModel {
     this.receiptId,
     this.receiptNumber,
     this.totalPlanFee,
+    this.powerSurchargeAmount,
     this.remainingDue,
     this.installmentNumber,
     required this.status,
@@ -52,6 +54,7 @@ class PaymentModel {
       studentUserId: json['studentUserId'] as String?,
       amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
       totalPlanFee: (json['totalPlanFee'] as num?)?.toDouble(),
+      powerSurchargeAmount: (json['powerSurchargeAmount'] as num?)?.toDouble(),
       remainingDue: (json['remainingDue'] as num?)?.toDouble(),
       installmentNumber: json['installmentNumber'] as int?,
       method: (json['paymentMethod'] ?? json['method']) as String? ?? '',
@@ -86,6 +89,7 @@ class PaymentModel {
       if (receiptId != null) 'receiptId': receiptId,
       if (receiptNumber != null) 'receiptNumber': receiptNumber,
       if (totalPlanFee != null) 'totalPlanFee': totalPlanFee,
+      if (powerSurchargeAmount != null) 'powerSurchargeAmount': powerSurchargeAmount,
       if (remainingDue != null) 'remainingDue': remainingDue,
       if (installmentNumber != null) 'installmentNumber': installmentNumber,
       'status': status.name,
@@ -109,6 +113,7 @@ class PaymentModel {
     String? receiptId,
     String? receiptNumber,
     double? totalPlanFee,
+    double? powerSurchargeAmount,
     double? remainingDue,
     int? installmentNumber,
     PaymentStatus? status,
@@ -130,6 +135,7 @@ class PaymentModel {
       receiptId: receiptId ?? this.receiptId,
       receiptNumber: receiptNumber ?? this.receiptNumber,
       totalPlanFee: totalPlanFee ?? this.totalPlanFee,
+      powerSurchargeAmount: powerSurchargeAmount ?? this.powerSurchargeAmount,
       remainingDue: remainingDue ?? this.remainingDue,
       installmentNumber: installmentNumber ?? this.installmentNumber,
       status: status ?? this.status,

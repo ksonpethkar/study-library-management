@@ -244,6 +244,8 @@ class _RegistrationFormScreenState
     final label = f['label'] as String? ?? id;
     final isRequired = f['required'] as bool? ?? false;
     final type = f['type'] as String? ?? 'Text';
+    final customPattern = f['pattern'] as String?;
+    final patternError = f['patternError'] as String?;
     final ctrl = _customControllers[id];
     if (ctrl == null) return const SizedBox.shrink();
 
@@ -300,9 +302,21 @@ class _RegistrationFormScreenState
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.numbers_rounded, size: 20),
           ),
-          validator: isRequired
-              ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
-              : null,
+          validator: (val) {
+            if (isRequired && (val == null || val.trim().isEmpty)) {
+              return '$label is required';
+            }
+            if (customPattern != null && customPattern.isNotEmpty) {
+              return AppValidators.validatePattern(
+                val,
+                customPattern,
+                errorMessage: patternError,
+                required: isRequired,
+                label: label,
+              );
+            }
+            return null;
+          },
         ),
       );
     }
@@ -346,9 +360,21 @@ class _RegistrationFormScreenState
           labelText: '$label${isRequired ? ' *' : ''}',
           border: const OutlineInputBorder(),
         ),
-        validator: isRequired
-            ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
-            : null,
+        validator: (val) {
+          if (isRequired && (val == null || val.trim().isEmpty)) {
+            return '$label is required';
+          }
+          if (customPattern != null && customPattern.isNotEmpty) {
+            return AppValidators.validatePattern(
+              val,
+              customPattern,
+              errorMessage: patternError,
+              required: isRequired,
+              label: label,
+            );
+          }
+          return null;
+        },
       ),
     );
   }

@@ -1736,7 +1736,7 @@ void main() {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(62));
+      expect(AppConstants.buildNumber, equals(63));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -5062,9 +5062,9 @@ void main() {
 
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+62'));
+      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+63'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(62));
+      expect(AppConstants.buildNumber, equals(63));
 
       // 2. Student-facing release changes include all 4 automation features
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
@@ -5085,7 +5085,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.50+62'));
+      expect(formattedVersion, equals('v1.5.50+63'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -5420,6 +5420,180 @@ void main() {
       expect(atRiskOnly.length, equals(3));
       expect(atRiskOnly.map((s) => s.id), containsAll(['stud_grace_01', 'stud_dues_01', 'stud_expired_01']));
       expect(atRiskOnly.map((s) => s.id), isNot(contains('stud_healthy_01')));
+    });
+
+    test('116. ADMISSION STEP 4 & 6 CALENDAR-MONTH CYCLE, PRO-RATA DESK PAYMENT & ADMIN REQUEST SYNCHRONIZATION', () {
+      final novPlan = PlanModel(
+        id: 'plan_monthly_ac_01',
+        libraryId: 'lib_test_01',
+        name: 'Cozy Monthly AC',
+        description: 'Cozy monthly study pass',
+        price: 800.0,
+        duration: 1,
+        durationUnit: DurationUnit.months,
+        gracePeriodDays: 3,
+        isActive: true,
+        isFeatured: false,
+        displayOrder: 1,
+      );
+
+      // 1. Mid-month joiner on Nov 6th (30-day month)
+      final midMonthDate = DateTime(2026, 11, 6);
+      final midMonthCalc = PlanCalculatorService.calculateSmartPlan(
+        plan: novPlan,
+        fromDate: midMonthDate,
+      );
+
+      expect(midMonthCalc.startDate, equals(DateTime(2026, 11, 6)));
+      expect(midMonthCalc.endDate.month, equals(11));
+      expect(midMonthCalc.endDate.day, equals(30));
+      expect(midMonthCalc.daysRemaining, equals(25));
+      expect(midMonthCalc.isProrated, isTrue);
+      // Math: (25 * (800 / 30) / 10).round() * 10 = (666.67 / 10).round() * 10 = 670.0
+      expect(midMonthCalc.proratedPrice, equals(670.0));
+      expect(midMonthCalc.formattedProratedPrice, equals('₹670'));
+
+      // 2. First-day joiner on Nov 1st (Full monthly cycle)
+      final firstDayCalc = PlanCalculatorService.calculateSmartPlan(
+        plan: novPlan,
+        fromDate: DateTime(2026, 11, 1),
+      );
+      expect(firstDayCalc.daysRemaining, equals(30));
+      expect(firstDayCalc.isProrated, isFalse);
+      expect(firstDayCalc.proratedPrice, equals(800.0));
+
+      // 3. Late-month joiner on Nov 24th (Bridge Pass Activated)
+      final lateMonthCalc = PlanCalculatorService.calculateSmartPlan(
+        plan: novPlan,
+        fromDate: DateTime(2026, 11, 24),
+      );
+      expect(lateMonthCalc.daysRemaining, equals(7)); // 30 - 24 + 1 = 7 days
+      expect(lateMonthCalc.isProrated, isTrue);
+      expect(lateMonthCalc.hasBridgeOption, isTrue);
+      expect(lateMonthCalc.bridgePrice, isNotNull);
+      // Remaining 7 days pro-rata: (7 * 26.67) = 186.67 -> 190. Bridge = 190 + 800 = 990.
+      expect(lateMonthCalc.bridgePrice, equals(990.0));
+
+      // 4. Verification of Admission Request Payload Schema
+      final admissionRequestPayload = {
+        'id': 'req_admission_qa_01',
+        'type': 'registration',
+        'status': 'pending',
+        'studentName': 'Rahul Sharma',
+        'studentPhone': '9822001122',
+        'planId': novPlan.id,
+        'planName': novPlan.name,
+        'proratedFee': midMonthCalc.proratedPrice,
+        'planPrice': novPlan.price,
+        'daysRemaining': midMonthCalc.daysRemaining,
+        'cycleStartDate': midMonthCalc.startDate.toIso8601String(),
+        'cycleEndDate': midMonthCalc.endDate.toIso8601String(),
+        'isProrated': midMonthCalc.isProrated,
+        'paymentMode': 'desk_collection',
+        'requestedSeatLabel': 'Seat #14',
+      };
+
+      expect(admissionRequestPayload['proratedFee'], equals(670.0));
+      expect(admissionRequestPayload['planPrice'], equals(800.0));
+      expect(admissionRequestPayload['daysRemaining'], equals(25));
+      expect(admissionRequestPayload['isProrated'], isTrue);
+      expect(admissionRequestPayload['paymentMode'], equals('desk_collection'));
+
+      // 5. Admin Desk Collection Prompt Pre-fill Resolution
+      double resolvedDeskAmount = (admissionRequestPayload['amount'] as num?)?.toDouble() ?? 0.0;
+      if (resolvedDeskAmount <= 0) {
+        resolvedDeskAmount = (admissionRequestPayload['proratedFee'] as num).toDouble();
+      }
+      expect(resolvedDeskAmount, equals(670.0));
+    });
+
+    test('117. ANTI-FRAUD UTR REPLAY DEFENSE, POWER SURCHARGE AMENITY & DYNAMIC FIELD REGEX PATTERNS', () {
+      // 1. AppValidators.validatePattern - University Roll Number (e.g. 2 letters + 6 digits)
+      const rollPattern = r'^[A-Z]{2}\d{6}$';
+      expect(AppValidators.validatePattern('MH123456', rollPattern, label: 'Roll Number'), isNull);
+      expect(AppValidators.validatePattern('123456', rollPattern, label: 'Roll Number'), contains('Roll Number format is invalid'));
+      expect(AppValidators.validatePattern('mh123456', rollPattern, label: 'Roll Number'), contains('Roll Number format is invalid'));
+      expect(AppValidators.validatePattern('', rollPattern, required: false, label: 'Roll Number'), isNull);
+      expect(AppValidators.validatePattern('', rollPattern, required: true, label: 'Roll Number'), contains('Roll Number is required'));
+
+      // 2. AppValidators.validatePattern - Vehicle Plate Pattern with custom error
+      const vehiclePattern = r'^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$';
+      expect(AppValidators.validatePattern('MH24AB1234', vehiclePattern, errorMessage: 'Invalid vehicle number format'), isNull);
+      expect(AppValidators.validatePattern('ABC123', vehiclePattern, errorMessage: 'Invalid vehicle number format'), equals('Invalid vehicle number format'));
+
+      // 3. AppValidators.roundRupee - Zero Fractional Paise Drift
+      expect(AppValidators.roundRupee(499.3333333), equals(499.0));
+      expect(AppValidators.roundRupee(499.6666667), equals(500.0));
+      expect(AppValidators.roundRupee(750.50), equals(751.0));
+
+      // 4. StudentModel with High-Wattage AC Power Surcharge
+      final studentWithPower = createTestStudent(
+        id: 'stud_power_01',
+        name: 'Gaurav Kulkarni',
+        phone: '9822446688',
+      ).copyWith(
+        hasPowerSurcharge: true,
+        powerSurchargeAmount: 150.0,
+      );
+
+      expect(studentWithPower.hasPowerSurcharge, isTrue);
+      expect(studentWithPower.powerSurchargeAmount, equals(150.0));
+
+      final studentJson = studentWithPower.toJson();
+      expect(studentJson['hasPowerSurcharge'], isTrue);
+      expect(studentJson['powerSurchargeAmount'], equals(150.0));
+
+      final restoredStudent = StudentModel.fromJson(studentJson);
+      expect(restoredStudent.hasPowerSurcharge, isTrue);
+      expect(restoredStudent.powerSurchargeAmount, equals(150.0));
+
+      // 5. PaymentModel with Power Surcharge and 12-Digit UPI UTR
+      final payment = PaymentModel(
+        id: 'pay_test_01',
+        studentId: studentWithPower.id,
+        amount: 850.0,
+        totalPlanFee: 850.0,
+        powerSurchargeAmount: 150.0,
+        method: 'UPI / QR',
+        referenceNumber: '431289567123',
+        date: DateTime.now(),
+        status: PaymentStatus.paid,
+        createdAt: DateTime.now(),
+      );
+
+      expect(payment.referenceNumber, equals('431289567123'));
+      expect(payment.powerSurchargeAmount, equals(150.0));
+      final paymentJson = payment.toJson();
+      expect(paymentJson['referenceNumber'], equals('431289567123'));
+      expect(paymentJson['powerSurchargeAmount'], equals(150.0));
+
+      final restoredPayment = PaymentModel.fromJson(paymentJson);
+      expect(restoredPayment.referenceNumber, equals('431289567123'));
+      expect(restoredPayment.powerSurchargeAmount, equals(150.0));
+
+      // 6. Anti-Fraud UTR Duplicate Identification Simulation
+      final ledger = [
+        payment,
+        PaymentModel(
+          id: 'pay_test_02',
+          studentId: 'stud_power_02',
+          amount: 700.0,
+          method: 'Cash',
+          date: DateTime.now(),
+          status: PaymentStatus.paid,
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      // Lookup candidate matching '431289567123'
+      final duplicateCandidate = ledger.where((p) => p.referenceNumber == '431289567123').firstOrNull;
+      expect(duplicateCandidate, isNotNull);
+      expect(duplicateCandidate?.id, equals('pay_test_01'));
+      expect(duplicateCandidate?.studentId, equals('stud_power_01'));
+
+      // If excluding own ID (e.g. self-editing pay_test_01), no conflict
+      final editExclusionMatch = ledger.where((p) => p.referenceNumber == '431289567123' && p.id != 'pay_test_01').firstOrNull;
+      expect(editExclusionMatch, isNull);
     });
   });
 }

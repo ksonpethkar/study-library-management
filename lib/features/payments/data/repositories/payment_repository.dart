@@ -47,6 +47,32 @@ class PaymentRepository {
     });
   }
 
+  /// Queries the library payments ledger to detect if a transaction reference / UTR
+  /// was already registered on a prior payment, guarding against duplicate receipt submissions.
+  Future<PaymentModel?> findDuplicateUtr(
+    String libraryId,
+    String referenceNumber, {
+    String? excludePaymentId,
+  }) async {
+    final cleanRef = referenceNumber.trim();
+    if (cleanRef.isEmpty || cleanRef.length < 6) return null;
+
+    final snapshot = await _paymentsRef(libraryId)
+        .where('referenceNumber', isEqualTo: cleanRef)
+        .limit(2)
+        .get();
+
+    for (final doc in snapshot.docs) {
+      if (excludePaymentId != null && doc.id == excludePaymentId) continue;
+      final data = doc.data();
+      if (!data.containsKey('id') || (data['id'] as String?)?.isEmpty == true) {
+        data['id'] = doc.id;
+      }
+      return PaymentModel.fromJson(data);
+    }
+    return null;
+  }
+
   Future<void> updatePaymentStatus(String libraryId, String paymentId, PaymentStatus status) async {
     await _paymentsRef(libraryId).doc(paymentId).update({
       'status': status.name,

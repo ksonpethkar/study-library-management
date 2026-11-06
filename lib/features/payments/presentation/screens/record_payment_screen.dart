@@ -91,6 +91,9 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   String? _studentUserId;
   bool _isLoadingStudent = true;
 
+  bool _hasPowerSurcharge = false;
+  double _powerSurchargeAmount = 150.0;
+
   List<String> _paymentMethods = ['Cash', 'UPI / QR', 'Debit / Credit Card', 'Bank Transfer', 'Cheque / DD'];
 
   double get _effectiveTotalFee {
@@ -109,6 +112,20 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   double get _calculatedRemainingDue {
     final diff = _effectiveTotalFee - _payingAmount;
     return diff > 0 ? diff : 0.0;
+  }
+
+  void _togglePowerSurcharge(bool enabled) {
+    setState(() {
+      _hasPowerSurcharge = enabled;
+      final currentTotal = double.tryParse(_totalFeeController.text) ?? widget.planPrice;
+      final newTotal = enabled
+          ? (currentTotal + _powerSurchargeAmount)
+          : (currentTotal - _powerSurchargeAmount).clamp(0.0, double.infinity);
+      _totalFeeController.text = newTotal.round().toString();
+      if (!_isPartialPayment) {
+        _amountController.text = newTotal.round().toString();
+      }
+    });
   }
 
   @override
@@ -182,6 +199,12 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
             final cFee = (data['customPlanFee'] as num).toDouble();
             _totalFeeController.text = cFee.toStringAsFixed(0);
             if (!_isPartialPayment) _amountController.text = cFee.toStringAsFixed(0);
+          }
+          if (data['hasPowerSurcharge'] == true) {
+            _hasPowerSurcharge = true;
+            if (data['powerSurchargeAmount'] != null) {
+              _powerSurchargeAmount = (data['powerSurchargeAmount'] as num).toDouble();
+            }
           }
           if (data['isStickyCustomPrice'] == true) {
             _isStickyCustomPrice = true;
@@ -461,7 +484,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       final repo = ref.read(paymentRepositoryProvider);
       final libraryId = ref.read(currentLibraryIdProvider) ?? '';
 
-      // 1. Duplicate check
+      // 1. Duplicate check (amount within 5 mins)
       final isDup = await repo.checkDuplicatePayment(libraryId, widget.studentId, amount);
       if (!mounted) return;
       if (isDup) {
@@ -479,6 +502,48 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         if (confirm != true) {
           setState(() => _isLoading = false);
           return;
+        }
+      }
+
+      // 1b. Duplicate UTR / Transaction Reference check across library
+      final refNum = _referenceController.text.trim();
+      if (refNum.isNotEmpty && refNum.length >= 6) {
+        final dupPayment = await repo.findDuplicateUtr(libraryId, refNum);
+        if (dupPayment != null) {
+          if (!mounted) return;
+          final dateStr = '${dupPayment.date.day}/${dupPayment.date.month}/${dupPayment.date.year}';
+          final confirmUtr = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Row(
+                children: const [
+                  Icon(Icons.warning_amber_rounded, color: Colors.deepOrange),
+                  SizedBox(width: 8),
+                  Text('Duplicate UTR / Ref Warning'),
+                ],
+              ),
+              content: Text(
+                'Transaction reference "$refNum" was already recorded on $dateStr '
+                'for another payment (${dupPayment.receiptNumber != null ? "Receipt #${dupPayment.receiptNumber}, " : ""}₹${dupPayment.amount.toStringAsFixed(0)}).\n\n'
+                'Are you sure you want to proceed with this duplicate reference?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel & Re-check'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Proceed Anyway'),
+                ),
+              ],
+            ),
+          );
+          if (confirmUtr != true) {
+            setState(() => _isLoading = false);
+            return;
+          }
         }
       }
 
@@ -552,6 +617,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
               'proratedDays': activeSmartCalc.daysRemaining,
               'fullCatalogPrice': activeSmartCalc.fullPrice,
             },
+            if (_hasPowerSurcharge) 'powerSurcharge': _powerSurchargeAmount,
           },
           status: ReceiptStatus.active,
           createdAt: DateTime.now(),
@@ -576,12 +642,17 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         paymentNotes = _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null;
       }
 
+      if (_hasPowerSurcharge) {
+        paymentNotes = '${paymentNotes != null ? "$paymentNotes • " : ""}⚡ AC Power Surcharge: ₹${_powerSurchargeAmount.toStringAsFixed(0)}';
+      }
+
       final payment = PaymentModel(
         id: '',
         studentId: widget.studentId,
         studentUserId: _studentUserId,
         amount: amount,
         totalPlanFee: totalFee,
+        powerSurchargeAmount: _hasPowerSurcharge ? _powerSurchargeAmount : null,
         remainingDue: remainingDue,
         installmentNumber: _isPartialPayment ? 1 : null,
         method: _paymentMethod,
@@ -603,7 +674,13 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         'membershipStatus': 'active',
         'graceEndDate': FieldValue.delete(), // Clear stale grace period from previous cycle
         'remindedStages': FieldValue.delete(), // Reset notification stages for new cycle
+        'hasPowerSurcharge': _hasPowerSurcharge,
       };
+      if (_hasPowerSurcharge) {
+        studentUpdates['powerSurchargeAmount'] = _powerSurchargeAmount;
+      } else {
+        studentUpdates['powerSurchargeAmount'] = FieldValue.delete();
+      }
 
       // Auto-clean stale pending fee notes & raw database IDs upon receiving payment
       final currentNotes = _studentNotes;
@@ -1894,6 +1971,61 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                       ),
                     ],
                     const SizedBox(height: 16),
+
+                    // High-Wattage Laptop / AC Power Surcharge Add-on (Blueprint Section 4)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: _hasPowerSurcharge
+                            ? Colors.amber.withValues(alpha: 0.08)
+                            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _hasPowerSurcharge
+                              ? Colors.amber.shade700
+                              : theme.dividerColor.withValues(alpha: 0.4),
+                          width: _hasPowerSurcharge ? 1.5 : 1,
+                        ),
+                      ),
+                      child: SwitchListTile.adaptive(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        secondary: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _hasPowerSurcharge ? Colors.amber.shade100 : theme.colorScheme.surface,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.bolt_rounded,
+                            color: _hasPowerSurcharge ? Colors.amber.shade900 : theme.colorScheme.onSurfaceVariant,
+                            size: 20,
+                          ),
+                        ),
+                        title: Row(
+                          children: [
+                            const Text('High-Wattage Power / AC Surcharge', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.shade800,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '+₹${_powerSurchargeAmount.toStringAsFixed(0)}',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: const Text(
+                          'Dedicated socket amenity for gaming laptops, monitors, or personal cooling/heating appliances.',
+                          style: TextStyle(fontSize: 11.5),
+                        ),
+                        value: _hasPowerSurcharge,
+                        onChanged: (val) => _togglePowerSurcharge(val),
+                      ),
+                    ),
 
                     // Partial Payment Toggle
                     SwitchListTile.adaptive(

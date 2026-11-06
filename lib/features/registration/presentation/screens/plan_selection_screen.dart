@@ -474,15 +474,61 @@ class PlanSelectionScreen extends ConsumerWidget {
                                           ),
                                         ),
 
-                                        // Right: Final Bold Price
-                                        Text(
-                                          '₹${plan.price.toStringAsFixed(0)}',
-                                          style: TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w900,
-                                            color: hasDiscount ? Colors.green.shade800 : theme.colorScheme.primary,
-                                            fontFeatures: const [FontFeature.tabularFigures()],
-                                          ),
+                                        const SizedBox(width: 10),
+
+                                        // Right: Pro-rata Price & Desk Notice
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            if (smartCalc.isProrated) ...[
+                                              Text(
+                                                'Full Month: ₹${plan.price.toStringAsFixed(0)}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey.shade600,
+                                                  decoration: TextDecoration.lineThrough,
+                                                  decorationColor: Colors.grey.shade500,
+                                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                                ),
+                                              ),
+                                              Text(
+                                                '₹${smartCalc.formattedProratedPrice}',
+                                                style: TextStyle(
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: theme.colorScheme.primary,
+                                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                                ),
+                                              ),
+                                            ] else ...[
+                                              Text(
+                                                '₹${plan.price.toStringAsFixed(0)}',
+                                                style: TextStyle(
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: hasDiscount ? Colors.green.shade800 : theme.colorScheme.primary,
+                                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                                ),
+                                              ),
+                                            ],
+                                            Container(
+                                              margin: const EdgeInsets.only(top: 2),
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.brown.shade50,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: Colors.brown.shade200, width: 0.8),
+                                              ),
+                                              child: Text(
+                                                'Pay at Desk',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.brown.shade900,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -493,7 +539,70 @@ class PlanSelectionScreen extends ConsumerWidget {
                           ),
                         );
                       }),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+
+                      // Selected Plan Desk Payment Confirmation Card
+                      if (selectedPlan != null && selectedSmartCalc != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(Icons.point_of_sale_rounded, color: theme.colorScheme.primary, size: 22),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Selected: ${selectedPlan.displayName}',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      selectedSmartCalc.isProrated
+                                          ? 'Payable at Desk: ₹${selectedSmartCalc.formattedProratedPrice} for ${selectedSmartCalc.daysRemaining} days (${now.day} $currentMonthName → ${monthEnd.day} $currentMonthName)'
+                                          : 'Payable at Desk: ₹${selectedSmartCalc.formattedFullPrice} (Full Month Pass)',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                selectedSmartCalc.isProrated
+                                    ? '₹${selectedSmartCalc.formattedProratedPrice}'
+                                    : '₹${selectedSmartCalc.formattedFullPrice}',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: theme.colorScheme.primary,
+                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
