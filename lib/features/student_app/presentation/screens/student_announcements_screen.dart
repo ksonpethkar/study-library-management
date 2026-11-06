@@ -172,7 +172,17 @@ class _StudentAnnouncementsScreenState
     final studentAsync = ref.watch(currentStudentProvider);
     final student = studentAsync.value;
     final studentId = student?.id ?? '';
-    final libraryId = rawLibraryId;
+    final effectiveLibId = rawLibraryId.isNotEmpty
+        ? rawLibraryId
+        : CurrentLibraryNotifier.defaultLibraryId;
+    final libraryId = effectiveLibId;
+
+    if (rawLibraryId.isEmpty && effectiveLibId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(currentLibraryIdProvider.notifier).set(effectiveLibId);
+      });
+    }
+
     final announcementsAsync = ref.watch(announcementsStreamProvider);
     final holidaysAsync = ref.watch(holidaysStreamProvider);
     final holidays = holidaysAsync.value ?? [];
@@ -316,32 +326,34 @@ class _StudentAnnouncementsScreenState
                 // Notices Feed
                 Expanded(
                   child: notices.isEmpty
-                      ? EmptyStateWidget(
-                          icon: _selectedFilter == 'holiday'
-                              ? Icons.celebration_outlined
-                              : Icons.campaign_outlined,
-                          title: _searchQuery.isNotEmpty
-                              ? 'No matching circulars found'
-                              : (_selectedFilter == 'holiday'
-                                  ? 'No library closures scheduled'
-                                  : 'No active circulars'),
-                          message: _searchQuery.isNotEmpty
-                              ? 'Try searching with different keywords.'
-                              : (_selectedFilter == 'holiday'
-                                  ? 'The study library is fully open on all standard calendar days. Any upcoming festival closures or maintenance breaks will be published here.'
-                                  : 'Library administration has not posted any active notices under this category.'),
-                          actionLabel: _searchQuery.isNotEmpty
-                              ? 'Clear Search'
-                              : (_selectedFilter != 'all' ? 'View All Circulars' : null),
-                          onAction: _searchQuery.isNotEmpty
-                              ? () {
-                                  _searchController.clear();
-                                  setState(() => _searchQuery = '');
-                                }
-                              : (_selectedFilter != 'all'
-                                  ? () => setState(() => _selectedFilter = 'all')
-                                  : null),
-                        )
+                      ? (_selectedFilter == 'holiday' && _searchQuery.isEmpty
+                          ? _buildHolidayOperationalCard(context, theme)
+                          : EmptyStateWidget(
+                              icon: _selectedFilter == 'holiday'
+                                  ? Icons.celebration_outlined
+                                  : Icons.campaign_outlined,
+                              title: _searchQuery.isNotEmpty
+                                  ? 'No matching circulars found'
+                                  : (_selectedFilter == 'holiday'
+                                      ? 'No library closures scheduled'
+                                      : 'No active circulars'),
+                              message: _searchQuery.isNotEmpty
+                                  ? 'Try searching with different keywords.'
+                                  : (_selectedFilter == 'holiday'
+                                      ? 'The study library is fully open on all standard calendar days. Any upcoming festival closures or maintenance breaks will be published here.'
+                                      : 'Library administration has not posted any active notices under this category.'),
+                              actionLabel: _searchQuery.isNotEmpty
+                                  ? 'Clear Search'
+                                  : (_selectedFilter != 'all' ? 'View All Circulars' : null),
+                              onAction: _searchQuery.isNotEmpty
+                                  ? () {
+                                      _searchController.clear();
+                                      setState(() => _searchQuery = '');
+                                    }
+                                  : (_selectedFilter != 'all'
+                                      ? () => setState(() => _selectedFilter = 'all')
+                                      : null),
+                            ))
                       : RefreshIndicator(
                           onRefresh: () async {
                             ref.invalidate(announcementsStreamProvider);
@@ -545,6 +557,218 @@ class _StudentAnnouncementsScreenState
         HapticFeedback.selectionClick();
         setState(() => _selectedFilter = value);
       },
+    );
+  }
+
+  Widget _buildHolidayOperationalCard(BuildContext context, ThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            children: [
+              // Operational Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF6EE7B7)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF059669)),
+                    SizedBox(width: 6),
+                    Text(
+                      'FULLY OPEN · 7 DAYS A WEEK',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                        color: Color(0xFF065F46),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Operational Detail Card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.event_available_rounded, color: Colors.teal, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'No Scheduled Closures',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'All reading zones, silent desks, and amenities are running normally.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(height: 1),
+                    const SizedBox(height: 14),
+
+                    // Slot Highlights
+                    _buildTimingRow(Icons.wb_sunny_outlined, 'Full-Day & Flexible Slots', 'Morning (6 AM - 2 PM) • Evening (2 PM - 10 PM) • 24/7 Access Active', theme),
+                    const SizedBox(height: 10),
+                    _buildTimingRow(Icons.wifi_rounded, 'Active Amenities', 'High-Speed Fiber Wi-Fi, Air Conditioning, Personal Power Sockets', theme),
+                    const SizedBox(height: 10),
+                    _buildTimingRow(Icons.verified_user_outlined, 'Holiday Compensation', 'Any gazetted festival closures automatically extend your membership by +1 day at zero cost.', theme),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Action Buttons
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: () => setState(() => _selectedFilter = 'all'),
+                    icon: const Icon(Icons.dashboard_outlined, size: 16),
+                    label: const Text('View All Circulars'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _showCalendarGuidelinesDialog(context, theme),
+                    icon: const Icon(Icons.info_outline_rounded, size: 16),
+                    label: const Text('Holiday Policy & Rules'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimingRow(IconData icon, String title, String subtitle, ThemeData theme) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: theme.colorScheme.primary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 11.5, color: theme.colorScheme.onSurfaceVariant, height: 1.3),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showCalendarGuidelinesDialog(BuildContext context, ThemeData theme) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.policy_rounded, color: Colors.teal),
+            SizedBox(width: 10),
+            Text('Holiday & Closure Policy', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '1. Standard Operating Schedule',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'The study centre remains open all 365 days of the year, including Sundays and regular public holidays, to ensure uninterrupted preparation for competitive exams.',
+                style: TextStyle(fontSize: 12, height: 1.4),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '2. Gazetted Festival Closures',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'On major festival days (e.g. Diwali, Holi) or rare emergency deep-cleaning days, administration notifies students at least 48 hours in advance via this Notice Board and WhatsApp.',
+                style: TextStyle(fontSize: 12, height: 1.4),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '3. Automatic Validity Extension Guarantee',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'Whenever a full-day closure is declared by the administration, all active student subscriptions are automatically credited with a compensatory +1 day extension in the cloud ledger.',
+                style: TextStyle(fontSize: 12, height: 1.4),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Understood'),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -681,6 +681,191 @@ class SeatRepository {
     }
   }
 
+  Future<void> swapStudents({
+    required String libraryId,
+    required String seatAId,
+    required String sectionAId,
+    required String studentAId,
+    required String seatBId,
+    required String sectionBId,
+    required String studentBId,
+  }) async {
+    try {
+      final seatARef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .doc(sectionAId)
+          .collection(FirestorePaths.seats)
+          .doc(seatAId);
+
+      final seatBRef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .doc(sectionBId)
+          .collection(FirestorePaths.seats)
+          .doc(seatBId);
+
+      final studentARef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.students)
+          .doc(studentAId);
+
+      final studentBRef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.students)
+          .doc(studentBId);
+
+      await _firestore.runTransaction((tx) async {
+        final seatASnap = await tx.get(seatARef);
+        final seatBSnap = await tx.get(seatBRef);
+        final studentASnap = await tx.get(studentARef);
+        final studentBSnap = await tx.get(studentBRef);
+
+        if (!seatASnap.exists || !seatBSnap.exists) {
+          throw Exception('One or both seats do not exist in the database.');
+        }
+        if (!studentASnap.exists || !studentBSnap.exists) {
+          throw Exception('One or both students do not exist in the database.');
+        }
+
+        final seatAData = seatASnap.data() ?? {};
+        final seatBData = seatBSnap.data() ?? {};
+
+        final labelA = seatAData['label'] ?? seatAData['seatNumber']?.toString() ?? seatAId;
+        final labelB = seatBData['label'] ?? seatBData['seatNumber']?.toString() ?? seatBId;
+
+        // Seat A gets Student B
+        tx.update(seatARef, {
+          'status': SeatStatus.occupied.name,
+          'studentId': studentBId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Seat B gets Student A
+        tx.update(seatBRef, {
+          'status': SeatStatus.occupied.name,
+          'studentId': studentAId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Student A moves to Seat B
+        tx.update(studentARef, {
+          'seatId': seatBId,
+          'sectionId': sectionBId,
+          'seatLabel': labelB,
+          'previousSeatId': seatAId,
+          'previousSectionId': sectionAId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Student B moves to Seat A
+        tx.update(studentBRef, {
+          'seatId': seatAId,
+          'sectionId': sectionAId,
+          'seatLabel': labelA,
+          'previousSeatId': seatBId,
+          'previousSectionId': sectionBId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      AuditLogger().log(
+        action: AuditAction.updated,
+        entityType: AuditEntity.seat,
+        libraryId: libraryId,
+        entityId: '$seatAId-$seatBId',
+        entityName: 'Seat Swap ($seatAId ⇄ $seatBId)',
+        details: {
+          'seatAId': seatAId,
+          'studentAId': studentAId,
+          'seatBId': seatBId,
+          'studentBId': studentBId,
+          'operation': 'Direct Occupant Swap (Atomic Transaction)',
+        },
+      ).ignore();
+    } catch (e) {
+      debugPrint('Failed to swap students: $e');
+      final msg = e.toString().replaceAll('Exception: ', '');
+      throw Exception(msg.isNotEmpty ? msg : 'Failed to swap student desks.');
+    }
+  }
+
+  Future<void> softLockSeat({
+    required String libraryId,
+    required String sectionId,
+    required String seatId,
+    required String candidateId,
+    required String candidateName,
+    Duration duration = const Duration(minutes: 60),
+  }) async {
+    try {
+      final seatRef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .doc(sectionId)
+          .collection(FirestorePaths.seats)
+          .doc(seatId);
+
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(seatRef);
+        if (!snap.exists) throw Exception('Selected desk does not exist.');
+
+        final data = snap.data() ?? {};
+        final status = data['status'] as String?;
+        final occupant = data['studentId'] as String?;
+
+        if (status == SeatStatus.occupied.name && occupant != null && occupant.isNotEmpty && occupant != candidateId) {
+          throw Exception('This desk is currently occupied by an active student.');
+        }
+
+        tx.update(seatRef, {
+          'status': SeatStatus.reserved.name,
+          'reservationType': 'admission_soft_lock',
+          'reservedCandidateId': candidateId,
+          'reservedCandidateName': candidateName,
+          'reservationExpiresAt': Timestamp.fromDate(DateTime.now().add(duration)),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } catch (e) {
+      debugPrint('Failed to soft-lock seat: $e');
+      final msg = e.toString().replaceAll('Exception: ', '');
+      throw Exception(msg.isNotEmpty ? msg : 'Failed to reserve seat.');
+    }
+  }
+
+  Future<void> releaseSoftLock({
+    required String libraryId,
+    required String sectionId,
+    required String seatId,
+  }) async {
+    try {
+      final seatRef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .doc(sectionId)
+          .collection(FirestorePaths.seats)
+          .doc(seatId);
+
+      await seatRef.update({
+        'status': SeatStatus.available.name,
+        'reservationType': FieldValue.delete(),
+        'reservedCandidateId': FieldValue.delete(),
+        'reservedCandidateName': FieldValue.delete(),
+        'reservationExpiresAt': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Failed to release soft-lock seat: $e');
+    }
+  }
+
   Future<void> bulkUpdateStatus(
     String libraryId,
     String sectionId,

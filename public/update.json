@@ -1,9 +1,9 @@
 {
-  "versionCode": 59,
-  "latestVersionCode": 59,
-  "latestBuild": 59,
+  "versionCode": 64,
+  "latestVersionCode": 64,
+  "latestBuild": 64,
   "latestVersion": "1.5.50",
-  "versionName": "1.5.50+59",
+  "versionName": "1.5.50+64",
   "apkSize": "52.4 MB",
   "releaseNotes": "v1.5.50: Student delight & safety automation update featuring Birthday celebrations, 1-tap Wi-Fi copy, course exam countdown timer, 1-tap seat protection renewals, quiet desk reception alerts, and 10-second front desk billing.",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.50/StudyLibrary.apk",

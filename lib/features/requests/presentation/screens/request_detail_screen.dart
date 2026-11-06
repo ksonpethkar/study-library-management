@@ -468,6 +468,19 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         'rejectedAt': FieldValue.serverTimestamp(),
       });
 
+      // Release soft-locked desk if this was an admission with a reserved desk
+      final reqSeatId = (_requestData?['requestedSeatId'] ?? _requestData?['seatId'])?.toString();
+      final reqSecId = (_requestData?['requestedSectionId'] ?? _requestData?['sectionId'])?.toString();
+      if (reqSeatId != null && reqSeatId.isNotEmpty && reqSecId != null && reqSecId.isNotEmpty) {
+        try {
+          await ref.read(seatRepositoryProvider).releaseSoftLock(
+            libraryId: libraryId,
+            sectionId: reqSecId,
+            seatId: reqSeatId,
+          );
+        } catch (_) {}
+      }
+
       AuditLogger().log(
         action: AuditAction.rejected,
         entityType: AuditEntity.request,

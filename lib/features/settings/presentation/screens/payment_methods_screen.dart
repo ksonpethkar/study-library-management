@@ -53,7 +53,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     {'id': 'cash', 'name': 'Cash / Pay at Reception', 'active': true, 'details': 'Cash payment at reception desk'},
     {'id': 'upi', 'name': 'UPI / QR Code', 'active': true, 'details': 'GPay / PhonePe / Paytm / BHIM Scan & Pay'},
     {'id': 'card', 'name': 'Debit / Credit Card', 'active': true, 'details': 'POS Card Swipe at reception'},
-    {'id': 'bank', 'name': 'Bank Transfer', 'active': true, 'details': 'NEFT / RTGS / IMPS Direct Transfer'},
+    {'id': 'bank', 'name': 'Bank Transfer', 'active': false, 'details': 'NEFT / RTGS / IMPS Direct Transfer'},
     {'id': 'cheque', 'name': 'Cheque / DD', 'active': false, 'details': 'Cheque in favour of library'},
   ];
 
@@ -256,8 +256,14 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
       }, SetOptions(merge: true));
 
       // 2. Sync core payment fields to library doc for fast global access & receipt generation
+      final enabledMethods = _methods
+          .where((m) => m['active'] == true)
+          .map((m) => m['id'].toString().toLowerCase())
+          .toList();
+
       final syncData = <String, dynamic>{
         'upiId': upiId,
+        'enabledPaymentMethods': enabledMethods,
       };
       if (bankDetails['bankName']!.isNotEmpty) {
         syncData['bankName'] = bankDetails['bankName'];
@@ -294,6 +300,96 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _toggleMethod(int index, bool newValue) async {
+    final method = _methods[index];
+    final id = method['id']?.toString().toLowerCase() ?? '';
+
+    // GATING RULE: If enabling bank transfer, require valid bank details
+    if (newValue == true && id == 'bank') {
+      final hasBankDetails = _bankNameController.text.trim().isNotEmpty &&
+          _accountNumberController.text.trim().isNotEmpty &&
+          _ifscCodeController.text.trim().isNotEmpty;
+      if (!hasBankDetails) {
+        HapticFeedback.heavyImpact();
+        if (mounted) {
+          setState(() => _bankExpanded = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Please configure official Bank Name, Account Number and IFSC Code before enabling Bank Transfer.',
+              ),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    HapticFeedback.selectionClick();
+    setState(() {
+      _methods[index]['active'] = newValue;
+    });
+
+    // Immediate atomic autosave to Firestore (Stripe / Razorpay pattern)
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) return;
+
+    try {
+      final enabledMethods = _methods
+          .where((m) => m['active'] == true)
+          .map((m) => m['id'].toString().toLowerCase())
+          .toList();
+
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('payment_methods')
+          .set({
+        'methods': _methods,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .set({
+        'enabledPaymentMethods': enabledMethods,
+      }, SetOptions(merge: true));
+
+      ref.invalidate(currentLibraryProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${method['name']} ${newValue ? "enabled" : "disabled"} for students & reception.',
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            backgroundColor: newValue ? Colors.green.shade800 : Colors.blueGrey.shade800,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _methods[index]['active'] = !newValue;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update payment method: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -1303,7 +1399,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
                         children: [
                           Switch(
                             value: isActive,
-                            onChanged: (v) => setState(() => method['active'] = v),
+                            onChanged: (v) => _toggleMethod(index, v),
                           ),
                           IconButton(
                             icon: const Icon(Icons.edit_rounded, size: 20),

@@ -9,6 +9,7 @@ import 'package:study_library/services/waiting_list_promotion_service.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 
 import '../providers/seat_providers.dart';
 
@@ -378,6 +379,27 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
     );
   }
 
+  void _showDirectSwapSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _SeatDirectSwapSheet(
+        sourceSeat: widget.seat,
+        sourceSectionId: widget.sectionId,
+        studentName: studentName,
+        onSwapped: () {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -543,6 +565,16 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                     subtitle: const Text('Move student to an available seat'),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: _showTransferSheet,
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.swap_horiz_rounded,
+                      color: Colors.deepPurple.shade600,
+                    ),
+                    title: const Text('Direct Swap with Occupant (A ⇄ B)'),
+                    subtitle: const Text('Exchange desks with another enrolled student'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: _showDirectSwapSheet,
                   ),
                   ListTile(
                     leading: Icon(
@@ -926,6 +958,282 @@ class _TransferSectionTile extends ConsumerWidget {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       onPressed: () => onSeatSelected(seat),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SeatDirectSwapSheet extends ConsumerStatefulWidget {
+  final SeatModel sourceSeat;
+  final String sourceSectionId;
+  final String? studentName;
+  final VoidCallback onSwapped;
+
+  const _SeatDirectSwapSheet({
+    required this.sourceSeat,
+    required this.sourceSectionId,
+    required this.studentName,
+    required this.onSwapped,
+  });
+
+  @override
+  ConsumerState<_SeatDirectSwapSheet> createState() => _SeatDirectSwapSheetState();
+}
+
+class _SeatDirectSwapSheetState extends ConsumerState<_SeatDirectSwapSheet> {
+  bool _isSwapping = false;
+
+  Future<void> _swapWith(SeatModel targetSeat, SectionModel targetSection, String? targetStudentName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm Direct Seat Swap'),
+        content: Text(
+          'Directly swap desks between:\n\n'
+          '• ${widget.studentName ?? "Student A"} (Seat ${widget.sourceSeat.label})\n'
+          '  ⇅\n'
+          '• ${targetStudentName ?? "Student B"} (Seat ${targetSeat.label} in ${targetSection.name})?\n\n'
+          'Both students and seats will be updated atomically.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.deepPurple),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm Swap'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null ||
+        widget.sourceSeat.studentId == null ||
+        targetSeat.studentId == null) {
+      return;
+    }
+
+    setState(() => _isSwapping = true);
+    try {
+      await ref.read(seatRepositoryProvider).swapStudents(
+        libraryId: libraryId,
+        sectionAId: widget.sourceSectionId,
+        seatAId: widget.sourceSeat.id,
+        studentAId: widget.sourceSeat.studentId!,
+        sectionBId: targetSection.id,
+        seatBId: targetSeat.id,
+        studentBId: targetSeat.studentId!,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Swapped Seat ${widget.sourceSeat.label} and Seat ${targetSeat.label} successfully!',
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        widget.onSwapped();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to swap desks: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSwapping = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sectionsAsync = ref.watch(sectionsProvider);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.3,
+      maxChildSize: 0.85,
+      expand: false,
+      builder: (ctx, scrollController) {
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Direct Occupant Swap (A ⇄ B)',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Exchange Seat ${widget.sourceSeat.label} with another occupied desk',
+                          style: const TextStyle(fontSize: 13, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(),
+            if (_isSwapping)
+              const Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Executing atomic seat swap...'),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: sectionsAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (err, _) => Center(child: Text('Error: $err')),
+                  data: (sections) {
+                    if (sections.isEmpty) {
+                      return const Center(child: Text('No sections available.'));
+                    }
+                    return ListView.builder(
+                      controller: scrollController,
+                      itemCount: sections.length,
+                      itemBuilder: (ctx, index) {
+                        final section = sections[index];
+                        return _SwapSectionTile(
+                          section: section,
+                          sourceSeatId: widget.sourceSeat.id,
+                          onSeatSelected: (seat, targetName) => _swapWith(seat, section, targetName),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SwapSectionTile extends ConsumerWidget {
+  final SectionModel section;
+  final String sourceSeatId;
+  final void Function(SeatModel seat, String? studentName) onSeatSelected;
+
+  const _SwapSectionTile({
+    required this.section,
+    required this.sourceSeatId,
+    required this.onSeatSelected,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final seatsAsync = ref.watch(seatsProvider(section.id));
+    final studentsList = ref.watch(studentsStreamProvider).value ?? [];
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        leading: Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: Color(section.color),
+            shape: BoxShape.circle,
+          ),
+        ),
+        title: Text(
+          section.name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: seatsAsync.when(
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              error: (err, _) => Text('Failed to load seats: $err'),
+              data: (seats) {
+                final occupiedSeats = seats
+                    .where((s) =>
+                        s.status == SeatStatus.occupied &&
+                        s.id != sourceSeatId &&
+                        s.studentId != null &&
+                        s.studentId!.isNotEmpty &&
+                        !s.id.startsWith('missing_'))
+                    .toList();
+
+                if (occupiedSeats.isEmpty) {
+                  return const Text(
+                    'No other occupied seats in this section.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey,
+                    ),
+                  );
+                }
+
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: occupiedSeats.map((seat) {
+                    final student = studentsList.where((st) => st.id == seat.studentId).firstOrNull;
+                    final studentName = student?.name ?? 'Student';
+                    final shortName = studentName.split(' ').first;
+
+                    return ActionChip(
+                      avatar: const Icon(
+                        Icons.swap_horiz_rounded,
+                        size: 16,
+                        color: Colors.deepPurple,
+                      ),
+                      label: Text(
+                        '${seat.label} ($shortName)',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () => onSeatSelected(seat, studentName),
                     );
                   }).toList(),
                 );

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/security/audit_logger.dart';
@@ -80,6 +81,46 @@ class ExportResult {
   });
 }
 
+class ReportKpi {
+  final String label;
+  final String value;
+  final String? subtitle;
+  final IconData? icon;
+  final Color? color;
+
+  const ReportKpi({
+    required this.label,
+    required this.value,
+    this.subtitle,
+    this.icon,
+    this.color,
+  });
+}
+
+class ReportPreviewData {
+  final String reportKey;
+  final String title;
+  final String subtitle;
+  final String badgeText;
+  final List<ReportKpi> kpis;
+  final List<String> headers;
+  final List<List<String>> rows;
+  final int totalCount;
+  final List<Map<String, dynamic>>? rowMetadata;
+
+  const ReportPreviewData({
+    required this.reportKey,
+    required this.title,
+    required this.subtitle,
+    required this.badgeText,
+    required this.kpis,
+    required this.headers,
+    required this.rows,
+    required this.totalCount,
+    this.rowMetadata,
+  });
+}
+
 class DataExportService {
   final FirebaseFirestore _firestore;
 
@@ -136,6 +177,76 @@ class DataExportService {
         (date.isBefore(range.end) || date.isAtSameMomentAs(range.end));
   }
 
+  /// Fetches all seats across both section subcollections (libraries/{libId}/sections/{secId}/seats)
+  /// and direct seats (libraries/{libId}/seats), ensuring 100% comprehensive coverage.
+  Future<List<Map<String, dynamic>>> _fetchAllSeats(String libraryId) async {
+    final List<Map<String, dynamic>> allSeats = [];
+    final Set<String> seenIds = {};
+
+    // 1. Fetch from sections subcollection: libraries/{libraryId}/sections/{sectionId}/seats
+    try {
+      final sectionsSnap = await _firestore
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('sections')
+          .get();
+
+      for (final secDoc in sectionsSnap.docs) {
+        final secSeats = await _firestore
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('sections')
+            .doc(secDoc.id)
+            .collection('seats')
+            .get();
+
+        for (final seatDoc in secSeats.docs) {
+          if (!seenIds.contains(seatDoc.id)) {
+            seenIds.add(seatDoc.id);
+            final data = seatDoc.data();
+            allSeats.add({
+              'id': seatDoc.id,
+              ...data,
+              'sectionId': data['sectionId'] ?? secDoc.id,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error fetching section seats: $e');
+    }
+
+    // 2. Fetch from direct library seats (fallback/legacy): libraries/{libraryId}/seats
+    try {
+      final directSeats = await _firestore
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('seats')
+          .get();
+
+      for (final seatDoc in directSeats.docs) {
+        if (!seenIds.contains(seatDoc.id)) {
+          seenIds.add(seatDoc.id);
+          allSeats.add({
+            'id': seatDoc.id,
+            ...seatDoc.data(),
+          });
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error fetching direct seats: $e');
+    }
+
+    // Natural sort: A1, A2, B1, 1, 2, 3...
+    allSeats.sort((a, b) {
+      final labelA = (a['label'] ?? a['id'] ?? '').toString();
+      final labelB = (b['label'] ?? b['id'] ?? '').toString();
+      return labelA.compareTo(labelB);
+    });
+
+    return allSeats;
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // 1. STUDENTS DIRECTORY EXPORT
   // ──────────────────────────────────────────────────────────────────────────
@@ -147,8 +258,8 @@ class DataExportService {
   }) async {
     try {
       // 1. Auxiliary maps for seats, sections, and plans
-      final seatsSnap = await _firestore.collection('libraries').doc(libraryId).collection('seats').get();
-      final seatLabels = {for (var d in seatsSnap.docs) d.id: d.data()['label'] as String? ?? d.id};
+      final allSeats = await _fetchAllSeats(libraryId);
+      final seatLabels = {for (var d in allSeats) (d['id'] as String): (d['label'] as String? ?? d['id'] as String)};
 
       final sectionsSnap = await _firestore.collection('libraries').doc(libraryId).collection('sections').get();
       final sectionNames = {for (var d in sectionsSnap.docs) d.id: d.data()['name'] as String? ?? d.id};
@@ -429,8 +540,8 @@ class DataExportService {
     required String libraryName,
   }) async {
     try {
-      final seatsSnap = await _firestore.collection('libraries').doc(libraryId).collection('seats').get();
-      final seatLabels = {for (var d in seatsSnap.docs) d.id: d.data()['label'] as String? ?? d.id};
+      final allSeats = await _fetchAllSeats(libraryId);
+      final seatLabels = {for (var d in allSeats) (d['id'] as String): (d['label'] as String? ?? d['id'] as String)};
 
       final sectionsSnap = await _firestore.collection('libraries').doc(libraryId).collection('sections').get();
       final sectionNames = {for (var d in sectionsSnap.docs) d.id: d.data()['name'] as String? ?? d.id};
@@ -662,8 +773,7 @@ class DataExportService {
           }
       };
 
-      final seatsSnap = await _firestore.collection('libraries').doc(libraryId).collection('seats').get();
-      final docs = seatsSnap.docs;
+      final allSeats = await _fetchAllSeats(libraryId);
 
       final buf = StringBuffer();
       buf.writeln([
@@ -683,8 +793,7 @@ class DataExportService {
       int occupied = 0;
       int available = 0;
 
-      for (final doc in docs) {
-        final d = doc.data();
+      for (final d in allSeats) {
         final sId = d['studentId'] as String?;
         final sInfo = (sId != null && sId.isNotEmpty) ? studentMap[sId] : null;
         final status = (d['status'] as String?)?.toLowerCase() ?? 'available';
@@ -695,9 +804,11 @@ class DataExportService {
           available++;
         }
 
+        final secId = d['sectionId'] as String? ?? '';
+
         buf.writeln([
-          d['label'] ?? '',
-          sectionMap[d['sectionId']] ?? d['sectionId'] ?? '',
+          d['label'] ?? d['id'] ?? '',
+          sectionMap[secId] ?? (secId.isNotEmpty ? secId : 'General'),
           d['row'] ?? '',
           d['col'] ?? '',
           d['status'] ?? 'available',
@@ -710,10 +821,10 @@ class DataExportService {
         ].map(_escapeCsv).join(','));
       }
 
-      final rate = docs.isNotEmpty ? ((occupied / docs.length) * 100).toStringAsFixed(1) : '0';
+      final rate = allSeats.isNotEmpty ? ((occupied / allSeats.length) * 100).toStringAsFixed(1) : '0';
       buf.writeln([
         'SUMMARY',
-        'Total Seats: ${docs.length}',
+        'Total Seats: ${allSeats.length}',
         'Occupied: $occupied',
         'Available: $available',
         'Occupancy Rate: $rate%',
@@ -738,10 +849,10 @@ class DataExportService {
         action: AuditAction.exported,
         entityType: AuditEntity.seat,
         libraryId: libraryId,
-        details: {'type': 'seats_csv', 'count': docs.length, 'occupied': occupied, 'fileName': fileName},
+        details: {'type': 'seats_csv', 'count': allSeats.length, 'occupied': occupied, 'fileName': fileName},
       ).ignore();
 
-      return ExportResult(success: true, count: docs.length, fileName: fileName);
+      return ExportResult(success: true, count: allSeats.length, fileName: fileName);
     } catch (e) {
       return ExportResult(success: false, count: 0, fileName: '', errorMessage: e.toString());
     }
@@ -937,5 +1048,795 @@ class DataExportService {
     } catch (e) {
       return ExportResult(success: false, count: 0, fileName: '', errorMessage: e.toString());
     }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // PREVIEW FETCH METHODS (FOR IN-APP LIVE REPORT VIEWER)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  Future<ReportPreviewData> fetchStudentsPreview({
+    required String libraryId,
+    String statusFilter = 'all',
+    DateTimeRange? dateRange,
+  }) async {
+    final allSeats = await _fetchAllSeats(libraryId);
+    final seatLabels = {for (var d in allSeats) (d['id'] as String): (d['label'] as String? ?? d['id'] as String)};
+
+    final sectionsSnap = await _firestore.collection('libraries').doc(libraryId).collection('sections').get();
+    final sectionNames = {for (var d in sectionsSnap.docs) d.id: d.data()['name'] as String? ?? d.id};
+
+    final plansSnap = await _firestore.collection('libraries').doc(libraryId).collection('plans').get();
+    final planNames = {for (var d in plansSnap.docs) d.id: d.data()['name'] as String? ?? d.id};
+
+    final snap = await _firestore.collection('libraries').doc(libraryId).collection('students').get();
+
+    final filteredDocs = snap.docs.where((doc) {
+      final d = doc.data();
+      if (statusFilter != 'all') {
+        final status = (d['membershipStatus'] as String?)?.toLowerCase() ?? '';
+        if (status != statusFilter.toLowerCase()) return false;
+      }
+      if (dateRange != null) {
+        final created = _parseDate(d['createdAt']);
+        if (!_isWithinRange(created, dateRange)) return false;
+      }
+      return true;
+    }).toList();
+
+    filteredDocs.sort((a, b) {
+      final da = _parseDate(a.data()['createdAt']) ?? DateTime(1970);
+      final db = _parseDate(b.data()['createdAt']) ?? DateTime(1970);
+      return db.compareTo(da);
+    });
+
+    int activeCount = 0;
+    int expiredCount = 0;
+    int graceCount = 0;
+    double totalDues = 0.0;
+
+    final rows = <List<String>>[];
+    final metadata = <Map<String, dynamic>>[];
+
+    for (final doc in filteredDocs) {
+      final d = doc.data();
+      final status = (d['membershipStatus'] as String?)?.toLowerCase() ?? '';
+      if (status == 'active') {
+        activeCount++;
+      } else if (status == 'expired') {
+        expiredCount++;
+      } else if (status == 'grace') {
+        graceCount++;
+      }
+
+      final due = (d['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
+      totalDues += due;
+
+      final phone = (d['phone'] as String?) ?? '';
+      final name = (d['name'] as String?) ?? 'Student';
+
+      rows.add([
+        d['membershipNumber']?.toString() ?? '—',
+        name,
+        phone.isNotEmpty ? phone : '—',
+        seatLabels[d['seatId']] ?? d['seatId'] ?? 'Unassigned',
+        sectionNames[d['sectionId']] ?? d['sectionId'] ?? 'General',
+        planNames[d['planId']] ?? d['planId'] ?? 'None',
+        _formatDate(d['planEndDate'], includeTime: false),
+        (d['membershipStatus'] as String?)?.toUpperCase() ?? 'ACTIVE',
+        due > 0 ? '₹${due.toStringAsFixed(0)}' : '₹0',
+      ]);
+
+      metadata.add({
+        'id': doc.id,
+        'name': name,
+        'phone': phone,
+        'due': due,
+      });
+    }
+
+    return ReportPreviewData(
+      reportKey: 'students',
+      title: 'Students Master Directory',
+      subtitle: 'Profiles, assigned seats, plans, and membership statuses',
+      badgeText: statusFilter.toUpperCase(),
+      totalCount: filteredDocs.length,
+      kpis: [
+        ReportKpi(
+          label: 'Total Students',
+          value: '${filteredDocs.length}',
+          subtitle: 'Enrolled profiles',
+          icon: Icons.people_alt_rounded,
+          color: Colors.blue,
+        ),
+        ReportKpi(
+          label: 'Active Members',
+          value: '$activeCount',
+          subtitle: 'Currently learning',
+          icon: Icons.check_circle_rounded,
+          color: Colors.green,
+        ),
+        ReportKpi(
+          label: 'Grace / Expired',
+          value: '$graceCount / $expiredCount',
+          subtitle: 'Overdue renewal',
+          icon: Icons.schedule_rounded,
+          color: Colors.amber,
+        ),
+        ReportKpi(
+          label: 'Unpaid Dues',
+          value: '₹${totalDues.toStringAsFixed(0)}',
+          subtitle: 'Outstanding balance',
+          icon: Icons.money_off_rounded,
+          color: Colors.red,
+        ),
+      ],
+      headers: const ['Mem #', 'Student Name', 'Phone', 'Seat', 'Shift', 'Plan', 'Expiry Date', 'Status', 'Pending Due'],
+      rows: rows,
+      rowMetadata: metadata,
+    );
+  }
+
+  Future<ReportPreviewData> fetchPaymentsPreview({
+    required String libraryId,
+    DateTimeRange? dateRange,
+    String? methodFilter,
+  }) async {
+    final studentsSnap = await _firestore.collection('libraries').doc(libraryId).collection('students').get();
+    final studentMap = {
+      for (var d in studentsSnap.docs)
+        d.id: {
+          'name': d.data()['name'] as String? ?? 'Unknown',
+          'phone': d.data()['phone'] as String? ?? '',
+          'memNo': d.data()['membershipNumber'] as String? ?? '',
+        }
+    };
+
+    final paymentsSnap = await _firestore.collection('libraries').doc(libraryId).collection('payments').get();
+
+    final filteredDocs = paymentsSnap.docs.where((doc) {
+      final d = doc.data();
+      final pDate = _parseDate(d['date'] ?? d['createdAt']);
+      if (!_isWithinRange(pDate, dateRange)) return false;
+
+      if (methodFilter != null && methodFilter != 'all') {
+        final m = (d['paymentMethod'] ?? d['method'] as String?)?.toLowerCase() ?? '';
+        if (m != methodFilter.toLowerCase()) return false;
+      }
+      return true;
+    }).toList();
+
+    filteredDocs.sort((a, b) {
+      final da = _parseDate(a.data()['date'] ?? a.data()['createdAt']) ?? DateTime(1970);
+      final db = _parseDate(b.data()['date'] ?? b.data()['createdAt']) ?? DateTime(1970);
+      return db.compareTo(da);
+    });
+
+    double totalAmount = 0.0;
+    double totalDue = 0.0;
+    int upiCount = 0;
+    int cashCount = 0;
+
+    final rows = <List<String>>[];
+    final metadata = <Map<String, dynamic>>[];
+
+    for (final doc in filteredDocs) {
+      final d = doc.data();
+      final sId = d['studentId'] as String? ?? '';
+      final sInfo = studentMap[sId] ?? {'name': 'Unknown Student', 'phone': '', 'memNo': ''};
+      final amt = (d['amount'] as num?)?.toDouble() ?? 0.0;
+      final due = (d['remainingDue'] as num?)?.toDouble() ?? 0.0;
+      totalAmount += amt;
+      totalDue += due;
+
+      final method = (d['paymentMethod'] ?? d['method'] as String?) ?? 'Cash';
+      if (method.toLowerCase().contains('upi') || method.toLowerCase().contains('online')) {
+        upiCount++;
+      } else {
+        cashCount++;
+      }
+
+      final dateStr = _formatDate(d['date'] ?? d['createdAt']);
+      final status = (d['status'] as String?)?.toUpperCase() ?? 'PAID';
+
+      rows.add([
+        dateStr,
+        sInfo['name'] ?? '',
+        sInfo['phone'] ?? '',
+        method,
+        '₹${amt.toStringAsFixed(0)}',
+        due > 0 ? '₹${due.toStringAsFixed(0)}' : '₹0',
+        status,
+        d['referenceNumber']?.toString() ?? '—',
+      ]);
+
+      metadata.add({
+        'id': doc.id,
+        'name': sInfo['name'],
+        'phone': sInfo['phone'],
+        'amount': amt,
+        'receiptId': d['receiptId'] ?? '',
+      });
+    }
+
+    return ReportPreviewData(
+      reportKey: 'payments',
+      title: 'Payments & Collections Ledger',
+      subtitle: 'Transaction entries, payment channels, amounts, and remaining balances',
+      badgeText: dateRange != null ? 'Filtered' : 'All Time',
+      totalCount: filteredDocs.length,
+      kpis: [
+        ReportKpi(
+          label: 'Total Collections',
+          value: '₹${totalAmount.toStringAsFixed(0)}',
+          subtitle: 'Gross revenue received',
+          icon: Icons.currency_rupee_rounded,
+          color: Colors.green,
+        ),
+        ReportKpi(
+          label: 'Total Receipts',
+          value: '${filteredDocs.length}',
+          subtitle: 'Recorded transactions',
+          icon: Icons.receipt_long_rounded,
+          color: Colors.blue,
+        ),
+        ReportKpi(
+          label: 'Payment Modes',
+          value: '$upiCount UPI • $cashCount Cash',
+          subtitle: 'Channel distribution',
+          icon: Icons.payments_rounded,
+          color: Colors.teal,
+        ),
+        ReportKpi(
+          label: 'Remaining Dues',
+          value: '₹${totalDue.toStringAsFixed(0)}',
+          subtitle: 'Pending on these receipts',
+          icon: Icons.warning_amber_rounded,
+          color: Colors.amber,
+        ),
+      ],
+      headers: const ['Date', 'Student Name', 'Phone', 'Mode', 'Amount Paid', 'Balance Due', 'Status', 'Ref / UTR'],
+      rows: rows,
+      rowMetadata: metadata,
+    );
+  }
+
+  Future<ReportPreviewData> fetchFeeDefaultersPreview({
+    required String libraryId,
+  }) async {
+    final allSeats = await _fetchAllSeats(libraryId);
+    final seatLabels = {for (var d in allSeats) (d['id'] as String): (d['label'] as String? ?? d['id'] as String)};
+
+    final sectionsSnap = await _firestore.collection('libraries').doc(libraryId).collection('sections').get();
+    final sectionNames = {for (var d in sectionsSnap.docs) d.id: d.data()['name'] as String? ?? d.id};
+
+    final plansSnap = await _firestore.collection('libraries').doc(libraryId).collection('plans').get();
+    final planNames = {for (var d in plansSnap.docs) d.id: d.data()['name'] as String? ?? d.id};
+
+    final studentsSnap = await _firestore.collection('libraries').doc(libraryId).collection('students').get();
+    final now = DateTime.now();
+
+    final defaulters = studentsSnap.docs.where((doc) {
+      final d = doc.data();
+      final dueBalance = (d['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
+      final status = (d['membershipStatus'] as String?)?.toLowerCase() ?? '';
+      final endDate = _parseDate(d['planEndDate']);
+
+      final isOverdueByBalance = dueBalance > 0;
+      final isOverdueByStatus = status == 'expired' || status == 'grace';
+      final isOverdueByDate = endDate != null && endDate.isBefore(now);
+
+      return isOverdueByBalance || isOverdueByStatus || isOverdueByDate;
+    }).toList();
+
+    double totalDues = 0.0;
+    int criticalCount = 0;
+    int graceCount = 0;
+
+    final rows = <List<String>>[];
+    final metadata = <Map<String, dynamic>>[];
+
+    for (final doc in defaulters) {
+      final d = doc.data();
+      final due = (d['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
+      totalDues += due;
+
+      final endDate = _parseDate(d['planEndDate']);
+      int daysOverdue = 0;
+      if (endDate != null && endDate.isBefore(now)) {
+        daysOverdue = now.difference(endDate).inDays;
+      }
+
+      if (daysOverdue > 7) criticalCount++;
+      if ((d['membershipStatus'] as String?)?.toLowerCase() == 'grace') graceCount++;
+
+      final name = (d['name'] as String?) ?? 'Student';
+      final phone = (d['phone'] as String?) ?? '';
+      final planName = planNames[d['planId']] ?? d['planId'] ?? 'General Plan';
+
+      rows.add([
+        name,
+        phone.isNotEmpty ? phone : '—',
+        seatLabels[d['seatId']] ?? d['seatId'] ?? 'Unassigned',
+        sectionNames[d['sectionId']] ?? d['sectionId'] ?? 'General',
+        planName,
+        _formatDate(d['planEndDate'], includeTime: false),
+        daysOverdue > 0 ? '$daysOverdue Days' : 'Due Today',
+        '₹${due.toStringAsFixed(0)}',
+        (d['membershipStatus'] as String?)?.toUpperCase() ?? 'EXPIRED',
+      ]);
+
+      metadata.add({
+        'id': doc.id,
+        'name': name,
+        'phone': phone,
+        'due': due,
+        'daysOverdue': daysOverdue,
+        'planName': planName,
+        'expiryDate': _formatDate(d['planEndDate'], includeTime: false),
+      });
+    }
+
+    // Sort by due amount descending
+    rows.sort((a, b) {
+      final dueA = double.tryParse(a[6].replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
+      final dueB = double.tryParse(b[6].replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
+      return dueB.compareTo(dueA);
+    });
+
+    return ReportPreviewData(
+      reportKey: 'defaulters',
+      title: 'Fee Defaulters & Overdue Balances',
+      subtitle: 'Students with unpaid dues, expired memberships, or active grace periods',
+      badgeText: 'Action Required',
+      totalCount: defaulters.length,
+      kpis: [
+        ReportKpi(
+          label: 'Total Outstanding',
+          value: '₹${totalDues.toStringAsFixed(0)}',
+          subtitle: 'Pending fee collection',
+          icon: Icons.warning_amber_rounded,
+          color: Colors.red,
+        ),
+        ReportKpi(
+          label: 'Defaulters Count',
+          value: '${defaulters.length} Students',
+          subtitle: 'Need payment follow-up',
+          icon: Icons.person_off_rounded,
+          color: Colors.amber,
+        ),
+        ReportKpi(
+          label: 'Critical (>7 Days)',
+          value: '$criticalCount Students',
+          subtitle: 'Long overdue accounts',
+          icon: Icons.error_outline_rounded,
+          color: Colors.deepOrange,
+        ),
+        ReportKpi(
+          label: 'In Grace Period',
+          value: '$graceCount Students',
+          subtitle: 'Expiring shortly',
+          icon: Icons.hourglass_bottom_rounded,
+          color: Colors.teal,
+        ),
+      ],
+      headers: const ['Student Name', 'Phone', 'Seat', 'Shift', 'Plan', 'Expiry Date', 'Overdue', 'Pending Due', 'Status'],
+      rows: rows,
+      rowMetadata: metadata,
+    );
+  }
+
+  Future<ReportPreviewData> fetchExpensesPreview({
+    required String libraryId,
+    DateTimeRange? dateRange,
+    String? categoryFilter,
+  }) async {
+    final snap = await _firestore.collection('libraries').doc(libraryId).collection('expenses').get();
+
+    final filteredDocs = snap.docs.where((doc) {
+      final d = doc.data();
+      if (d['isDeleted'] == true) return false;
+
+      final eDate = _parseDate(d['date'] ?? d['createdAt']);
+      if (!_isWithinRange(eDate, dateRange)) return false;
+
+      if (categoryFilter != null && categoryFilter != 'all') {
+        final cat = (d['category'] as String?)?.toLowerCase() ?? '';
+        if (cat != categoryFilter.toLowerCase()) return false;
+      }
+      return true;
+    }).toList();
+
+    filteredDocs.sort((a, b) {
+      final da = _parseDate(a.data()['date'] ?? a.data()['createdAt']) ?? DateTime(1970);
+      final db = _parseDate(b.data()['date'] ?? b.data()['createdAt']) ?? DateTime(1970);
+      return db.compareTo(da);
+    });
+
+    double totalExpenses = 0.0;
+    int cashCount = 0;
+    int onlineCount = 0;
+    final Map<String, double> catTotals = {};
+
+    final rows = <List<String>>[];
+
+    for (final doc in filteredDocs) {
+      final d = doc.data();
+      final amt = (d['amount'] as num?)?.toDouble() ?? 0.0;
+      totalExpenses += amt;
+
+      final cat = (d['category'] as String?) ?? 'other';
+      catTotals[cat] = (catTotals[cat] ?? 0.0) + amt;
+
+      final mode = (d['paymentMethod'] as String?) ?? 'Cash';
+      if (mode.toLowerCase().contains('cash')) {
+        cashCount++;
+      } else {
+        onlineCount++;
+      }
+
+      rows.add([
+        _formatDate(d['date'] ?? d['createdAt']),
+        d['title']?.toString() ?? '',
+        cat.toUpperCase(),
+        d['paidTo']?.toString() ?? '—',
+        mode,
+        '₹${amt.toStringAsFixed(0)}',
+      ]);
+    }
+
+    String topCategory = 'None';
+    double topCategoryAmount = 0.0;
+    catTotals.forEach((cat, amt) {
+      if (amt > topCategoryAmount) {
+        topCategoryAmount = amt;
+        topCategory = cat;
+      }
+    });
+
+    return ReportPreviewData(
+      reportKey: 'expenses',
+      title: 'Expenses & Outflows Ledger',
+      subtitle: 'Facility maintenance, utilities, salaries, and operational costs',
+      badgeText: dateRange != null ? 'Filtered' : 'All Time',
+      totalCount: filteredDocs.length,
+      kpis: [
+        ReportKpi(
+          label: 'Total Outflows',
+          value: '₹${totalExpenses.toStringAsFixed(0)}',
+          subtitle: 'Operating expenditure',
+          icon: Icons.trending_down_rounded,
+          color: Colors.deepOrange,
+        ),
+        ReportKpi(
+          label: 'Total Entries',
+          value: '${filteredDocs.length}',
+          subtitle: 'Logged vouchers',
+          icon: Icons.format_list_bulleted_rounded,
+          color: Colors.purple,
+        ),
+        ReportKpi(
+          label: 'Top Expense',
+          value: topCategory.toUpperCase(),
+          subtitle: '₹${topCategoryAmount.toStringAsFixed(0)} spent',
+          icon: Icons.pie_chart_outline_rounded,
+          color: Colors.indigo,
+        ),
+        ReportKpi(
+          label: 'Disbursement Mode',
+          value: '$cashCount Cash • $onlineCount Online',
+          subtitle: 'Payment method split',
+          icon: Icons.account_balance_wallet_rounded,
+          color: Colors.teal,
+        ),
+      ],
+      headers: const ['Date', 'Title / Description', 'Category', 'Paid To (Vendor)', 'Mode', 'Amount (₹)'],
+      rows: rows,
+    );
+  }
+
+  Future<ReportPreviewData> fetchSeatsAndOccupancyPreview({
+    required String libraryId,
+  }) async {
+    final sectionsSnap = await _firestore.collection('libraries').doc(libraryId).collection('sections').get();
+    final sectionMap = {for (var d in sectionsSnap.docs) d.id: d.data()['name'] as String? ?? 'General'};
+
+    final studentsSnap = await _firestore.collection('libraries').doc(libraryId).collection('students').get();
+    final studentMap = {
+      for (var d in studentsSnap.docs)
+        d.id: {
+          'name': d.data()['name'] as String? ?? '',
+          'phone': d.data()['phone'] as String? ?? '',
+          'memNo': d.data()['membershipNumber'] as String? ?? '',
+          'endDate': _formatDate(d['planEndDate'], includeTime: false),
+          'status': d.data()['membershipStatus'] as String? ?? '',
+        }
+    };
+
+    final allSeats = await _fetchAllSeats(libraryId);
+
+    int occupied = 0;
+    int available = 0;
+
+    final rows = <List<String>>[];
+
+    for (final d in allSeats) {
+      final sId = d['studentId'] as String?;
+      final sInfo = (sId != null && sId.isNotEmpty) ? studentMap[sId] : null;
+      final status = (d['status'] as String?)?.toLowerCase() ?? 'available';
+
+      final isOccupied = status == 'occupied' || sInfo != null;
+      if (isOccupied) {
+        occupied++;
+      } else {
+        available++;
+      }
+
+      final label = (d['label'] ?? d['id'] ?? '').toString();
+      final secId = d['sectionId'] as String? ?? '';
+
+      rows.add([
+        label,
+        sectionMap[secId] ?? (secId.isNotEmpty ? secId : 'General'),
+        isOccupied ? 'OCCUPIED' : 'AVAILABLE',
+        sInfo?['name'] ?? '—',
+        sInfo?['phone'] ?? '—',
+        sInfo?['endDate'] ?? '—',
+      ]);
+    }
+
+    final rate = allSeats.isNotEmpty ? ((occupied / allSeats.length) * 100).toStringAsFixed(1) : '0';
+
+    return ReportPreviewData(
+      reportKey: 'seats',
+      title: 'Seat Allocation & Occupancy Matrix',
+      subtitle: 'Real-time seat inventory, active occupants, and vacancy distribution',
+      badgeText: 'Live Inventory',
+      totalCount: allSeats.length,
+      kpis: [
+        ReportKpi(
+          label: 'Total Capacity',
+          value: '${allSeats.length} Seats',
+          subtitle: 'Installed study desks',
+          icon: Icons.chair_rounded,
+          color: Colors.blue,
+        ),
+        ReportKpi(
+          label: 'Occupied Desks',
+          value: '$occupied Seats',
+          subtitle: 'Active occupants',
+          icon: Icons.airline_seat_recline_normal_rounded,
+          color: Colors.teal,
+        ),
+        ReportKpi(
+          label: 'Available / Vacant',
+          value: '$available Seats',
+          subtitle: 'Ready to allocate',
+          icon: Icons.event_seat_rounded,
+          color: Colors.green,
+        ),
+        ReportKpi(
+          label: 'Occupancy Rate',
+          value: '$rate%',
+          subtitle: 'Space utilization',
+          icon: Icons.pie_chart_rounded,
+          color: Colors.indigo,
+        ),
+      ],
+      headers: const ['Seat Label', 'Section / Hall', 'Status', 'Occupant Name', 'Phone', 'Plan Expiry'],
+      rows: rows,
+    );
+  }
+
+  Future<ReportPreviewData> fetchWaitingListPreview({
+    required String libraryId,
+  }) async {
+    final sectionsSnap = await _firestore.collection('libraries').doc(libraryId).collection('sections').get();
+    final sectionMap = {for (var d in sectionsSnap.docs) d.id: d.data()['name'] as String? ?? 'Any'};
+
+    final snap = await _firestore.collection('libraries').doc(libraryId).collection('waiting_list').get();
+    final docs = snap.docs;
+
+    docs.sort((a, b) {
+      final posA = (a.data()['position'] as num?)?.toInt() ?? 0;
+      final posB = (b.data()['position'] as num?)?.toInt() ?? 0;
+      return posA.compareTo(posB);
+    });
+
+    int suggestedCount = 0;
+    final Map<String, int> sectionCount = {};
+    final rows = <List<String>>[];
+    final metadata = <Map<String, dynamic>>[];
+
+    for (final doc in docs) {
+      final d = doc.data();
+      final sec = sectionMap[d['preferredSectionId']] ?? d['preferredSectionId'] ?? 'Any';
+      sectionCount[sec] = (sectionCount[sec] ?? 0) + 1;
+
+      final suggestedSeat = d['suggestedSeatLabel'] ?? d['suggestedSeatId'] ?? '';
+      if (suggestedSeat.toString().isNotEmpty) suggestedCount++;
+
+      final name = d['studentName']?.toString() ?? 'Applicant';
+      final phone = d['studentPhone']?.toString() ?? '';
+
+      rows.add([
+        '#${d['position'] ?? ''}',
+        name,
+        phone.isNotEmpty ? phone : '—',
+        sec,
+        (d['genderPreference'] ?? 'Any').toString().toUpperCase(),
+        _formatDate(d['createdAt'], includeTime: false),
+        suggestedSeat.toString().isNotEmpty ? suggestedSeat.toString() : 'Pending',
+      ]);
+
+      metadata.add({
+        'id': doc.id,
+        'name': name,
+        'phone': phone,
+      });
+    }
+
+    String topSection = 'General';
+    int maxSecCount = 0;
+    sectionCount.forEach((sec, cnt) {
+      if (cnt > maxSecCount) {
+        maxSecCount = cnt;
+        topSection = sec;
+      }
+    });
+
+    return ReportPreviewData(
+      reportKey: 'waiting_list',
+      title: 'Waiting List Queue Register',
+      subtitle: 'Candidate priority, preferred study shifts, and provisional seat holds',
+      badgeText: 'Waitlist',
+      totalCount: docs.length,
+      kpis: [
+        ReportKpi(
+          label: 'Queue Length',
+          value: '${docs.length} Students',
+          subtitle: 'Awaiting seat vacancy',
+          icon: Icons.hourglass_top_rounded,
+          color: Colors.indigo,
+        ),
+        ReportKpi(
+          label: 'Seats Suggested',
+          value: '$suggestedCount',
+          subtitle: 'Ready for confirmation',
+          icon: Icons.recommend_rounded,
+          color: Colors.teal,
+        ),
+        ReportKpi(
+          label: 'High Demand Shift',
+          value: topSection,
+          subtitle: 'Most requested section',
+          icon: Icons.place_rounded,
+          color: Colors.purple,
+        ),
+      ],
+      headers: const ['Queue #', 'Student Name', 'Phone', 'Preferred Section', 'Gender Pref', 'Registered Date', 'Suggested Desk'],
+      rows: rows,
+      rowMetadata: metadata,
+    );
+  }
+
+  Future<ReportPreviewData> fetchFinancialSummaryPreview({
+    required String libraryId,
+    DateTimeRange? dateRange,
+  }) async {
+    final paymentsSnap = await _firestore.collection('libraries').doc(libraryId).collection('payments').get();
+    final filteredPayments = paymentsSnap.docs.where((doc) {
+      final pDate = _parseDate(doc.data()['date'] ?? doc.data()['createdAt']);
+      return _isWithinRange(pDate, dateRange);
+    }).toList();
+
+    double totalRevenue = 0.0;
+    final Map<String, double> revenueByMethod = {};
+    for (final doc in filteredPayments) {
+      final d = doc.data();
+      final amt = (d['amount'] as num?)?.toDouble() ?? 0.0;
+      final method = (d['paymentMethod'] ?? d['method'] as String?) ?? 'Cash';
+      totalRevenue += amt;
+      revenueByMethod[method] = (revenueByMethod[method] ?? 0) + amt;
+    }
+
+    final expensesSnap = await _firestore.collection('libraries').doc(libraryId).collection('expenses').get();
+    final filteredExpenses = expensesSnap.docs.where((doc) {
+      final d = doc.data();
+      if (d['isDeleted'] == true) return false;
+      final eDate = _parseDate(d['date'] ?? d['createdAt']);
+      return _isWithinRange(eDate, dateRange);
+    }).toList();
+
+    double totalExpenses = 0.0;
+    final Map<String, double> expensesByCategory = {};
+    for (final doc in filteredExpenses) {
+      final d = doc.data();
+      final amt = (d['amount'] as num?)?.toDouble() ?? 0.0;
+      final cat = (d['category'] as String?) ?? 'other';
+      totalExpenses += amt;
+      expensesByCategory[cat] = (expensesByCategory[cat] ?? 0) + amt;
+    }
+
+    final studentsSnap = await _firestore.collection('libraries').doc(libraryId).collection('students').get();
+    int activeStudents = 0;
+    double totalDues = 0.0;
+    for (final doc in studentsSnap.docs) {
+      final d = doc.data();
+      final status = (d['membershipStatus'] as String?)?.toLowerCase() ?? '';
+      if (status == 'active') activeStudents++;
+      totalDues += (d['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
+    }
+
+    final netProfit = totalRevenue - totalExpenses;
+    final margin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toStringAsFixed(1) : '0';
+
+    final rows = <List<String>>[];
+
+    revenueByMethod.forEach((method, amt) {
+      final share = totalRevenue > 0 ? ((amt / totalRevenue) * 100).toStringAsFixed(1) : '0';
+      rows.add([
+        'Fee Collection ($method)',
+        'REVENUE',
+        '₹${amt.toStringAsFixed(0)}',
+        '$share% of gross inflows',
+      ]);
+    });
+
+    expensesByCategory.forEach((cat, amt) {
+      final share = totalExpenses > 0 ? ((amt / totalExpenses) * 100).toStringAsFixed(1) : '0';
+      rows.add([
+        cat.toUpperCase(),
+        'EXPENSE',
+        '₹${amt.toStringAsFixed(0)}',
+        '$share% of gross outflows',
+      ]);
+    });
+
+    rows.add([
+      'Outstanding Member Dues',
+      'RECEIVABLE',
+      '₹${totalDues.toStringAsFixed(0)}',
+      'From $activeStudents active accounts',
+    ]);
+
+    return ReportPreviewData(
+      reportKey: 'pnl',
+      title: 'Financial P&L Executive Summary',
+      subtitle: 'Income statement, operational costs, net margin, and asset receivables',
+      badgeText: 'P&L Report',
+      totalCount: rows.length,
+      kpis: [
+        ReportKpi(
+          label: 'Fee Revenue',
+          value: '₹${totalRevenue.toStringAsFixed(0)}',
+          subtitle: 'Gross collections',
+          icon: Icons.trending_up_rounded,
+          color: Colors.green,
+        ),
+        ReportKpi(
+          label: 'Operating Expenses',
+          value: '₹${totalExpenses.toStringAsFixed(0)}',
+          subtitle: 'Total library costs',
+          icon: Icons.trending_down_rounded,
+          color: Colors.deepOrange,
+        ),
+        ReportKpi(
+          label: 'Net Operating Profit',
+          value: '₹${netProfit.toStringAsFixed(0)}',
+          subtitle: netProfit >= 0 ? 'Net Surplus' : 'Net Deficit',
+          icon: Icons.account_balance_rounded,
+          color: netProfit >= 0 ? Colors.green : Colors.red,
+        ),
+        ReportKpi(
+          label: 'Operating Margin',
+          value: '$margin%',
+          subtitle: 'Margin profitability',
+          icon: Icons.percent_rounded,
+          color: netProfit >= 0 ? Colors.teal : Colors.amber,
+        ),
+      ],
+      headers: const ['Category / Stream', 'Type', 'Amount (₹)', 'Share / Details'],
+      rows: rows,
+    );
   }
 }

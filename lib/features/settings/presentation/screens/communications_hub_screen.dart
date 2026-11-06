@@ -12,6 +12,7 @@ import 'package:study_library/services/notification_service.dart';
 import 'package:study_library/services/owner_digest_service.dart';
 import 'package:study_library/services/waiting_list_promotion_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/services/meta_whatsapp_api_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/soundbox_service.dart';
 
@@ -45,6 +46,17 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
 
   bool _customWebhookEnabled = false;
   final _customWebhookUrlController = TextEditingController();
+
+  // ── Meta WhatsApp Cloud API & SMS Gateway ──
+  bool _metaWhatsAppEnabled = false;
+  final _metaPhoneIdController = TextEditingController();
+  final _metaTokenController = TextEditingController();
+  bool _isTestingMeta = false;
+
+  bool _smsGatewayEnabled = false;
+  final _smsApiKeyController = TextEditingController();
+  final _smsSenderIdController = TextEditingController();
+  bool _isTestingSmsGateway = false;
 
   // ── Automation Rules (Tab 2) ──────────────────────────────────────────────
   bool _allNotifications = true;
@@ -147,6 +159,15 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
           _localBridgeUrlController.text = (cChannels['localBridgeUrl'] as String?) ?? (mData['localBridgeUrl'] as String? ?? '');
           _customWebhookEnabled = cChannels['customWebhookEnabled'] as bool? ?? (mData['customWebhookEnabled'] as bool? ?? false);
           _customWebhookUrlController.text = (cChannels['customWebhookUrl'] as String?) ?? (mData['customWebhookUrl'] as String? ?? '');
+
+          // Meta WhatsApp Cloud API & SMS Gateway
+          _metaWhatsAppEnabled = cChannels['metaWhatsAppEnabled'] as bool? ?? (mData['metaWhatsAppEnabled'] as bool? ?? false);
+          _metaPhoneIdController.text = (cChannels['metaPhoneNumberId'] as String?) ?? (mData['metaPhoneNumberId'] as String? ?? '');
+          _metaTokenController.text = (cChannels['metaAccessToken'] as String?) ?? (mData['metaAccessToken'] as String? ?? '');
+
+          _smsGatewayEnabled = cChannels['smsGatewayEnabled'] as bool? ?? (mData['smsGatewayEnabled'] as bool? ?? false);
+          _smsApiKeyController.text = (cChannels['smsApiKey'] as String?) ?? (mData['smsApiKey'] as String? ?? '');
+          _smsSenderIdController.text = (cChannels['smsSenderId'] as String?) ?? (mData['smsSenderId'] as String? ?? '');
 
           // Rules
           _allNotifications = cRules['allNotifications'] as bool? ?? (nData['allNotifications'] as bool? ?? true);
@@ -279,6 +300,12 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       'localBridgeUrl': _localBridgeUrlController.text.trim(),
       'customWebhookEnabled': _customWebhookEnabled,
       'customWebhookUrl': _customWebhookUrlController.text.trim(),
+      'metaWhatsAppEnabled': _metaWhatsAppEnabled,
+      'metaPhoneNumberId': _metaPhoneIdController.text.trim(),
+      'metaAccessToken': _metaTokenController.text.trim(),
+      'smsGatewayEnabled': _smsGatewayEnabled,
+      'smsApiKey': _smsApiKeyController.text.trim(),
+      'smsSenderId': _smsSenderIdController.text.trim(),
     };
 
     final rulesMap = {
@@ -432,12 +459,96 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
     }
   }
 
+  Future<void> _testMetaWhatsApp() async {
+    final phoneId = _metaPhoneIdController.text.trim();
+    final token = _metaTokenController.text.trim();
+    final lib = ref.read(currentLibraryProvider).value;
+    final testPhone = lib?.contact.isNotEmpty == true ? lib!.contact : '';
+
+    if (phoneId.isEmpty || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter both Meta Phone Number ID and Access Token!')),
+      );
+      return;
+    }
+    if (testPhone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please configure an official library helpline/phone number in profile first!')),
+      );
+      return;
+    }
+
+    setState(() => _isTestingMeta = true);
+    final metaService = ref.read(metaWhatsAppApiServiceProvider);
+    final ok = await metaService.testMetaConnection(
+      phoneNumberId: phoneId,
+      accessToken: token,
+      testPhone: testPhone,
+      libraryName: lib?.name ?? 'Study Library',
+    );
+    if (mounted) {
+      setState(() => _isTestingMeta = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok
+              ? 'Meta WhatsApp Cloud API Test Delivered to $testPhone! 🚀'
+              : 'Failed to deliver Meta WhatsApp message. Please verify Phone Number ID and Access Token permissions.'),
+          backgroundColor: ok ? Colors.green : Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _testSmsGateway() async {
+    final apiKey = _smsApiKeyController.text.trim();
+    final lib = ref.read(currentLibraryProvider).value;
+    final testPhone = lib?.contact.isNotEmpty == true ? lib!.contact : '';
+
+    if (apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your SMS Gateway API Key first!')),
+      );
+      return;
+    }
+    if (testPhone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please configure an official library helpline/phone number in profile first!')),
+      );
+      return;
+    }
+
+    setState(() => _isTestingSmsGateway = true);
+    final metaService = ref.read(metaWhatsAppApiServiceProvider);
+    final ok = await metaService.testSmsConnection(
+      apiKey: apiKey,
+      testPhone: testPhone,
+      libraryName: lib?.name ?? 'Study Library',
+    );
+    if (mounted) {
+      setState(() => _isTestingSmsGateway = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok
+              ? 'SMS Gateway Test Ping Delivered to $testPhone! 📲'
+              : 'SMS Gateway delivery failed. Check your API key and account balance.'),
+          backgroundColor: ok ? Colors.green : Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _telegramTokenController.dispose();
     _telegramChatIdController.dispose();
     _localBridgeUrlController.dispose();
     _customWebhookUrlController.dispose();
+    _metaPhoneIdController.dispose();
+    _metaTokenController.dispose();
+    _smsApiKeyController.dispose();
+    _smsSenderIdController.dispose();
     super.dispose();
   }
 
@@ -633,6 +744,78 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         ),
         const SizedBox(height: 14),
 
+        // Channel 2.5: Direct Meta WhatsApp Cloud API (Automated Background Dispatch)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF075E54).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.mark_chat_read_rounded, color: Color(0xFF075E54)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Direct Meta WhatsApp Cloud API', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('100% hands-free background delivery of payment receipts & alerts (0 taps)', style: theme.textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: _metaWhatsAppEnabled,
+                      onChanged: (val) => setState(() => _metaWhatsAppEnabled = val),
+                    ),
+                  ],
+                ),
+                if (_metaWhatsAppEnabled) ...[
+                  const Divider(height: 24),
+                  TextField(
+                    controller: _metaPhoneIdController,
+                    decoration: const InputDecoration(
+                      labelText: 'Meta Phone Number ID',
+                      hintText: 'e.g. 104829375829104',
+                      prefixIcon: Icon(Icons.badge_outlined),
+                      border: OutlineInputBorder(),
+                      helperText: 'Found in Meta WhatsApp App Dashboard > API Setup',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _metaTokenController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'System User Permanent Access Token',
+                      hintText: 'EAAG...',
+                      prefixIcon: Icon(Icons.vpn_key_rounded),
+                      border: OutlineInputBorder(),
+                      helperText: 'Permanent access token with whatsapp_business_messaging scope',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _isTestingMeta ? null : _testMetaWhatsApp,
+                    icon: _isTestingMeta
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.send_rounded),
+                    label: const Text('Send Test Meta Cloud WhatsApp Message'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+
         // Channel 3: Local Desk PC WhatsApp Bridge
         Card(
           child: Padding(
@@ -799,6 +982,77 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                   Text(
                     'Pre-fills recipient and fee confirmation into your native SMS app without requiring dangerous SMS read permissions.',
                     style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Channel 5.5: Commercial SMS Gateway (Automated Background SMS)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.send_to_mobile_rounded, color: Colors.indigo),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Commercial SMS Gateway (Automated)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Hands-free background SMS delivery via Fast2SMS or DLT gateway', style: theme.textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: _smsGatewayEnabled,
+                      onChanged: (val) => setState(() => _smsGatewayEnabled = val),
+                    ),
+                  ],
+                ),
+                if (_smsGatewayEnabled) ...[
+                  const Divider(height: 24),
+                  TextField(
+                    controller: _smsApiKeyController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'SMS Gateway API Key',
+                      hintText: 'e.g. Fast2SMS Authorization Key',
+                      prefixIcon: Icon(Icons.vpn_key_rounded),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _smsSenderIdController,
+                    decoration: const InputDecoration(
+                      labelText: 'Sender ID / DLT Header (Optional)',
+                      hintText: 'e.g. COZYCR or FSTSMS',
+                      prefixIcon: Icon(Icons.branding_watermark_rounded),
+                      border: OutlineInputBorder(),
+                      helperText: 'Default: Fast2SMS Quick Route (DLT-free)',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _isTestingSmsGateway ? null : _testSmsGateway,
+                    icon: _isTestingSmsGateway
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.sms_outlined),
+                    label: const Text('Send Test Gateway SMS'),
                   ),
                 ],
               ],

@@ -46,6 +46,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
   MembershipStatus _membershipStatus = MembershipStatus.active;
   String? _bloodGroup;
   DateTime? _dob;
+  DateTime? _admissionDate;
   File? _newPhoto;
   String _currentPhotoUrl = '';
   final Map<String, TextEditingController> _customControllers = {};
@@ -124,6 +125,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         _govIdType = s.govIdType;
         _membershipStatus = s.membershipStatus;
         _dob = s.dob;
+        _admissionDate = s.admissionDate ?? s.planStartDate ?? s.createdAt;
         _currentPhotoUrl = s.photoUrl;
 
         _customControllers.clear();
@@ -248,6 +250,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         photoUrl: finalPhotoUrl,
         membershipStatus: _membershipStatus,
         bloodGroup: _bloodGroup,
+        admissionDate: _admissionDate,
         customFields: updatedCustom,
         updatedAt: DateTime.now(),
       );
@@ -444,6 +447,56 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     ),
                     textCapitalization: TextCapitalization.words,
                     validator: (v) => (v == null || v.trim().length < 2) ? 'Name is required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  // Admission Date Picker
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _admissionDate ?? DateTime.now(),
+                        firstDate: DateTime(2015),
+                        lastDate: DateTime(2035),
+                        helpText: 'SELECT ADMISSION / ENROLLMENT DATE',
+                      );
+                      if (picked != null) {
+                        setState(() => _admissionDate = picked);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(4),
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Admission Date (Member Since)',
+                        prefixIcon: const Icon(Icons.history_edu_rounded),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.calendar_month_rounded),
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _admissionDate ?? DateTime.now(),
+                              firstDate: DateTime(2015),
+                              lastDate: DateTime(2035),
+                              helpText: 'SELECT ADMISSION / ENROLLMENT DATE',
+                            );
+                            if (picked != null) {
+                              setState(() => _admissionDate = picked);
+                            }
+                          },
+                        ),
+                        border: const OutlineInputBorder(),
+                      ),
+                      child: Text(
+                        _admissionDate != null
+                            ? DateFormat('dd MMMM yyyy').format(_admissionDate!)
+                            : 'Not set (Defaults to enrollment date)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _admissionDate != null
+                              ? theme.colorScheme.onSurface
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(

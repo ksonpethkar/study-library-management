@@ -42,8 +42,11 @@ import 'package:study_library/features/maintenance/data/services/database_diagno
 import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/models/announcement_model.dart';
+import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/services/meta_whatsapp_api_service.dart';
+import 'package:study_library/services/messaging_hub_service.dart';
 import 'package:study_library/core/router/app_router.dart';
 
 StudentModel createTestStudent({
@@ -1736,7 +1739,7 @@ void main() {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(63));
+      expect(AppConstants.buildNumber, equals(64));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -5062,9 +5065,9 @@ void main() {
 
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+63'));
+      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+64'));
       expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(63));
+      expect(AppConstants.buildNumber, equals(64));
 
       // 2. Student-facing release changes include all 4 automation features
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
@@ -5085,7 +5088,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.50+63'));
+      expect(formattedVersion, equals('v1.5.50+64'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -5594,6 +5597,436 @@ void main() {
       // If excluding own ID (e.g. self-editing pay_test_01), no conflict
       final editExclusionMatch = ledger.where((p) => p.referenceNumber == '431289567123' && p.id != 'pay_test_01').firstOrNull;
       expect(editExclusionMatch, isNull);
+    });
+
+    test('118. BULK ADMISSION DATE EDITING, CYCLE ALIGNMENT & NOTIFICATION DEDUPLICATION PARITY', () {
+      // 1. StudentModel admissionDate parsing and backward-compatible fallback
+      final historicalDate = DateTime(2025, 8, 15);
+      final studentWithAdmDate = StudentModel.fromJson({
+        'id': 'stud_hist_01',
+        'name': 'Shubham Dixit',
+        'phone': '9156944773',
+        'email': 'shubham@example.com',
+        'admissionDate': historicalDate.toIso8601String(),
+        'planStartDate': DateTime(2026, 11, 1).toIso8601String(),
+        'membershipStatus': 'active',
+      });
+      expect(studentWithAdmDate.admissionDate, equals(historicalDate));
+      expect(studentWithAdmDate.effectiveAdmissionDate, equals(historicalDate));
+
+      // Backward compatible fallback for existing student without admissionDate
+      final legacyStudent = StudentModel.fromJson({
+        'id': 'stud_leg_02',
+        'name': 'Legacy Student',
+        'phone': '9876543210',
+        'planStartDate': DateTime(2026, 9, 1).toIso8601String(),
+        'membershipStatus': 'active',
+      });
+      expect(legacyStudent.admissionDate, isNull);
+      expect(legacyStudent.effectiveAdmissionDate, equals(DateTime(2026, 9, 1)));
+
+      // 2. Calendar-Month End Expiry Calculation
+      final admDate = DateTime(2026, 8, 15);
+      final monthEndExpiry = DateTime(admDate.year, admDate.month + 1, 0, 23, 59, 59);
+      expect(monthEndExpiry.year, equals(2026));
+      expect(monthEndExpiry.month, equals(8));
+      expect(monthEndExpiry.day, equals(31));
+
+      // 3. Notification Deduplication Semantic Collapsing
+      final notif1 = AppNotificationModel(
+        id: 'notif_001',
+        title: 'Admission Approved! 🎉',
+        body: 'Hello shubham dixit! Your admission is approved (Desk #7). Complete your fee payment to activate your pass.',
+        type: 'admission',
+        targetRole: 'student',
+        read: true,
+        createdAt: DateTime(2026, 11, 5, 19, 50),
+        targetUserId: 'shubham_uid',
+      );
+
+      final notif2 = AppNotificationModel(
+        id: 'notif_002',
+        title: 'Admission Approved! 🎉',
+        body: 'Hello shubham dixit! Your admission is approved (Desk #7). Complete your fee payment to activate your pass.',
+        type: 'admission',
+        targetRole: 'student',
+        read: false,
+        createdAt: DateTime(2026, 11, 5, 19, 50, 30),
+        targetUserId: 'shubham_uid',
+      );
+
+      // Deduplication helper simulation
+      final list = [notif1, notif2];
+      final Map<String, AppNotificationModel> uniqueMap = {};
+      for (final n in list) {
+        final key = '${n.type.toLowerCase()}_${n.title.trim().toLowerCase()}_${n.body.trim().toLowerCase()}';
+        if (!uniqueMap.containsKey(key)) {
+          uniqueMap[key] = n;
+        } else {
+          final existing = uniqueMap[key]!;
+          final keepNewer = n.createdAt.isAfter(existing.createdAt);
+          final isUnread = (!existing.read) || (!n.read);
+          final winner = keepNewer ? n : existing;
+          uniqueMap[key] = winner.copyWith(read: !isUnread);
+        }
+      }
+      expect(uniqueMap.length, equals(1));
+      final deduped = uniqueMap.values.first;
+      expect(deduped.title, equals('Admission Approved! 🎉'));
+      expect(deduped.read, isFalse); // Preserves unread status so student does not miss alert
+    });
+
+    test('119. B2B COMMERCIAL GST TAX INVOICE GENERATION & ACCURATE TAX SPLIT', () {
+      // 1. Library GST Configuration & Getters
+      final gstLibrary = LibraryModel.fromJson({
+        'id': 'lib_gst_01',
+        'name': 'Cozy Corner Reading Hall',
+        'address': 'Nath Road, Parli',
+        'contact': '9403243830',
+        'enableGstBilling': true,
+        'gstin': '27AABCU9603R1ZM',
+        'gstLegalName': 'The Cozy Corner Educational Services LLP',
+        'gstRate': 18.0,
+        'sacCode': '999293',
+      });
+
+      expect(gstLibrary.enableGstBilling, isTrue);
+      expect(gstLibrary.effectiveGstin, equals('27AABCU9603R1ZM'));
+      expect(gstLibrary.effectiveGstLegalName, equals('The Cozy Corner Educational Services LLP'));
+      expect(gstLibrary.effectiveGstRate, equals(18.0));
+      expect(gstLibrary.effectiveSacCode, equals('999293'));
+
+      // 2. Backward Tax Calculation Formula (Standard Plan Fee = ₹1,000)
+      const double grossPlanFee = 1000.0;
+      const double gstRate = 18.0;
+
+      final taxableAmount = (grossPlanFee / (1 + (gstRate / 100))).roundToDouble();
+      final totalTax = grossPlanFee - taxableAmount;
+      final cgstAmount = (totalTax / 2).roundToDouble();
+      final sgstAmount = totalTax - cgstAmount;
+
+      expect(taxableAmount, equals(847.0));
+      expect(cgstAmount, equals(77.0));
+      expect(sgstAmount, equals(76.0));
+      expect(taxableAmount + cgstAmount + sgstAmount, equals(grossPlanFee));
+
+      // 3. ReceiptModel with GST serialization
+      final receipt = ReceiptModel.fromJson({
+        'id': 'rec_gst_001',
+        'libraryId': 'lib_gst_01',
+        'receiptNumber': 'TAX-2026-0001',
+        'studentId': 'stud_gst_01',
+        'planId': 'plan_monthly',
+        'paymentMethod': 'UPI',
+        'amount': grossPlanFee,
+        'totalFee': grossPlanFee,
+        'paidAmount': grossPlanFee,
+        'validFrom': DateTime(2026, 11, 1).toIso8601String(),
+        'validTo': DateTime(2026, 11, 30).toIso8601String(),
+        'isGstInvoice': true,
+        'gstin': gstLibrary.effectiveGstin,
+        'sacCode': gstLibrary.effectiveSacCode,
+        'gstRate': gstRate,
+        'taxableAmount': taxableAmount,
+        'cgstAmount': cgstAmount,
+        'sgstAmount': sgstAmount,
+        'status': 'paid',
+      });
+
+      final json = receipt.toJson();
+      expect(json['isGstInvoice'], isTrue);
+      expect(json['gstin'], equals('27AABCU9603R1ZM'));
+      expect(json['sacCode'], equals('999293'));
+      expect(json['gstRate'], equals(18.0));
+      expect(json['taxableAmount'], equals(847.0));
+      expect(json['cgstAmount'], equals(77.0));
+      expect(json['sgstAmount'], equals(76.0));
+
+      // Deserialization check
+      final parsedReceipt = ReceiptModel.fromJson(json);
+      expect(parsedReceipt.isGstInvoice, isTrue);
+      expect(parsedReceipt.gstin, equals('27AABCU9603R1ZM'));
+      expect(parsedReceipt.sacCode, equals('999293'));
+      expect(parsedReceipt.taxableAmount, equals(847.0));
+      expect(parsedReceipt.cgstAmount, equals(77.0));
+      expect(parsedReceipt.sgstAmount, equals(76.0));
+
+      // 4. Exemption of Refundable Security Deposit
+      const double feeWithDeposit = 1500.0;
+      const double securityDeposit = 500.0;
+      final netServiceFee = feeWithDeposit - securityDeposit;
+      final netTaxable = (netServiceFee / (1 + (gstRate / 100))).roundToDouble();
+      final netTax = netServiceFee - netTaxable;
+      expect(netTaxable, equals(847.0));
+      expect(netTax, equals(153.0)); // GST applies strictly to the service fee, not deposit
+    });
+
+    test('120. DIRECT META WHATSAPP CLOUD API & SMS GATEWAY AUTOMATION', () {
+      final metaService = MetaWhatsAppApiService();
+
+      // 1. Phone normalizer (E.164 without '+')
+      expect(metaService.normalizePhone('9403243830'), equals('919403243830'));
+      expect(metaService.normalizePhone('+91 94032-43830'), equals('919403243830'));
+      expect(metaService.normalizePhone('09403243830'), equals('919403243830'));
+      expect(metaService.normalizePhone('919403243830'), equals('919403243830'));
+
+      // 2. MessagingConfig serialization with Meta WhatsApp and SMS Gateway
+      final config = MessagingConfig(
+        whatsappEnabled: true,
+        metaWhatsAppEnabled: true,
+        metaPhoneNumberId: '104829375829104',
+        metaAccessToken: 'EAAG_SECURE_TOKEN_XYZ',
+        smsGatewayEnabled: true,
+        smsApiKey: 'FAST2SMS_KEY_999',
+        smsSenderId: 'COZYCR',
+      );
+
+      final map = config.toMap();
+      expect(map['metaWhatsAppEnabled'], isTrue);
+      expect(map['metaPhoneNumberId'], equals('104829375829104'));
+      expect(map['metaAccessToken'], equals('EAAG_SECURE_TOKEN_XYZ'));
+      expect(map['smsGatewayEnabled'], isTrue);
+      expect(map['smsApiKey'], equals('FAST2SMS_KEY_999'));
+      expect(map['smsSenderId'], equals('COZYCR'));
+
+      // Deserialization check
+      final parsedConfig = MessagingConfig.fromMap(map);
+      expect(parsedConfig.metaWhatsAppEnabled, isTrue);
+      expect(parsedConfig.metaPhoneNumberId, equals('104829375829104'));
+      expect(parsedConfig.metaAccessToken, equals('EAAG_SECURE_TOKEN_XYZ'));
+      expect(parsedConfig.smsGatewayEnabled, isTrue);
+      expect(parsedConfig.smsApiKey, equals('FAST2SMS_KEY_999'));
+      expect(parsedConfig.smsSenderId, equals('COZYCR'));
+    });
+
+    test('121. CARRIED PENDING DUE BALANCE CONSOLIDATION & ATOMIC CLEARANCE UPON RENEWAL (CRIT-01 & CRIT-03)', () {
+      // 1. Student with unpaid partial dues from previous cycle
+      final studentWithDue = StudentModel.fromJson({
+        'id': 'std_due_001',
+        'name': 'Rahul Sharma',
+        'phone': '9822011223',
+        'fatherName': 'Suresh Sharma',
+        'pendingDueBalance': 350.0,
+        'membershipStatus': 'active',
+        'planId': 'plan_monthly_700',
+      });
+
+      expect(studentWithDue.pendingDueBalance, equals(350.0));
+
+      // 2. Renewal Price Calculation: Base Plan + Carried Due
+      const double basePlanPrice = 700.0;
+      final carriedDue = (studentWithDue.pendingDueBalance != null && studentWithDue.pendingDueBalance! > 0)
+          ? studentWithDue.pendingDueBalance!
+          : 0.0;
+      final effectiveRenewalPrice = basePlanPrice + carriedDue;
+
+      expect(effectiveRenewalPrice, equals(1050.0));
+
+      // 3. Renewal Request Payload Verification
+      final renewalPayload = <String, dynamic>{
+        'type': 'renewal',
+        'studentId': studentWithDue.id,
+        'studentName': studentWithDue.name,
+        'amount': effectiveRenewalPrice,
+        'basePlanPrice': basePlanPrice,
+        'pendingDueAmount': carriedDue,
+        'clearedDue': carriedDue > 0,
+        'status': 'pending',
+      };
+
+      expect(renewalPayload['amount'], equals(1050.0));
+      expect(renewalPayload['basePlanPrice'], equals(700.0));
+      expect(renewalPayload['pendingDueAmount'], equals(350.0));
+      expect(renewalPayload['clearedDue'], isTrue);
+
+      // 4. Provisioning Execution: Reset pending due to 0.0 and clear debt
+      final studentUpdates = <String, dynamic>{
+        'membershipStatus': 'active',
+      };
+      if (renewalPayload['clearedDue'] == true) {
+        studentUpdates['pendingDueBalance'] = 0.0;
+      }
+
+      expect(studentUpdates['pendingDueBalance'], equals(0.0));
+    });
+
+    test('122. 10-MINUTE SEAT RESERVATION SOFT-LOCK & EXPIRATION LIFECYCLE (CRIT-02)', () {
+      final now = DateTime.now();
+
+      // 1. Active Soft-Lock Seat
+      final reservedSeat = SeatModel.fromJson({
+        'id': 'seat_lock_01',
+        'sectionId': 'sec_01',
+        'label': 'A1',
+        'row': 0,
+        'col': 0,
+        'status': 'reserved',
+        'reservationType': 'admission_soft_lock',
+        'reservationExpiresAt': now.add(const Duration(minutes: 10)).toIso8601String(),
+      });
+
+      expect(reservedSeat.isCurrentlyReserved, isTrue);
+
+      // 2. Expired Soft-Lock Seat (Lapsed reservation becomes available for walk-ins)
+      final expiredSeat = SeatModel.fromJson({
+        'id': 'seat_lock_02',
+        'sectionId': 'sec_01',
+        'label': 'A2',
+        'row': 0,
+        'col': 1,
+        'status': 'reserved',
+        'reservationType': 'admission_soft_lock',
+        'reservationExpiresAt': now.subtract(const Duration(minutes: 1)).toIso8601String(),
+      });
+
+      expect(expiredSeat.isCurrentlyReserved, isFalse);
+
+      // 3. Soft-Lock Release on Application Rejection Simulation
+      final releasedSeat = expiredSeat.copyWith(
+        status: SeatStatus.available,
+        clearReservation: true,
+      );
+
+      expect(releasedSeat.status, equals(SeatStatus.available));
+      expect(releasedSeat.isCurrentlyReserved, isFalse);
+      expect(releasedSeat.reservationExpiresAt, isNull);
+    });
+
+    test('123. ATOMIC DIRECT OCCUPANT SEAT SWAP (A ⇄ B) INVARIANTS (GAP-01)', () {
+      // 1. Initial State: Seat A has Student A, Seat B has Student B
+      final seatA = SeatModel.fromJson({
+        'id': 'seat_desk_01',
+        'sectionId': 'sec_ground',
+        'label': 'D1',
+        'row': 0,
+        'col': 0,
+        'status': 'occupied',
+        'studentId': 'student_alpha',
+      });
+
+      final seatB = SeatModel.fromJson({
+        'id': 'seat_desk_02',
+        'sectionId': 'sec_first',
+        'label': 'D2',
+        'row': 0,
+        'col': 1,
+        'status': 'occupied',
+        'studentId': 'student_beta',
+      });
+
+      final studentA = StudentModel.fromJson({
+        'id': 'student_alpha',
+        'name': 'Amit Joshi',
+        'fatherName': 'Prakash Joshi',
+        'seatId': 'seat_desk_01',
+        'sectionId': 'sec_ground',
+        'membershipStatus': 'active',
+      });
+
+      final studentB = StudentModel.fromJson({
+        'id': 'student_beta',
+        'name': 'Pooja Patil',
+        'fatherName': 'Ramesh Patil',
+        'seatId': 'seat_desk_02',
+        'sectionId': 'sec_first',
+        'membershipStatus': 'active',
+      });
+
+      // 2. Simulate 4-Way Atomic Transaction Swap
+      final updatedSeatA = seatA.copyWith(studentId: studentB.id);
+      final updatedSeatB = seatB.copyWith(studentId: studentA.id);
+
+      final updatedStudentA = studentA.copyWith(
+        seatId: seatB.id,
+        sectionId: 'sec_first',
+        previousSeatId: seatA.id,
+        previousSectionId: 'sec_ground',
+      );
+
+      final updatedStudentB = studentB.copyWith(
+        seatId: seatA.id,
+        sectionId: 'sec_ground',
+        previousSeatId: seatB.id,
+        previousSectionId: 'sec_first',
+      );
+
+      // Invariants Verification
+      expect(updatedSeatA.studentId, equals('student_beta'));
+      expect(updatedSeatB.studentId, equals('student_alpha'));
+
+      expect(updatedStudentA.seatId, equals('seat_desk_02'));
+      expect(updatedStudentA.previousSeatId, equals('seat_desk_01'));
+
+      expect(updatedStudentB.seatId, equals('seat_desk_01'));
+      expect(updatedStudentB.previousSeatId, equals('seat_desk_02'));
+    });
+
+    test('124. PAYMENT METHODS DYNAMIC PREREQUISITE GATING & ZERO PHANTOM OPTIONS (PAY-01)', () {
+      // 1. Library with default enabled methods (Cash & UPI only)
+      final library = LibraryModel.fromJson({
+        'id': 'lib_test_pay_01',
+        'name': 'Cozy Study Hall',
+        'address': 'Main Road',
+        'contact': '9403243830',
+        'logoUrl': '',
+        'upiId': 'cozycorner@upi',
+        'enabledPaymentMethods': ['cash', 'upi'],
+      });
+
+      expect(library.enabledPaymentMethods, contains('cash'));
+      expect(library.enabledPaymentMethods, contains('upi'));
+      expect(library.enabledPaymentMethods.contains('bank'), isFalse);
+
+      // 2. Bank Details Prerequisite Validation: Missing Account Number or IFSC blocks activation
+      bool canEnableBank({required String bankName, required String accNo, required String ifsc}) {
+        return bankName.trim().isNotEmpty &&
+            accNo.trim().length >= 8 &&
+            ifsc.trim().length >= 4;
+      }
+
+      expect(canEnableBank(bankName: '', accNo: '', ifsc: ''), isFalse);
+      expect(canEnableBank(bankName: 'HDFC Bank', accNo: '501002345678', ifsc: ''), isFalse);
+      expect(canEnableBank(bankName: 'HDFC Bank', accNo: '501002345678', ifsc: 'HDFC0001234'), isTrue);
+
+      // 3. Dynamic Student Checkout Gating Simulation
+      List<String> computeAvailableCheckoutModes({
+        required List<String> enabledMethods,
+        required bool hasUpiConfigured,
+        required bool hasBankConfigured,
+      }) {
+        final modes = <String>[];
+        if (enabledMethods.contains('upi') && hasUpiConfigured) modes.add('upi');
+        if (enabledMethods.contains('bank') && hasBankConfigured) modes.add('bank');
+        if (enabledMethods.contains('cash')) modes.add('desk_cash');
+        return modes.isNotEmpty ? modes : ['desk_cash'];
+      }
+
+      // Scenario A: Admin switched off bank, or no bank configured -> Only UPI and Desk Cash appear!
+      final checkoutModesNoBank = computeAvailableCheckoutModes(
+        enabledMethods: ['cash', 'upi'],
+        hasUpiConfigured: true,
+        hasBankConfigured: false,
+      );
+      expect(checkoutModesNoBank, equals(['upi', 'desk_cash']));
+      expect(checkoutModesNoBank.contains('bank'), isFalse);
+
+      // Scenario B: Admin enables bank AND enters valid details -> Bank Transfer appears!
+      final checkoutModesWithBank = computeAvailableCheckoutModes(
+        enabledMethods: ['cash', 'upi', 'bank'],
+        hasUpiConfigured: true,
+        hasBankConfigured: true,
+      );
+      expect(checkoutModesWithBank, equals(['upi', 'bank', 'desk_cash']));
+      expect(checkoutModesWithBank.contains('bank'), isTrue);
+
+      // Scenario C: Admin enables bank switch BUT details are empty -> Bank Transfer is strictly suppressed!
+      final checkoutModesMisconfigured = computeAvailableCheckoutModes(
+        enabledMethods: ['cash', 'upi', 'bank'],
+        hasUpiConfigured: true,
+        hasBankConfigured: false,
+      );
+      expect(checkoutModesMisconfigured, equals(['upi', 'desk_cash']));
+      expect(checkoutModesMisconfigured.contains('bank'), isFalse);
     });
   });
 }

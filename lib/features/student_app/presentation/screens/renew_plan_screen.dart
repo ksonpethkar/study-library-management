@@ -103,7 +103,10 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
     try {
       final startDate = renewalCalc.startDate;
       final endDate = renewalCalc.endDate;
-      final amount = renewalCalc.price;
+      final carriedDue = (student.pendingDueBalance != null && student.pendingDueBalance! > 0)
+          ? student.pendingDueBalance!
+          : 0.0;
+      final amount = renewalCalc.price + carriedDue;
       final isAdvance = renewalCalc.type == RenewalType.advance;
       final isContinuousGrace = renewalCalc.type == RenewalType.backdatedGrace;
       final isGapRenewal = renewalCalc.type == RenewalType.gapRenewal;
@@ -137,6 +140,9 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
         'requestedPlanId': selectedPlan.id,
         'requestedPlanName': selectedPlan.name,
         'amount': amount,
+        'basePlanPrice': renewalCalc.price,
+        'pendingDueAmount': carriedDue,
+        'clearedDue': carriedDue > 0,
         'planOriginalPrice': selectedPlan.price,
         'originalPrice': origPrice,
         'discountAmount': hasDiscount && origPrice != null ? (origPrice - selectedPlan.price) : 0.0,
@@ -280,7 +286,11 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                   : null;
               final startDate = renewalCalc?.startDate ?? DateTime.now();
               final endDate = renewalCalc?.endDate ?? DateTime.now();
-              final effectivePrice = renewalCalc?.price ?? (selectedPlan?.price ?? 0.0);
+              final baseRenewalPrice = renewalCalc?.price ?? (selectedPlan?.price ?? 0.0);
+              final carriedDueBalance = (student.pendingDueBalance != null && student.pendingDueBalance! > 0)
+                  ? student.pendingDueBalance!
+                  : 0.0;
+              final effectivePrice = baseRenewalPrice + carriedDueBalance;
               final effectiveDeskId = student.seatId ?? student.previousSeatId;
               final isReclaiming = student.seatId == null && student.previousSeatId != null;
 
@@ -347,6 +357,39 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                       ],
                     ),
                   ),
+                  if (carriedDueBalance > 0) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.amber.shade400),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.account_balance_wallet_rounded, color: Colors.amber.shade900, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Previous Pending Dues: ₹${carriedDueBalance.toStringAsFixed(0)}',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.amber.shade900),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Plan Fee (₹${baseRenewalPrice.toStringAsFixed(0)}) + Carried Due (₹${carriedDueBalance.toStringAsFixed(0)}) = Total ₹${effectivePrice.toStringAsFixed(0)}. Past balance will be settled upon approval.',
+                                  style: TextStyle(fontSize: 12, color: Colors.amber.shade900.withValues(alpha: 0.9), height: 1.3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (effectiveDeskId != null) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -890,7 +933,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                       final ifsc = bankDetails['ifscCode']?.toString().trim() ?? '';
                       final accHolder = bankDetails['accountHolder']?.toString().trim() ?? (library?.name ?? 'Study Library');
                       final branch = bankDetails['branch']?.toString().trim() ?? '';
-                      final hasBankConfigured = bankName.isNotEmpty && accNo.isNotEmpty;
+                      final hasBankConfigured = bankName.isNotEmpty && accNo.isNotEmpty && ifsc.isNotEmpty && accNo.length >= 8;
 
                       // Cash details map
                       final cashDetails = payData['cashDetails'] is Map
@@ -919,23 +962,23 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                               : (rawContactPhone.isNotEmpty ? '$rawContactPhone@upi' : 'library@upi'));
                       final hasUpiConfigured = upiId.isNotEmpty;
 
-                      // Methods list from Admin Settings
+                      // Dynamic active status evaluation - Single Source of Truth
+                      final libEnabled = library?.enabledPaymentMethods ?? const ['cash', 'upi'];
                       final methodsList = (payData['methods'] is List)
                           ? (payData['methods'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList()
                           : <Map<String, dynamic>>[];
 
-                      // Dynamic active status evaluation
-                      final isUpiActive = methodsList.isEmpty
-                          ? true
-                          : (methodsList.firstWhere((m) => m['id'] == 'upi', orElse: () => {'active': true})['active'] == true && hasUpiConfigured);
+                      final isUpiActive = methodsList.isNotEmpty
+                          ? ((methodsList.firstWhere((m) => m['id'] == 'upi', orElse: () => {'active': true})['active'] == true) && hasUpiConfigured)
+                          : (libEnabled.contains('upi') && hasUpiConfigured);
 
-                      final isBankActive = methodsList.isEmpty
-                          ? false
-                          : ((methodsList.firstWhere((m) => m['id'] == 'bank', orElse: () => {'active': false})['active'] == true) && hasBankConfigured);
+                      final isBankActive = methodsList.isNotEmpty
+                          ? ((methodsList.firstWhere((m) => m['id'] == 'bank', orElse: () => {'active': false})['active'] == true) && hasBankConfigured)
+                          : (libEnabled.contains('bank') && hasBankConfigured);
 
-                      final isCashActive = methodsList.isEmpty
-                          ? true
-                          : (methodsList.firstWhere((m) => m['id'] == 'cash', orElse: () => {'active': true})['active'] == true);
+                      final isCashActive = methodsList.isNotEmpty
+                          ? (methodsList.firstWhere((m) => m['id'] == 'cash', orElse: () => {'active': true})['active'] == true)
+                          : libEnabled.contains('cash');
 
                       final availableModes = <RenewalPaymentMode>[];
                       if (isUpiActive) availableModes.add(RenewalPaymentMode.upi);

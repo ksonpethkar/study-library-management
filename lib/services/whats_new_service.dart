@@ -126,7 +126,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.50+63';
+  static const String currentVersionIdentifier = '1.5.50+64';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -137,6 +137,26 @@ class WhatsNewService {
 
   /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.50)
   static final List<ReleaseChange> adminChanges = [
+    const ReleaseChange(
+      icon: Icons.history_edu_rounded,
+      rawIconName: 'history_edu',
+      badge: 'Bulk Admissions & Dates',
+      title: 'Historical Bulk Admission Date Customization & Cycle Alignment',
+      description:
+          'Easily backdate student joining dates during bulk CSV import or 1-tap adjust dates in student profiles. Subscriptions automatically align with month-end or exact 30-day cycles with full audit trail.',
+      actionRoute: Routes.adminStudents,
+      actionLabel: 'Student Directory',
+    ),
+    const ReleaseChange(
+      icon: Icons.notifications_active_rounded,
+      rawIconName: 'notifications_active',
+      badge: 'Zero-Duplication',
+      title: 'Semantic Notification Deduplication & Self-Healing Purge',
+      description:
+          'Eliminated duplicate alerts across student and admin notification hubs with semantic deduplication, 60-minute idempotency write-guards, and background orphan cleanup.',
+      actionRoute: Routes.adminHome,
+      actionLabel: 'Open Dashboard',
+    ),
     const ReleaseChange(
       icon: Icons.shield_rounded,
       rawIconName: 'shield',

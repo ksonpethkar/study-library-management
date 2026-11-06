@@ -583,6 +583,22 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         final receiptRepo = ReceiptRepository();
         receiptNumber = await receiptRepo.getNextReceiptNumber(libraryId);
 
+        final currentLib = ref.read(currentLibraryProvider).value;
+        final bool isGstBilling = currentLib?.enableGstBilling == true;
+        final double gstRate = currentLib?.effectiveGstRate ?? 18.0;
+        final String sacCode = currentLib?.effectiveSacCode ?? '999293';
+        final String gstin = currentLib?.effectiveGstin ?? '';
+
+        double? taxableAmount;
+        double? cgstAmount;
+        double? sgstAmount;
+        if (isGstBilling && amount > 0) {
+          taxableAmount = (amount / (1 + (gstRate / 100))).roundToDouble();
+          final totalTax = amount - taxableAmount;
+          cgstAmount = (totalTax / 2).roundToDouble();
+          sgstAmount = totalTax - cgstAmount;
+        }
+
         final newReceipt = ReceiptModel(
           id: '',
           libraryId: libraryId,
@@ -598,12 +614,28 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           paymentMethod: _paymentMethod,
           validFrom: validFrom,
           validTo: validTo,
+          isGstInvoice: isGstBilling,
+          gstin: gstin.isNotEmpty ? gstin : null,
+          sacCode: isGstBilling ? sacCode : null,
+          gstRate: isGstBilling ? gstRate : null,
+          taxableAmount: taxableAmount,
+          cgstAmount: cgstAmount,
+          sgstAmount: sgstAmount,
           customFields: {
             if (_referenceController.text.trim().isNotEmpty) 'reference': _referenceController.text.trim(),
             if (_bankNameController.text.trim().isNotEmpty) 'bankName': _bankNameController.text.trim(),
             if (_notesController.text.trim().isNotEmpty) 'notes': _notesController.text.trim(),
             if (_isPartialPayment) 'isInstalment': true,
             'planName': effectivePlanName,
+            if (isGstBilling) ...{
+              'isGstInvoice': true,
+              'gstin': gstin,
+              'sacCode': sacCode,
+              'taxableAmount': taxableAmount,
+              'cgstAmount': cgstAmount,
+              'sgstAmount': sgstAmount,
+              'gstRate': gstRate,
+            },
             if (_selectedPlanId == 'custom') ...{
               'isCustomPlan': true,
               'customDailyRate': double.tryParse(_dailyRateController.text) ?? 25.0,

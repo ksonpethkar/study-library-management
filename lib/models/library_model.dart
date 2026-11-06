@@ -40,6 +40,7 @@ class LibraryModel {
   final String receiptFooterText;
   final int renewalReminderDays;
   final String upiId;
+  final List<String> enabledPaymentMethods;
   final String adminName;
   final List<String> facilities;
   final String ownerName;
@@ -52,6 +53,17 @@ class LibraryModel {
   final String wifiPassword;
   final String? lastAutomationRunAt;
   final Map<String, dynamic>? lastMaintenanceReport;
+  // B2B GST Commercial Invoicing Fields (Admin Toggle per organisation)
+  final bool enableGstBilling;
+  final String gstin;
+  final String gstLegalName;
+  final double gstRate;
+  final String sacCode;
+
+  String get effectiveGstin => gstin.trim().toUpperCase();
+  double get effectiveGstRate => gstRate > 0 ? gstRate : 18.0;
+  String get effectiveSacCode => sacCode.trim().isNotEmpty ? sacCode.trim() : '999293';
+  String get effectiveGstLegalName => gstLegalName.trim().isNotEmpty ? gstLegalName.trim() : name;
 
   DateTime? get lastAutomationRunDateTime =>
       lastAutomationRunAt != null ? DateTime.tryParse(lastAutomationRunAt!) : null;
@@ -118,6 +130,7 @@ class LibraryModel {
     this.receiptFooterText = '',
     this.renewalReminderDays = 7,
     this.upiId = '',
+    this.enabledPaymentMethods = const ['cash', 'upi'],
     this.adminName = '',
     this.facilities = const [
       'High-Speed Wi-Fi',
@@ -137,6 +150,11 @@ class LibraryModel {
     this.wifiPassword = '',
     this.lastAutomationRunAt,
     this.lastMaintenanceReport,
+    this.enableGstBilling = false,
+    this.gstin = '',
+    this.gstLegalName = '',
+    this.gstRate = 18.0,
+    this.sacCode = '999293',
   });
 
   factory LibraryModel.fromJson(Map<String, dynamic> json) {
@@ -176,6 +194,10 @@ class LibraryModel {
           ? json['renewalReminderDays'] as int
           : int.tryParse(json['renewalReminderDays']?.toString() ?? '7') ?? 7),
       upiId: json['upiId'] as String? ?? '',
+      enabledPaymentMethods: (json['enabledPaymentMethods'] as List<dynamic>?)
+              ?.map((e) => e.toString().toLowerCase())
+              .toList() ??
+          const ['cash', 'upi'],
       adminName: json['adminName'] as String? ?? json['ownerName'] as String? ?? json['contactPerson'] as String? ?? '',
       facilities: (json['facilities'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           const [
@@ -198,6 +220,11 @@ class LibraryModel {
       lastMaintenanceReport: json['lastMaintenanceReport'] is Map
           ? Map<String, dynamic>.from(json['lastMaintenanceReport'] as Map)
           : null,
+      enableGstBilling: json['enableGstBilling'] == true || json['isGstEnabled'] == true,
+      gstin: (json['gstin'] ?? json['gstNumber'] ?? '').toString().trim(),
+      gstLegalName: (json['gstLegalName'] ?? json['legalName'] ?? '').toString().trim(),
+      gstRate: (json['gstRate'] as num?)?.toDouble() ?? 18.0,
+      sacCode: (json['sacCode'] ?? '999293').toString().trim(),
     );
   }
 
@@ -235,6 +262,7 @@ class LibraryModel {
       'receiptFooterText': receiptFooterText,
       'renewalReminderDays': renewalReminderDays,
       'upiId': upiId,
+      'enabledPaymentMethods': enabledPaymentMethods,
       'adminName': adminName,
       'facilities': facilities,
       'ownerName': ownerName,
@@ -247,6 +275,11 @@ class LibraryModel {
       'wifiPassword': wifiPassword,
       if (lastAutomationRunAt != null) 'lastAutomationRunAt': lastAutomationRunAt,
       if (lastMaintenanceReport != null) 'lastMaintenanceReport': lastMaintenanceReport,
+      'enableGstBilling': enableGstBilling,
+      'gstin': gstin,
+      'gstLegalName': gstLegalName,
+      'gstRate': gstRate,
+      'sacCode': sacCode,
     };
   }
 
@@ -282,6 +315,7 @@ class LibraryModel {
     String? receiptFooterText,
     int? renewalReminderDays,
     String? upiId,
+    List<String>? enabledPaymentMethods,
     String? adminName,
     List<String>? facilities,
     String? ownerName,
@@ -294,6 +328,11 @@ class LibraryModel {
     String? wifiPassword,
     String? lastAutomationRunAt,
     Map<String, dynamic>? lastMaintenanceReport,
+    bool? enableGstBilling,
+    String? gstin,
+    String? gstLegalName,
+    double? gstRate,
+    String? sacCode,
   }) {
     return LibraryModel(
       id: id ?? this.id,
@@ -327,6 +366,7 @@ class LibraryModel {
       receiptFooterText: receiptFooterText ?? this.receiptFooterText,
       renewalReminderDays: renewalReminderDays ?? this.renewalReminderDays,
       upiId: upiId ?? this.upiId,
+      enabledPaymentMethods: enabledPaymentMethods ?? this.enabledPaymentMethods,
       adminName: adminName ?? this.adminName,
       facilities: facilities ?? this.facilities,
       ownerName: ownerName ?? this.ownerName,
@@ -339,6 +379,11 @@ class LibraryModel {
       wifiPassword: wifiPassword ?? this.wifiPassword,
       lastAutomationRunAt: lastAutomationRunAt ?? this.lastAutomationRunAt,
       lastMaintenanceReport: lastMaintenanceReport ?? this.lastMaintenanceReport,
+      enableGstBilling: enableGstBilling ?? this.enableGstBilling,
+      gstin: gstin ?? this.gstin,
+      gstLegalName: gstLegalName ?? this.gstLegalName,
+      gstRate: gstRate ?? this.gstRate,
+      sacCode: sacCode ?? this.sacCode,
     );
   }
 

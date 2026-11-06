@@ -143,20 +143,28 @@ class PdfService {
     // ── Load GSTIN from library settings if not passed ──
     String resolvedGstin = gstin?.trim() ?? '';
     if (resolvedGstin.isEmpty) {
-      final templateGstin = (template?['gstin'] as String?)?.trim();
-      if (templateGstin != null && templateGstin.isNotEmpty) {
-        resolvedGstin = templateGstin;
+      if (library.enableGstBilling && library.effectiveGstin.isNotEmpty) {
+        resolvedGstin = library.effectiveGstin;
       } else {
-        try {
-          final pmDoc = await FirebaseFirestore.instance
-              .collection('libraries').doc(library.id)
-              .collection('settings').doc('payment_methods').get();
-          if (pmDoc.exists) {
-            resolvedGstin = (pmDoc.data()?['gstin'] as String?)?.trim() ?? '';
-          }
-        } catch (_) {}
+        final templateGstin = (template?['gstin'] as String?)?.trim();
+        if (templateGstin != null && templateGstin.isNotEmpty) {
+          resolvedGstin = templateGstin;
+        } else {
+          try {
+            final pmDoc = await FirebaseFirestore.instance
+                .collection('libraries').doc(library.id)
+                .collection('settings').doc('payment_methods').get();
+            if (pmDoc.exists) {
+              resolvedGstin = (pmDoc.data()?['gstin'] as String?)?.trim() ?? '';
+            }
+          } catch (_) {}
+        }
       }
     }
+
+    final isGstInvoice = receipt.isGstInvoice || library.enableGstBilling || resolvedGstin.isNotEmpty;
+    final sacCode = receipt.sacCode ?? library.effectiveSacCode;
+    final gstRate = receipt.gstRate ?? library.effectiveGstRate;
 
     // Fast-path cached base font for Unicode & Indian Rupee symbol
     final notoSans = await PdfFontService.getBaseFont();
@@ -251,6 +259,19 @@ class PdfService {
     final planFeeAmount = (hasDeposit && receipt.amount >= depositAmount)
         ? (receipt.amount - depositAmount)
         : receipt.amount;
+
+    final double effectiveTaxableAmount = (receipt.taxableAmount != null && receipt.taxableAmount! > 0)
+        ? receipt.taxableAmount!
+        : (isGstInvoice && planFeeAmount > 0
+            ? (planFeeAmount / (1 + (gstRate / 100))).roundToDouble()
+            : planFeeAmount);
+    final double effectiveTotalTax = isGstInvoice ? (planFeeAmount - effectiveTaxableAmount) : 0.0;
+    final double effectiveCgstAmount = (receipt.cgstAmount != null && receipt.cgstAmount! >= 0)
+        ? receipt.cgstAmount!
+        : (isGstInvoice ? (effectiveTotalTax / 2).roundToDouble() : 0.0);
+    final double effectiveSgstAmount = (receipt.sgstAmount != null && receipt.sgstAmount! >= 0)
+        ? receipt.sgstAmount!
+        : (isGstInvoice ? (effectiveTotalTax - effectiveCgstAmount) : 0.0);
 
     final dueBalance = (receipt.remainingDue ?? student.pendingDueBalance ?? 0.0);
     final isDue = dueBalance > 0.01;
@@ -615,7 +636,9 @@ class PdfService {
                                   ),
                                   pw.SizedBox(width: 5),
                                   pw.Text(
-                                    isRefund ? 'REFUND SETTLED' : 'PAYMENT CONFIRMED',
+                                    isRefund
+                                        ? 'REFUND SETTLED'
+                                        : (isGstInvoice ? 'TAX INVOICE' : 'PAYMENT CONFIRMED'),
                                     style: pw.TextStyle(
                                       fontSize: 8,
                                       fontWeight: pw.FontWeight.bold,
@@ -628,7 +651,9 @@ class PdfService {
                             ),
                             pw.SizedBox(height: 4),
                             pw.Text(
-                              isRefund ? 'OFFICIAL EXIT VOUCHER' : 'ORIGINAL STUDENT COPY',
+                              isRefund
+                                  ? 'OFFICIAL EXIT VOUCHER'
+                                  : (isGstInvoice ? 'TAX INVOICE • ORIGINAL' : 'ORIGINAL STUDENT COPY'),
                               style: pw.TextStyle(
                                 fontSize: 7.5,
                                 fontWeight: pw.FontWeight.bold,
@@ -685,6 +710,16 @@ class PdfService {
                                     child: pw.Text(paymentMode, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#4338CA'))),
                                   ),
                                 ),
+                                if (isGstInvoice && resolvedGstin.isNotEmpty)
+                                  dualCardRow(
+                                    'GSTIN:',
+                                    pw.Text(resolvedGstin, style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
+                                  ),
+                                if (isGstInvoice)
+                                  dualCardRow(
+                                    'SAC Code:',
+                                    pw.Text(sacCode, style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
+                                  ),
                               ],
                             ),
                           ),
@@ -791,6 +826,26 @@ class PdfService {
                                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                                     children: [
                                       pw.Text(plan.name, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
+                                      if (isGstInvoice) ...[
+                                        pw.SizedBox(height: 3),
+                                        pw.Text(
+                                          'SAC: $sacCode  •  Taxable: ${currencyFmt.format(effectiveTaxableAmount)}  •  CGST (${(gstRate / 2).toStringAsFixed(1).replaceAll('.0', '')}%): ${currencyFmt.format(effectiveCgstAmount)}  •  SGST (${(gstRate / 2).toStringAsFixed(1).replaceAll('.0', '')}%): ${currencyFmt.format(effectiveSgstAmount)}',
+                                          style: pw.TextStyle(
+                                            fontSize: 7.0,
+                                            fontWeight: pw.FontWeight.bold,
+                                            color: PdfColor.fromHex('#475569'),
+                                          ),
+                                        ),
+                                        pw.SizedBox(height: 1.5),
+                                        pw.Text(
+                                          'Reverse Charge Applicable: No',
+                                          style: pw.TextStyle(
+                                            fontSize: 6.5,
+                                            color: PdfColor.fromHex('#64748B'),
+                                            fontStyle: pw.FontStyle.italic,
+                                          ),
+                                        ),
+                                      ],
                                       if (planFeatures.isNotEmpty) ...[
                                         pw.SizedBox(height: 4),
                                         pw.Wrap(
@@ -921,6 +976,13 @@ class PdfService {
                                 pw.Text('AMOUNT IN WORDS', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#94A3B8'), letterSpacing: 0.6)),
                                 pw.SizedBox(height: 2),
                                 pw.Text(wordsText, style: pw.TextStyle(fontSize: 8.5, fontStyle: pw.FontStyle.italic, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E293B'))),
+                                if (isGstInvoice) ...[
+                                  pw.SizedBox(height: 2),
+                                  pw.Text(
+                                    'Taxable: ${currencyFmt.format(effectiveTaxableAmount)}  •  Total GST (${gstRate.toStringAsFixed(0)}%): ${currencyFmt.format(effectiveTotalTax)}',
+                                    style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569')),
+                                  ),
+                                ],
                               ],
                             ),
                           ),

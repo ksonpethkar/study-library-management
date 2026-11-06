@@ -18,6 +18,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 
 class ReviewSubmitScreen extends ConsumerStatefulWidget {
   const ReviewSubmitScreen({super.key});
@@ -423,6 +424,22 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Place 60-min soft-lock on the desk so other applicants or walk-ins cannot claim it while under review
+      if (seatDetails.hasSelection && !seatDetails.isAutoAssign && (seatDetails.seatId?.isNotEmpty == true) && (seatDetails.sectionId?.isNotEmpty == true)) {
+        try {
+          await ref.read(seatRepositoryProvider).softLockSeat(
+            libraryId: libraryId,
+            sectionId: seatDetails.sectionId!,
+            seatId: seatDetails.seatId!,
+            candidateId: currentUser.uid,
+            candidateName: regData['name'] ?? 'Applicant',
+            duration: const Duration(minutes: 60),
+          );
+        } catch (e) {
+          if (kDebugMode) debugPrint('Seat soft-lock error (proceeding anyway): $e');
+        }
+      }
 
       // Notify admin via unified notification service & queue
       try {

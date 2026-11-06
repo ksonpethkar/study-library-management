@@ -237,6 +237,8 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                             targetRole: widget.role,
                             targetUserId: widget.studentId,
                           );
+                          ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+                          ref.invalidate(adminNotificationsStreamProvider);
                           if (widget.role == 'admin' && widget.libraryId.isNotEmpty) {
                             await ref.read(systemAlertsProvider(widget.libraryId).notifier).acknowledgeAll(
                               pendingCount: widget.pendingRequestsCount,
@@ -258,6 +260,8 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                                       targetRole: widget.role,
                                       targetUserId: widget.studentId,
                                     );
+                                    ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+                                    ref.invalidate(adminNotificationsStreamProvider);
                                   },
                                 ),
                               ),
@@ -275,6 +279,8 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                             targetRole: widget.role,
                             targetUserId: widget.studentId,
                           );
+                          ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+                          ref.invalidate(adminNotificationsStreamProvider);
                           if (widget.role == 'admin' && widget.libraryId.isNotEmpty) {
                             await ref.read(systemAlertsProvider(widget.libraryId).notifier).acknowledgeAll(
                               pendingCount: widget.pendingRequestsCount,
@@ -495,6 +501,8 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                                 targetRole: widget.role,
                                 targetUserId: widget.studentId,
                               );
+                              ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+                              ref.invalidate(adminNotificationsStreamProvider);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(

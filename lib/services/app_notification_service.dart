@@ -23,23 +23,52 @@ final libraryNotificationsStreamProvider =
       .map((snap) => snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList());
 });
 
-/// Helper to deduplicate notifications that share the same title, body, and timestamp window (5 mins)
-List<AppNotificationModel> _deduplicateNotifications(List<AppNotificationModel> list) {
+/// Helper to deduplicate notifications that share the same title and body.
+/// Collapses duplicates, preserves unread status if any duplicate is unread,
+/// and schedules background cleanup of orphan duplicate documents in Firestore.
+List<AppNotificationModel> _deduplicateNotifications(List<AppNotificationModel> list, [String? libraryId]) {
   final Map<String, AppNotificationModel> uniqueMap = {};
+  final List<String> orphanDocIds = [];
+
   for (final n in list) {
-    // 5-minute bucket grouping for repeated identical dispatches
-    final timeBucket = n.createdAt.millisecondsSinceEpoch ~/ 300000;
-    final key = '${n.title.trim()}_${n.body.trim()}_$timeBucket';
+    final normTitle = n.title.trim().toLowerCase();
+    final normBody = n.body.trim().toLowerCase();
+    final key = '${n.type.toLowerCase()}_${normTitle}_$normBody';
+
     if (!uniqueMap.containsKey(key)) {
       uniqueMap[key] = n;
     } else {
-      // If one duplicate is unread, preserve the unread entry
       final existing = uniqueMap[key]!;
-      if (existing.read && !n.read) {
-        uniqueMap[key] = n;
-      }
+      // Keep newer notification timestamp
+      final keepNewer = n.createdAt.isAfter(existing.createdAt);
+      final isUnread = (!existing.read) || (!n.read);
+
+      final winner = keepNewer ? n : existing;
+      final loser = keepNewer ? existing : n;
+
+      uniqueMap[key] = winner.copyWith(read: !isUnread);
+      orphanDocIds.add(loser.id);
     }
   }
+
+  // Background self-healing: purge orphan duplicate documents from Firestore
+  if (libraryId != null && libraryId.isNotEmpty && orphanDocIds.isNotEmpty) {
+    Future.microtask(() async {
+      try {
+        final batch = FirebaseFirestore.instance.batch();
+        for (final orphanId in orphanDocIds) {
+          final ref = FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('notifications')
+              .doc(orphanId);
+          batch.delete(ref);
+        }
+        await batch.commit();
+      } catch (_) {}
+    });
+  }
+
   return uniqueMap.values.toList();
 }
 
@@ -58,7 +87,7 @@ final adminNotificationsStreamProvider = StreamProvider<List<AppNotificationMode
       .map((snap) {
         final all = snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList();
         final filtered = all.where((n) => n.targetRole == 'admin' || n.targetRole == 'all').toList();
-        return _deduplicateNotifications(filtered);
+        return _deduplicateNotifications(filtered, libraryId);
       });
 });
 
@@ -125,7 +154,7 @@ final studentNotificationsStreamProvider =
           }
           return n.targetRole == 'all' || n.targetRole == 'student' || n.type == 'announcement';
         }).toList();
-        return _deduplicateNotifications(filtered);
+        return _deduplicateNotifications(filtered, libraryId);
       });
 });
 
@@ -146,6 +175,41 @@ class AppNotificationService {
     Map<String, dynamic>? metadata,
   }) async {
     try {
+      // Deduplicate recent identical dispatches within 30 minutes to prevent double-writes
+      if (libraryId.isNotEmpty && type != 'general') {
+        try {
+          final recentSnap = await _firestore
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('notifications')
+              .where('type', isEqualTo: type)
+              .limit(10)
+              .get();
+
+          final isDuplicate = recentSnap.docs.any((d) {
+            final dData = d.data();
+            final dTitle = (dData['title'] ?? '').toString().trim().toLowerCase();
+            final dBody = (dData['body'] ?? '').toString().trim().toLowerCase();
+            final dTarget = (dData['targetUserId'] ?? '').toString().trim();
+            final dCreated = (dData['createdAt'] as Timestamp?)?.toDate();
+
+            if (dTitle == title.trim().toLowerCase() && dBody == body.trim().toLowerCase()) {
+              if (targetUserId == null || targetUserId.isEmpty || dTarget == targetUserId) {
+                if (dCreated != null && DateTime.now().difference(dCreated).inMinutes < 60) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          });
+
+          if (isDuplicate) {
+            if (kDebugMode) debugPrint('[NotificationService] Suppressed duplicate notification write: $title');
+            return '';
+          }
+        } catch (_) {}
+      }
+
       // Check automation rules configured in Communications Hub
       if (libraryId.isNotEmpty) {
         try {
@@ -246,21 +310,38 @@ class AppNotificationService {
           .where('read', isEqualTo: false)
           .get();
 
+      final currentAuthUid = FirebaseAuth.instance.currentUser?.uid;
       final batch = _firestore.batch();
+      int updateCount = 0;
+
       for (final doc in snap.docs) {
         final data = doc.data();
         final role = data['targetRole'] as String? ?? 'all';
         if (role != targetRole && role != 'all') {
           continue;
         }
-        if (targetUserId != null &&
-            data['targetUserId'] != null &&
-            data['targetUserId'] != targetUserId) {
-          continue;
+
+        if (targetUserId != null && targetUserId.isNotEmpty) {
+          final dTarget = data['targetUserId'] as String?;
+          final metaStudentId = (data['metadata'] as Map?)?['studentId'] as String?;
+          final metaUserId = (data['metadata'] as Map?)?['studentUserId'] as String?;
+
+          final matches = dTarget == null ||
+              dTarget.isEmpty ||
+              dTarget == targetUserId ||
+              (currentAuthUid != null && dTarget == currentAuthUid) ||
+              (metaStudentId != null && (metaStudentId == targetUserId || metaStudentId == currentAuthUid)) ||
+              (metaUserId != null && (metaUserId == targetUserId || metaUserId == currentAuthUid));
+
+          if (!matches) continue;
         }
+
         batch.update(doc.reference, {'read': true});
+        updateCount++;
       }
-      await batch.commit();
+      if (updateCount > 0) {
+        await batch.commit();
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('Error marking all notifications as read: $e');
     }
@@ -297,19 +378,32 @@ class AppNotificationService {
           .where('read', isEqualTo: true)
           .get();
 
+      final currentAuthUid = FirebaseAuth.instance.currentUser?.uid;
       final batch = _firestore.batch();
       int deleteCount = 0;
+
       for (final doc in snap.docs) {
         final data = doc.data();
         final role = data['targetRole'] as String? ?? 'all';
         if (role != targetRole && role != 'all') {
           continue;
         }
-        if (targetUserId != null &&
-            data['targetUserId'] != null &&
-            data['targetUserId'] != targetUserId) {
-          continue;
+
+        if (targetUserId != null && targetUserId.isNotEmpty) {
+          final dTarget = data['targetUserId'] as String?;
+          final metaStudentId = (data['metadata'] as Map?)?['studentId'] as String?;
+          final metaUserId = (data['metadata'] as Map?)?['studentUserId'] as String?;
+
+          final matches = dTarget == null ||
+              dTarget.isEmpty ||
+              dTarget == targetUserId ||
+              (currentAuthUid != null && dTarget == currentAuthUid) ||
+              (metaStudentId != null && (metaStudentId == targetUserId || metaStudentId == currentAuthUid)) ||
+              (metaUserId != null && (metaUserId == targetUserId || metaUserId == currentAuthUid));
+
+          if (!matches) continue;
         }
+
         batch.delete(doc.reference);
         deleteCount++;
       }

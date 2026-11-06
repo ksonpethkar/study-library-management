@@ -2148,6 +2148,276 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     );
   }
 
+  void _showAdjustDatesDialog(StudentModel s) {
+    DateTime selectedAdmissionDate = s.effectiveAdmissionDate;
+    DateTime? selectedPlanStartDate = s.planStartDate;
+    DateTime? selectedPlanEndDate = s.planEndDate;
+    bool shiftEndDateAutomatically = true;
+    bool isSaving = false;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final theme = Theme.of(ctx);
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.edit_calendar_rounded, color: theme.colorScheme.primary, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Adjust Admission & Cycle Dates',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Student: ${s.name}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 1. Admission Date
+                  const Text('Admission Date (Member Since)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedAdmissionDate,
+                        firstDate: DateTime(2015),
+                        lastDate: DateTime(2035),
+                        helpText: 'SELECT ADMISSION DATE',
+                      );
+                      if (picked != null) {
+                        setDialogState(() => selectedAdmissionDate = picked);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: theme.colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.history_edu_rounded, size: 18, color: theme.colorScheme.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              DateFormat('dd MMMM yyyy').format(selectedAdmissionDate),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          const Icon(Icons.calendar_month_rounded, size: 18, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 2. Plan Start Date
+                  const Text('Current Subscription Plan Start', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedPlanStartDate ?? selectedAdmissionDate,
+                        firstDate: DateTime(2015),
+                        lastDate: DateTime(2035),
+                        helpText: 'SELECT SUBSCRIPTION START DATE',
+                      );
+                      if (picked != null) {
+                        setDialogState(() {
+                          final oldStart = selectedPlanStartDate;
+                          selectedPlanStartDate = picked;
+                          if (shiftEndDateAutomatically && oldStart != null && selectedPlanEndDate != null) {
+                            final diff = picked.difference(oldStart);
+                            selectedPlanEndDate = selectedPlanEndDate!.add(diff);
+                          }
+                        });
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: theme.colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.play_circle_outline_rounded, size: 18, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              selectedPlanStartDate != null
+                                  ? DateFormat('dd MMMM yyyy').format(selectedPlanStartDate!)
+                                  : 'Not specified',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          const Icon(Icons.calendar_month_rounded, size: 18, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 3. Plan End Date
+                  const Text('Current Subscription Plan Expiry', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedPlanEndDate ?? (selectedPlanStartDate?.add(const Duration(days: 30)) ?? DateTime.now()),
+                        firstDate: DateTime(2015),
+                        lastDate: DateTime(2035),
+                        helpText: 'SELECT SUBSCRIPTION EXPIRY DATE',
+                      );
+                      if (picked != null) {
+                        setDialogState(() => selectedPlanEndDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59));
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: theme.colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.event_busy_rounded, size: 18, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              selectedPlanEndDate != null
+                                  ? DateFormat('dd MMMM yyyy').format(selectedPlanEndDate!)
+                                  : 'Not specified',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          const Icon(Icons.calendar_month_rounded, size: 18, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Proportional Shift Checkbox
+                  CheckboxListTile(
+                    value: shiftEndDateAutomatically,
+                    onChanged: (val) => setDialogState(() => shiftEndDateAutomatically = val ?? true),
+                    title: const Text(
+                      'Shift Expiry Date with Start Date',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: const Text(
+                      'Automatically maintain the exact subscription duration when moving the start date.',
+                      style: TextStyle(fontSize: 10.5),
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton.icon(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final libraryId = ref.read(currentLibraryIdProvider);
+                        if (libraryId == null || libraryId.isEmpty) return;
+
+                        setDialogState(() => isSaving = true);
+
+                        try {
+                          final updates = <String, dynamic>{
+                            'admissionDate': Timestamp.fromDate(selectedAdmissionDate),
+                            if (selectedPlanStartDate != null)
+                              'planStartDate': Timestamp.fromDate(selectedPlanStartDate!),
+                            if (selectedPlanEndDate != null)
+                              'planEndDate': Timestamp.fromDate(selectedPlanEndDate!),
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          };
+
+                          await FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(libraryId)
+                              .collection('students')
+                              .doc(s.id)
+                              .update(updates);
+
+                          AuditLogger().log(
+                            action: AuditAction.updated,
+                            entityType: AuditEntity.student,
+                            libraryId: libraryId,
+                            entityId: s.id,
+                            entityName: s.name,
+                            details: {
+                              'action': 'adjust_admission_and_cycle_dates',
+                              'admissionDate': DateFormat('yyyy-MM-dd').format(selectedAdmissionDate),
+                              'planStartDate': selectedPlanStartDate != null ? DateFormat('yyyy-MM-dd').format(selectedPlanStartDate!) : null,
+                              'planEndDate': selectedPlanEndDate != null ? DateFormat('yyyy-MM-dd').format(selectedPlanEndDate!) : null,
+                            },
+                          ).ignore();
+
+                          ref.invalidate(studentsStreamProvider);
+
+                          if (ctx.mounted) {
+                            Navigator.pop(dialogCtx);
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(
+                                content: Text('Admission and cycle dates updated successfully! ✅'),
+                                backgroundColor: Colors.green,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setDialogState(() => isSaving = false);
+                          if (ctx.mounted) {
+                            AppErrorFormatter.showErrorSnackBar(ctx, e, actionContext: 'student');
+                          }
+                        }
+                      },
+                icon: isSaving
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.save_rounded, size: 16),
+                label: const Text('Save Changes'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _showAssignPlanSheet() {
     showModalBottomSheet(
       context: context,
@@ -2657,6 +2927,44 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               padding: const EdgeInsets.symmetric(horizontal: 4),
                               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.history_edu_rounded, size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Admitted: ${DateFormat('dd MMM yyyy').format(s.effectiveAdmissionDate)}',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () => _showAdjustDatesDialog(s),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.edit_calendar_rounded, size: 13, color: Theme.of(context).colorScheme.primary),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Adjust Dates',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.primary,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ],

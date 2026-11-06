@@ -22,6 +22,14 @@ class ReceiptModel {
   final double? securityDeposit; // Refundable security deposit collected
   final bool isDepositRefunded;
   final DateTime? depositRefundedAt;
+  final bool isGstInvoice;
+  final String? gstin;
+  final String? sacCode;
+  final double? taxableAmount;
+  final double? cgstAmount;
+  final double? sgstAmount;
+  final double? igstAmount;
+  final double? gstRate;
   final ReceiptStatus status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -47,6 +55,14 @@ class ReceiptModel {
     this.securityDeposit,
     this.isDepositRefunded = false,
     this.depositRefundedAt,
+    this.isGstInvoice = false,
+    this.gstin,
+    this.sacCode,
+    this.taxableAmount,
+    this.cgstAmount,
+    this.sgstAmount,
+    this.igstAmount,
+    this.gstRate,
     required this.status,
     this.createdAt,
     this.updatedAt,
@@ -69,6 +85,14 @@ class ReceiptModel {
       securityDeposit: (json['securityDeposit'] as num?)?.toDouble() ?? (json['securityDepositAmount'] as num?)?.toDouble(),
       isDepositRefunded: json['isDepositRefunded'] as bool? ?? false,
       depositRefundedAt: _parseDate(json['depositRefundedAt']),
+      isGstInvoice: json['isGstInvoice'] == true || json['isTaxInvoice'] == true,
+      gstin: json['gstin'] as String?,
+      sacCode: json['sacCode'] as String?,
+      taxableAmount: (json['taxableAmount'] as num?)?.toDouble(),
+      cgstAmount: (json['cgstAmount'] as num?)?.toDouble(),
+      sgstAmount: (json['sgstAmount'] as num?)?.toDouble(),
+      igstAmount: (json['igstAmount'] as num?)?.toDouble(),
+      gstRate: (json['gstRate'] as num?)?.toDouble(),
       paymentMethod: json['paymentMethod'] as String? ?? '',
       validFrom: _parseDate(json['validFrom']) ?? DateTime.now(),
       validTo: _parseDate(json['validTo']) ?? DateTime.now(),
@@ -98,6 +122,14 @@ class ReceiptModel {
       'isDepositRefunded': isDepositRefunded,
       if (depositRefundedAt != null) 'depositRefundedAt': depositRefundedAt!.toIso8601String(),
       'paymentMethod': paymentMethod,
+      'isGstInvoice': isGstInvoice,
+      if (gstin != null) 'gstin': gstin,
+      if (sacCode != null) 'sacCode': sacCode,
+      if (taxableAmount != null) 'taxableAmount': taxableAmount,
+      if (cgstAmount != null) 'cgstAmount': cgstAmount,
+      if (sgstAmount != null) 'sgstAmount': sgstAmount,
+      if (igstAmount != null) 'igstAmount': igstAmount,
+      if (gstRate != null) 'gstRate': gstRate,
       'validFrom': validFrom.toIso8601String(),
       'validTo': validTo.toIso8601String(),
       if (pdfUrl != null) 'pdfUrl': pdfUrl,
@@ -124,6 +156,14 @@ class ReceiptModel {
     double? securityDeposit,
     bool? isDepositRefunded,
     DateTime? depositRefundedAt,
+    bool? isGstInvoice,
+    String? gstin,
+    String? sacCode,
+    double? taxableAmount,
+    double? cgstAmount,
+    double? sgstAmount,
+    double? igstAmount,
+    double? gstRate,
     String? paymentMethod,
     DateTime? validFrom,
     DateTime? validTo,
@@ -149,6 +189,14 @@ class ReceiptModel {
       securityDeposit: securityDeposit ?? this.securityDeposit,
       isDepositRefunded: isDepositRefunded ?? this.isDepositRefunded,
       depositRefundedAt: depositRefundedAt ?? this.depositRefundedAt,
+      isGstInvoice: isGstInvoice ?? this.isGstInvoice,
+      gstin: gstin ?? this.gstin,
+      sacCode: sacCode ?? this.sacCode,
+      taxableAmount: taxableAmount ?? this.taxableAmount,
+      cgstAmount: cgstAmount ?? this.cgstAmount,
+      sgstAmount: sgstAmount ?? this.sgstAmount,
+      igstAmount: igstAmount ?? this.igstAmount,
+      gstRate: gstRate ?? this.gstRate,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       validFrom: validFrom ?? this.validFrom,
       validTo: validTo ?? this.validTo,

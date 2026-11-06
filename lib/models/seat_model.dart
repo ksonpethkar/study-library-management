@@ -39,6 +39,16 @@ class SeatModel {
     this.deletedAt,
   });
 
+  bool get isCurrentlyReserved {
+    if (status == SeatStatus.reserved) {
+      if (reservationExpiresAt != null) {
+        return reservationExpiresAt!.isAfter(DateTime.now());
+      }
+      return true;
+    }
+    return false;
+  }
+
   factory SeatModel.fromJson(Map<String, dynamic> json) {
     return SeatModel(
       id: json['id'] as String? ?? '',

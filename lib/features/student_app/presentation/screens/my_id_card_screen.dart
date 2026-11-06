@@ -1159,12 +1159,13 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'SECURE DIGITAL ID',
+                        'Member Since ${DateFormat('MMM yyyy').format(student.effectiveAdmissionDate)}',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.65),
+                          color: Colors.white.withValues(alpha: 0.75),
                           fontSize: 9,
                           fontFamily: 'monospace',
-                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
                         ),
                       ),
                       Text(

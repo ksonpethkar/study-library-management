@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/utils/app_validators.dart';
@@ -34,6 +35,7 @@ class ParsedImportRow {
   final String emergencyContact;
   final String address;
   final String bloodGroup;
+  final DateTime? admissionDate;
   ImportRowStatus status;
   String? errorReason;
 
@@ -49,6 +51,7 @@ class ParsedImportRow {
     required this.emergencyContact,
     required this.address,
     required this.bloodGroup,
+    this.admissionDate,
     this.status = ImportRowStatus.valid,
     this.errorReason,
   });
@@ -75,6 +78,11 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
   bool _importDone = false;
   bool _skipInvalid = true;
 
+  // Batch Admission & Billing Cycle Alignment
+  DateTime _batchAdmissionDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  bool _alignWithCalendarMonth = true;
+  bool _suppressNotifications = true;
+
   int _importedSuccessCount = 0;
   int _skippedDuplicateCount = 0;
   int _skippedErrorCount = 0;
@@ -82,10 +90,10 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
   late TabController _tabController;
 
   static const String _sampleCsvContent =
-      'Name,Mobile,Email,Gender,College,Course,Year,EmergencyContact,Address,BloodGroup\r\n'
-      'Aarav Sharma,9876543210,aarav@example.com,male,Delhi University,B.Sc,2nd Year,9876500000,Connaught Place,B+\r\n'
-      'Priya Patel,9812345678,priya@example.com,female,IIT Bombay,B.Tech,Final Year,9812300000,Powai,O+\r\n'
-      'Rohan Gupta,9823456789,,male,Government College,B.Com,1st Year,,Civil Lines,A+';
+      'Name,Mobile,Email,Gender,AdmissionDate,College,Course,Year,EmergencyContact,Address,BloodGroup\r\n'
+      'Aarav Sharma,9876543210,aarav@example.com,male,01/08/2026,Delhi University,B.Sc,2nd Year,9876500000,Connaught Place,B+\r\n'
+      'Priya Patel,9812345678,priya@example.com,female,15/09/2026,IIT Bombay,B.Tech,Final Year,9812300000,Powai,O+\r\n'
+      'Rohan Gupta,9823456789,,male,01/10/2026,Government College,B.Com,1st Year,,Civil Lines,A+';
 
   // Flexible column name aliases for CSV mapping
   static const _nameKeys = ['name', 'student name', 'full name', 'student', 'candidate name', 'applicant'];
@@ -98,6 +106,70 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
   static const _emergencyKeys = ['emergency', 'emergency contact', 'parent mobile', 'guardian phone', 'guardian contact', 'father mobile'];
   static const _addressKeys = ['address', 'city', 'location', 'residence'];
   static const _bloodGroupKeys = ['blood group', 'blood', 'bloodgroup', 'bg'];
+  static const _admissionDateKeys = [
+    'admission date',
+    'admissiondate',
+    'admission_date',
+    'joining date',
+    'joiningdate',
+    'join date',
+    'admitted on',
+    'enrolled on',
+    'admission',
+    'doj'
+  ];
+
+  static DateTime? _tryParseFlexibleDate(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+
+    final standard = DateTime.tryParse(trimmed);
+    if (standard != null) return standard;
+
+    final separator = trimmed.contains('/')
+        ? '/'
+        : (trimmed.contains('-') ? '-' : (trimmed.contains('.') ? '.' : null));
+    if (separator == null) return null;
+
+    final parts = trimmed.split(separator);
+    if (parts.length != 3) return null;
+
+    int? d, m, y;
+    if (parts[0].length == 4) {
+      // yyyy-MM-dd
+      y = int.tryParse(parts[0]);
+      m = int.tryParse(parts[1]);
+      d = int.tryParse(parts[2]);
+    } else if (parts[2].length == 4) {
+      // dd-MM-yyyy or MM-dd-yyyy
+      d = int.tryParse(parts[0]);
+      m = int.tryParse(parts[1]);
+      y = int.tryParse(parts[2]);
+    }
+
+    if (y != null && m != null && d != null && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      try {
+        return DateTime(y, m, d);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _pickBatchAdmissionDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _batchAdmissionDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+      helpText: 'SELECT BATCH ADMISSION DATE',
+      confirmText: 'SET ADMISSION DATE',
+    );
+    if (picked != null) {
+      setState(() => _batchAdmissionDate = picked);
+    }
+  }
 
   @override
   void initState() {
@@ -136,7 +208,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
 
   void _copySampleHeader() {
     Clipboard.setData(const ClipboardData(
-      text: 'Name,Mobile,Email,Gender,College,Course,Year,EmergencyContact,Address,BloodGroup',
+      text: 'Name,Mobile,Email,Gender,AdmissionDate,College,Course,Year,EmergencyContact,Address,BloodGroup',
     ));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -224,6 +296,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
     final emergencyIdx = _findColumnIndex(headers, _emergencyKeys);
     final addressIdx = _findColumnIndex(headers, _addressKeys);
     final bloodGroupIdx = _findColumnIndex(headers, _bloodGroupKeys);
+    final admissionDateIdx = _findColumnIndex(headers, _admissionDateKeys);
 
     if (nameIdx == -1) {
       _showError('CSV is missing a required "Name" column.');
@@ -265,6 +338,8 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
       final rawEmergency = _getCell(row, emergencyIdx);
       final rawAddress = _getCell(row, addressIdx);
       final rawBloodGroup = _getCell(row, bloodGroupIdx).toUpperCase();
+      final rawAdmissionDate = _getCell(row, admissionDateIdx);
+      final rowAdmissionDate = _tryParseFlexibleDate(rawAdmissionDate);
 
       final parsedRow = ParsedImportRow(
         rowIndex: i,
@@ -278,6 +353,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
         emergencyContact: rawEmergency,
         address: rawAddress,
         bloodGroup: rawBloodGroup,
+        admissionDate: rowAdmissionDate,
       );
 
       // Validation Step 1: Name
@@ -433,6 +509,12 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
           final admissionId = admissionIds[i + c];
           final docRef = studentsColl.doc();
 
+          final effectiveAdmDate = row.admissionDate ?? _batchAdmissionDate;
+          final effectivePlanStart = effectiveAdmDate;
+          final effectivePlanEnd = _alignWithCalendarMonth
+              ? DateTime(effectiveAdmDate.year, effectiveAdmDate.month + 1, 0, 23, 59, 59)
+              : DateTime(effectiveAdmDate.year, effectiveAdmDate.month + 1, effectiveAdmDate.day, 23, 59, 59);
+
           final student = StudentModel(
             id: docRef.id,
             name: row.name,
@@ -450,11 +532,14 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
             course: row.course,
             year: row.year,
             emergencyContact: row.emergencyContact,
-            membershipStatus: MembershipStatus.pending,
+            membershipStatus: MembershipStatus.active,
             customFields: {},
             membershipNumber: admissionId,
             bloodGroup: row.bloodGroup.isNotEmpty ? row.bloodGroup : null,
-            createdAt: DateTime.now(),
+            admissionDate: effectiveAdmDate,
+            planStartDate: effectivePlanStart,
+            planEndDate: effectivePlanEnd,
+            createdAt: effectiveAdmDate,
             updatedAt: DateTime.now(),
           );
 
@@ -481,6 +566,9 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
           'action': 'bulk_import_csv',
           'totalImported': _importedSuccessCount,
           'fileName': _fileName ?? '',
+          'batchAdmissionDate': DateFormat('yyyy-MM-dd').format(_batchAdmissionDate),
+          'alignedWithCalendarMonth': _alignWithCalendarMonth,
+          'suppressedNotifications': _suppressNotifications,
         },
       ).ignore();
 
@@ -590,6 +678,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
                         _chip('Mobile *', Colors.blue),
                         _chip('Email', Colors.green),
                         _chip('Gender', Colors.orange),
+                        _chip('AdmissionDate', Colors.amber.shade900),
                         _chip('College', Colors.indigo),
                         _chip('Course', Colors.teal),
                         _chip('Year', Colors.deepPurple),
@@ -770,6 +859,130 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
 
               const SizedBox(height: 12),
 
+              // Batch Admission & Billing Configuration Card
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.8)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.history_edu_rounded, color: Colors.amber.shade900, size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Admission Date & Billing Cycle Settings',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              Text(
+                                'Configure admission dates for records without an "AdmissionDate" column.',
+                                style: TextStyle(fontSize: 11.5, color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1),
+                    const SizedBox(height: 12),
+
+                    // Date Selector
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Batch Admission Date: ${DateFormat('dd MMM yyyy').format(_batchAdmissionDate)}',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _pickBatchAdmissionDate,
+                          icon: const Icon(Icons.calendar_month_rounded, size: 16),
+                          label: const Text('Change Date', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Fast Presets
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        ActionChip(
+                          label: const Text('1st of This Month', style: TextStyle(fontSize: 11)),
+                          onPressed: () => setState(() {
+                            final now = DateTime.now();
+                            _batchAdmissionDate = DateTime(now.year, now.month, 1);
+                          }),
+                        ),
+                        ActionChip(
+                          label: const Text('Today', style: TextStyle(fontSize: 11)),
+                          onPressed: () => setState(() => _batchAdmissionDate = DateTime.now()),
+                        ),
+                        ActionChip(
+                          label: const Text('1st of Last Month', style: TextStyle(fontSize: 11)),
+                          onPressed: () => setState(() {
+                            final now = DateTime.now();
+                            _batchAdmissionDate = DateTime(now.year, now.month - 1, 1);
+                          }),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Calendar month alignment switch
+                    SwitchListTile(
+                      value: _alignWithCalendarMonth,
+                      onChanged: (val) => setState(() => _alignWithCalendarMonth = val),
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Align Membership Expiry to Calendar Month-End',
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        _alignWithCalendarMonth
+                            ? 'Subscriptions expire on the last day of the admission month (${DateFormat('dd MMM yyyy').format(DateTime(_batchAdmissionDate.year, _batchAdmissionDate.month + 1, 0))}).'
+                            : 'Subscriptions expire exactly 30 days after admission date.',
+                        style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+
+                    // Silent import switch
+                    SwitchListTile(
+                      value: _suppressNotifications,
+                      onChanged: (val) => setState(() => _suppressNotifications = val),
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Silent Migration (Suppress Welcome Alerts)',
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: const Text(
+                        'Recommended for existing students so they are not spammed with welcome notifications during bulk data onboarding.',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               // Action / Progress Area
               if (_isImporting) ...[
                 LinearProgressIndicator(value: _importProgress),
@@ -943,7 +1156,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
           ),
           subtitle: Text(
             r.isValid
-                ? '${r.phone} · ${r.gender}${r.college.isNotEmpty ? " · ${r.college}" : ""}'
+                ? '${r.phone} · ${r.gender}${r.college.isNotEmpty ? " · ${r.college}" : ""}${r.admissionDate != null ? " · Joined: ${DateFormat("dd/MM/yyyy").format(r.admissionDate!)}" : ""}'
                 : '${r.phone} — ${r.errorReason ?? ""}',
             style: TextStyle(
               fontSize: 11.5,

@@ -78,6 +78,13 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
   late TextEditingController _receiptFooterController;
   int _reminderDays = 7;
 
+  // B2B GST Commercial Tax Invoicing
+  bool _enableGstBilling = false;
+  final _gstinController = TextEditingController();
+  final _gstLegalNameController = TextEditingController();
+  final _sacCodeController = TextEditingController(text: '999293');
+  double _gstRate = 18.0;
+
   // Brand Palette & Accent White-Labeling
   int _selectedAccentColor = 0xFF5D4037;
   final _hexColorController = TextEditingController(text: '#5D4037');
@@ -233,6 +240,14 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         _reminderDays = data['renewalReminderDays'] is int
             ? data['renewalReminderDays'] as int
             : int.tryParse(data['renewalReminderDays']?.toString() ?? '7') ?? 7;
+
+        // B2B GST Commercial Tax Invoicing
+        _enableGstBilling = data['enableGstBilling'] == true;
+        _gstinController.text = data['gstin'] ?? '';
+        _gstLegalNameController.text = data['gstLegalName'] ?? '';
+        _sacCodeController.text = data['sacCode'] ?? '999293';
+        _gstRate = (data['gstRate'] as num?)?.toDouble() ?? 18.0;
+
         _logoUrl = data['logoUrl'] as String?;
         if (data['accentColor'] is int && data['accentColor'] != 0) {
           _selectedAccentColor = data['accentColor'] as int;
@@ -396,6 +411,11 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         'upiId': _upiIdController.text.trim(),
         'wifiSsid': _wifiSsidController.text.trim(),
         'wifiPassword': _wifiPasswordController.text.trim(),
+        'enableGstBilling': _enableGstBilling,
+        'gstin': _gstinController.text.trim().toUpperCase(),
+        'gstLegalName': _gstLegalNameController.text.trim(),
+        'sacCode': _sacCodeController.text.trim().isNotEmpty ? _sacCodeController.text.trim() : '999293',
+        'gstRate': _gstRate,
         'logoUrl': _logoUrl ?? '',
         'accentColor': _selectedAccentColor,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -411,6 +431,19 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
             .set({
               'upiId': _upiIdController.text.trim(),
               'payeeName': _nameController.text.trim(),
+            }, SetOptions(merge: true))
+            .catchError((_) {});
+      }
+
+      // Also sync GSTIN to payment_methods subcollection if enabled
+      if (_enableGstBilling && _gstinController.text.trim().isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('settings')
+            .doc('payment_methods')
+            .set({
+              'gstin': _gstinController.text.trim().toUpperCase(),
             }, SetOptions(merge: true))
             .catchError((_) {});
       }
@@ -523,6 +556,9 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
     _whatsappTemplateController.dispose();
     _receiptFooterController.dispose();
     _hexColorController.dispose();
+    _gstinController.dispose();
+    _gstLegalNameController.dispose();
+    _sacCodeController.dispose();
     super.dispose();
   }
 
@@ -1152,6 +1188,122 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
     );
   }
 
+  Widget _buildGstBillingCard(ThemeData theme) {
+    return _buildBentoCard(
+      theme: theme,
+      icon: Icons.receipt_long_rounded,
+      iconColor: const Color(0xFF0D9488),
+      title: 'B2B GST Commercial Tax Invoicing',
+      subtitle: 'Organization-level tax invoicing toggle, legal name, GSTIN & SAC code breakdown',
+      trailing: Switch.adaptive(
+        value: _enableGstBilling,
+        activeTrackColor: const Color(0xFF0D9488),
+        onChanged: (val) {
+          setState(() {
+            _enableGstBilling = val;
+          });
+        },
+      ),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _enableGstBilling
+                ? const Color(0xFF0D9488).withValues(alpha: 0.08)
+                : theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _enableGstBilling
+                  ? const Color(0xFF0D9488).withValues(alpha: 0.3)
+                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _enableGstBilling ? Icons.verified_user_rounded : Icons.info_outline_rounded,
+                size: 20,
+                color: _enableGstBilling ? const Color(0xFF0D9488) : theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _enableGstBilling
+                      ? 'GST Billing Active: Receipts will be generated as "TAX INVOICE" with SAC 999293, itemized Taxable Value, CGST and SGST line items.'
+                      : 'GST Billing Disabled: Standard institutional receipts will be generated without tax breakdown.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _enableGstBilling ? const Color(0xFF0F766E) : theme.colorScheme.onSurfaceVariant,
+                    fontWeight: _enableGstBilling ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_enableGstBilling) ...[
+          const SizedBox(height: 14),
+          _buildTwoColRow(
+            left: TextFormField(
+              controller: _gstinController,
+              decoration: const InputDecoration(
+                labelText: 'GSTIN (15 Characters) *',
+                hintText: 'e.g. 27AAAAA0000A1Z5',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.pin_outlined),
+                helperText: 'Mandatory for registered commercial tax entities',
+              ),
+              textCapitalization: TextCapitalization.characters,
+              validator: (v) => _enableGstBilling ? AppValidators.gstin(v, required: true) : null,
+            ),
+            right: TextFormField(
+              controller: _gstLegalNameController,
+              decoration: const InputDecoration(
+                labelText: 'Registered Entity / Legal Trade Name',
+                hintText: 'e.g. Cozy Corner Educational LLP',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.corporate_fare_rounded),
+                helperText: 'Printed on official tax invoices',
+              ),
+              textCapitalization: TextCapitalization.words,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildTwoColRow(
+            left: TextFormField(
+              controller: _sacCodeController,
+              decoration: const InputDecoration(
+                labelText: 'Service Accounting Code (SAC)',
+                hintText: '999293',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.category_outlined),
+                helperText: 'SAC 999293: Commercial Training & Coaching / Educational Services',
+              ),
+            ),
+            right: DropdownButtonFormField<double>(
+              initialValue: _gstRate,
+              decoration: const InputDecoration(
+                labelText: 'Applicable GST Tax Rate Slab',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.percent_rounded),
+                helperText: 'Split equally into CGST & SGST',
+              ),
+              items: const [
+                DropdownMenuItem(value: 18.0, child: Text('18% (9% CGST + 9% SGST) — Standard')),
+                DropdownMenuItem(value: 12.0, child: Text('12% (6% CGST + 6% SGST)')),
+                DropdownMenuItem(value: 5.0, child: Text('5% (2.5% CGST + 2.5% SGST)')),
+                DropdownMenuItem(value: 0.0, child: Text('0% (Exempt Service)')),
+              ],
+              onChanged: (val) {
+                if (val != null) setState(() => _gstRate = val);
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1638,6 +1790,9 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                           ),
                         ],
                       ),
+
+                      // ── 3.5 B2B GST Commercial Tax Invoicing ─────────────
+                      _buildGstBillingCard(theme),
 
                       // ── 4. Study Privileges & Facilities (Arranged to Industry Standards) ──
                       _buildBentoCard(

@@ -430,6 +430,11 @@ class StudentProvisioningService {
             String? paymentId;
             String? receiptId;
             if (amount > 0 && !isPaid) {
+              final double clearedDue = (data['pendingDueAmount'] as num?)?.toDouble() ?? 0.0;
+              final recDescription = clearedDue > 0
+                  ? 'Plan Renewal ($requestedPlanName) + Cleared Past Due (₹${clearedDue.toStringAsFixed(0)})'
+                  : 'Plan Renewal - $requestedPlanName';
+
               final payRef = _firestore.collection('libraries').doc(libraryId).collection('payments').doc();
               paymentId = payRef.id;
               await payRef.set({
@@ -444,7 +449,7 @@ class StudentProvisioningService {
                 'paymentDate': FieldValue.serverTimestamp(),
                 'date': FieldValue.serverTimestamp(),
                 'createdAt': FieldValue.serverTimestamp(),
-                'notes': 'Plan Renewal - $requestedPlanName',
+                'notes': recDescription,
                 'requestId': requestId,
               });
 
@@ -464,7 +469,7 @@ class StudentProvisioningService {
                 'paymentMethod': paymentMethod,
                 'status': 'active',
                 'issuedAt': FieldValue.serverTimestamp(),
-                'description': 'Plan Renewal - $requestedPlanName',
+                'description': recDescription,
                 'createdAt': FieldValue.serverTimestamp(),
               });
             }
@@ -540,6 +545,9 @@ class StudentProvisioningService {
               'planEndDate': Timestamp.fromDate(newEndDate),
               'updatedAt': FieldValue.serverTimestamp(),
             };
+            if (data['clearedDue'] == true || (data['pendingDueAmount'] as num?)?.toDouble() != null) {
+              studentUpdates['pendingDueBalance'] = 0.0;
+            }
             if (assignedSeatId != null) {
               studentUpdates['seatId'] = assignedSeatId;
               studentUpdates['sectionId'] = assignedSectionId;
