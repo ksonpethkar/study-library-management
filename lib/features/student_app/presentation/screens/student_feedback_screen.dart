@@ -577,17 +577,21 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header Row: Category & Status Badge
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      // Header: Category & Status Badges (Responsive Wrap to prevent overflow clipping)
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               if (item.feedbackType == 'issue') ...[
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  margin: const EdgeInsets.only(right: 6),
                                   decoration: BoxDecoration(
                                     color: Colors.red.shade100,
                                     borderRadius: BorderRadius.circular(6),
@@ -597,7 +601,6 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
                               ] else if (item.feedbackType == 'suggestion') ...[
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  margin: const EdgeInsets.only(right: 6),
                                   decoration: BoxDecoration(
                                     color: Colors.amber.shade100,
                                     borderRadius: BorderRadius.circular(6),
@@ -699,32 +702,32 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Wrap(
-                                alignment: WrapAlignment.spaceBetween,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 8,
-                                runSpacing: 4,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.mark_email_read_rounded, size: 16, color: Colors.green.shade800),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Library Management Response',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                          color: Colors.green.shade900,
-                                        ),
+                                  Icon(Icons.mark_email_read_rounded, size: 16, color: Colors.green.shade800),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Library Management Response',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: Colors.green.shade900,
                                       ),
-                                    ],
-                                  ),
-                                  if (item.repliedAt != null)
-                                    Text(
-                                      '• ${DateFormat('dd MMM • hh:mm a').format(item.repliedAt!)}',
-                                      style: TextStyle(fontSize: 10.5, color: Colors.green.shade800, fontWeight: FontWeight.w500),
                                     ),
+                                  ),
+                                  if (item.repliedAt != null) ...[
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      DateFormat('dd MMM • hh:mm a').format(item.repliedAt!),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.green.shade800,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                               const SizedBox(height: 6),

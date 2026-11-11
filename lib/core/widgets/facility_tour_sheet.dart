@@ -36,6 +36,7 @@ class FacilityTourSheet extends StatefulWidget {
   static Future<void> show(BuildContext context, {bool force = false}) async {
     await showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => const FacilityTourSheet(),
@@ -308,80 +309,83 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
               ),
 
               // ── Bottom Controls & Progress Dots ───────────────────────────
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: isDark ? Colors.white10 : Colors.grey.shade200,
+              SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: isDark ? Colors.white10 : Colors.grey.shade200,
+                      ),
                     ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    // Back Button (hidden on first page)
-                    if (_currentPage > 0)
-                      IconButton.filledTonal(
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        tooltip: 'Previous Step',
-                        onPressed: _prevPage,
-                      )
-                    else
-                      const SizedBox(width: 48),
+                  child: Row(
+                    children: [
+                      // Back Button (hidden on first page)
+                      if (_currentPage > 0)
+                        IconButton.filledTonal(
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          tooltip: 'Previous Step',
+                          onPressed: _prevPage,
+                        )
+                      else
+                        const SizedBox(width: 48),
 
-                    const Spacer(),
+                      const Spacer(),
 
-                    // Animated Progress Dots
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: List.generate(_totalPages, (i) {
-                        final isActive = i == _currentPage;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: isActive ? 22 : 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? _steps[_currentPage].badgeColor
-                                : (isDark ? Colors.white24 : Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(4),
+                      // Animated Progress Dots
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(_totalPages, (i) {
+                          final isActive = i == _currentPage;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: isActive ? 22 : 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? _steps[_currentPage].badgeColor
+                                  : (isDark ? Colors.white24 : Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          );
+                        }),
+                      ),
+
+                      const Spacer(),
+
+                      // Next / Finish Button
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _steps[_currentPage].badgeColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                        );
-                      }),
-                    ),
-
-                    const Spacer(),
-
-                    // Next / Finish Button
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _steps[_currentPage].badgeColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        onPressed: _nextPage,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _currentPage == _totalPages - 1 ? 'Get Started' : 'Next',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              _currentPage == _totalPages - 1
+                                  ? Icons.check_circle_rounded
+                                  : Icons.arrow_forward_rounded,
+                              size: 18,
+                            ),
+                          ],
                         ),
                       ),
-                      onPressed: _nextPage,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _currentPage == _totalPages - 1 ? 'Get Started' : 'Next',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(
-                            _currentPage == _totalPages - 1
-                                ? Icons.check_circle_rounded
-                                : Icons.arrow_forward_rounded,
-                            size: 18,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

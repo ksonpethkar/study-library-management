@@ -322,173 +322,248 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: _loading
-            ? const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: widget.isStudent
-                              ? Colors.teal.withValues(alpha: 0.15)
-                              : theme.colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.security_rounded,
-                          color: widget.isStudent ? Colors.teal : theme.colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Screenshot Protection Toggle — ONLY visible to Admin (library policy enforced)
-                  if (!widget.isStudent) ...[
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      secondary: const Icon(Icons.screenshot_monitor_rounded),
-                      title: const Text('Screenshot Protection', style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: const Text(
-                        'Prevents screenshots & screen recording in the app. '
-                        'Enforced on: Payment, Receipt, ID Card, and Student financial screens.',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                      value: _screenshotProtectionEnabled,
-                      onChanged: _toggleScreenshotProtection,
-                    ),
-                    const Divider(),
-                  ],
-
-                  // Biometric Toggle
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: const Icon(Icons.fingerprint_rounded),
-                    title: const Text('Biometric Lock', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      _biometricAvailable
-                          ? 'Unlock with Fingerprint or Face ID'
-                          : 'Biometrics not available on this device',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    value: _biometricEnabled && _biometricAvailable,
-                    onChanged: _biometricAvailable ? _toggleBiometric : null,
-                  ),
-
-                  const Divider(),
-
-                  // PIN Management
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.pin_rounded),
-                    title: Text(
-                      widget.isStudent ? 'Personal 4-Digit PIN' : 'Admin 4-Digit Security PIN',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      _hasPin ? 'PIN is configured & active' : 'No PIN configured',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _hasPin ? const Color(0xFF059669) : null,
-                        fontWeight: _hasPin ? FontWeight.w500 : FontWeight.normal,
-                      ),
-                    ),
-                    trailing: _hasPin
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  visualDensity: VisualDensity.compact,
-                                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                                ),
-                                icon: const Icon(Icons.edit_outlined, size: 14),
-                                label: const Text('Change PIN', style: TextStyle(fontSize: 12)),
-                                onPressed: _showSetPinDialog,
-                              ),
-                              const SizedBox(width: 4),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 20),
-                                tooltip: 'Remove PIN',
-                                onPressed: _removePin,
-                              ),
-                            ],
-                          )
-                        : FilledButton.tonalIcon(
-                            style: FilledButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                            ),
-                            icon: const Icon(Icons.add_rounded, size: 16),
-                            label: const Text('Set PIN', style: TextStyle(fontSize: 12)),
-                            onPressed: _showSetPinDialog,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 440,
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: _loading
+              ? const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: widget.isStudent
+                                ? Colors.teal.withValues(alpha: 0.15)
+                                : theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                  ),
-
-                  const Divider(),
-
-                  // Auto-lock Timeout Dropdown
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.timer_outlined),
-                    title: const Text('Auto-Lock After', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: const Text('When app moves to background', style: TextStyle(fontSize: 12)),
-                    trailing: DropdownButton<int>(
-                      value: _autoLockMinutes,
-                      underline: const SizedBox(),
-                      items: const [
-                        DropdownMenuItem(value: 0, child: Text('Immediately')),
-                        DropdownMenuItem(value: 2, child: Text('2 Minutes')),
-                        DropdownMenuItem(value: 5, child: Text('5 Minutes')),
-                        DropdownMenuItem(value: 15, child: Text('15 Minutes')),
+                          child: Icon(
+                            Icons.security_rounded,
+                            color: widget.isStudent ? Colors.teal : theme.colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
                       ],
-                      onChanged: (val) async {
-                        if (val != null) {
-                          await BiometricService.setAutoLockTimeoutMinutes(val);
-                          if (!widget.isStudent) {
-                            final libraryId = ref.read(currentLibraryIdProvider);
-                            if (libraryId != null && libraryId.isNotEmpty) {
-                              BiometricService.syncSecuritySettingsToFirestore(libraryId).catchError((_) {});
-                            }
-                          }
-                          setState(() => _autoLockMinutes = val);
-                        }
-                      },
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                    ),
+                    const SizedBox(height: 12),
 
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Done'),
+                    // Scrollable Settings Items
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Screenshot Protection Toggle — ONLY visible to Admin (library policy enforced)
+                            if (!widget.isStudent) ...[
+                              SwitchListTile.adaptive(
+                                contentPadding: EdgeInsets.zero,
+                                secondary: const Icon(Icons.screenshot_monitor_rounded),
+                                title: const Text('Screenshot Protection', style: TextStyle(fontWeight: FontWeight.w600)),
+                                subtitle: const Text(
+                                  'Prevents screenshots & screen recording in the app. '
+                                  'Enforced on: Payment, Receipt, ID Card, and Student financial screens.',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                value: _screenshotProtectionEnabled,
+                                onChanged: _toggleScreenshotProtection,
+                              ),
+                              const Divider(),
+                            ],
+
+                            // Biometric Toggle
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              secondary: const Icon(Icons.fingerprint_rounded),
+                              title: const Text('Biometric Lock', style: TextStyle(fontWeight: FontWeight.w600)),
+                              subtitle: Text(
+                                _biometricAvailable
+                                    ? 'Unlock with Fingerprint or Face ID'
+                                    : 'Biometrics not available on this device',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              value: _biometricEnabled && _biometricAvailable,
+                              onChanged: _biometricAvailable ? _toggleBiometric : null,
+                            ),
+
+                            const Divider(),
+
+                            // PIN Management with Full Width Responsive Layout
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.pin_rounded, size: 24),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              widget.isStudent ? 'Personal 4-Digit PIN' : 'Admin 4-Digit Security PIN',
+                                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _hasPin ? 'PIN is configured & active' : 'No PIN configured',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: _hasPin ? const Color(0xFF059669) : theme.colorScheme.outline,
+                                                fontWeight: _hasPin ? FontWeight.w600 : FontWeight.normal,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 36),
+                                    child: _hasPin
+                                        ? Wrap(
+                                            spacing: 8,
+                                            runSpacing: 6,
+                                            crossAxisAlignment: WrapCrossAlignment.center,
+                                            children: [
+                                              OutlinedButton.icon(
+                                                style: OutlinedButton.styleFrom(
+                                                  visualDensity: VisualDensity.compact,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                ),
+                                                icon: const Icon(Icons.edit_outlined, size: 14),
+                                                label: const Text('Change PIN', style: TextStyle(fontSize: 12)),
+                                                onPressed: _showSetPinDialog,
+                                              ),
+                                              OutlinedButton.icon(
+                                                style: OutlinedButton.styleFrom(
+                                                  visualDensity: VisualDensity.compact,
+                                                  foregroundColor: Colors.red.shade700,
+                                                  side: BorderSide(color: Colors.red.shade200),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                ),
+                                                icon: const Icon(Icons.delete_outline, size: 14),
+                                                label: const Text('Remove', style: TextStyle(fontSize: 12)),
+                                                onPressed: _removePin,
+                                              ),
+                                            ],
+                                          )
+                                        : FilledButton.tonalIcon(
+                                            style: FilledButton.styleFrom(
+                                              visualDensity: VisualDensity.compact,
+                                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            ),
+                                            icon: const Icon(Icons.add_rounded, size: 16),
+                                            label: const Text('Set PIN', style: TextStyle(fontSize: 12)),
+                                            onPressed: _showSetPinDialog,
+                                          ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const Divider(),
+
+                            // Auto-lock Timeout Dropdown with Responsive Layout
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.timer_outlined, size: 24),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Auto-Lock After', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                        SizedBox(height: 2),
+                                        Text('When app moves to background', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<int>(
+                                        value: _autoLockMinutes,
+                                        isDense: true,
+                                        items: const [
+                                          DropdownMenuItem(value: 0, child: Text('Immediately', style: TextStyle(fontSize: 13))),
+                                          DropdownMenuItem(value: 2, child: Text('2 Minutes', style: TextStyle(fontSize: 13))),
+                                          DropdownMenuItem(value: 5, child: Text('5 Minutes', style: TextStyle(fontSize: 13))),
+                                          DropdownMenuItem(value: 15, child: Text('15 Minutes', style: TextStyle(fontSize: 13))),
+                                        ],
+                                        onChanged: (val) async {
+                                          if (val != null) {
+                                            await BiometricService.setAutoLockTimeoutMinutes(val);
+                                            if (!widget.isStudent) {
+                                              final libraryId = ref.read(currentLibraryIdProvider);
+                                              if (libraryId != null && libraryId.isNotEmpty) {
+                                                BiometricService.syncSecuritySettingsToFirestore(libraryId).catchError((_) {});
+                                              }
+                                            }
+                                            setState(() => _autoLockMinutes = val);
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Done'),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }

@@ -888,18 +888,28 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           const SizedBox(height: 6),
                           Builder(
                             builder: (context) {
-                              final decryptedGovId = EncryptionService.safeDecryptGovId(student.govIdNumber, libraryId);
+                              final raw = student.govIdNumber.trim();
+                              String effectiveId = '';
+                              if (raw.isNotEmpty) {
+                                final attempt = EncryptionService.safeDecryptGovId(raw, libraryId);
+                                if (attempt.isNotEmpty && attempt != '••••••••') {
+                                  effectiveId = attempt;
+                                } else if (!raw.contains('=') && raw.length <= 20) {
+                                  effectiveId = raw;
+                                } else {
+                                  effectiveId = attempt;
+                                }
+                              }
+
                               String formattedGovId;
-                              final cleanGov = decryptedGovId.replaceAll(' ', '');
-                              if (decryptedGovId.isEmpty) {
+                              final cleanGov = effectiveId.replaceAll(' ', '');
+                              if (cleanGov.isEmpty) {
                                 formattedGovId = 'ID: Verified';
-                              } else if (decryptedGovId == '••••••••') {
-                                formattedGovId = 'ID: ••••••••';
                               } else if (cleanGov.length == 12 && RegExp(r'^\d+$').hasMatch(cleanGov)) {
-                                formattedGovId = 'ID: XXXX XXXX ${cleanGov.substring(8)}';
+                                formattedGovId = 'ID: •••• •••• ${cleanGov.substring(8)}';
                               } else if (cleanGov.length == 10 && RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(cleanGov)) {
-                                formattedGovId = 'PAN: ${cleanGov.substring(0, 2)}••••${cleanGov.substring(6)}';
-                              } else if (cleanGov.length > 4) {
+                                formattedGovId = 'PAN: ••••••${cleanGov.substring(6)}';
+                              } else if (cleanGov.length > 4 && cleanGov != '••••••••') {
                                 formattedGovId = 'ID: •••• ${cleanGov.substring(cleanGov.length - 4)}';
                               } else {
                                 formattedGovId = 'ID: Verified';
@@ -1266,18 +1276,31 @@ class _GovIdTileState extends State<_GovIdTile> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final decrypted = EncryptionService.safeDecryptGovId(widget.rawId, widget.libraryId);
+    final raw = widget.rawId.trim();
+    String effectiveId = '';
+    if (raw.isNotEmpty) {
+      final attempt = EncryptionService.safeDecryptGovId(raw, widget.libraryId);
+      if (attempt.isNotEmpty && attempt != '••••••••') {
+        effectiveId = attempt;
+      } else if (!raw.contains('=') && raw.length <= 20) {
+        effectiveId = raw;
+      } else {
+        effectiveId = attempt;
+      }
+    }
 
-    // Format display string cleanly: if hidden, show masked format e.g. ABC••••34F
+    // Format display string cleanly: if hidden, show masked format e.g. •••• •••• 1234
     String displayValue;
     if (_revealed) {
-      displayValue = decrypted;
+      displayValue = effectiveId;
     } else {
-      if (decrypted.length > 5 && decrypted != '••••••••') {
-        final start = decrypted.length > 7 ? decrypted.substring(0, 3) : decrypted.substring(0, 2);
-        final end = decrypted.substring(decrypted.length - 2);
-        final mask = '•' * (decrypted.length - start.length - end.length);
-        displayValue = '$start$mask$end';
+      final clean = effectiveId.replaceAll(' ', '');
+      if (clean.length == 12 && RegExp(r'^\d+$').hasMatch(clean)) {
+        displayValue = '•••• •••• ${clean.substring(8)}';
+      } else if (clean.length == 10 && RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(clean)) {
+        displayValue = '••••••${clean.substring(6)}';
+      } else if (clean.length > 4 && clean != '••••••••') {
+        displayValue = '•••• •••• ${clean.substring(clean.length - 4)}';
       } else {
         displayValue = '••••••••';
       }
@@ -1324,7 +1347,7 @@ class _GovIdTileState extends State<_GovIdTile> {
             tooltip: 'Copy ID Number',
             visualDensity: VisualDensity.compact,
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: decrypted));
+              Clipboard.setData(ClipboardData(text: effectiveId));
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('ID Number copied to clipboard'),

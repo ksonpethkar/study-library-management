@@ -157,19 +157,23 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
           final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
           final effectiveUid = student.userId?.isNotEmpty == true ? student.userId! : authUid;
 
-          final studentFilter = effectiveUid.isNotEmpty
-              ? Filter.or(
-                  Filter('studentId', isEqualTo: student.id),
-                  Filter('studentUserId', isEqualTo: effectiveUid),
-                  Filter('studentId', isEqualTo: effectiveUid),
-                )
-              : Filter('studentId', isEqualTo: student.id);
-
-          final receiptQuery = FirebaseFirestore.instance
+          // Resilient student receipts query: match by studentUserId or studentId
+          Query<Map<String, dynamic>> receiptQuery = FirebaseFirestore.instance
               .collection('libraries')
               .doc(libraryId)
-              .collection('receipts')
-              .where(studentFilter);
+              .collection('receipts');
+
+          if (effectiveUid.isNotEmpty) {
+            receiptQuery = receiptQuery.where(
+              Filter.or(
+                Filter('studentUserId', isEqualTo: effectiveUid),
+                Filter('studentId', isEqualTo: effectiveUid),
+                Filter('studentId', isEqualTo: student.id),
+              ),
+            );
+          } else {
+            receiptQuery = receiptQuery.where('studentId', isEqualTo: student.id);
+          }
 
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: receiptQuery.snapshots(),
@@ -178,7 +182,11 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final allReceiptDocs = receiptSnapshot.data?.docs ?? [];
+              // Safely extract docs, even if query had permission warning
+              final allReceiptDocs = (!receiptSnapshot.hasError && receiptSnapshot.hasData)
+                  ? receiptSnapshot.data!.docs
+                  : <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
               final allReceipts = allReceiptDocs
                   .map((d) => ReceiptModel.fromJson({...d.data(), 'id': d.id}))
                   .where((r) => r.deletedAt == null)
@@ -187,8 +195,8 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
               // Resilient match: studentId, userId, phone, membershipNumber
               final List<ReceiptModel> receipts = allReceipts.where((r) {
                 if (r.studentId == student.id) return true;
-                if (r.studentUserId != null && r.studentUserId == student.userId) return true;
-                if (student.userId != null && r.studentId == student.userId) return true;
+                if (r.studentUserId != null && r.studentUserId == effectiveUid) return true;
+                if (effectiveUid.isNotEmpty && r.studentId == effectiveUid) return true;
                 if (student.membershipNumber != null && r.studentId == student.membershipNumber) return true;
                 return true;
               }).toList()
