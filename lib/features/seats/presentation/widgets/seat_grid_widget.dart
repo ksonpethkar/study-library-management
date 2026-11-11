@@ -247,7 +247,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                 children: [
                   _buildFilterChip(
                     'all',
-                    'All Desks',
+                    width < 450 ? 'All' : 'All Desks',
                     sectionSeats.length,
                     Theme.of(context).colorScheme.primary,
                     Icons.apps_rounded,
@@ -498,6 +498,10 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                 }
 
                 final sortedSeats = [...seats]..sort(SeatHelper.compareSeats);
+                // Only show gender badges if there is an actual distinction within this section
+                final bool hasMixedRestrictions = sortedSeats.any((s) => s.genderRestriction == GenderRestriction.female) ||
+                    (sortedSeats.any((s) => s.genderRestriction == GenderRestriction.male) &&
+                        sortedSeats.any((s) => s.genderRestriction == GenderRestriction.any));
 
                 final double childAspectRatio = _columns <= 2 ? 1.35 : (_columns <= 3 ? 1.15 : (_columns <= 5 ? 1.05 : 0.98));
 

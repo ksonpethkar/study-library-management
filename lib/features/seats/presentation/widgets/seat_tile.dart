@@ -14,6 +14,7 @@ class SeatTile extends StatelessWidget {
   final String? shiftName;
   final StudentModel? student;
   final bool isDimmed;
+  final bool showGenderBadge;
 
   const SeatTile({
     super.key,
@@ -27,6 +28,7 @@ class SeatTile extends StatelessWidget {
     this.shiftName,
     this.student,
     this.isDimmed = false,
+    this.showGenderBadge = true,
   });
 
   /// Guaranteed display label that is NEVER blank
@@ -163,8 +165,8 @@ class SeatTile extends StatelessWidget {
       }
     }
 
-    final isMaleOnly = seat.genderRestriction == GenderRestriction.male;
-    final isFemaleOnly = seat.genderRestriction == GenderRestriction.female;
+    final isMaleOnly = showGenderBadge && seat.genderRestriction == GenderRestriction.male;
+    final isFemaleOnly = showGenderBadge && seat.genderRestriction == GenderRestriction.female;
     final genderColor = isFemaleOnly ? const Color(0xFFE91E63) : const Color(0xFF1976D2);
 
     final tileWidget = PressableScale(

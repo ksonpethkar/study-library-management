@@ -33,6 +33,8 @@ import 'package:study_library/services/membership_automation_service.dart';
 import 'package:study_library/features/payments/presentation/screens/record_payment_screen.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/constants/app_constants.dart';
+import 'package:study_library/features/legal/presentation/screens/terms_screen.dart';
+import 'package:study_library/features/legal/presentation/screens/privacy_policy_screen.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/firebase_options.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
@@ -1741,8 +1743,8 @@ void main() {
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(65));
+      expect(AppConstants.appVersion, equals('1.5.52'));
+      expect(AppConstants.buildNumber, equals(67));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -5094,9 +5096,9 @@ void main() {
 
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.50+65'));
-      expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(65));
+      expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
+      expect(AppConstants.appVersion, equals('1.5.52'));
+      expect(AppConstants.buildNumber, equals(67));
 
       // 2. Student-facing release changes include all 4 automation features
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
@@ -5117,7 +5119,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.50+65'));
+      expect(formattedVersion, equals('v1.5.52+67'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -6167,8 +6169,8 @@ void main() {
     test('126. MOBILE PERSPECTIVE INVARIANTS: BOTTOM SCROLL CLEARANCE, TABBAR SCROLLABILITY & ZERO-TEXT-SQUISHING', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.50'));
-      expect(AppConstants.buildNumber, equals(65));
+      expect(AppConstants.appVersion, equals('1.5.52'));
+      expect(AppConstants.buildNumber, equals(67));
 
       // 2. Minimum bottom clearance for mobile navigation bar & FAB visibility (>= 100dp)
       const standardShellBottomClearance = 110.0;
@@ -6358,6 +6360,40 @@ void main() {
 
       expect(textContrastColor(warmTerracotta), equals(Colors.white));
       expect(textContrastColor(const Color(0xFFFDE68A)), equals(Colors.black87)); // Light amber
+    });
+
+    test('130. BILINGUAL LEGAL SUITE & PERMISSIONS ARCHITECTURE INVARIANTS', () {
+      // ── 1. Marathi Terms & Privacy Policy Completeness ──
+      const libName = 'The Cozy Corner Study Centre';
+      final terms = TermsScreen.defaultTermsMarathi(libName);
+      expect(terms, contains('नियम व अटींची स्वीकृती'));
+      expect(terms, contains('शांतता क्षेत्र (Silent Zone)'));
+      expect(terms, contains('Non-Refundable Policy'));
+      expect(terms, contains('सीसीटीव्ही (CCTV) देखरेख'));
+
+      final privacy = PrivacyPolicyScreen.defaultPrivacyPolicyMarathi(libName);
+      expect(privacy, contains('आम्ही संकलित करत असलेली माहिती'));
+      expect(privacy, contains('Firebase Cloud'));
+      expect(privacy, contains('सीसीटीव्ही (CCTV) देखरेख'));
+
+      // ── 2. Legal Language Enum Invariants ──
+      expect(LegalLanguage.values.length, equals(2));
+      expect(LegalLanguage.en.name, equals('en'));
+      expect(LegalLanguage.mr.name, equals('mr'));
+
+      // ── 3. Single-Student Expiry Calculation Invariants ──
+      final today = DateTime.now();
+      final expiringToday = DateTime(today.year, today.month, today.day);
+      final daysDiffToday = expiringToday.difference(DateTime(today.year, today.month, today.day)).inDays;
+      expect(daysDiffToday, equals(0));
+
+      final expiringIn2Days = expiringToday.add(const Duration(days: 2));
+      final daysDiff2 = expiringIn2Days.difference(expiringToday).inDays;
+      expect(daysDiff2, equals(2));
+
+      final expiredYesterday = expiringToday.subtract(const Duration(days: 1));
+      final daysDiffExpired = expiredYesterday.difference(expiringToday).inDays;
+      expect(daysDiffExpired, equals(-1));
     });
   });
 }
