@@ -9,6 +9,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/ocr_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
 import '../../data/ocr_parser.dart';
+import '../../data/document_layout_classifier.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/utils/app_validators.dart';
 import 'package:study_library/services/form_config_service.dart';
@@ -574,6 +575,13 @@ class _RegistrationFormScreenState
           preferredType: finalType,
         );
 
+        final layout = DocumentLayoutClassifier.classify(
+          rawText: rawText,
+          preferredType: finalType,
+        );
+
+        String successFeedback = 'ID details scanned and filled successfully!';
+
         final updates = <String, dynamic>{
           'govIdType': finalType.name,
           'govIdDataUrl': dataUrl,
@@ -614,9 +622,57 @@ class _RegistrationFormScreenState
             }
             updates['gender'] = _gender;
           }
+
+          // Smart Single-Page Combined Xerox / e-Aadhaar Extraction
+          if (layout == DocumentSideClassification.bothSidesCombined) {
+            successFeedback = '✓ Full document detected! Both Front & Back details auto-filled.';
+            if (result.address != null && result.address!.trim().isNotEmpty) {
+              _addressController.text = result.address!.trim();
+              _autoFilledKeys.add('address');
+              updates['address'] = result.address!.trim();
+              updates['govIdBackDataUrl'] = dataUrl;
+              updates['govIdBackImageUrl'] = dataUrl;
+            }
+            if (result.pinCode != null && result.pinCode!.trim().isNotEmpty) {
+              _pinCodeController.text = result.pinCode!.trim();
+              _autoFilledKeys.add('pinCode');
+              updates['pinCode'] = result.pinCode!.trim();
+            }
+          } else if (layout == DocumentSideClassification.panCard || finalType == GovIdType.pan) {
+            successFeedback = '✓ PAN Card detected. Back side is not required!';
+          } else if (layout == DocumentSideClassification.backOnly) {
+            successFeedback = '✓ Back side detected! Address filled. Attach front side for name & photo.';
+            if (result.address != null && result.address!.trim().isNotEmpty) {
+              _addressController.text = result.address!.trim();
+              _autoFilledKeys.add('address');
+              updates['address'] = result.address!.trim();
+            }
+            if (result.pinCode != null && result.pinCode!.trim().isNotEmpty) {
+              _pinCodeController.text = result.pinCode!.trim();
+              _autoFilledKeys.add('pinCode');
+              updates['pinCode'] = result.pinCode!.trim();
+            }
+          }
         });
 
         ref.read(registrationNotifierProvider.notifier).updateFields(updates);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.greenAccent),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(successFeedback)),
+                ],
+              ),
+              backgroundColor: const Color(0xFF1E293B),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
       }
 
       if (mounted) {
@@ -700,7 +756,66 @@ class _RegistrationFormScreenState
     ref.read(registrationStepProvider.notifier).goTo(3);
   }
 
-  // Builds a field with a green ✓ badge if it was auto-filled
+  Widget? _buildValidationSuffix(String trackKey, String text) {
+    if (text.trim().isEmpty) return null;
+
+    final isAutoFilled = _autoFilledKeys.contains(trackKey);
+    bool isValid = false;
+    String tooltip = '';
+
+    switch (trackKey) {
+      case 'govIdNumber':
+        isValid = GovIdValidator.isValid(_selectedGovIdType, text);
+        tooltip = isValid
+            ? '${_selectedGovIdType.displayName} Verified (Checksum Valid) ✓'
+            : '${_selectedGovIdType.displayName} Checksum Mismatch (Please Check Digits)';
+        break;
+
+      case 'name':
+        isValid = GovIdValidator.isValidName(text);
+        tooltip = isValid ? 'Name Verified ✓' : 'Extracted name needs manual review';
+        break;
+
+      case 'dob':
+        isValid = GovIdValidator.isValidDob(text);
+        tooltip = isValid ? 'Date of Birth Verified ✓' : 'Invalid Date format (DD/MM/YYYY expected)';
+        break;
+
+      case 'pinCode':
+        isValid = GovIdValidator.isValidPinCode(text);
+        tooltip = isValid ? 'PIN Code Verified ✓' : 'Invalid 6-digit PIN code';
+        break;
+
+      case 'address':
+        isValid = GovIdValidator.isValidAddress(text);
+        tooltip = isValid ? 'Address Captured ✓' : 'Address needs manual review';
+        break;
+
+      default:
+        if (isAutoFilled) {
+          isValid = true;
+          tooltip = 'Auto-filled from ID';
+        } else {
+          return null;
+        }
+    }
+
+    if (isValid) {
+      return Tooltip(
+        message: tooltip,
+        child: Icon(Icons.verified_rounded, color: Colors.green.shade600, size: 20),
+      );
+    } else if (isAutoFilled) {
+      // Extracted by OCR but failed validation -> AMBER WARNING! Never false green tick!
+      return Tooltip(
+        message: tooltip,
+        child: Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 20),
+      );
+    }
+    return null;
+  }
+
+  // Builds a field with strict validation status (Green tick if verified, Amber warning if failed)
   Widget _field({
     required TextEditingController controller,
     required String label,
@@ -715,6 +830,16 @@ class _RegistrationFormScreenState
     String? hintText,
   }) {
     final isAutoFilled = _autoFilledKeys.contains(trackKey);
+    final isValid = trackKey == 'govIdNumber'
+        ? GovIdValidator.isValid(_selectedGovIdType, controller.text)
+        : (trackKey == 'name'
+            ? GovIdValidator.isValidName(controller.text)
+            : (trackKey == 'pinCode'
+                ? GovIdValidator.isValidPinCode(controller.text)
+                : (trackKey == 'dob'
+                    ? GovIdValidator.isValidDob(controller.text)
+                    : true)));
+
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
@@ -727,17 +852,13 @@ class _RegistrationFormScreenState
         hintText: hintText,
         prefixIcon: icon != null ? Icon(icon) : null,
         border: const OutlineInputBorder(),
-        suffixIcon: isAutoFilled
-            ? Tooltip(
-                message: 'Auto-filled from ID scan',
-                child: Icon(Icons.verified_rounded,
-                    color: Colors.green.shade600, size: 20),
-              )
-            : null,
+        suffixIcon: _buildValidationSuffix(trackKey, controller.text),
         enabledBorder: isAutoFilled
             ? OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: Colors.green.shade400, width: 1.5),
+                borderSide: BorderSide(
+                  color: isValid ? Colors.green.shade400 : Colors.amber.shade600,
+                  width: 1.5,
+                ),
               )
             : null,
       ),
@@ -885,11 +1006,17 @@ class _RegistrationFormScreenState
                                   labelText: 'Date of Birth',
                                   prefixIcon: const Icon(Icons.cake_rounded),
                                   border: const OutlineInputBorder(),
-                                  suffixIcon: _autoFilledKeys.contains('dob')
-                                      ? Icon(Icons.verified_rounded, color: Colors.green.shade600, size: 20)
-                                      : const Icon(Icons.calendar_today_outlined, size: 18),
+                                  suffixIcon: _buildValidationSuffix('dob', _dobController.text) ??
+                                      const Icon(Icons.calendar_today_outlined, size: 18),
                                   enabledBorder: _autoFilledKeys.contains('dob')
-                                      ? OutlineInputBorder(borderSide: BorderSide(color: Colors.green.shade300, width: 1.5))
+                                      ? OutlineInputBorder(
+                                          borderSide: BorderSide(
+                                            color: GovIdValidator.isValidDob(_dobController.text)
+                                                ? Colors.green.shade400
+                                                : Colors.amber.shade600,
+                                            width: 1.5,
+                                          ),
+                                        )
                                       : null,
                                 ),
                               ),
@@ -943,11 +1070,17 @@ class _RegistrationFormScreenState
                                         labelText: 'Date of Birth',
                                         prefixIcon: const Icon(Icons.cake_rounded),
                                         border: const OutlineInputBorder(),
-                                        suffixIcon: _autoFilledKeys.contains('dob')
-                                            ? Icon(Icons.verified_rounded, color: Colors.green.shade600, size: 20)
-                                            : const Icon(Icons.calendar_today_outlined, size: 18),
+                                        suffixIcon: _buildValidationSuffix('dob', _dobController.text) ??
+                                            const Icon(Icons.calendar_today_outlined, size: 18),
                                         enabledBorder: _autoFilledKeys.contains('dob')
-                                            ? OutlineInputBorder(borderSide: BorderSide(color: Colors.green.shade300, width: 1.5))
+                                            ? OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                  color: GovIdValidator.isValidDob(_dobController.text)
+                                                      ? Colors.green.shade400
+                                                      : Colors.amber.shade600,
+                                                  width: 1.5,
+                                                ),
+                                              )
                                             : null,
                                       ),
                                     ),

@@ -32,15 +32,39 @@ class AppErrorFormatter {
       return 'Unable to submit your feedback right now. Please try again shortly or speak to library staff.';
     }
 
-    if (actionContext == 'seat' || actionContext == 'request' || actionContext == 'section') {
+    if (actionContext == 'seat' || actionContext == 'section') {
       if (str.contains('permission-denied') || str.contains('unauthorized')) {
         return 'Unable to update seat details. Please ensure your pass is active or visit the library desk.';
       }
-      if (str.contains('occupied') || str.contains('already')) {
+      if (str.contains('occupied') || str.contains('already occupied') || str.contains('reserved') || str.contains('held')) {
         return 'This study desk was just assigned to another student. Please select an available seat.';
       }
       if (actionContext == 'section') {
         return 'Unable to save section layout. Please check the rows and columns and try again.';
+      }
+    }
+
+    if (actionContext == 'request') {
+      if (str.contains('permission-denied') || str.contains('unauthorized')) {
+        return 'Unable to update request. Please check your admin privileges.';
+      }
+      if (str.contains('government id') || str.contains('id number') || str.contains('govid') || str.contains('pan') || str.contains('aadhaar')) {
+        String customIdMsg = error.toString().replaceAll('Exception: ', '').trim();
+        if (customIdMsg.contains('[') && customIdMsg.contains(']')) {
+          customIdMsg = customIdMsg.replaceAll(RegExp(r'\[.*?\]'), '').trim();
+        }
+        return customIdMsg.isNotEmpty ? customIdMsg : 'This Government ID is already registered to another student.';
+      }
+      if (str.contains('phone') && (str.contains('registered') || str.contains('already'))) {
+        String customPhoneMsg = error.toString().replaceAll('Exception: ', '').trim();
+        if (customPhoneMsg.contains('[') && customPhoneMsg.contains(']')) {
+          customPhoneMsg = customPhoneMsg.replaceAll(RegExp(r'\[.*?\]'), '').trim();
+        }
+        return customPhoneMsg.isNotEmpty ? customPhoneMsg : 'This phone number is already registered with another student.';
+      }
+      if ((str.contains('seat') || str.contains('desk')) &&
+          (str.contains('occupied') || str.contains('already occupied') || str.contains('reserved') || str.contains('held') || str.contains('assigned'))) {
+        return 'This study desk was just assigned to another student. Please select an available seat.';
       }
     }
 
@@ -167,7 +191,7 @@ class AppErrorFormatter {
         !clean.contains('/') &&
         !clean.contains('PlatformException') &&
         !clean.contains('cloud_firestore') &&
-        clean.length < 90) {
+        clean.length < 180) {
       return clean;
     }
 

@@ -518,8 +518,10 @@ void main() {
     });
 
     test('21. Real-Time GovIdValidator Format and Validation Rules', () {
-      // Aadhaar: 12 digits, cannot start with 0 or 1
-      expect(GovIdValidator.isValid(GovIdType.aadhaar, '234567890123'), isTrue);
+      // Aadhaar: 12 digits, cannot start with 0 or 1, and satisfies Verhoeff checksum
+      const aadhaarPrefix = '23456789012';
+      final validAadhaar = '$aadhaarPrefix${AppValidators.generateVerhoeffCheckDigit(aadhaarPrefix)}';
+      expect(GovIdValidator.isValid(GovIdType.aadhaar, validAadhaar), isTrue);
       expect(GovIdValidator.isValid(GovIdType.aadhaar, '034567890123'), isFalse);
       expect(GovIdValidator.isValid(GovIdType.aadhaar, '12345'), isFalse);
 
@@ -3000,7 +3002,9 @@ void main() {
       );
 
       // Valid IDs pass cleanly without error
-      expect(GovIdValidator.validate(GovIdType.aadhaar, '5482 1234 5678'), isNull);
+      final validAadhaarCheckDigit = AppValidators.generateVerhoeffCheckDigit('54821234567');
+      final validAadhaarStr = '5482 1234 567$validAadhaarCheckDigit';
+      expect(GovIdValidator.validate(GovIdType.aadhaar, validAadhaarStr), isNull);
       expect(GovIdValidator.validate(GovIdType.pan, 'ABCDE1234F'), isNull);
       expect(GovIdValidator.validate(GovIdType.voterId, 'ABC1234567'), isNull);
       expect(GovIdValidator.validate(GovIdType.passport, 'A1234567'), isNull);
@@ -3012,7 +3016,7 @@ void main() {
         'name': 'Rahul Sharma',
         'phone': '9823456789',
         'govIdType': 'aadhaar',
-        'govIdNumber': '5482 1234 5678',
+        'govIdNumber': validAadhaarStr,
         'govIdImageUrl': frontDataUrl,
         'govIdBackImageUrl': backDataUrl,
         'photoUrl': 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD...selfie', // Strictly separate portrait photo

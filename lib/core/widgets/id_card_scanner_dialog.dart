@@ -2,6 +2,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:study_library/features/registration/data/ocr_parser.dart';
+import 'package:study_library/features/registration/data/document_layout_classifier.dart';
+import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/services/ocr_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
@@ -84,6 +86,8 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
   bool _isScanning = false;
   String _scanStatus = '';
   bool _showBackScanStep = false;
+  DocumentSideClassification? _detectedLayout;
+  String? _layoutGuidance;
 
   @override
   void initState() {
@@ -139,13 +143,23 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
           rawText: rawText,
           preferredType: typeToUse,
         );
+        final layout = DocumentLayoutClassifier.classify(
+          rawText: rawText,
+          preferredType: typeToUse,
+        );
         setState(() {
           _backResult = parsed;
           _isScanning = false;
           _showBackScanStep = false;
+          _layoutGuidance = DocumentLayoutClassifier.getGuidanceMessage(
+            type: typeToUse,
+            classification: layout,
+            isSecondUpload: true,
+            hasAddress: (parsed.address != null && parsed.address!.isNotEmpty),
+          );
         });
       } else {
-        // Front side parsing
+        // Front side parsing & intelligent orientation classification
         final qrParsed = QrIdParser.parseQrString(qrString);
         final autoDetected = qrParsed?.type ?? OcrParser.detectGovIdType(rawText);
         final effectiveType = _isAutoDetect ? autoDetected : (_selectedType ?? autoDetected);
@@ -155,16 +169,65 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
           preferredType: effectiveType,
         );
 
+        final layout = DocumentLayoutClassifier.classify(
+          rawText: rawText,
+          preferredType: effectiveType,
+        );
+
         setState(() {
           _detectedType = effectiveType;
-          _frontResult = parsed;
+          _detectedLayout = layout;
           _isScanning = false;
 
-          // Check if back side is recommended
-          // If address is already present (e.g. from e-Aadhaar QR or Front of DL), don't force step 2
           final hasAddress = (parsed.address != null && parsed.address!.trim().isNotEmpty);
-          if (_requiresTwoSides(effectiveType) && !hasAddress) {
-            _showBackScanStep = true;
+
+          if (layout == DocumentSideClassification.bothSidesCombined) {
+            // Full Single-Page Xerox or e-Aadhaar PDF: both sides already present!
+            _frontResult = parsed;
+            _backResult = parsed;
+            _backBytes = bytes;
+            _showBackScanStep = false;
+            _layoutGuidance = DocumentLayoutClassifier.getGuidanceMessage(
+              type: effectiveType,
+              classification: layout,
+              isSecondUpload: false,
+              hasAddress: true,
+            );
+          } else if (layout == DocumentSideClassification.panCard || effectiveType == GovIdType.pan) {
+            // PAN card - single sided, never ask for back side
+            _frontResult = parsed;
+            _showBackScanStep = false;
+            _layoutGuidance = DocumentLayoutClassifier.getGuidanceMessage(
+              type: effectiveType,
+              classification: DocumentSideClassification.panCard,
+              isSecondUpload: false,
+            );
+          } else if (layout == DocumentSideClassification.backOnly) {
+            // User uploaded back side first!
+            _backResult = parsed;
+            _backBytes = bytes;
+            _frontResult = null;
+            _frontBytes = null;
+            _showBackScanStep = false;
+            _layoutGuidance = DocumentLayoutClassifier.getGuidanceMessage(
+              type: effectiveType,
+              classification: layout,
+              isSecondUpload: false,
+            );
+          } else {
+            // Normal front side
+            _frontResult = parsed;
+            _showBackScanStep = DocumentLayoutClassifier.isBackSideRequired(
+              type: effectiveType,
+              classification: layout,
+              hasAddressAlready: hasAddress,
+            );
+            _layoutGuidance = DocumentLayoutClassifier.getGuidanceMessage(
+              type: effectiveType,
+              classification: layout,
+              isSecondUpload: false,
+              hasAddress: hasAddress,
+            );
           }
         });
       }
@@ -179,10 +242,10 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
   }
 
   void _applyResult() {
-    if (_frontResult == null) return;
+    if (_frontResult == null && _backResult == null) return;
     final finalResult = IdScanResult(
       detectedType: _detectedType,
-      frontResult: _frontResult!,
+      frontResult: _frontResult ?? _backResult!,
       backResult: _backResult,
       frontImageBytes: _frontBytes,
       backImageBytes: _backBytes,
@@ -204,6 +267,8 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
       _frontResult = null;
       _backResult = null;
       _showBackScanStep = false;
+      _detectedLayout = null;
+      _layoutGuidance = null;
     });
   }
 
@@ -587,7 +652,7 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
     }
 
     // 3. Completed: Show Extracted Details Summary & Auto-Fill CTA
-    final f = _frontResult;
+    final f = _frontResult ?? _backResult;
     final b = _backResult;
     final hasAddress = (b?.address != null && b!.address!.isNotEmpty) ||
         (f?.address != null && f!.address!.isNotEmpty);
@@ -595,29 +660,91 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
         (f?.name != null && f!.name!.trim().isNotEmpty) ||
         (f != null && f.confidence > 25);
 
+    final isIdValid = GovIdValidator.isValid(_detectedType, f?.idNumber);
+    final isNameValid = GovIdValidator.isValidName(f?.name);
+    final isDobValid = GovIdValidator.isValidDob(f?.dob);
+    final isPinValid = GovIdValidator.isValidPinCode(b?.pinCode ?? f?.pinCode);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Smart Guidance Banner based on Layout Detection
+        if (_layoutGuidance != null) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isIdValid
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isIdValid
+                    ? Colors.green.withValues(alpha: 0.4)
+                    : theme.colorScheme.primary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isIdValid ? Icons.verified_rounded : Icons.info_outline_rounded,
+                  size: 20,
+                  color: isIdValid ? Colors.green.shade700 : theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _layoutGuidance!,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: isIdValid ? Colors.green.shade900 : theme.colorScheme.primary,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         if (hasExtractedData) ...[
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.08),
+              color: isIdValid
+                  ? Colors.green.withValues(alpha: 0.08)
+                  : Colors.amber.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: isIdValid
+                    ? Colors.green.withValues(alpha: 0.35)
+                    : Colors.amber.withValues(alpha: 0.4),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.verified_rounded, color: Colors.green, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'ID Detected: ${_detectedType.name.toUpperCase()}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.green),
+                    Icon(
+                      isIdValid ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                      color: isIdValid ? Colors.green : Colors.amber.shade800,
+                      size: 20,
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isIdValid
+                            ? 'ID Detected: ${_detectedType.name.toUpperCase()} (VALIDATED ✓)'
+                            : 'ID Detected: ${_detectedType.name.toUpperCase()} (REVIEW REQUIRED)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13.5,
+                          color: isIdValid ? Colors.green.shade800 : Colors.amber.shade900,
+                        ),
+                      ),
+                    ),
                     TextButton.icon(
                       onPressed: _resetFront,
                       icon: const Icon(Icons.refresh_rounded, size: 16),
@@ -626,20 +753,40 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
                   ],
                 ),
                 const Divider(height: 12),
-                _buildExtractedRow('Full Name', f.name),
-                _buildExtractedRow("Father's Name", f.fatherName),
-                _buildExtractedRow('Date of Birth', f.dob),
-                _buildExtractedRow('Gender', f.gender),
-                _buildExtractedRow('ID Number', f.idNumber),
-                _buildExtractedRow('Blood Group', f.bloodGroup ?? b?.bloodGroup),
-                _buildExtractedRow('Phone / Contact', f.phone ?? b?.phone),
-                _buildExtractedRow('Vehicle Class', f.vehicleClass ?? b?.vehicleClass),
+                _buildExtractedRow(
+                  'ID Number',
+                  f?.idNumber,
+                  isValid: isIdValid,
+                  badgeText: isIdValid ? 'Checksum OK' : 'Check Digits',
+                ),
+                _buildExtractedRow(
+                  'Full Name',
+                  f?.name,
+                  isValid: isNameValid,
+                  badgeText: isNameValid ? null : 'Review Name',
+                ),
+                _buildExtractedRow("Father's Name", f?.fatherName),
+                _buildExtractedRow(
+                  'Date of Birth',
+                  f?.dob,
+                  isValid: isDobValid,
+                  badgeText: isDobValid ? null : 'Review Date',
+                ),
+                _buildExtractedRow('Gender', f?.gender),
+                _buildExtractedRow('Blood Group', f?.bloodGroup ?? b?.bloodGroup),
+                _buildExtractedRow('Phone / Contact', f?.phone ?? b?.phone),
+                _buildExtractedRow('Vehicle Class', f?.vehicleClass ?? b?.vehicleClass),
                 if (hasAddress) ...[
-                  _buildExtractedRow('Address', b?.address ?? f.address),
-                  _buildExtractedRow('PIN Code', b?.pinCode ?? f.pinCode),
+                  _buildExtractedRow('Address', b?.address ?? f?.address),
+                  _buildExtractedRow(
+                    'PIN Code',
+                    b?.pinCode ?? f?.pinCode,
+                    isValid: isPinValid,
+                    badgeText: isPinValid ? null : 'Check PIN',
+                  ),
                 ],
-                if (f.college != null) _buildExtractedRow('College', f.college),
-                if (f.course != null) _buildExtractedRow('Course', f.course),
+                if (f?.college != null) _buildExtractedRow('College', f?.college),
+                if (f?.course != null) _buildExtractedRow('Course', f?.course),
               ],
             ),
           ),
@@ -706,7 +853,7 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
     );
   }
 
-  Widget _buildExtractedRow(String label, String? value) {
+  Widget _buildExtractedRow(String label, String? value, {bool? isValid, String? badgeText}) {
     if (value == null || value.trim().isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -721,11 +868,36 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isValid != null) ...[
+                  const SizedBox(width: 6),
+                  Icon(
+                    isValid ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                    size: 16,
+                    color: isValid ? Colors.green.shade600 : Colors.amber.shade800,
+                  ),
+                  if (badgeText != null) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      badgeText,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isValid ? Colors.green.shade700 : Colors.amber.shade900,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
             ),
           ),
         ],
