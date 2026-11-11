@@ -517,7 +517,7 @@ class PlanSelectionScreen extends ConsumerWidget {
                                                 ),
                                               ),
                                               Text(
-                                                '₹${smartCalc.formattedProratedPrice}',
+                                                smartCalc.formattedProratedPrice,
                                                 style: TextStyle(
                                                   fontSize: 22,
                                                   fontWeight: FontWeight.w900,

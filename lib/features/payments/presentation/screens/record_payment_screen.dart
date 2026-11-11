@@ -1084,10 +1084,19 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                             Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
+                                  backgroundColor: theme.brightness == Brightness.dark
+                                      ? theme.colorScheme.primaryContainer
+                                      : theme.colorScheme.primary.withValues(alpha: 0.15),
                                   child: Text(
                                     widget.studentName.isNotEmpty ? widget.studentName[0].toUpperCase() : 'S',
-                                    style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      color: theme.brightness == Brightness.dark
+                                          ? theme.colorScheme.onPrimaryContainer
+                                          : (theme.colorScheme.primary.computeLuminance() < 0.2
+                                              ? theme.colorScheme.primary
+                                              : theme.colorScheme.onSurface),
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -1098,7 +1107,13 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                       Text(widget.studentName, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                                       if (widget.studentPhone.isNotEmpty)
                                         Text('📞 ${widget.studentPhone}', style: theme.textTheme.bodySmall),
-                                      Text('Base Plan Fee: ₹${widget.planPrice.toStringAsFixed(0)}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary)),
+                                      Text(
+                                        'Base Plan Fee: ₹${widget.planPrice.toStringAsFixed(0)}',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),

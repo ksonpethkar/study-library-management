@@ -436,7 +436,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           children: [
                             Text(
                               '${filtered.length} Scholars',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: theme.colorScheme.primary),
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: theme.colorScheme.onSurface),
                             ),
                             Text(
                               'Sort: ${_getSortLabel(_selectedSortOrder)}',
@@ -1668,27 +1668,28 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                 ),
                                 if (student.seatId != null && student.seatId!.isNotEmpty)
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
-                                      borderRadius: BorderRadius.circular(5),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.chair_rounded, size: 11, color: theme.colorScheme.primary),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          'Desk #${SeatHelper.formatSeatLabel(seatId: student.seatId, includePrefix: false)}',
-                                          style: TextStyle(
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: theme.colorScheme.primary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
+                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                     decoration: BoxDecoration(
+                                       color: isDark ? theme.colorScheme.surfaceContainerHighest : const Color(0xFFF1F5F9),
+                                       borderRadius: BorderRadius.circular(5),
+                                       border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1), width: 0.8),
+                                     ),
+                                     child: Row(
+                                       mainAxisSize: MainAxisSize.min,
+                                       children: [
+                                         Icon(Icons.chair_rounded, size: 11, color: isDark ? theme.colorScheme.primary : const Color(0xFF0284C7)),
+                                         const SizedBox(width: 3),
+                                         Text(
+                                           'Desk #${SeatHelper.formatSeatLabel(seatId: student.seatId, includePrefix: false)}',
+                                           style: TextStyle(
+                                             fontSize: 10.5,
+                                             fontWeight: FontWeight.bold,
+                                             color: theme.colorScheme.onSurface,
+                                           ),
+                                         ),
+                                       ],
+                                     ),
+                                   )
                                 else
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1939,6 +1940,9 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   }
 
   Widget _buildFilterChips({int pendingAdmissionsCount = 0}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
@@ -2062,9 +2066,10 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     final isDark = theme.brightness == Brightness.dark;
     const primaryColor = Color(0xFF0284C7);
     final rawSeat = req.targetSeatLabel ?? req.currentSeatLabel;
-    final cleanSeat = rawSeat != null
-        ? rawSeat.replaceAll(RegExp(r'(Desk|Seat)\s*#?\s*', caseSensitive: false), '').replaceAll('#', '').trim()
-        : null;
+    final cleanSeat = rawSeat
+        ?.replaceAll(RegExp(r'(Desk|Seat)\s*#?\s*', caseSensitive: false), '')
+        .replaceAll('#', '')
+        .trim();
     final seatLabel = (cleanSeat != null && cleanSeat.isNotEmpty)
         ? 'Desk #$cleanSeat'
         : 'Auto Seat';
@@ -2508,20 +2513,21 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                               children: [
                                 if (student.seatId != null && student.seatId!.isNotEmpty) ...[
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      'Desk #${SeatHelper.formatSeatLabel(seatId: student.seatId, includePrefix: false)}',
-                                      style: TextStyle(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    ),
-                                  ),
+                                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                     decoration: BoxDecoration(
+                                       color: isDark ? theme.colorScheme.surfaceContainerHighest : const Color(0xFFF1F5F9),
+                                       borderRadius: BorderRadius.circular(4),
+                                       border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1), width: 0.8),
+                                     ),
+                                     child: Text(
+                                       'Desk #${SeatHelper.formatSeatLabel(seatId: student.seatId, includePrefix: false)}',
+                                       style: TextStyle(
+                                         fontSize: 9.5,
+                                         fontWeight: FontWeight.bold,
+                                         color: theme.colorScheme.onSurface,
+                                       ),
+                                     ),
+                                   ),
                                   const SizedBox(width: 5),
                                 ],
                                 Text(

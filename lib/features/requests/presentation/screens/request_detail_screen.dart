@@ -45,6 +45,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   bool _showGovId = false;
   bool _isRequestedSeatOccupied = false;
   String? _occupyingStudentName;
+  String? _occupyingStudentId;
 
   @override
   void initState() {
@@ -241,7 +242,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ],
               ),
               content: Text(
-                'The requested desk is currently occupied by ${_occupyingStudentName ?? "another student"}.\n\n'
+                'The requested desk is currently occupied by ${_occupyingStudentName ?? "another student"}${_occupyingStudentId != null ? " (ID: $_occupyingStudentId)" : ""}.\n\n'
                 'To prevent allocation conflicts, please pick an available vacant desk or switch to Auto-Assign before approving.',
               ),
               actions: [
@@ -1225,12 +1226,17 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  color: theme.brightness == Brightness.dark ? theme.colorScheme.surfaceContainerHighest : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: theme.brightness == Brightness.dark ? Colors.white12 : const Color(0xFFCBD5E1), width: 0.8),
                 ),
                 child: Text(
                   typeLabel.toUpperCase(),
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: theme.colorScheme.primary),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -2498,7 +2504,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: plans.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     final plan = plans[i];
                     final isSelected = plan.id == currentPlanId;
@@ -2508,6 +2514,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                     return InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onTap: () async {
+                        final scaffoldMessenger = ScaffoldMessenger.of(context);
                         Navigator.pop(ctx);
                         setState(() => _isProcessing = true);
                         try {
@@ -2536,19 +2543,22 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
                           if (mounted) {
                             await _loadRequest();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Plan changed to "${plan.name}" (₹${proratedFee.toStringAsFixed(0)} due at desk).'),
-                                  backgroundColor: const Color(0xFF16A34A),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Plan changed to "${plan.name}" (₹${proratedFee.toStringAsFixed(0)} due at desk).'),
+                                backgroundColor: const Color(0xFF16A34A),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
                           }
                         } catch (e) {
                           if (mounted) {
-                            AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'request');
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                content: Text(AppErrorFormatter.toUserFriendly(e, actionContext: 'request')),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
                           }
                         } finally {
                           if (mounted) setState(() => _isProcessing = false);
@@ -3557,9 +3567,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                       'studentName': newName,
                       'studentPhone': newPhone,
                       'studentEmail': newEmail,
-                      if (currentPhotoUrl != null) 'photoUrl': currentPhotoUrl,
-                      if (currentFrontUrl != null) 'govIdImageUrl': currentFrontUrl,
-                      if (currentBackUrl != null) 'govIdBackImageUrl': currentBackUrl,
+                      ...currentPhotoUrl != null ? {'photoUrl': currentPhotoUrl} : {},
+                      ...currentFrontUrl != null ? {'govIdImageUrl': currentFrontUrl} : {},
+                      ...currentBackUrl != null ? {'govIdBackImageUrl': currentBackUrl} : {},
                       'updatedAt': FieldValue.serverTimestamp(),
                     }, SetOptions(merge: true));
 

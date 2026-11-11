@@ -13,7 +13,6 @@ import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/student_provisioning_service.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
-import 'package:study_library/core/widgets/pulsing_glow_container.dart';
 
 /// Data representation of a student request from raw Firestore data.
 class StudentRequestItem {
@@ -701,14 +700,14 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
                       color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
                       child: Row(
                         children: [
-                          Icon(Icons.filter_alt_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
+                          Icon(Icons.filter_alt_rounded, size: 14, color: Theme.of(context).colorScheme.onPrimaryContainer),
                           const SizedBox(width: 6),
                           Text(
                             'Filtered by Module: ${_categoryLabel(_selectedCategory)}',
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.primary,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
                             ),
                           ),
                           const Spacer(),
@@ -724,11 +723,11 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
                                   ),
                                 ),
                                 const SizedBox(width: 2),
-                                Icon(Icons.close_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
+                                Icon(Icons.close_rounded, size: 14, color: Theme.of(context).colorScheme.onPrimaryContainer),
                               ],
                             ),
                           ),

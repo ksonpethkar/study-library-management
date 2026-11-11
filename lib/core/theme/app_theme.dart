@@ -22,7 +22,7 @@ class AppTheme {
 
     // Check if seed is Obsidian Noir / Sleek luxury charcoal or nearly achromatic/black
     final hsl = HSLColor.fromColor(seedColor);
-    final isCharcoalNoir = (seedColor.value & 0x00FFFFFF) == 0x18181B ||
+    final isCharcoalNoir = (seedColor.toARGB32() & 0x00FFFFFF) == 0x18181B ||
         (seedColor.computeLuminance() < 0.05 && hsl.saturation < 0.15);
 
     if (isCharcoalNoir) {

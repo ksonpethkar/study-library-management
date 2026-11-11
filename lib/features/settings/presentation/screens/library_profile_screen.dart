@@ -1133,7 +1133,9 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                             style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                              color: isSelected ? pColor : null,
+                              color: isSelected
+                                  ? (isDark ? Colors.white : (pColor.computeLuminance() < 0.15 ? const Color(0xFF0F172A) : pColor))
+                                  : theme.colorScheme.onSurface,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

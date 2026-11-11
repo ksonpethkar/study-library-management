@@ -60,6 +60,14 @@
         "destination": "/app/index.html"
       },
       {
+        "source": "/biometric%20lock",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/biometric lock",
+        "destination": "/app/index.html"
+      },
+      {
         "source": "/admin/**",
         "destination": "/app/index.html"
       },
@@ -94,6 +102,10 @@
       {
         "source": "/library/**/seats",
         "destination": "/seats/index.html"
+      },
+      {
+        "source": "**",
+        "destination": "/app/index.html"
       }
     ],
     "headers": [

@@ -327,7 +327,9 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                           Icon(
                             _isSlideMode ? Icons.swipe_rounded : Icons.touch_app_rounded,
                             size: 15,
-                            color: _isSlideMode ? Colors.white : Theme.of(context).colorScheme.primary,
+                            color: _isSlideMode
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).colorScheme.onSurface,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -337,7 +339,9 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: _isSlideMode ? Colors.white : Theme.of(context).colorScheme.primary,
+                              color: _isSlideMode
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                  : Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
