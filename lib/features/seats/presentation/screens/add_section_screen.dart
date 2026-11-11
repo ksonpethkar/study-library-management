@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/core/utils/app_validators.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 
 import '../providers/seat_providers.dart';
 
@@ -176,7 +177,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
     switch (_namingStyle) {
       case SeatNamingStyle.alphanumeric:
         final (rows, cols) = _computeRowsCols();
-        final lastRow = String.fromCharCode('A'.codeUnitAt(0) + rows - 1);
+        final lastRow = SeatHelper.rowLetter(rows - 1);
         return '$lastRow$cols';
       case SeatNamingStyle.numeric:
         final end =
@@ -187,7 +188,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
       case SeatNamingStyle.sectionPrefixAlphanumeric:
         final (rows, cols) = _computeRowsCols();
         final sCode = sectionName.substring(0, 1).toUpperCase();
-        final lastRow = String.fromCharCode('A'.codeUnitAt(0) + rows - 1);
+        final lastRow = SeatHelper.rowLetter(rows - 1);
         return '$sCode-$lastRow$cols';
     }
   }
@@ -209,7 +210,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
         outer:
         for (int r = 0; r < rows; r++) {
           for (int c = 1; c <= cols; c++) {
-            samples.add('${String.fromCharCode('A'.codeUnitAt(0) + r)}$c');
+            samples.add('${SeatHelper.rowLetter(r)}$c');
             if (samples.length >= 3) break outer;
           }
         }
