@@ -360,9 +360,22 @@ class ForceUpdateService extends Notifier<UpdateState> {
           }
         }
       } else {
+        // App is already up to date!
+        // GHOST / OBSOLETE APK CLEANUP:
+        // If an old downloaded update APK is still on disk, delete it immediately
+        // so it never causes phantom "ready to install" prompts.
+        try {
+          final apkFile = await _getApkFile();
+          if (await apkFile.exists()) {
+            await apkFile.delete();
+          }
+        } catch (_) { /* intentionally silent */ }
+
         state = state.copyWith(
           status: UpdateStatus.upToDate,
           info: updateInfo,
+          downloadState: DownloadState.idle,
+          clearApkPath: true,
           errorMessage: manualCheck
               ? 'You have the latest version of Study Library (v${packageInfo.version} build $currentVersionCode).'
               : null,
@@ -656,16 +669,29 @@ class ForceUpdateService extends Notifier<UpdateState> {
     String localVer,
     int localCode,
   ) {
-    if (remoteCode > localCode) return true;
-
+    // 1. Normalize ABI-split version codes (e.g. 1064, 2064, 3064 -> 64)
     final normRemote = remoteCode >= 1000 ? (remoteCode % 1000) : remoteCode;
     final normLocal = localCode >= 1000 ? (localCode % 1000) : localCode;
+
+    // Primary rule for Android APKs: versionCode
     if (normRemote > normLocal) return true;
     if (normRemote < normLocal) return false;
 
+    // If both version codes are valid and equal, they are the EXACT SAME build: definitely NOT newer!
+    if (normRemote > 0 && normLocal > 0 && normRemote == normLocal) {
+      return false;
+    }
+
+    // 2. Semantic version fallback (e.g. if version codes are 0 or not populated)
+    // CRITICAL FIX: Strip build metadata (+64) and prerelease tags (-beta) before parsing!
+    // Without this, "1.5.50+64".replaceAll(RegExp(r'\D'), '') turns into 5064,
+    // which caused false positive comparisons (5064 > 50) on already updated devices!
+    final cleanRemote = remoteVer.split('+').first.split('-').first.trim();
+    final cleanLocal = localVer.split('+').first.split('-').first.trim();
+
     try {
-      final r = remoteVer.split('.').map((s) => int.tryParse(s.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
-      final l = localVer.split('.').map((s) => int.tryParse(s.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
+      final r = cleanRemote.split('.').map((s) => int.tryParse(s.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
+      final l = cleanLocal.split('.').map((s) => int.tryParse(s.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
       for (int i = 0; i < 3; i++) {
         final rPart = i < r.length ? r[i] : 0;
         final lPart = i < l.length ? l[i] : 0;

@@ -139,7 +139,7 @@ class MyMembershipScreen extends ConsumerWidget {
               ref.invalidate(plansStreamProvider);
             },
             child: ListView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
               children: [
                 // 1. Executive Pro Scholar Tier Pass Card
                 Container(

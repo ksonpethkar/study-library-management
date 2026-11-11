@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:study_library/core/constants/regex_patterns.dart';
+import 'package:study_library/core/validators/aadhaar_validator.dart';
 import 'package:study_library/models/student_model.dart';
 
 /// Custom TextInputFormatter to force uppercase as user types.
@@ -62,6 +63,11 @@ class GovIdValidator {
 
     switch (type) {
       case GovIdType.aadhaar:
+        // Support Masked Aadhaar: XXXX XXXX 1234 or •••• •••• 1234
+        if (RegExp(r'^(?:[Xx*•]{4}[\s\-]?){2}(\d{4})$').hasMatch(clean)) {
+          return null;
+        }
+
         final digitsOnly = clean.replaceAll(RegExp(r'\s+'), '');
         if (!RegExp(r'^\d+$').hasMatch(digitsOnly)) {
           return 'Aadhaar must contain only numbers';
@@ -71,6 +77,10 @@ class GovIdValidator {
         }
         if (digitsOnly.startsWith('0') || digitsOnly.startsWith('1')) {
           return 'Aadhaar cannot begin with 0 or 1';
+        }
+        // Strict Mathematical Verhoeff Checksum Check (100% Free, Instant)
+        if (!AadhaarValidator.validateVerhoeff(digitsOnly)) {
+          return 'Invalid Aadhaar number (checksum failed — check for typos)';
         }
         return null;
 
@@ -138,6 +148,122 @@ class GovIdValidator {
   static bool isValid(GovIdType type, String? value) {
     if (value == null || value.trim().isEmpty) return false;
     return validate(type, value, isRequired: true) == null;
+  }
+
+  /// Strictly validates whether an extracted person name is genuine
+  /// (filters out hallucinated government headers, labels, or noise).
+  static bool isValidName(String? name) {
+    if (name == null) return false;
+    final clean = name.trim();
+    if (clean.length < 2 || clean.length > 50) return false;
+
+    // Disallow numbers and special symbols (except dot, apostrophe, space)
+    if (!RegExp(r"^[A-Za-z\s.']+$").hasMatch(clean)) return false;
+
+    final upper = clean.toUpperCase();
+    final blacklist = [
+      'GOVERNMENT',
+      'INDIA',
+      'AUTHORITY',
+      'UIDAI',
+      'BHARAT',
+      'SARKAR',
+      'INCOME TAX',
+      'DEPARTMENT',
+      'DIRECTORATE',
+      'PERMANENT',
+      'ACCOUNT',
+      'NUMBER',
+      'CARD',
+      'FATHER',
+      'MOTHER',
+      'HUSBAND',
+      'SIGNATURE',
+      'MALE',
+      'FEMALE',
+      'TRANSGENDER',
+      'DOB',
+      'DATE OF BIRTH',
+      'YEAR OF BIRTH',
+      'ADDRESS',
+      'ENROLMENT',
+      'HELP@UIDAI',
+      'WWW.UIDAI',
+      'POST BOX',
+      'ELECTION COMMISSION',
+      'ELECTOR',
+      'IDENTITY',
+      'DRIVING LICENCE',
+      'LICENSE',
+      'UNION OF INDIA',
+      'REPUBLIC OF INDIA',
+      'PASSPORT',
+    ];
+
+    for (final word in blacklist) {
+      if (upper == word || upper.contains('$word ') || upper.contains(' $word')) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Validates Date of Birth format and age sanity (10 to 100 years old).
+  static bool isValidDob(String? dob) {
+    if (dob == null) return false;
+    final clean = dob.trim();
+    if (clean.isEmpty) return false;
+
+    DateTime? parsed;
+    // Format: DD/MM/YYYY or DD-MM-YYYY
+    final dmy = RegExp(r'^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$').firstMatch(clean);
+    if (dmy != null) {
+      final day = int.tryParse(dmy.group(1)!);
+      final month = int.tryParse(dmy.group(2)!);
+      final year = int.tryParse(dmy.group(3)!);
+      if (day != null && month != null && year != null) {
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          parsed = DateTime(year, month, day);
+        }
+      }
+    }
+
+    // Format: YYYY-MM-DD
+    if (parsed == null) {
+      final ymd = RegExp(r'^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})$').firstMatch(clean);
+      if (ymd != null) {
+        final year = int.tryParse(ymd.group(1)!);
+        final month = int.tryParse(ymd.group(2)!);
+        final day = int.tryParse(ymd.group(3)!);
+        if (day != null && month != null && year != null) {
+          if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            parsed = DateTime(year, month, day);
+          }
+        }
+      }
+    }
+
+    if (parsed == null) return false;
+
+    final now = DateTime.now();
+    if (parsed.isAfter(now)) return false;
+    final age = now.year - parsed.year;
+    return age >= 10 && age <= 100;
+  }
+
+  /// Validates 6-digit Indian Postal PIN code.
+  static bool isValidPinCode(String? pin) {
+    if (pin == null) return false;
+    final clean = pin.trim();
+    // 6 digits, first digit between 1 and 9
+    return RegExp(r'^[1-9][0-9]{5}$').hasMatch(clean);
+  }
+
+  /// Validates address string.
+  static bool isValidAddress(String? address) {
+    if (address == null) return false;
+    final clean = address.trim();
+    return clean.length >= 8 && clean.contains(' ');
   }
 
   /// Clean & format an ID value before persisting or validating.

@@ -2780,7 +2780,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -3755,12 +3755,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           });
                         },
                         icon: const Icon(Icons.add_circle_outline_rounded, size: 19),
-                        label: const FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            'Record Payment & Issue Official Receipt',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
+                        label: const Text(
+                          'Record Payment & Issue Receipt',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),

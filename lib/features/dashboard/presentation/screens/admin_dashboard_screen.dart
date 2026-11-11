@@ -528,7 +528,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 48.0),
+                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1407,14 +1407,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 Icon(icon, size: 12, color: color),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      label,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
-                      maxLines: 1,
-                    ),
+                  child: Text(
+                    label,
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -1424,14 +1421,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
               value,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: color),
             ),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                subtext,
-                style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
-                maxLines: 1,
-              ),
+            Text(
+              subtext,
+              style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

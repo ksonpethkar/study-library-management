@@ -407,6 +407,8 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
         title: const Text('Waiting List & Capacity Hub'),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: [
             Tab(
               icon: const Icon(Icons.queue_play_next_rounded),
@@ -414,7 +416,7 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
             ),
             const Tab(
               icon: Icon(Icons.tune_rounded),
-              text: 'Capacity Policies & Rules',
+              text: 'Policies & Rules',
             ),
           ],
         ),
@@ -561,7 +563,7 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
                         await Future.delayed(const Duration(milliseconds: 500));
                       },
                       child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
                         itemCount: filteredEntries.length,
                         itemBuilder: (ctx, index) {
                           final entry = filteredEntries[index];

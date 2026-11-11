@@ -2000,6 +2000,247 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     );
   }
 
+  String _formatDob(dynamic raw) {
+    if (raw == null) return '';
+    final s = raw.toString().trim();
+    if (s.isEmpty) return '';
+    try {
+      final dt = DateTime.tryParse(s);
+      if (dt != null) {
+        return DateFormat('dd MMM yyyy').format(dt);
+      }
+      if (RegExp(r'^\d{2}[/\-.]\d{2}[/\-.]\d{4}$').hasMatch(s)) {
+        final sep = s.contains('/') ? '/' : (s.contains('-') ? '-' : '.');
+        final parts = s.split(sep);
+        final day = int.tryParse(parts[0]);
+        final month = int.tryParse(parts[1]);
+        final year = int.tryParse(parts[2]);
+        if (day != null && month != null && year != null) {
+          return DateFormat('dd MMM yyyy').format(DateTime(year, month, day));
+        }
+      }
+    } catch (_) {}
+    return s;
+  }
+
+  Future<void> _showEditApplicantDialog(Map<String, dynamic> studentData) async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    if (libraryId.isEmpty) return;
+
+    final nameCtrl = TextEditingController(text: (studentData['name'] ?? _requestData?['studentName'] ?? '').toString());
+    final fatherCtrl = TextEditingController(text: (studentData['fatherName'] ?? '').toString());
+    final phoneCtrl = TextEditingController(text: (studentData['phone'] ?? _requestData?['studentPhone'] ?? '').toString());
+    final emailCtrl = TextEditingController(text: (studentData['email'] ?? _requestData?['studentEmail'] ?? '').toString());
+    final dobCtrl = TextEditingController(text: _formatDob(studentData['dob']));
+
+    String rawGender = (studentData['gender'] ?? 'male').toString().toLowerCase();
+    String selectedGender = rawGender.contains('female') ? 'female' : (rawGender.contains('other') ? 'other' : 'male');
+    DateTime? pickedDob;
+
+    final theme = Theme.of(context);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary, size: 22),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text('Edit Applicant Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Correct any typos or mismatched fields based on verified ID proof before final approval.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name *',
+                      prefixIcon: Icon(Icons.person_outline_rounded),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: fatherCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Father / Guardian Name',
+                      prefixIcon: Icon(Icons.family_restroom_rounded),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedGender,
+                    decoration: const InputDecoration(
+                      labelText: 'Gender *',
+                      prefixIcon: Icon(Icons.people_outline_rounded),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'male', child: Text('Male')),
+                      DropdownMenuItem(value: 'female', child: Text('Female')),
+                      DropdownMenuItem(value: 'other', child: Text('Other')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setDialogState(() => selectedGender = v);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () async {
+                      final now = DateTime.now();
+                      final initial = pickedDob ?? DateTime.tryParse(studentData['dob']?.toString() ?? '') ?? DateTime(2000, 1, 1);
+                      final selected = await showDatePicker(
+                        context: ctx,
+                        initialDate: initial.isBefore(now) ? initial : DateTime(2000, 1, 1),
+                        firstDate: DateTime(1940),
+                        lastDate: now,
+                      );
+                      if (selected != null) {
+                        setDialogState(() {
+                          pickedDob = selected;
+                          dobCtrl.text = DateFormat('dd MMM yyyy').format(selected);
+                        });
+                      }
+                    },
+                    child: AbsorbPointer(
+                      child: TextField(
+                        controller: dobCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Date of Birth',
+                          prefixIcon: Icon(Icons.cake_rounded),
+                          suffixIcon: Icon(Icons.calendar_today_rounded, size: 18),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Mobile Phone *',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email Address',
+                      prefixIcon: Icon(Icons.email_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: () async {
+                final newName = nameCtrl.text.trim();
+                final newFather = fatherCtrl.text.trim();
+                final newPhone = phoneCtrl.text.trim();
+                final newEmail = emailCtrl.text.trim();
+                final newDob = pickedDob != null
+                    ? pickedDob!.toIso8601String()
+                    : (studentData['dob']?.toString() ?? dobCtrl.text.trim());
+
+                if (newName.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Name cannot be empty')),
+                  );
+                  return;
+                }
+
+                Navigator.of(ctx).pop();
+
+                try {
+                  final updatedStudentData = Map<String, dynamic>.from(studentData);
+                  updatedStudentData['name'] = newName;
+                  updatedStudentData['fatherName'] = newFather;
+                  updatedStudentData['gender'] = selectedGender;
+                  updatedStudentData['dob'] = newDob;
+                  updatedStudentData['phone'] = newPhone;
+                  updatedStudentData['email'] = newEmail;
+
+                  await FirebaseFirestore.instance
+                      .collection('libraries')
+                      .doc(libraryId)
+                      .collection('requests')
+                      .doc(widget.requestId)
+                      .set({
+                    'studentData': updatedStudentData,
+                    'studentName': newName,
+                    'studentPhone': newPhone,
+                    'studentEmail': newEmail,
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  }, SetOptions(merge: true));
+
+                  if (mounted) {
+                    await _loadRequest();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 20),
+                              SizedBox(width: 8),
+                              Text('Applicant details updated successfully!'),
+                            ],
+                          ),
+                          backgroundColor: Color(0xFF1E293B),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to update details: $e')),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.save_rounded, size: 18),
+              label: const Text('Save Changes'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildApplicantBiodataCard({required ThemeData theme, required Map<String, dynamic> studentData}) {
     final govIdNum = studentData['govIdNumber']?.toString() ?? '';
     final govIdType = studentData['govIdType']?.toString() ?? 'Govt ID';
@@ -2043,19 +2284,32 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                     ],
                   ),
                 ),
+                TextButton.icon(
+                  onPressed: () => _showEditApplicantDialog(studentData),
+                  icon: const Icon(Icons.edit_note_rounded, size: 18),
+                  label: const Text('Edit Info'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                ),
               ],
             ),
             const Divider(height: 24),
 
             // Section 1: Personal & Guardian
             _buildSubheading('Personal & Guardian Details'),
-            if (studentData['fatherName'] != null)
-              _buildRow("Father / Guardian", studentData['fatherName'].toString()),
-            if (studentData['gender'] != null)
+            Builder(
+              builder: (_) {
+                final fn = (studentData['fatherName'] ?? '').toString().trim();
+                return _buildRow("Father / Guardian", fn.isNotEmpty ? fn : "— (Not Provided)");
+              },
+            ),
+            if (studentData['gender'] != null && studentData['gender'].toString().trim().isNotEmpty)
               _buildRow("Gender", studentData['gender'].toString().toUpperCase()),
-            if (studentData['dob'] != null)
-              _buildRow("Date of Birth", studentData['dob'].toString()),
-            if (studentData['bloodGroup'] != null && studentData['bloodGroup'].toString().isNotEmpty)
+            if (studentData['dob'] != null && studentData['dob'].toString().trim().isNotEmpty)
+              _buildRow("Date of Birth", _formatDob(studentData['dob'])),
+            if (studentData['bloodGroup'] != null && studentData['bloodGroup'].toString().trim().isNotEmpty)
               _buildRow("Blood Group", studentData['bloodGroup'].toString()),
 
             const SizedBox(height: 12),
@@ -2072,19 +2326,35 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             if (studentData['emergencyContact'] != null && studentData['emergencyContact'].toString().isNotEmpty)
               _buildRow("Emergency Contact", studentData['emergencyContact'].toString()),
 
-            const SizedBox(height: 12),
-            // Section 3: Education & Goals
-            _buildSubheading('Education & Target Goals'),
-            if (studentData['college'] != null && studentData['college'].toString().isNotEmpty)
-              _buildRow("College / Institute", studentData['college'].toString()),
-            if (studentData['course'] != null && studentData['course'].toString().isNotEmpty)
-              _buildRow("Course / Degree", studentData['course'].toString()),
-            if (studentData['year'] != null && studentData['year'].toString().isNotEmpty)
-              _buildRow("Year / Semester", studentData['year'].toString()),
-            if (studentData['rollNumber'] != null && studentData['rollNumber'].toString().isNotEmpty)
-              _buildRow("Roll / Enroll Number", studentData['rollNumber'].toString()),
-            if (studentData['examTarget'] != null && studentData['examTarget'].toString().isNotEmpty)
-              _buildRow("Target Exam", studentData['examTarget'].toString()),
+            // Section 3: Education & Goals (Only rendered when at least one field has content)
+            Builder(
+              builder: (_) {
+                final college = (studentData['college'] ?? '').toString().trim();
+                final course = (studentData['course'] ?? '').toString().trim();
+                final year = (studentData['year'] ?? '').toString().trim();
+                final rollNumber = (studentData['rollNumber'] ?? '').toString().trim();
+                final examTarget = (studentData['examTarget'] ?? '').toString().trim();
+                final hasEducation = college.isNotEmpty ||
+                    course.isNotEmpty ||
+                    year.isNotEmpty ||
+                    rollNumber.isNotEmpty ||
+                    examTarget.isNotEmpty;
+                if (!hasEducation) return const SizedBox.shrink();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    _buildSubheading('Education & Target Goals'),
+                    if (college.isNotEmpty) _buildRow("College / Institute", college),
+                    if (course.isNotEmpty) _buildRow("Course / Degree", course),
+                    if (year.isNotEmpty) _buildRow("Year / Semester", year),
+                    if (rollNumber.isNotEmpty) _buildRow("Roll / Enroll Number", rollNumber),
+                    if (examTarget.isNotEmpty) _buildRow("Target Exam", examTarget),
+                  ],
+                );
+              },
+            ),
 
             // Section 4: Govt ID & Documents
             if (govIdNum.isNotEmpty || frontUrl.isNotEmpty || backUrl.isNotEmpty) ...[

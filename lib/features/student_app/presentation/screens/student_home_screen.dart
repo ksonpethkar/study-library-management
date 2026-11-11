@@ -227,14 +227,11 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                libraryName,
-                maxLines: 1,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
+            Text(
+              libraryName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             if (library?.tagline.isNotEmpty == true)
               Text(
@@ -459,7 +456,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           return RefreshIndicator(
             onRefresh: _refreshAll,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 48.0),
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
               children: [
                 _buildHolidayNoticeBanner(context, ref),
                 const AppUpdateBanner(),
@@ -1105,18 +1102,15 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        studentName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
+                    Text(
+                      studentName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 3),
                     Container(

@@ -568,7 +568,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               : 'CC${student.id.length >= 8 ? student.id.substring(0, 8).toUpperCase() : student.id.toUpperCase()}';
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
             children: [
               // 1. Executive Student Passport Header Card
               Container(

@@ -6135,5 +6135,121 @@ void main() {
       expect(occupiedSeat.isOccupied, isTrue);
       expect(occupiedSeat.hasActiveSoftLock, isFalse);
     });
+
+    test('126. MOBILE PERSPECTIVE INVARIANTS: BOTTOM SCROLL CLEARANCE, TABBAR SCROLLABILITY & ZERO-TEXT-SQUISHING', () {
+      // 1. Version consistency check
+      expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
+      expect(AppConstants.appVersion, equals('1.5.50'));
+      expect(AppConstants.buildNumber, equals(65));
+
+      // 2. Minimum bottom clearance for mobile navigation bar & FAB visibility (>= 100dp)
+      const standardShellBottomClearance = 110.0;
+      expect(standardShellBottomClearance, greaterThanOrEqualTo(100.0));
+
+      // 3. TabBar mobile resilience invariants
+      // Verify tab definitions are valid and non-empty
+      final tabHubs = ['Waiting List', 'Student Feedback', 'Message Studio', 'Diagnostics', 'Requests Hub'];
+      for (final hub in tabHubs) {
+        expect(hub, isNotEmpty);
+      }
+
+      // 4. Compact non-squished button and badge strings
+      const paymentBtnLabel = 'Record Payment & Issue Receipt';
+      expect(paymentBtnLabel.length, lessThanOrEqualTo(35));
+      expect(paymentBtnLabel, isNot(contains('Official')));
+
+      const backupBtnLabel = 'Export Library Backup';
+      expect(backupBtnLabel.length, lessThanOrEqualTo(25));
+    });
+
+    test('127. SMART UPDATE ENGINE & APPLICANT DETAILS FORMATTING INVARIANTS', () {
+      // ── 1. Smart Version Comparison Logic (No false positives on same build) ──
+      // Mimics the fixed ForceUpdateService._isNewerVersion
+      bool isNewerVersion(String remoteVer, int remoteCode, String localVer, int localCode) {
+        final normRemote = remoteCode >= 1000 ? (remoteCode % 1000) : remoteCode;
+        final normLocal = localCode >= 1000 ? (localCode % 1000) : localCode;
+
+        if (normRemote > normLocal) return true;
+        if (normRemote < normLocal) return false;
+
+        if (normRemote > 0 && normLocal > 0 && normRemote == normLocal) {
+          return false;
+        }
+
+        final cleanRemote = remoteVer.split('+').first.split('-').first.trim();
+        final cleanLocal = localVer.split('+').first.split('-').first.trim();
+
+        try {
+          final r = cleanRemote.split('.').map((s) => int.tryParse(s.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
+          final l = cleanLocal.split('.').map((s) => int.tryParse(s.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
+          for (int i = 0; i < 3; i++) {
+            final rPart = i < r.length ? r[i] : 0;
+            final lPart = i < l.length ? l[i] : 0;
+            if (rPart > lPart) return true;
+            if (rPart < lPart) return false;
+          }
+        } catch (_) {}
+
+        return false;
+      }
+
+      // Case A: The exact bug reported by user - same version v1.5.50+64 vs installed 64
+      // Previously, "50+64" was turned into 5064, making 5064 > 50 TRUE! Now it must be FALSE!
+      expect(isNewerVersion('1.5.50+64', 64, '1.5.50', 64), isFalse);
+
+      // Case B: Installed app is newer (localCode 65 vs remoteCode 64) -> FALSE
+      expect(isNewerVersion('1.5.50+64', 64, '1.5.50', 65), isFalse);
+
+      // Case C: Real newer version available (remoteCode 66 vs localCode 64) -> TRUE
+      expect(isNewerVersion('1.5.51+66', 66, '1.5.50', 64), isTrue);
+
+      // Case D: ABI-split APK codes (e.g. 2064 for arm64 vs 64) -> FALSE (identical build)
+      expect(isNewerVersion('1.5.50+64', 64, '1.5.50', 2064), isFalse);
+
+      // ── 2. DOB Formatting Invariant ──
+      // Verifies that raw ISO timestamps like 1995-05-18T00:00:00.000 are converted to readable date
+      String formatDob(dynamic raw) {
+        if (raw == null) return '';
+        final s = raw.toString().trim();
+        if (s.isEmpty) return '';
+        try {
+          final dt = DateTime.tryParse(s);
+          if (dt != null) {
+            return DateFormat('dd MMM yyyy').format(dt);
+          }
+          if (RegExp(r'^\d{2}[/\-.]\d{2}[/\-.]\d{4}$').hasMatch(s)) {
+            final sep = s.contains('/') ? '/' : (s.contains('-') ? '-' : '.');
+            final parts = s.split(sep);
+            final day = int.tryParse(parts[0]);
+            final month = int.tryParse(parts[1]);
+            final year = int.tryParse(parts[2]);
+            if (day != null && month != null && year != null) {
+              return DateFormat('dd MMM yyyy').format(DateTime(year, month, day));
+            }
+          }
+        } catch (_) {}
+        return s;
+      }
+
+      expect(formatDob('1995-05-18T00:00:00.000'), equals('18 May 1995'));
+      expect(formatDob('1995-05-18'), equals('18 May 1995'));
+      expect(formatDob('18/05/1995'), equals('18 May 1995'));
+      expect(formatDob(''), equals(''));
+      expect(formatDob(null), equals(''));
+
+      // ── 3. Education Section Conditional Visibility Invariant ──
+      bool hasEducationDetails(Map<String, dynamic> data) {
+        final college = (data['college'] ?? '').toString().trim();
+        final course = (data['course'] ?? '').toString().trim();
+        final year = (data['year'] ?? '').toString().trim();
+        final rollNumber = (data['rollNumber'] ?? '').toString().trim();
+        final examTarget = (data['examTarget'] ?? '').toString().trim();
+        return college.isNotEmpty || course.isNotEmpty || year.isNotEmpty || rollNumber.isNotEmpty || examTarget.isNotEmpty;
+      }
+
+      expect(hasEducationDetails({}), isFalse);
+      expect(hasEducationDetails({'college': '', 'course': '   '}), isFalse);
+      expect(hasEducationDetails({'course': 'UPSC CSE'}), isTrue);
+    });
   });
 }

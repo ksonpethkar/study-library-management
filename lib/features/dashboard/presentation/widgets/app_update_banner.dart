@@ -291,49 +291,67 @@ class AppUpdateBanner extends ConsumerWidget {
             // ── Completed — Show Install Button ───────────────────────
             ] else if (dl == DownloadState.completed) ...[
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.green.withValues(alpha: isDark ? 0.15 : 0.08),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.check_circle_rounded, color: Colors.green, size: 24),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Update Ready to Install 🎉',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 13.5),
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle_rounded, color: Colors.green, size: 24),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Update Ready to Install 🎉',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 13.5),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                updateState.totalBytes > 0
+                                    ? '${_formatBytes(updateState.totalBytes)} downloaded & verified'
+                                    : '${info.apkSize} ready to install',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.green.shade300 : Colors.green.shade800,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            updateState.totalBytes > 0
-                                ? '${_formatBytes(updateState.totalBytes)} downloaded & verified'
-                                : '${info.apkSize} ready to install',
-                            style: const TextStyle(fontSize: 12, color: Colors.green),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (!isForce) ...[
-                      TextButton(
-                        onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
-                        style: TextButton.styleFrom(
-                          foregroundColor: isDark ? Colors.white70 : Colors.grey.shade700,
                         ),
-                        child: const Text('Later'),
-                      ),
-                      const SizedBox(width: 4),
-                    ],
-                    FilledButton.icon(
-                      onPressed: () => ref.read(updateServiceProvider.notifier).installUpdate(),
-                      icon: const Icon(Icons.install_mobile_rounded, size: 18),
-                      label: const Text('Install Now'),
-                      style: FilledButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (!isForce) ...[
+                          TextButton(
+                            onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
+                            style: TextButton.styleFrom(
+                              foregroundColor: isDark ? Colors.white70 : Colors.grey.shade700,
+                            ),
+                            child: const Text('Later'),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        FilledButton.icon(
+                          onPressed: () => ref.read(updateServiceProvider.notifier).installUpdate(),
+                          icon: const Icon(Icons.install_mobile_rounded, size: 18),
+                          label: const Text('Install Now'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

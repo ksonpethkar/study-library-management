@@ -219,6 +219,8 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           labelColor: theme.colorScheme.primary,
           unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
           indicatorColor: theme.colorScheme.primary,
@@ -230,7 +232,7 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
             ),
             Tab(
               icon: Icon(Icons.history_edu_rounded),
-              text: 'My History & Replies',
+              text: 'History & Replies',
             ),
           ],
         ),
@@ -418,6 +420,7 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
                   ),
                   onPressed: _isSubmitting ? null : _submitFeedback,
                 ),
+                const SizedBox(height: 80),
               ],
             ),
           ),

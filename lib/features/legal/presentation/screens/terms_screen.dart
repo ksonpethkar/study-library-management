@@ -314,7 +314,7 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
           ),
           body: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 60),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
             children: [
                 // Header Badge
                 Container(

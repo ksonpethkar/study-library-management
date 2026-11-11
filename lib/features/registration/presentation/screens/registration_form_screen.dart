@@ -1698,9 +1698,10 @@ class _RegistrationFormScreenState
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 20, vertical: 14),
                                 ),
-                                child: const FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text('Next: Profile Photo ➔'),
+                                child: const Text(
+                                  'Next: Profile Photo ➔',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),

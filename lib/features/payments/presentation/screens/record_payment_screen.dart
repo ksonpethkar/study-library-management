@@ -2399,20 +2399,19 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
                             : const Icon(Icons.receipt_long_rounded),
-                        label: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            _isLoading
-                                ? 'Recording Payment...'
-                                : (_generateReceipt
-                                    ? (_isPartialPayment
-                                        ? 'Record Instalment & Generate Receipt'
-                                        : 'Record Payment & Generate Receipt')
-                                    : (_isPartialPayment
-                                        ? 'Record Instalment (No Receipt)'
-                                        : 'Record Payment (No Receipt)')),
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
+                        label: Text(
+                          _isLoading
+                              ? 'Recording Payment...'
+                              : (_generateReceipt
+                                  ? (_isPartialPayment
+                                      ? 'Record Instalment & Receipt'
+                                      : 'Record Payment & Receipt')
+                                  : (_isPartialPayment
+                                      ? 'Record Instalment (No Receipt)'
+                                      : 'Record Payment (No Receipt)')),
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),

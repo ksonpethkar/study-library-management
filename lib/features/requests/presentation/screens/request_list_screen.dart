@@ -869,7 +869,7 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
         await Future.delayed(const Duration(milliseconds: 500));
       },
       child: ListView.separated(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 48),
+        padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 110),
         itemCount: (isPendingTab && _selectedCategory == 'all' && items.isNotEmpty)
             ? items.length + 1
             : items.length,

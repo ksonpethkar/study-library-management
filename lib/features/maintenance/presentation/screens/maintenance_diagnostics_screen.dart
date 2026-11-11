@@ -298,7 +298,9 @@ class _MaintenanceDiagnosticsScreenState extends ConsumerState<MaintenanceDiagno
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 14),
           tabs: const [
             Tab(icon: Icon(Icons.speed_rounded, size: 20), text: 'Quota'),
             Tab(icon: Icon(Icons.healing_rounded, size: 20), text: 'Auto-Healer'),

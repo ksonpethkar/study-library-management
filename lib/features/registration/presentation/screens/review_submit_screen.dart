@@ -1232,9 +1232,10 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                 child: FilledButton.icon(
                                   onPressed: (_agreedToRules && !_isSubmitting) ? _handleSubmit : null,
                                   icon: const Icon(Icons.send_rounded),
-                                  label: const FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text('Submit Application'),
+                                  label: const Text(
+                                    'Submit Application',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   style: FilledButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),

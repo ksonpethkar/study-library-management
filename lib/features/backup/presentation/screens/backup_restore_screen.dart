@@ -451,10 +451,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
                             : const Icon(Icons.download_rounded),
-                        label: const FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text('Export Full Library Backup'),
-                        ),
+                        label: const Text('Export Library Backup'),
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
@@ -465,10 +462,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                       child: OutlinedButton.icon(
                         onPressed: (_isBackingUp || _isRestoring) ? null : _restoreBackup,
                         icon: const Icon(Icons.upload_file_rounded),
-                        label: const FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text('Restore from File'),
-                        ),
+                        label: const Text('Restore from File'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red.shade700,
                           side: BorderSide(color: Colors.red.shade300),
