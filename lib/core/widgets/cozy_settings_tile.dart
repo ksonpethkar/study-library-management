@@ -44,7 +44,7 @@ class CozySettingsCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (headerTrailing != null) headerTrailing!,
+                  ?headerTrailing,
                 ],
               ),
             ),

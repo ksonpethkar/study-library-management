@@ -1932,6 +1932,59 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                               ),
                             ),
                           ),
+                          const SizedBox(height: 12),
+                          Center(
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 4,
+                              children: [
+                                Text(
+                                  'By submitting renewal, you agree to the',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () => context.push(Routes.terms),
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                                    child: Text(
+                                      'Terms of Service',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.primary,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '•',
+                                  style: TextStyle(fontSize: 11, color: theme.colorScheme.outlineVariant),
+                                ),
+                                InkWell(
+                                  onTap: () => context.push(Routes.privacyPolicy),
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                                    child: Text(
+                                      'Privacy Policy',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.primary,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                           const SizedBox(height: 24),
                         ],
                       );

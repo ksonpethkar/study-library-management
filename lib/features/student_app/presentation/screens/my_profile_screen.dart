@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,13 +24,13 @@ import 'package:study_library/core/providers/theme_provider.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
-import 'package:flutter/foundation.dart';
 import 'package:study_library/core/constants/app_constants.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/force_update_service.dart';
 import 'package:study_library/core/utils/web_reload_helper.dart';
 import 'package:study_library/core/widgets/update_reminder_dialog.dart';
 import 'package:study_library/core/widgets/facility_tour_sheet.dart';
+import 'package:study_library/core/widgets/cozy_settings_tile.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   const MyProfileScreen({super.key});
@@ -976,251 +977,153 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               const SizedBox(height: 16),
 
               // 3. Modern Settings Group 1: Access & Pass
-              Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.fingerprint_rounded, color: Color(0xFF4F46E5), size: 20),
-                      ),
-                      title: const Text('Biometric & PIN App Lock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: const Text('Protect pass, receipts & records with PIN', style: TextStyle(fontSize: 11)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => SecuritySettingsDialog.show(
-                        context,
-                        isStudent: true,
-                        studentId: student.id,
-                        authUid: student.userId ?? FirebaseAuth.instance.currentUser?.uid,
-                        libraryId: libraryId,
-                      ),
+              CozySettingsCard(
+                margin: EdgeInsets.zero,
+                children: [
+                  CozySettingsTile(
+                    icon: Icons.fingerprint_rounded,
+                    iconColor: const Color(0xFF4F46E5),
+                    title: 'Biometric & PIN App Lock',
+                    subtitle: 'Protect pass, receipts & records with PIN',
+                    onTap: () => SecuritySettingsDialog.show(
+                      context,
+                      isStudent: true,
+                      studentId: student.id,
+                      authUid: student.userId ?? FirebaseAuth.instance.currentUser?.uid,
+                      libraryId: libraryId,
                     ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.calendar_today_rounded, color: Color(0xFFD97706), size: 20),
-                      ),
-                      title: const Text('Upcoming Library Holidays', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: const Text('View scheduled maintenance & closures', style: TextStyle(fontSize: 11)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _showHolidaysSheet(libraryId),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.support_agent_rounded, color: Color(0xFF059669), size: 20),
-                      ),
-                      title: Text(
-                        (library is LibraryModel && library.populatedPersonnel.isNotEmpty)
-                            ? '${library.populatedPersonnel.first['role']}: ${library.populatedPersonnel.first['name']}'
-                            : (library?.adminName.isNotEmpty == true ? 'Helpline: ${library!.adminName}' : 'Reception Helpline'),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      subtitle: Text(
-                        (library is LibraryModel && library.populatedPersonnel.length > 1)
-                            ? '${library.populatedPersonnel.length} Contacts (Owner, Admin, Manager) • Tap to view'
-                            : (library?.contact ?? 'Call library team'),
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.phone_rounded, color: Colors.green),
-                          if (library is LibraryModel && library.populatedPersonnel.length > 1) ...[
-                            const SizedBox(width: 4),
-                            const Icon(Icons.chevron_right_rounded),
-                          ],
+                  ),
+                  const CozySettingsDivider(),
+                  CozySettingsTile(
+                    icon: Icons.calendar_today_rounded,
+                    iconColor: const Color(0xFFD97706),
+                    title: 'Upcoming Library Holidays',
+                    subtitle: 'View scheduled maintenance & closures',
+                    onTap: () => _showHolidaysSheet(libraryId),
+                  ),
+                  const CozySettingsDivider(),
+                  CozySettingsTile(
+                    icon: Icons.support_agent_rounded,
+                    iconColor: const Color(0xFF059669),
+                    title: (library is LibraryModel && library.populatedPersonnel.isNotEmpty)
+                        ? '${library.populatedPersonnel.first['role']}: ${library.populatedPersonnel.first['name']}'
+                        : (library?.adminName.isNotEmpty == true ? 'Helpline: ${library!.adminName}' : 'Reception Helpline'),
+                    subtitle: (library is LibraryModel && library.populatedPersonnel.length > 1)
+                        ? '${library.populatedPersonnel.length} Contacts (Owner, Admin, Manager) • Tap to view'
+                        : (library?.contact ?? 'Call library team'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.phone_rounded, color: Colors.green, size: 20),
+                        if (library is LibraryModel && library.populatedPersonnel.length > 1) ...[
+                          const SizedBox(width: 4),
+                          const Icon(Icons.chevron_right_rounded, size: 20),
                         ],
-                      ),
-                      onTap: () {
-                        if (library is LibraryModel && library.populatedPersonnel.isNotEmpty) {
-                          _showPersonnelContactSheet(context, theme, library);
-                        } else {
-                          _contactAdmin(library?.contact);
-                        }
-                      },
+                      ],
                     ),
-                  ],
-                ),
+                    onTap: () {
+                      if (library is LibraryModel && library.populatedPersonnel.isNotEmpty) {
+                        _showPersonnelContactSheet(context, theme, library);
+                      } else {
+                        _contactAdmin(library?.contact);
+                      }
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
 
               // 4. Modern Settings Group 2: Guidelines, Feedback & Theme
-              Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.gavel_rounded, color: Color(0xFF7C3AED), size: 20),
-                      ),
-                      title: const Text('Library Facilities & Rules Tour', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => FacilityTourSheet.show(context, force: true),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEC4899).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.rate_review_rounded, color: Color(0xFFDB2777), size: 20),
-                      ),
-                      title: const Text('Send Feedback / Suggestion', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => context.push(Routes.studentFeedback),
-                    ),
-                    const Divider(height: 1),
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final themeMode = ref.watch(themeNotifierProvider);
-                        final isDark = themeMode == ThemeMode.dark;
-                        return SwitchListTile(
-                          secondary: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                              color: Colors.amber.shade700,
-                              size: 20,
-                            ),
-                          ),
-                          title: const Text('Dark Mode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          subtitle: Text(isDark ? 'Dark theme active' : 'Light theme active', style: const TextStyle(fontSize: 11)),
+              CozySettingsCard(
+                margin: EdgeInsets.zero,
+                children: [
+                  CozySettingsTile(
+                    icon: Icons.gavel_rounded,
+                    iconColor: const Color(0xFF7C3AED),
+                    title: 'Library Facilities & Rules Tour',
+                    subtitle: 'Code of conduct, silence hours & guidelines',
+                    onTap: () => FacilityTourSheet.show(context, force: true),
+                  ),
+                  const CozySettingsDivider(),
+                  CozySettingsTile(
+                    icon: Icons.rate_review_rounded,
+                    iconColor: const Color(0xFFDB2777),
+                    title: 'Send Feedback / Suggestion',
+                    subtitle: 'Share your ideas or report a facility issue',
+                    onTap: () => context.push(Routes.studentFeedback),
+                  ),
+                  const CozySettingsDivider(),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final themeMode = ref.watch(themeNotifierProvider);
+                      final isDark = themeMode == ThemeMode.dark;
+                      return CozySettingsTile(
+                        icon: isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                        iconColor: Colors.amber.shade700,
+                        title: 'Dark Mode',
+                        subtitle: isDark ? 'Dark theme active' : 'Light theme active',
+                        trailing: Switch(
                           value: isDark,
                           onChanged: (_) {
                             HapticFeedback.lightImpact();
                             ref.read(themeNotifierProvider.notifier).toggleTheme();
                           },
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                        ),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          ref.read(themeNotifierProvider.notifier).toggleTheme();
+                        },
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
 
               // 5. Modern Settings Group 3: App Updates, Legal & Info
-              Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF7C3AED), size: 20),
-                      ),
-                      title: const Text("What's New in Cozy Corner", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: const Text('Explore latest student tools & automations', style: TextStyle(fontSize: 11)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => WhatsNewService.showChangelog(context, isStudent: true),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0284C7).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.system_update_rounded, color: Color(0xFF0284C7), size: 20),
-                      ),
-                      title: const Text('Check for Updates', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: Text('v${AppConstants.appVersion}+${AppConstants.buildNumber} • Tap to check', style: const TextStyle(fontSize: 11)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: _checkForUpdates,
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF64748B).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.description_outlined, color: Color(0xFF475569), size: 20),
-                      ),
-                      title: const Text('Terms of Service', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: const Text('Study hall guidelines & membership policy', style: TextStyle(fontSize: 11)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => context.push(Routes.terms),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF64748B).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.shield_outlined, color: Color(0xFF475569), size: 20),
-                      ),
-                      title: const Text('Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: const Text('Data protection & privacy guidelines', style: TextStyle(fontSize: 11)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => context.push(Routes.privacyPolicy),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB), size: 20),
-                      ),
-                      title: const Text('About Cozy Corner', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: const Text('Facility details & system info', style: TextStyle(fontSize: 11)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _showAboutDialog(library),
-                    ),
-                  ],
-                ),
+              CozySettingsCard(
+                margin: EdgeInsets.zero,
+                children: [
+                  CozySettingsTile(
+                    icon: Icons.auto_awesome_rounded,
+                    iconColor: const Color(0xFF7C3AED),
+                    title: "What's New in Cozy Corner",
+                    subtitle: 'Explore latest student tools & automations',
+                    onTap: () => WhatsNewService.showChangelog(context, isStudent: true),
+                  ),
+                  const CozySettingsDivider(),
+                  CozySettingsTile(
+                    icon: Icons.system_update_rounded,
+                    iconColor: const Color(0xFF0284C7),
+                    title: 'Check for Updates',
+                    subtitle: 'v${AppConstants.appVersion}+${AppConstants.buildNumber} • Tap to check',
+                    onTap: _checkForUpdates,
+                  ),
+                  const CozySettingsDivider(),
+                  CozySettingsTile(
+                    icon: Icons.description_outlined,
+                    iconColor: const Color(0xFF4F46E5),
+                    title: 'Terms of Service',
+                    subtitle: 'Study hall guidelines & membership policy',
+                    onTap: () => context.push(Routes.terms),
+                  ),
+                  const CozySettingsDivider(),
+                  CozySettingsTile(
+                    icon: Icons.shield_outlined,
+                    iconColor: const Color(0xFF10B981),
+                    title: 'Privacy Policy',
+                    subtitle: 'Data protection & privacy guidelines',
+                    onTap: () => context.push(Routes.privacyPolicy),
+                  ),
+                  const CozySettingsDivider(),
+                  CozySettingsTile(
+                    icon: Icons.info_outline_rounded,
+                    iconColor: const Color(0xFF2563EB),
+                    title: 'About Cozy Corner',
+                    subtitle: 'Facility details & system info',
+                    onTap: () => _showAboutDialog(library),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
 

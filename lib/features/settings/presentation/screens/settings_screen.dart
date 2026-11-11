@@ -22,6 +22,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:study_library/services/remote_config_service.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
 import 'package:study_library/services/soundbox_service.dart';
+import 'package:study_library/core/widgets/cozy_settings_tile.dart';
 
 String _getSafePlatformName() {
   if (kIsWeb) return 'Web Browser';
@@ -200,7 +201,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Pricing tiers, validity durations & discounts',
                 onTap: () => context.push(Routes.adminPlans),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.receipt_rounded,
                 iconColor: const Color(0xFF059669),
@@ -209,7 +210,7 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => context.push(Routes.adminReceipts),
               ),
               if (RemoteConfigService.enableRevenueDashboard) ...[
-                const Divider(height: 1, indent: 56),
+                const CozySettingsDivider(),
                 _buildSettingsTile(
                   icon: Icons.bar_chart_rounded,
                   iconColor: const Color(0xFF10B981),
@@ -218,7 +219,7 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => context.push(Routes.adminRevenue),
                 ),
               ],
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.campaign_rounded,
                 iconColor: const Color(0xFFD97706),
@@ -226,7 +227,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Publish notice board alerts and banners to students',
                 onTap: () => context.push(Routes.adminAnnouncements),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.calendar_month_rounded,
                 iconColor: const Color(0xFFDC2626),
@@ -234,7 +235,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Manage library holidays and closed dates',
                 onTap: () => context.push(Routes.adminHolidays),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.feedback_rounded,
                 iconColor: const Color(0xFF7C3AED),
@@ -251,7 +252,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 onTap: () => context.push(Routes.adminFeedback),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.move_to_inbox_rounded,
                 iconColor: const Color(0xFF2563EB),
@@ -268,7 +269,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 onTap: () => context.push(Routes.adminRequests),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.hourglass_top_rounded,
                 iconColor: const Color(0xFF6366F1),
@@ -300,7 +301,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Name, logo, contact, operating hours & amenities',
                 onTap: () => context.push(Routes.adminLibraryProfile),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.qr_code_2_rounded,
                 iconColor: const Color(0xFF059669),
@@ -308,7 +309,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Print A4 entrance poster and share live portal link',
                 onTap: () => context.push(Routes.adminQrShare),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.badge_rounded,
                 iconColor: const Color(0xFF7C3AED),
@@ -316,7 +317,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Customize card layout, visible fields & back-side rules',
                 onTap: () => context.push(Routes.adminIdCardTemplate),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.receipt_long_rounded,
                 iconColor: const Color(0xFFD97706),
@@ -324,7 +325,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Customize layout, digital stamp, watermark & terms',
                 onTap: () => context.push(Routes.adminReceiptTemplate),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.mark_chat_unread_rounded,
                 iconColor: const Color(0xFF25D366),
@@ -332,7 +333,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Personalize welcome, receipt, due and renewal messages with real-time WhatsApp preview',
                 onTap: () => context.push(Routes.adminMessageTemplates),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.app_registration_rounded,
                 iconColor: const Color(0xFF0284C7),
@@ -340,7 +341,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Configure required fields and student signup preview',
                 onTap: () => context.push(Routes.adminFormCustomizer),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.payment_rounded,
                 iconColor: const Color(0xFF059669),
@@ -363,7 +364,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'WhatsApp, SMS, Telegram channels & automated alerts',
                 onTap: () => context.go(Routes.adminCommunications),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.hourglass_top_rounded,
                 iconColor: const Color(0xFFD97706),
@@ -371,7 +372,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Buffer days allowed before releasing expired seats',
                 onTap: () => context.push(Routes.adminGracePeriod),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.assignment_return_rounded,
                 iconColor: const Color(0xFFEF4444),
@@ -379,7 +380,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Early exit processing fee, refund policy & 10+ days freeze',
                 onTap: () => _showCancellationPolicyDialog(context, ref),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.people_outline_rounded,
                 iconColor: const Color(0xFF7C3AED),
@@ -387,7 +388,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Live queue, seat holding window & waitlist policies',
                 onTap: () => context.push(Routes.adminWaitingList),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.gavel_rounded,
                 iconColor: const Color(0xFFDC2626),
@@ -395,7 +396,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Code of conduct displayed inside student apps',
                 onTap: () => context.push(Routes.adminRules),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.speaker_phone_rounded,
                 iconColor: const Color(0xFF059669),
@@ -425,7 +426,7 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.admin_panel_settings_rounded,
                 iconColor: const Color(0xFF059669),
@@ -433,7 +434,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Invite team members and configure role-based access',
                 onTap: () => context.push(Routes.adminStaff),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.devices_rounded,
                 iconColor: const Color(0xFF7C3AED),
@@ -456,7 +457,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Firebase Spark quota monitor, integrity auto-healer & cleanup',
                 onTap: () => context.push(Routes.adminMaintenance),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.cloud_sync_rounded,
                 iconColor: const Color(0xFF2563EB),
@@ -464,7 +465,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Safely backup or restore your complete library records',
                 onTap: () => context.push(Routes.adminBackup),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.file_download_outlined,
                 iconColor: const Color(0xFF059669),
@@ -472,7 +473,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Download Excel/CSV reports for students, dues & finances',
                 onTap: () => context.push(Routes.adminDataExport),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.history_rounded,
                 iconColor: const Color(0xFFD97706),
@@ -480,7 +481,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Track staff actions, financial changes & system events',
                 onTap: () => context.push(Routes.adminAuditLog),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.delete_outline_rounded,
                 iconColor: const Color(0xFFDC2626),
@@ -500,30 +501,20 @@ class SettingsScreen extends ConsumerWidget {
                 builder: (context, ref, _) {
                   final themeMode = ref.watch(themeNotifierProvider);
                   final isDark = themeMode == ThemeMode.dark;
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                        size: 20,
-                        color: Colors.amber.shade800,
-                      ),
-                    ),
-                    title: const Text('Dark Theme', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-                    subtitle: Text(isDark ? 'Dark theme enabled' : 'Light theme enabled', style: const TextStyle(fontSize: 11.5)),
+                  return CozySettingsTile(
+                    icon: isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                    iconColor: Colors.amber.shade700,
+                    title: 'Dark Theme',
+                    subtitle: isDark ? 'Dark theme enabled' : 'Light theme enabled',
                     trailing: Switch(
                       value: isDark,
                       onChanged: (_) => ref.read(themeNotifierProvider.notifier).toggleTheme(),
                     ),
+                    onTap: () => ref.read(themeNotifierProvider.notifier).toggleTheme(),
                   );
                 },
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.info_outline_rounded,
                 iconColor: const Color(0xFF2563EB),
@@ -531,7 +522,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'App version, build details & system info',
                 onTap: () => _showAboutAppDialog(context, ref, ver, build),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.system_update_rounded,
                 iconColor: const Color(0xFF059669),
@@ -539,7 +530,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Check for the latest version and features',
                 onTap: () => _onCheckForUpdates(context, ref),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.auto_awesome_rounded,
                 iconColor: const Color(0xFF7C3AED),
@@ -547,7 +538,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'View recent updates and release notes',
                 onTap: () => WhatsNewService.showChangelog(context, isStudent: false),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.description_outlined,
                 iconColor: const Color(0xFF64748B),
@@ -555,7 +546,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Usage terms and conditions',
                 onTap: () => context.push(Routes.terms),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.shield_outlined,
                 iconColor: const Color(0xFF64748B),
@@ -563,7 +554,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Data protection and privacy guidelines',
                 onTap: () => context.push(Routes.privacyPolicy),
               ),
-              const Divider(height: 1, indent: 56),
+              const CozySettingsDivider(),
               _buildSettingsTile(
                 icon: Icons.headset_mic_rounded,
                 iconColor: const Color(0xFF059669),
@@ -837,47 +828,9 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildGroupedSection(BuildContext context, {required String title, required List<Widget> children}) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 6),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.3,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E28) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: children,
-            ),
-          ),
-        ],
-      ),
+    return CozySettingsCard(
+      title: title,
+      children: children,
     );
   }
 
@@ -889,20 +842,13 @@ class SettingsScreen extends ConsumerWidget {
     Color? iconColor,
     Widget? trailing,
   }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: (iconColor ?? const Color(0xFF64748B)).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, size: 20, color: iconColor ?? const Color(0xFF475569)),
-      ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11.5)),
-      trailing: trailing ?? const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF94A3B8)),
+    return CozySettingsTile(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
       onTap: onTap,
+      iconColor: iconColor,
+      trailing: trailing,
     );
   }
 

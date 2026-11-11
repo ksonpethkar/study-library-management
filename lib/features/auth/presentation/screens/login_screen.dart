@@ -17,6 +17,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/widgets/cozy_pressable.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -890,18 +891,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                           ),
                         ),
-                        InkWell(
+                        CozyPressable(
                           onTap: () => context.push(Routes.terms),
-                          borderRadius: BorderRadius.circular(4),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                          pressScale: 0.95,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
                             child: Text(
                               'Terms (नियम)',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.primary,
-                                decoration: TextDecoration.underline,
                               ),
                             ),
                           ),
@@ -913,18 +917,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             color: theme.colorScheme.outlineVariant,
                           ),
                         ),
-                        InkWell(
+                        CozyPressable(
                           onTap: () => context.push(Routes.privacyPolicy),
-                          borderRadius: BorderRadius.circular(4),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                          pressScale: 0.95,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
                             child: Text(
                               'Privacy Policy (गोपनीयता धोरण)',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.primary,
-                                decoration: TextDecoration.underline,
                               ),
                             ),
                           ),
