@@ -26,6 +26,8 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/providers/theme_provider.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/core/theme/app_decorations.dart';
+import 'package:study_library/core/widgets/cozy_pressable.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/expiry_scheduler_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
@@ -1280,16 +1282,29 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
               ),
               Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
-                  const SizedBox(width: 4),
-                  Text(
-                    plan != null ? 'Fee ₹${plan.price.toStringAsFixed(0)} Settled' : 'Active Pass',
-                    style: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                  if ((student.pendingDueBalance ?? 0) > 0) ...[
+                    const Icon(Icons.warning_amber_rounded, size: 12, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Due ₹${(student.pendingDueBalance ?? 0).toStringAsFixed(0)} Pending',
+                      style: const TextStyle(
+                        color: Color(0xFFFBBF24),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
+                    const SizedBox(width: 4),
+                    Text(
+                      plan != null ? 'Fee ₹${plan.price.toStringAsFixed(0)} Settled' : 'Active Pass',
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -2265,23 +2280,26 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             ? 'CHANGE IN PROGRESS'
             : (isGrace ? 'GRACE PERIOD' : 'ALLOCATED'));
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: accentColor.withValues(alpha: isDark ? (hasPendingChange ? 0.6 : 0.35) : (hasPendingChange ? 0.5 : 0.25)),
-          width: hasPendingChange ? 1.5 : 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: accentColor.withValues(alpha: isDark ? 0.12 : 0.08),
-            blurRadius: hasPendingChange ? 14 : 12,
-            offset: const Offset(0, 4),
+    return CozyPressable(
+      onTap: () {
+        if (isExpired) {
+          context.push(Routes.studentRenew);
+        } else {
+          context.push(Routes.studentSeatMap);
+        }
+      },
+      pressScale: 0.985,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: accentColor.withValues(alpha: isDark ? (hasPendingChange ? 0.6 : 0.35) : (hasPendingChange ? 0.5 : 0.25)),
+            width: hasPendingChange ? 1.5 : 1.2,
           ),
-        ],
-      ),
-      child: ListTile(
+          boxShadow: AppDecorations.softShadows(context, elevation: hasPendingChange ? 1.0 : 0.8),
+        ),
+        child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: accentColor.withValues(alpha: 0.15),
@@ -2414,8 +2432,9 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildQuickServicesDock(
     BuildContext context,
@@ -3219,92 +3238,90 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     final ssid = (library is LibraryModel) ? library.effectiveWifiSsid : 'Cozy Corner 5G';
     final password = (library is LibraryModel) ? library.effectiveWifiPassword : 'Study@Cozy2026';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0284C7).withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => _copyWifiPassword(context, ssid, password),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+    return CozyPressable(
+      onTap: () => _copyWifiPassword(context, ssid, password),
+      pressScale: 0.98,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
+          boxShadow: AppDecorations.softShadows(context, elevation: 0.8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.wifi_rounded, color: Colors.white, size: 22),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              ssid,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                child: const Icon(Icons.wifi_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            ssid,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text('High-Speed 5G', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Tap to copy password: $password',
-                        style: TextStyle(fontSize: 11.5, color: theme.colorScheme.onSurfaceVariant),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
+                          child: const Text('High-Speed 5G', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Tap card to copy password: $password',
+                      style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                FilledButton.tonalIcon(
-                  style: FilledButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.1),
-                    foregroundColor: const Color(0xFF0284C7),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () => _copyWifiPassword(context, ssid, password),
-                  icon: const Icon(Icons.copy_rounded, size: 14),
-                  label: const Text('Copy', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                  foregroundColor: const Color(0xFF0284C7),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-              ],
-            ),
+                onPressed: () => _copyWifiPassword(context, ssid, password),
+                icon: const Icon(Icons.copy_rounded, size: 14),
+                label: const Text('Copy', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
         ),
       ),
@@ -3772,35 +3789,43 @@ class _CompactQuickAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(14),
+    return CozyPressable(
+      onTap: onTap,
+      pressScale: 0.95,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: isDark ? 0.15 : 0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: isDark ? 0.3 : 0.2)),
+          color: color.withValues(alpha: isDark ? 0.16 : 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: color.withValues(alpha: isDark ? 0.32 : 0.18),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: isDark ? 0.12 : 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircleAvatar(
-              radius: 18,
-              backgroundColor: color.withValues(alpha: isDark ? 0.3 : 0.15),
-              child: Icon(icon, size: 18, color: color),
+              radius: 19,
+              backgroundColor: color.withValues(alpha: isDark ? 0.32 : 0.16),
+              child: Icon(icon, size: 19, color: color),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 7),
             Text(
               label,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 11,
+                fontSize: 11.5,
                 color: isDark ? Colors.white : color,
+                letterSpacing: -0.1,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -3829,27 +3854,36 @@ class _SecondaryQuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(12),
+    final isDark = theme.brightness == Brightness.dark;
+    return CozyPressable(
+      onTap: onTap,
+      pressScale: 0.97,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.4),
+            width: 1.0,
+          ),
+          boxShadow: AppDecorations.softShadows(context, elevation: 0.5),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: isDark ? 0.2 : 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 17, color: color),
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

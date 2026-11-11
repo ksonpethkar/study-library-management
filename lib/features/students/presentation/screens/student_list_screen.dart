@@ -328,6 +328,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               onPressed: _bulkDeactivate,
             ),
             IconButton(
+              icon: const Icon(Icons.edit_calendar_rounded),
+              tooltip: 'Adjust Admission Date',
+              onPressed: _bulkAdjustAdmissionDate,
+            ),
+            IconButton(
               icon: const Icon(Icons.download_outlined),
               tooltip: 'Export selected as CSV',
               onPressed: _bulkExportCsv,
@@ -875,6 +880,201 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           );
         }
       }
+    }
+  }
+
+  Future<void> _bulkAdjustAdmissionDate() async {
+    final selectedCount = _selectedStudentIds.length;
+    if (selectedCount == 0) return;
+
+    final now = DateTime.now();
+    DateTime chosenDate = DateTime(now.year, now.month, 1);
+    bool alsoUpdatePlanStart = true;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDlgState) {
+            final theme = Theme.of(context);
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.edit_calendar_rounded, color: Color(0xFF0284C7), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Batch Update Admission Date',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.people_alt_rounded, size: 16, color: theme.colorScheme.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$selectedCount students selected for update',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'New Admission Date:',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: chosenDate,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          helpText: 'Select New Admission Date',
+                        );
+                        if (picked != null) {
+                          setDlgState(() => chosenDate = picked);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF0284C7), width: 1.5),
+                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFF0284C7).withValues(alpha: 0.05),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_month_rounded, color: Color(0xFF0284C7), size: 20),
+                            const SizedBox(width: 10),
+                            Text(
+                              DateFormat('dd MMMM yyyy').format(chosenDate),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            const Spacer(),
+                            const Icon(Icons.arrow_drop_down, color: Color(0xFF0284C7)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        ActionChip(
+                          label: const Text('1st of Month', style: TextStyle(fontSize: 11)),
+                          onPressed: () => setDlgState(() {
+                            final n = DateTime.now();
+                            chosenDate = DateTime(n.year, n.month, 1);
+                          }),
+                        ),
+                        ActionChip(
+                          label: const Text('Today', style: TextStyle(fontSize: 11)),
+                          onPressed: () => setDlgState(() => chosenDate = DateTime.now()),
+                        ),
+                        ActionChip(
+                          label: const Text('1st of Last Month', style: TextStyle(fontSize: 11)),
+                          onPressed: () => setDlgState(() {
+                            final n = DateTime.now();
+                            chosenDate = DateTime(n.year, n.month - 1, 1);
+                          }),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: alsoUpdatePlanStart,
+                      onChanged: (val) => setDlgState(() => alsoUpdatePlanStart = val),
+                      title: const Text(
+                        'Align Plan Cycle Start',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: const Text(
+                        'Also updates the billing cycle start date to match the admission date.',
+                        style: TextStyle(fontSize: 11.5, color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  icon: const Icon(Icons.check, size: 16),
+                  label: Text('Update $selectedCount Students'),
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0284C7)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result != true || !mounted) return;
+
+    final libraryId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    final repo = ref.read(studentRepositoryProvider);
+
+    try {
+      await repo.bulkUpdateAdmissionDate(
+        libraryId,
+        _selectedStudentIds.toList(),
+        chosenDate,
+        updatePlanStartDate: alsoUpdatePlanStart,
+      );
+
+      if (!mounted) return;
+      final count = _selectedStudentIds.length;
+      setState(() {
+        _isSelectionMode = false;
+        _selectedStudentIds.clear();
+      });
+      ref.read(studentPageProvider.notifier).refresh();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Successfully updated admission date to ${DateFormat("dd MMM yyyy").format(chosenDate)} for $count students.'),
+          backgroundColor: const Color(0xFF059669),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update admission dates: $e'), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -1747,6 +1947,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           final isPendingChip = f == 'Pending';
           final showBadge = isPendingChip && pendingAdmissionsCount > 0;
           final label = showBadge ? 'Pending ($pendingAdmissionsCount)' : f;
+          final isSelected = _selectedFilter == f;
 
           return Padding(
             padding: const EdgeInsets.only(right: 8.0),
@@ -1755,7 +1956,26 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               avatar: showBadge
                   ? const Icon(Icons.mark_email_unread_rounded, size: 16, color: Color(0xFF0284C7))
                   : null,
-              selected: _selectedFilter == f,
+              selected: isSelected,
+              labelStyle: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                fontSize: 12.5,
+                color: isSelected
+                    ? (isDark ? theme.colorScheme.onPrimaryContainer : (theme.colorScheme.primary.computeLuminance() < 0.2 ? Colors.white : theme.colorScheme.onPrimary))
+                    : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B)),
+              ),
+              selectedColor: isDark
+                  ? theme.colorScheme.primaryContainer
+                  : (theme.colorScheme.primary.computeLuminance() < 0.2
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.primaryContainer),
+              backgroundColor: isDark ? theme.colorScheme.surfaceContainer : Colors.white,
+              side: BorderSide(
+                color: isSelected
+                    ? (isDark ? theme.colorScheme.primary : theme.colorScheme.primary)
+                    : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                width: isSelected ? 1.5 : 1.0,
+              ),
               onSelected: (s) {
                 if (s) setState(() => _selectedFilter = f);
               },
@@ -1841,7 +2061,13 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   ) {
     final isDark = theme.brightness == Brightness.dark;
     const primaryColor = Color(0xFF0284C7);
-    final seatLabel = req.targetSeatLabel ?? req.currentSeatLabel;
+    final rawSeat = req.targetSeatLabel ?? req.currentSeatLabel;
+    final cleanSeat = rawSeat != null
+        ? rawSeat.replaceAll(RegExp(r'(Desk|Seat)\s*#?\s*', caseSensitive: false), '').replaceAll('#', '').trim()
+        : null;
+    final seatLabel = (cleanSeat != null && cleanSeat.isNotEmpty)
+        ? 'Desk #$cleanSeat'
+        : 'Auto Seat';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -1930,17 +2156,35 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           if (req.studentPhone != null && req.studentPhone!.isNotEmpty)
                             Row(
                               children: [
-                                Icon(Icons.phone_outlined, size: 13, color: theme.colorScheme.outline),
+                                const Icon(Icons.phone_outlined, size: 13, color: Color(0xFF0284C7)),
                                 const SizedBox(width: 4),
-                                Text(
-                                  req.studentPhone!,
-                                  style: TextStyle(fontSize: 12.5, color: theme.colorScheme.outline),
+                                InkWell(
+                                  onTap: () async {
+                                    final clean = req.studentPhone!.replaceAll(RegExp(r'\D'), '');
+                                    final uri = Uri.parse('tel:$clean');
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Text(
+                                    req.studentPhone!,
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      color: Color(0xFF0284C7),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
                                 const Spacer(),
                                 if (req.createdAt != null)
                                   Text(
                                     DateFormat('MMM d • h:mm a').format(req.createdAt!),
-                                    style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                               ],
                             ),
@@ -1957,8 +2201,9 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        color: isDark ? theme.colorScheme.surfaceContainerHighest : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1), width: 0.8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1966,8 +2211,12 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           const Icon(Icons.chair_outlined, size: 14, color: Color(0xFF0284C7)),
                           const SizedBox(width: 4),
                           Text(
-                            seatLabel != null && seatLabel.isNotEmpty ? 'Desk #$seatLabel' : 'Auto Seat',
-                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                            seatLabel,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
                           ),
                         ],
                       ),
@@ -1977,12 +2226,17 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          color: isDark ? theme.colorScheme.surfaceContainerHighest : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1), width: 0.8),
                         ),
                         child: Text(
                           req.requestedPlanName!,
-                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                          ),
                         ),
                       ),
                     if (req.amount != null && req.amount! > 0) ...[
@@ -2008,7 +2262,27 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    if (req.studentPhone != null && req.studentPhone!.isNotEmpty)
+                    if (req.studentPhone != null && req.studentPhone!.isNotEmpty) ...[
+                      // 1. Direct Phone Call Button
+                      IconButton.filledTonal(
+                        onPressed: () async {
+                          final clean = req.studentPhone!.replaceAll(RegExp(r'\D'), '');
+                          final uri = Uri.parse('tel:$clean');
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri);
+                          }
+                        },
+                        icon: const Icon(Icons.phone_outlined, size: 16),
+                        tooltip: 'Call Applicant',
+                        style: IconButton.styleFrom(
+                          backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                          foregroundColor: const Color(0xFF0284C7),
+                          minimumSize: const Size(36, 36),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // 2. WhatsApp Message Button
                       IconButton.filledTonal(
                         onPressed: () {
                           final clean = req.studentPhone!.replaceAll(RegExp(r'\D'), '');
@@ -2024,6 +2298,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           padding: EdgeInsets.zero,
                         ),
                       ),
+                    ],
                     const Spacer(),
                     FilledButton.icon(
                       onPressed: () {

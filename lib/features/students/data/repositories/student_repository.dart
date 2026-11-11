@@ -50,10 +50,10 @@ class StudentRepository {
     return createStudent(libraryId, student, allowSharedGovId: false);
   }
 
-  Future<String> createStudent(String libraryId, StudentModel student, {bool allowSharedGovId = false}) async {
+  Future<String> createStudent(String libraryId, StudentModel student, {bool allowSharedGovId = false, bool allowSharedPhone = false}) async {
     try {
       final cleanPhone = student.phone.trim();
-      if (cleanPhone.isNotEmpty) {
+      if (cleanPhone.isNotEmpty && !allowSharedPhone) {
         final existingPhone = await _firestore
             .collection(FirestorePaths.libraries)
             .doc(libraryId)
@@ -437,6 +437,49 @@ class StudentRepository {
       final data = recycleDoc.data()!;
       data.remove('deletedAt');
       data.remove('type');
+
+      // Double-allocation guard: verify target seat occupancy before restoring seat assignment
+      final targetSeatId = data['seatId'] as String?;
+      final targetSectionId = data['sectionId'] as String?;
+      if (targetSeatId != null && targetSeatId.isNotEmpty && targetSectionId != null && targetSectionId.isNotEmpty) {
+        try {
+          final seatDoc = await _firestore
+              .collection(FirestorePaths.libraries)
+              .doc(libraryId)
+              .collection(FirestorePaths.sections)
+              .doc(targetSectionId)
+              .collection(FirestorePaths.seats)
+              .doc(targetSeatId)
+              .get();
+
+          if (!seatDoc.exists) {
+            data['seatId'] = null;
+            data['sectionId'] = null;
+            data['seatLabel'] = null;
+          } else {
+            final sData = seatDoc.data() ?? {};
+            final occupant = sData['studentId'] as String?;
+            final status = sData['status'] as String? ?? 'available';
+            if ((occupant != null && occupant.isNotEmpty && occupant != studentId) || status == 'occupied') {
+              // Desk was reassigned while student was in recycle bin; restore as unassigned
+              data['seatId'] = null;
+              data['sectionId'] = null;
+              data['seatLabel'] = null;
+            } else {
+              // Seat is still free; re-mark it occupied for this restored student
+              await seatDoc.reference.update({
+                'status': 'occupied',
+                'studentId': studentId,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        } catch (_) {
+          data['seatId'] = null;
+          data['sectionId'] = null;
+          data['seatLabel'] = null;
+        }
+      }
       
       final batch = _firestore.batch();
       
@@ -732,6 +775,42 @@ class StudentRepository {
       await batch.commit();
     } catch (e) {
       throw Exception('Failed to change plans in bulk.');
+    }
+  }
+
+  /// Bulk updates admission date (and optionally plan cycle start date) for existing students.
+  Future<void> bulkUpdateAdmissionDate(
+    String libraryId,
+    List<String> studentIds,
+    DateTime newAdmissionDate, {
+    bool updatePlanStartDate = false,
+  }) async {
+    try {
+      const chunkSize = 400;
+      for (int i = 0; i < studentIds.length; i += chunkSize) {
+        final end = (i + chunkSize < studentIds.length) ? i + chunkSize : studentIds.length;
+        final chunk = studentIds.sublist(i, end);
+        final batch = _firestore.batch();
+        for (final id in chunk) {
+          final ref = _firestore
+              .collection(FirestorePaths.libraries)
+              .doc(libraryId)
+              .collection(FirestorePaths.students)
+              .doc(id);
+
+          final updatePayload = <String, dynamic>{
+            'admissionDate': Timestamp.fromDate(newAdmissionDate),
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          if (updatePlanStartDate) {
+            updatePayload['planStartDate'] = Timestamp.fromDate(newAdmissionDate);
+          }
+          batch.update(ref, updatePayload);
+        }
+        await batch.commit();
+      }
+    } catch (e) {
+      throw Exception('Failed to update admission dates in bulk: $e');
     }
   }
 

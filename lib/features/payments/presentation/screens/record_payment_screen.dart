@@ -28,6 +28,8 @@ import 'package:study_library/services/upi_ocr_parser.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/soundbox_service.dart';
+import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
+import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 
 class RecordPaymentScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -871,6 +873,11 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         seatLabel: _studentSeatId != null ? SeatHelper.formatSeatLabel(seatId: _studentSeatId) : null,
         libraryName: libraryName,
       );
+
+      // Instantly refresh dashboard financial pulse and student balance badges
+      ref.invalidate(netProfitProvider);
+      ref.invalidate(studentsStreamProvider);
+
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
 

@@ -22,6 +22,8 @@ class StudentProvisioningService {
     required String requestId,
     Map<String, dynamic>? preloadedData,
     bool allowSharedGovId = false,
+    bool allowSharedPhone = false,
+    bool mergeExistingPhone = true,
   }) async {
     if (libraryId.isEmpty || requestId.isEmpty) return null;
 
@@ -86,6 +88,24 @@ class StudentProvisioningService {
             existingStudent = StudentModel.fromJson({
               ...queryByEmail.docs.first.data(),
               'id': queryByEmail.docs.first.id,
+            });
+            createdStudentId = existingStudent.id;
+          }
+        }
+
+        final cleanPhone = (studentData['phone'] ?? data['studentPhone'] ?? '').toString().trim();
+        if (existingStudent == null && cleanPhone.isNotEmpty && !allowSharedPhone && mergeExistingPhone) {
+          final queryByPhone = await _firestore
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('students')
+              .where('phone', isEqualTo: cleanPhone)
+              .limit(1)
+              .get();
+          if (queryByPhone.docs.isNotEmpty) {
+            existingStudent = StudentModel.fromJson({
+              ...queryByPhone.docs.first.data(),
+              'id': queryByPhone.docs.first.id,
             });
             createdStudentId = existingStudent.id;
           }
@@ -234,7 +254,12 @@ class StudentProvisioningService {
             updatedAt: DateTime.now(),
           );
 
-          createdStudentId = await _studentRepo.createStudent(libraryId, newStudent, allowSharedGovId: allowSharedGovId);
+          createdStudentId = await _studentRepo.createStudent(
+            libraryId,
+            newStudent,
+            allowSharedGovId: allowSharedGovId,
+            allowSharedPhone: allowSharedPhone,
+          );
         }
 
         // 3. Assign Seat if specified
@@ -248,6 +273,22 @@ class StudentProvisioningService {
             );
           } catch (e) {
             if (kDebugMode) debugPrint('Failed to assign seat during provisioning: $e');
+            // Clean up ghost seat assignment from student document so they are not tied to a non-existent or conflicting seat
+            try {
+              await _firestore
+                  .collection('libraries')
+                  .doc(libraryId)
+                  .collection('students')
+                  .doc(createdStudentId)
+                  .update({
+                'seatId': null,
+                'sectionId': null,
+                'notes': 'Admission approved, but requested desk ($requestedSeatId) was unavailable. Pending manual desk allocation.',
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+            } catch (cleanupErr) {
+              if (kDebugMode) debugPrint('Failed to rollback ghost seat on student: $cleanupErr');
+            }
           }
         }
 
@@ -615,6 +656,7 @@ class StudentProvisioningService {
         final primaryTarget = (studentUserId.isNotEmpty) ? studentUserId : createdStudentId;
         AppNotificationService.sendNotification(
           libraryId: libraryId,
+          notificationId: 'admission_approved_$requestId',
           title: 'Admission Approved! 🎉',
           body: isPaid
               ? 'Hello $studentName! Your admission is confirmed$seatNotice and your membership is active. Digital ID Pass unlocked!'

@@ -27,6 +27,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/services/backup_service.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
+import 'package:study_library/core/widgets/pulsing_glow_container.dart';
 import 'package:study_library/services/quick_actions_service.dart';
 import 'package:study_library/services/remote_config_service.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
@@ -490,28 +491,49 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                     final unreadPending = (_pendingCount - alertsState.acknowledgedPendingCount).clamp(0, 999999);
                     final unreadRenewals = (effectiveRenewalsDue - alertsState.acknowledgedRenewalsCount).clamp(0, 999999);
                     final totalUnread = unreadNotifsCount + unreadPending + unreadRenewals;
+                    final reqCounts = ref.watch(requestModuleCountsProvider);
+                    final hasUrgentPending = reqCounts.hasAnyActionable || totalUnread > 0;
+                    final displayBadgeCount = totalUnread > 0 ? totalUnread : reqCounts.totalActionableItems;
 
                     return Badge(
-                      isLabelVisible: totalUnread > 0,
-                      label: Text('$totalUnread'),
-                      backgroundColor: Colors.redAccent,
-                      child: IconButton(
-                        icon: Icon(
-                          totalUnread > 0
-                              ? Icons.notifications_active_rounded
-                              : Icons.notifications_outlined,
-                        ),
-                        tooltip: 'Admin Notifications ($totalUnread)',
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          NotificationCenterSheet.show(
-                            context,
-                            libraryId: libId,
-                            role: 'admin',
-                            pendingRequestsCount: _pendingCount,
-                            renewalsDueCount: effectiveRenewalsDue,
-                          );
-                        },
+                      isLabelVisible: displayBadgeCount > 0,
+                      label: Text('$displayBadgeCount'),
+                      backgroundColor: hasUrgentPending ? const Color(0xFFEA580C) : Colors.redAccent,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              hasUrgentPending
+                                  ? Icons.notifications_active_rounded
+                                  : Icons.notifications_outlined,
+                              color: hasUrgentPending ? const Color(0xFFF59E0B) : null,
+                            ),
+                            tooltip: 'Admin Notifications ($displayBadgeCount)',
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              NotificationCenterSheet.show(
+                                context,
+                                libraryId: libId,
+                                role: 'admin',
+                                pendingRequestsCount: _pendingCount,
+                                renewalsDueCount: effectiveRenewalsDue,
+                              );
+                            },
+                          ),
+                          if (hasUrgentPending)
+                            Positioned(
+                              top: 6,
+                              right: 6,
+                              child: IgnorePointer(
+                                child: LiveRadarDot(
+                                  color: const Color(0xFFEA580C),
+                                  size: 5.5,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   },
@@ -534,6 +556,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                   children: [
                     const AppUpdateBanner(),
                     const SizedBox(height: 12),
+
+                    // Priority 1: Real-time Action Required Hero Strip (Pending Admissions, Seat Changes, Renewals)
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final reqCounts = ref.watch(requestModuleCountsProvider);
+                        return _buildHeroActionStrip(
+                          context: context,
+                          theme: theme,
+                          reqCounts: reqCounts,
+                        );
+                      },
+                    ),
 
                     // Phase 4: Real-time Silent Reception Assistance Alert Stream
                     if (libId != null && libId.isNotEmpty) ...[
@@ -1036,6 +1070,151 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
   );
   }
 
+  /// Priority 1 Hero Action Strip that pulses and breathes when actionable items
+  /// (e.g. pending student admissions, seat changes, renewals) exist.
+  Widget _buildHeroActionStrip({
+    required BuildContext context,
+    required ThemeData theme,
+    required RequestModuleCounts reqCounts,
+  }) {
+    if (!reqCounts.hasAnyActionable) return const SizedBox.shrink();
+
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = reqCounts.admissionsPending > 0
+        ? const Color(0xFFEA580C) // Rich Orange for new admission
+        : const Color(0xFFD97706); // Warm Amber for other requests
+
+    // Build concise, impactful headline
+    String headline;
+    if (reqCounts.admissionsPending > 0) {
+      headline = '${reqCounts.admissionsPending} Student Admission${reqCounts.admissionsPending > 1 ? "s" : ""} Waiting for Approval';
+    } else if (reqCounts.seatChangesPending > 0) {
+      headline = '${reqCounts.seatChangesPending} Seat Change Request${reqCounts.seatChangesPending > 1 ? "s" : ""} Pending';
+    } else if (reqCounts.renewalsPending > 0) {
+      headline = '${reqCounts.renewalsPending} Membership Renewal${reqCounts.renewalsPending > 1 ? "s" : ""} to Confirm';
+    } else if (reqCounts.openFeedbackCount > 0) {
+      headline = '${reqCounts.openFeedbackCount} Student Feedback / Desk Alert${reqCounts.openFeedbackCount > 1 ? "s" : ""} Open';
+    } else if (reqCounts.waitingListCount > 0) {
+      headline = '${reqCounts.waitingListCount} Student${reqCounts.waitingListCount > 1 ? "s" : ""} on Waiting List';
+    } else {
+      headline = '${reqCounts.totalActionableItems} Operational Item${reqCounts.totalActionableItems > 1 ? "s" : ""} Need Action';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14.0),
+      child: PulsingGlowContainer(
+        isPulsing: true,
+        glowColor: primaryColor,
+        borderRadius: BorderRadius.circular(16),
+        backgroundColor: isDark ? const Color(0xFF2C180B) : const Color(0xFFFFF7ED),
+        borderWidth: 1.5,
+        onTap: () {
+          HapticFeedback.lightImpact();
+          context.push(Routes.adminRequests);
+        },
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                LiveRadarBadge(
+                  label: 'ACTION REQUIRED',
+                  color: primaryColor,
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    reqCounts.summaryText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? const Color(0xFFFED7AA) : const Color(0xFF9A3412),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    reqCounts.admissionsPending > 0
+                        ? Icons.how_to_reg_rounded
+                        : Icons.pending_actions_rounded,
+                    color: primaryColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        headline,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                          color: isDark ? const Color(0xFFFFEDD5) : const Color(0xFF7C2D12),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Tap to review submitted details, verify Gov ID & finalize seat allocation.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.tonal(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    context.push(Routes.adminRequests);
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Review (${reqCounts.totalActionableItems})',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_forward_rounded, size: 14),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildOccupancyRadarCard({
     required BuildContext context,
     required ThemeData theme,
@@ -1269,12 +1448,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                             builder: (context, ref, _) {
                               final reqCounts = ref.watch(requestModuleCountsProvider);
                               final count = reqCounts.totalPending;
+                              final hasPending = count > 0;
                               return _buildMicroMetricTile(
                                 label: 'Requests Hub',
                                 value: '$count',
-                                subtext: count > 0 ? reqCounts.summaryText : 'all cleared',
-                                color: count > 0 ? const Color(0xFFF59E0B) : const Color(0xFF64748B),
-                                icon: Icons.pending_actions_rounded,
+                                subtext: hasPending ? reqCounts.summaryText : 'all cleared',
+                                color: hasPending ? const Color(0xFFF59E0B) : const Color(0xFF64748B),
+                                icon: hasPending ? Icons.pending_actions_rounded : Icons.check_circle_outline_rounded,
+                                isPulsing: hasPending,
                                 onTap: () => context.push(Routes.adminRequests),
                               );
                             },
@@ -1388,48 +1569,73 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
     required Color color,
     required IconData icon,
     required VoidCallback onTap,
+    bool isPulsing = false,
   }) {
+    final tileContent = Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isPulsing ? 0.14 : 0.07),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: color.withValues(alpha: isPulsing ? 0.65 : 0.2),
+          width: isPulsing ? 1.4 : 1.0,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 12, color: color),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (isPulsing) ...[
+                const SizedBox(width: 3),
+                LiveRadarDot(color: color, size: 4.5),
+              ],
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: color),
+          ),
+          Text(
+            subtext,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: isPulsing ? FontWeight.w700 : FontWeight.normal,
+              color: isPulsing ? color : Colors.grey.shade600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+
+    if (isPulsing) {
+      return PulsingGlowContainer(
+        isPulsing: true,
+        glowColor: color,
+        borderRadius: BorderRadius.circular(10),
+        padding: EdgeInsets.zero,
+        onTap: onTap,
+        child: tileContent,
+      );
+    }
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 12, color: color),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: color),
-            ),
-            Text(
-              subtext,
-              style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
+      child: tileContent,
     );
   }
 
@@ -1785,6 +1991,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 icon: Icons.alarm_rounded,
                 label: '$renewalsDue Renew in 7d',
                 color: renewalsDue > 0 ? const Color(0xFFEA580C) : null,
+                isPulsing: renewalsDue > 0,
                 onTap: () => context.go(Uri(path: Routes.adminStudents, queryParameters: {'filter': 'Due Soon'}).toString()),
               ),
             ),
@@ -1801,40 +2008,64 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
     required String label,
     Color? color,
     required VoidCallback onTap,
+    bool isPulsing = false,
   }) {
     final isDark = theme.brightness == Brightness.dark;
     final effColor = color ?? (isDark ? Colors.white70 : const Color(0xFF475569));
 
+    final chipContent = Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isPulsing
+            ? effColor.withValues(alpha: 0.12)
+            : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isPulsing
+              ? effColor.withValues(alpha: 0.6)
+              : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 14, color: effColor),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isPulsing ? FontWeight.w800 : FontWeight.bold,
+                color: effColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (isPulsing) ...[
+            const SizedBox(width: 4),
+            LiveRadarDot(color: effColor, size: 4.5),
+          ],
+        ],
+      ),
+    );
+
+    if (isPulsing) {
+      return PulsingGlowContainer(
+        isPulsing: true,
+        glowColor: effColor,
+        borderRadius: BorderRadius.circular(10),
+        padding: EdgeInsets.zero,
+        onTap: onTap,
+        child: chipContent,
+      );
+    }
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 14, color: effColor),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: effColor,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: chipContent,
     );
   }
 }

@@ -18,10 +18,12 @@ import 'package:study_library/services/student_provisioning_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
+import 'package:study_library/models/seat_model.dart';
 import '../widgets/admin_document_studio_dialog.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
+import 'package:study_library/services/app_notification_service.dart';
 
 class RequestDetailScreen extends ConsumerStatefulWidget {
   final String requestId;
@@ -41,6 +43,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   String? _liveSectionName;
   String? _currentPlanName;
   bool _showGovId = false;
+  bool _isRequestedSeatOccupied = false;
+  String? _occupyingStudentName;
 
   @override
   void initState() {
@@ -129,12 +133,69 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           }
         }
 
+        // ── Phase 2: Live Desk Collision & Availability Detection ─────────────
+        final studentDataMap = (reqData?['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
+        final reqSeatId = (reqData?['requestedSeatId'] ?? studentDataMap['requestedSeatId'] ?? studentDataMap['seatId'] ?? reqData?['seatId'])?.toString();
+        final reqSecId = (reqData?['requestedSectionId'] ?? studentDataMap['requestedSectionId'] ?? studentDataMap['sectionId'] ?? reqData?['sectionId'])?.toString();
+        final applicantUid = (reqData?['userId'] ?? studentDataMap['userId'] ?? '').toString();
+
+        bool isSeatOccupied = false;
+        String? occupantName;
+        String? occupantId;
+
+        if (reqSeatId != null &&
+            reqSeatId.isNotEmpty &&
+            reqSecId != null &&
+            reqSecId.isNotEmpty &&
+            !reqSeatId.toLowerCase().contains('auto')) {
+          try {
+            final seatDoc = await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('sections')
+                .doc(reqSecId)
+                .collection('seats')
+                .doc(reqSeatId)
+                .get();
+
+            if (seatDoc.exists) {
+              final seatMap = seatDoc.data() ?? {};
+              final seatStatus = (seatMap['status'] ?? '').toString().toLowerCase();
+              final currentOccupant = (seatMap['studentId'] ?? '').toString();
+
+              if (seatStatus == 'occupied' &&
+                  currentOccupant.isNotEmpty &&
+                  currentOccupant != applicantUid &&
+                  currentOccupant != studentId) {
+                isSeatOccupied = true;
+                occupantId = currentOccupant;
+                try {
+                  final occDoc = await FirebaseFirestore.instance
+                      .collection('libraries')
+                      .doc(libraryId)
+                      .collection('students')
+                      .doc(currentOccupant)
+                      .get();
+                  if (occDoc.exists) {
+                    occupantName = occDoc.data()?['name']?.toString() ?? 'Enrolled Student';
+                  }
+                } catch (_) {}
+              }
+            }
+          } catch (seatErr) {
+            debugPrint('Error validating requested seat availability: $seatErr');
+          }
+        }
+
         setState(() {
           _requestData = reqData;
           _liveStudent = liveStudent;
           _liveSeatLabel = liveSeatLabel;
           _liveSectionName = liveSectionName;
           _currentPlanName = currentPlanName;
+          _isRequestedSeatOccupied = isSeatOccupied;
+          _occupyingStudentName = occupantName;
+          _occupyingStudentId = occupantId;
           _isLoading = false;
         });
       } else {
@@ -145,7 +206,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     }
   }
 
-  Future<void> _approveRequest({bool allowSharedGovId = false}) async {
+  Future<void> _approveRequest({
+    bool allowSharedGovId = false,
+    bool allowSharedPhone = false,
+    bool mergeExistingPhone = true,
+  }) async {
     final String libraryId = ref.read(currentLibraryIdProvider) ?? '';
     if (libraryId.isEmpty || _requestData == null) return;
 
@@ -154,6 +219,59 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     try {
       final data = _requestData!;
       final type = (data['type'] as String? ?? 'registration').toLowerCase();
+      final studentData = (data['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
+
+      // ── Phase 2: Desk Collision Guard on Approval ───────────────────────────
+      if (_isRequestedSeatOccupied &&
+          (type == 'registration' ||
+              type == 'newregistration' ||
+              type == 'seat_change' ||
+              type == 'seatchange')) {
+        setState(() => _isProcessing = false);
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Desk Collision Conflict'),
+                ],
+              ),
+              content: Text(
+                'The requested desk is currently occupied by ${_occupyingStudentName ?? "another student"}.\n\n'
+                'To prevent allocation conflicts, please pick an available vacant desk or switch to Auto-Assign before approving.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _switchToAutoAssign(data, studentData);
+                  },
+                  icon: const Icon(Icons.bolt_rounded, size: 16),
+                  label: const Text('Auto-Assign'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _showChangeDeskSheet(data, studentData);
+                  },
+                  icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                  label: const Text('Pick Another Desk'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
       DateTime? finalPlanStartDate;
       DateTime? finalPlanEndDate;
       String? renewalPlanId;
@@ -164,6 +282,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           requestId: widget.requestId,
           preloadedData: data,
           allowSharedGovId: allowSharedGovId,
+          allowSharedPhone: allowSharedPhone,
+          mergeExistingPhone: mergeExistingPhone,
         );
 
         // Fetch newly provisioned student data to resolve exact plan dates
@@ -299,6 +419,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
         if (studentId.isNotEmpty && rawProjectedEnd != null) {
           final newEnd = DateTime.parse(rawProjectedEnd.toString());
+          final freezeStartDt = freezeStartStr != null ? DateTime.tryParse(freezeStartStr.toString()) : null;
+          final freezeEndDt = freezeEndStr != null ? DateTime.tryParse(freezeEndStr.toString()) : null;
+          final freezeReason = data['reason']?.toString() ?? 'Study Freeze';
+
           await FirebaseFirestore.instance
               .collection('libraries')
               .doc(libraryId)
@@ -307,12 +431,26 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               .update({
             'planEndDate': Timestamp.fromDate(newEnd),
             'validTo': Timestamp.fromDate(newEnd),
+            'isFrozen': true,
+            'freezeStartDate': freezeStartDt != null ? Timestamp.fromDate(freezeStartDt) : null,
+            'freezeEndDate': freezeEndDt != null ? Timestamp.fromDate(freezeEndDt) : null,
+            'freezeReason': freezeReason,
             'lastFreezeDays': freezeDays,
-            'lastFreezeStartDate': freezeStartStr != null ? Timestamp.fromDate(DateTime.parse(freezeStartStr.toString())) : null,
-            'lastFreezeEndDate': freezeEndStr != null ? Timestamp.fromDate(DateTime.parse(freezeEndStr.toString())) : null,
+            'lastFreezeStartDate': freezeStartDt != null ? Timestamp.fromDate(freezeStartDt) : null,
+            'lastFreezeEndDate': freezeEndDt != null ? Timestamp.fromDate(freezeEndDt) : null,
             'freezeStatus': 'approved',
             'updatedAt': FieldValue.serverTimestamp(),
           });
+
+          // Dispatch in-app notification to student
+          AppNotificationService.sendNotification(
+            libraryId: libraryId,
+            targetUserId: studentId,
+            targetRole: 'student',
+            title: 'Study Freeze Approved! ❄️',
+            body: 'Your study freeze for $freezeDays days has been approved. Your pass validity has been extended to ${DateFormat('dd MMM yyyy').format(newEnd)}.',
+            type: 'admission',
+          ).ignore();
 
           AuditLogger().log(
             action: AuditAction.updated,
@@ -409,6 +547,70 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     } catch (e) {
       if (mounted) {
         final errStr = e.toString().toLowerCase();
+        if (errStr.contains('phone number is already registered to student')) {
+          final cleanMsg = e.toString().replaceAll('Exception: ', '').trim();
+          final studentData = (_requestData?['studentData'] as Map<String, dynamic>?) ?? {};
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  Icon(Icons.phone_in_talk_rounded, color: Colors.amber.shade800, size: 24),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Existing Student / Shared Phone', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    cleanMsg,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'This student may have enrolled previously, or two siblings are sharing a guardian phone.\n\n'
+                    '• "Merge & Update Profile": Links this admission to the existing student record, updates their seat & plan, and activates their pass.\n'
+                    '• "Allow Shared Phone": Creates a new student record sharing this family mobile number.\n'
+                    '• "Edit Phone": Corrects any phone number typing error.',
+                    style: TextStyle(fontSize: 12.5, color: Colors.black87),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showEditApplicantDialog(studentData);
+                  },
+                  child: const Text('Edit Phone'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _approveRequest(allowSharedPhone: true);
+                  },
+                  child: const Text('Allow Shared Phone'),
+                ),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+                  icon: const Icon(Icons.sync_rounded, size: 18),
+                  label: const Text('Merge & Approve'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _approveRequest(mergeExistingPhone: true);
+                  },
+                ),
+              ],
+            ),
+          );
+          return;
+        }
+
         if (errStr.contains('government id') && errStr.contains('already registered to student')) {
           final cleanMsg = e.toString().replaceAll('Exception: ', '').trim();
           final studentData = (_requestData?['studentData'] as Map<String, dynamic>?) ?? {};
@@ -1663,7 +1865,17 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                     ],
                   ),
                 ),
-                if (proratedFee != null)
+                TextButton.icon(
+                  onPressed: () => _showChangePlanDialog(data, studentData),
+                  icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                  label: const Text('Change Plan'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                ),
+                if (proratedFee != null) ...[
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
@@ -1676,6 +1888,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                       style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF16A34A), fontSize: 13),
                     ),
                   ),
+                ],
               ],
             ),
             const Divider(height: 24),
@@ -2028,6 +2241,15 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                     ],
                   ),
                 ),
+                TextButton.icon(
+                  onPressed: () => _showChangeDeskSheet(data, studentData),
+                  icon: const Icon(Icons.edit_location_alt_rounded, size: 16),
+                  label: const Text('Change Desk'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -2112,25 +2334,86 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.check_circle_outline_rounded, size: 14, color: Colors.blue),
-                    SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Ready to Allocate: Tapping "Approve" will automatically assign this desk to the student profile.',
-                        style: TextStyle(fontSize: 11.5, color: Colors.blue, fontWeight: FontWeight.w500),
+              if (_isRequestedSeatOccupied)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.shade300, width: 1.2),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Desk Collision Alert: Desk #$seatLabel is Occupied!',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        'This desk is currently allocated to ${_occupyingStudentName ?? "another enrolled student"}. Approving now will create an allocation conflict.',
+                        style: TextStyle(fontSize: 12, color: Colors.red.shade900),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () => _showChangeDeskSheet(data, studentData),
+                            icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                            label: const Text('Pick Another Desk'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: theme.colorScheme.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _switchToAutoAssign(data, studentData),
+                            icon: const Icon(Icons.bolt_rounded, size: 16),
+                            label: const Text('Switch to Auto-Assign'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red.shade700,
+                              side: BorderSide(color: Colors.red.shade300),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.check_circle_outline_rounded, size: 14, color: Colors.blue),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Ready to Allocate: Tapping "Approve" will automatically assign this desk to the student profile.',
+                          style: TextStyle(fontSize: 11.5, color: Colors.blue, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ],
         ),
@@ -2161,15 +2444,443 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     return s;
   }
 
+  Future<void> _showChangePlanDialog(Map<String, dynamic> data, Map<String, dynamic> studentData) async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    if (libraryId.isEmpty) return;
+
+    final plans = ref.read(plansStreamProvider).value ?? [];
+    if (plans.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No active membership plans found in library.')),
+      );
+      return;
+    }
+
+    final currentPlanId = (studentData['planId'] ?? data['planId'])?.toString();
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final daysRemaining = daysInMonth - now.day + 1;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.swap_horiz_rounded, color: theme.colorScheme.primary, size: 22),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text('Change Study Plan & Shift', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select a new plan. Pro-rata desk fee will be automatically calculated for the remaining $daysRemaining days of this month.',
+                style: const TextStyle(fontSize: 12.5, color: Colors.grey),
+              ),
+              const SizedBox(height: 14),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 380),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: plans.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) {
+                    final plan = plans[i];
+                    final isSelected = plan.id == currentPlanId;
+                    final double rawProrated = plan.price * (daysRemaining / daysInMonth);
+                    final double proratedFee = ((rawProrated / 10).ceil() * 10).toDouble();
+
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        setState(() => _isProcessing = true);
+                        try {
+                          final updatedStudentData = Map<String, dynamic>.from(studentData);
+                          updatedStudentData['planId'] = plan.id;
+                          updatedStudentData['planName'] = plan.name;
+                          updatedStudentData['planPrice'] = plan.price;
+                          updatedStudentData['proratedFee'] = proratedFee;
+                          updatedStudentData['isProrated'] = true;
+
+                          await FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(libraryId)
+                              .collection('requests')
+                              .doc(widget.requestId)
+                              .set({
+                            'planId': plan.id,
+                            'planName': plan.name,
+                            'planPrice': plan.price,
+                            'originalPrice': plan.price,
+                            'proratedFee': proratedFee,
+                            'amount': proratedFee,
+                            'studentData': updatedStudentData,
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          }, SetOptions(merge: true));
+
+                          if (mounted) {
+                            await _loadRequest();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Plan changed to "${plan.name}" (₹${proratedFee.toStringAsFixed(0)} due at desk).'),
+                                  backgroundColor: const Color(0xFF16A34A),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'request');
+                          }
+                        } finally {
+                          if (mounted) setState(() => _isProcessing = false);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
+                              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                              color: isSelected ? theme.colorScheme.primary : Colors.grey,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    plan.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: isSelected ? theme.colorScheme.primary : null,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Standard: ₹${plan.price.toStringAsFixed(0)}/mo',
+                                    style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '₹${proratedFee.toStringAsFixed(0)} Pro-rata',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                  color: Color(0xFF16A34A),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showChangeDeskSheet(Map<String, dynamic> data, Map<String, dynamic> studentData) async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    if (libraryId.isEmpty) return;
+
+    final sections = ref.read(sectionsProvider).value ?? [];
+    if (sections.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hall sections configured in library.')),
+      );
+      return;
+    }
+
+    final currentSeatId = (studentData['seatId'] ?? data['requestedSeatId'])?.toString();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) {
+        return DefaultTabController(
+          length: sections.length,
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.65,
+            minChildSize: 0.4,
+            maxChildSize: 0.85,
+            expand: false,
+            builder: (context, scrollCtrl) {
+              return Column(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 8, bottom: 4),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.chair_alt_rounded, color: Colors.purple, size: 22),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text('Assign Available Desk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                        ),
+                        FilledButton.tonalIcon(
+                          icon: const Icon(Icons.bolt_rounded, size: 16),
+                          label: const Text('Auto-Assign'),
+                          onPressed: () async {
+                            Navigator.pop(sheetCtx);
+                            await _saveDeskAssignment(
+                              seatId: null,
+                              seatLabel: 'Auto-Assign',
+                              sectionId: sections.first.id,
+                              sectionName: sections.first.name,
+                              studentData: studentData,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  TabBar(
+                    isScrollable: sections.length > 2,
+                    tabs: sections.map((s) => Tab(text: s.name)).toList(),
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: sections.map((sec) {
+                        return Consumer(
+                          builder: (context, ref, _) {
+                            final seatsAsync = ref.watch(seatsProvider(sec.id));
+                            return seatsAsync.when(
+                              data: (seats) {
+                                final available = seats.where((s) => s.status == SeatStatus.available).toList()
+                                  ..sort(SeatHelper.compareSeats);
+                                if (available.isEmpty) {
+                                  return Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.event_seat_rounded, size: 48, color: Colors.grey.shade400),
+                                          const SizedBox(height: 8),
+                                          Text('No available seats in ${sec.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                return GridView.builder(
+                                  controller: scrollCtrl,
+                                  padding: const EdgeInsets.all(16),
+                                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 80,
+                                    mainAxisSpacing: 10,
+                                    crossAxisSpacing: 10,
+                                    childAspectRatio: 1.0,
+                                  ),
+                                  itemCount: available.length,
+                                  itemBuilder: (gridCtx, idx) {
+                                    final seat = available[idx];
+                                    final isChosen = currentSeatId == seat.id;
+
+                                    return InkWell(
+                                      borderRadius: BorderRadius.circular(12),
+                                      onTap: () async {
+                                        Navigator.pop(sheetCtx);
+                                        await _saveDeskAssignment(
+                                          seatId: seat.id,
+                                          seatLabel: seat.label,
+                                          sectionId: sec.id,
+                                          sectionName: sec.name,
+                                          studentData: studentData,
+                                        );
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: isChosen ? Colors.purple : const Color(0xFFD1FAE5),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: isChosen ? Colors.purple : const Color(0xFF10B981),
+                                            width: isChosen ? 2 : 1,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.chair_rounded,
+                                              size: 20,
+                                              color: isChosen ? Colors.white : const Color(0xFF065F46),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '#${seat.label}',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                color: isChosen ? Colors.white : const Color(0xFF065F46),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                              loading: () => const Center(child: CircularProgressIndicator()),
+                              error: (e, _) => Center(child: Text('Error: $e')),
+                            );
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _saveDeskAssignment({
+    required String? seatId,
+    required String seatLabel,
+    required String sectionId,
+    required String sectionName,
+    required Map<String, dynamic> studentData,
+  }) async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    if (libraryId.isEmpty) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      final updatedStudentData = Map<String, dynamic>.from(studentData);
+      updatedStudentData['seatId'] = seatId;
+      updatedStudentData['requestedSeatLabel'] = seatLabel;
+      updatedStudentData['sectionId'] = sectionId;
+      updatedStudentData['requestedSectionName'] = sectionName;
+
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('requests')
+          .doc(widget.requestId)
+          .set({
+        'requestedSeatId': seatId,
+        'requestedSeatLabel': seatLabel,
+        'requestedSectionId': sectionId,
+        'requestedSectionName': sectionName,
+        'studentData': updatedStudentData,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        await _loadRequest();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(seatId != null
+                  ? 'Desk assigned to Seat #$seatLabel ($sectionName).'
+                  : 'Desk assignment set to Auto-Assign.'),
+              backgroundColor: const Color(0xFF1E293B),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'request');
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _switchToAutoAssign(Map<String, dynamic> data, Map<String, dynamic> studentData) async {
+    final sections = ref.read(sectionsProvider).value ?? [];
+    final firstSec = sections.isNotEmpty ? sections.first : null;
+    await _saveDeskAssignment(
+      seatId: null,
+      seatLabel: 'Auto-Assign',
+      sectionId: firstSec?.id ?? '',
+      sectionName: firstSec?.name ?? 'Cozy Hall',
+      studentData: studentData,
+    );
+  }
+
   Future<void> _showEditApplicantDialog(Map<String, dynamic> studentData) async {
     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
     if (libraryId.isEmpty) return;
 
+    // Personal & Contact Controllers
     final nameCtrl = TextEditingController(text: (studentData['name'] ?? _requestData?['studentName'] ?? '').toString());
     final fatherCtrl = TextEditingController(text: (studentData['fatherName'] ?? '').toString());
     final phoneCtrl = TextEditingController(text: (studentData['phone'] ?? _requestData?['studentPhone'] ?? '').toString());
     final emailCtrl = TextEditingController(text: (studentData['email'] ?? _requestData?['studentEmail'] ?? '').toString());
     final dobCtrl = TextEditingController(text: _formatDob(studentData['dob']));
+    final addressCtrl = TextEditingController(text: (studentData['address'] ?? '').toString());
+    final pincodeCtrl = TextEditingController(text: (studentData['pincode'] ?? '').toString());
+    final emergencyCtrl = TextEditingController(text: (studentData['emergencyContact'] ?? '').toString());
+
+    // Education & Goals Controllers
+    final collegeCtrl = TextEditingController(text: (studentData['college'] ?? '').toString());
+    final courseCtrl = TextEditingController(text: (studentData['course'] ?? '').toString());
+    final yearCtrl = TextEditingController(text: (studentData['year'] ?? '').toString());
+    final rollNoCtrl = TextEditingController(text: (studentData['rollNumber'] ?? '').toString());
+    final examTargetCtrl = TextEditingController(text: (studentData['examTarget'] ?? '').toString());
+
+    // Identity & Gov ID
     final govIdCtrl = TextEditingController(text: (studentData['govIdNumber'] ?? '').toString());
 
     String rawGender = (studentData['gender'] ?? 'male').toString().toLowerCase();
@@ -2178,249 +2889,709 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     String selectedGovIdType = ['aadhaar', 'pan', 'driving_license', 'voter_id', 'passport', 'other'].contains(rawGovIdType)
         ? rawGovIdType
         : 'pan';
+    String? selectedBloodGroup = studentData['bloodGroup']?.toString();
     DateTime? pickedDob;
+
+    // Document image states
+    String? currentFrontUrl = (studentData['govIdImageUrl'] ?? studentData['govIdFrontUrl'] ?? _requestData?['govIdImageUrl'])?.toString();
+    String? currentBackUrl = (studentData['govIdBackImageUrl'] ?? studentData['govIdBackUrl'] ?? _requestData?['govIdBackImageUrl'])?.toString();
+    String? currentPhotoUrl = (studentData['photoUrl'] ?? _requestData?['photoUrl'])?.toString();
+
+    bool isUploadingPhoto = false;
+    bool isUploadingFront = false;
+    bool isUploadingBack = false;
 
     final theme = Theme.of(context);
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+        builder: (ctx, setDialogState) => DefaultTabController(
+          length: 3,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.manage_accounts_rounded, color: theme.colorScheme.primary, size: 24),
                 ),
-                child: Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary, size: 22),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text('Edit Applicant Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: SizedBox(
-              width: 420,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Correct any typos or mismatched fields based on verified ID proof before final approval.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name *',
-                      prefixIcon: Icon(Icons.person_outline_rounded),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: fatherCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Father / Guardian Name',
-                      prefixIcon: Icon(Icons.family_restroom_rounded),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedGender,
-                    decoration: const InputDecoration(
-                      labelText: 'Gender *',
-                      prefixIcon: Icon(Icons.people_outline_rounded),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'male', child: Text('Male')),
-                      DropdownMenuItem(value: 'female', child: Text('Female')),
-                      DropdownMenuItem(value: 'other', child: Text('Other')),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setDialogState(() => selectedGender = v);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: () async {
-                      final now = DateTime.now();
-                      final initial = pickedDob ?? DateTime.tryParse(studentData['dob']?.toString() ?? '') ?? DateTime(2000, 1, 1);
-                      final selected = await showDatePicker(
-                        context: ctx,
-                        initialDate: initial.isBefore(now) ? initial : DateTime(2000, 1, 1),
-                        firstDate: DateTime(1940),
-                        lastDate: now,
-                      );
-                      if (selected != null) {
-                        setDialogState(() {
-                          pickedDob = selected;
-                          dobCtrl.text = DateFormat('dd MMM yyyy').format(selected);
-                        });
-                      }
-                    },
-                    child: AbsorbPointer(
-                      child: TextField(
-                        controller: dobCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Date of Birth',
-                          prefixIcon: Icon(Icons.cake_rounded),
-                          suffixIcon: Icon(Icons.calendar_today_rounded, size: 18),
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Mobile Phone *',
-                      prefixIcon: Icon(Icons.phone_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email Address',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(
-                        width: 140,
-                        child: DropdownButtonFormField<String>(
-                          initialValue: selectedGovIdType,
-                          decoration: const InputDecoration(
-                            labelText: 'Gov ID Type',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: 'aadhaar', child: Text('Aadhaar')),
-                            DropdownMenuItem(value: 'pan', child: Text('PAN Card')),
-                            DropdownMenuItem(value: 'driving_license', child: Text('License')),
-                            DropdownMenuItem(value: 'voter_id', child: Text('Voter ID')),
-                            DropdownMenuItem(value: 'passport', child: Text('Passport')),
-                            DropdownMenuItem(value: 'other', child: Text('Other')),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) setDialogState(() => selectedGovIdType = v);
-                          },
-                        ),
+                      const Text(
+                        'Applicant Verification Studio',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: govIdCtrl,
-                          textCapitalization: TextCapitalization.characters,
-                          decoration: const InputDecoration(
-                            labelText: 'Gov ID Number',
-                            prefixIcon: Icon(Icons.badge_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
+                      Text(
+                        'Review & correct any fields, replace blurry documents or capture student photo.',
+                        style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
                       ),
                     ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  tooltip: 'Close',
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 580,
+              height: 540,
+              child: Column(
+                children: [
+                  TabBar(
+                    labelColor: theme.colorScheme.primary,
+                    unselectedLabelColor: Colors.grey.shade600,
+                    indicatorColor: theme.colorScheme.primary,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    tabs: const [
+                      Tab(icon: Icon(Icons.person_rounded, size: 18), text: 'Personal & Contact'),
+                      Tab(icon: Icon(Icons.school_rounded, size: 18), text: 'Education & Goals'),
+                      Tab(icon: Icon(Icons.badge_rounded, size: 18), text: 'Gov ID & Photos'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        // TAB 1: Personal & Contact
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.only(top: 8, right: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextField(
+                                controller: nameCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Full Name *',
+                                  prefixIcon: Icon(Icons.person_outline_rounded),
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: fatherCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Father / Guardian Name',
+                                  prefixIcon: Icon(Icons.family_restroom_rounded),
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: DropdownButtonFormField<String>(
+                                      initialValue: selectedGender,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Gender *',
+                                        prefixIcon: Icon(Icons.people_outline_rounded),
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                      items: const [
+                                        DropdownMenuItem(value: 'male', child: Text('Male')),
+                                        DropdownMenuItem(value: 'female', child: Text('Female')),
+                                        DropdownMenuItem(value: 'other', child: Text('Other')),
+                                      ],
+                                      onChanged: (v) {
+                                        if (v != null) setDialogState(() => selectedGender = v);
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: DropdownButtonFormField<String>(
+                                      initialValue: ['A+', 'B+', 'O+', 'AB+', 'A-', 'B-', 'O-', 'AB-'].contains(selectedBloodGroup)
+                                          ? selectedBloodGroup
+                                          : null,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Blood Group',
+                                        prefixIcon: Icon(Icons.water_drop_outlined),
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                      hint: const Text('Select'),
+                                      items: const [
+                                        DropdownMenuItem(value: 'A+', child: Text('A+')),
+                                        DropdownMenuItem(value: 'B+', child: Text('B+')),
+                                        DropdownMenuItem(value: 'O+', child: Text('O+')),
+                                        DropdownMenuItem(value: 'AB+', child: Text('AB+')),
+                                        DropdownMenuItem(value: 'A-', child: Text('A-')),
+                                        DropdownMenuItem(value: 'B-', child: Text('B-')),
+                                        DropdownMenuItem(value: 'O-', child: Text('O-')),
+                                        DropdownMenuItem(value: 'AB-', child: Text('AB-')),
+                                      ],
+                                      onChanged: (v) => setDialogState(() => selectedBloodGroup = v),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              GestureDetector(
+                                onTap: () async {
+                                  final now = DateTime.now();
+                                  final initial = pickedDob ?? DateTime.tryParse(studentData['dob']?.toString() ?? '') ?? DateTime(2000, 1, 1);
+                                  final selected = await showDatePicker(
+                                    context: ctx,
+                                    initialDate: initial.isBefore(now) ? initial : DateTime(2000, 1, 1),
+                                    firstDate: DateTime(1940),
+                                    lastDate: now,
+                                  );
+                                  if (selected != null) {
+                                    setDialogState(() {
+                                      pickedDob = selected;
+                                      dobCtrl.text = DateFormat('dd MMM yyyy').format(selected);
+                                    });
+                                  }
+                                },
+                                child: AbsorbPointer(
+                                  child: TextField(
+                                    controller: dobCtrl,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Date of Birth',
+                                      prefixIcon: Icon(Icons.cake_rounded),
+                                      suffixIcon: Icon(Icons.calendar_today_rounded, size: 18),
+                                      border: OutlineInputBorder(),
+                                      isDense: true,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: phoneCtrl,
+                                      keyboardType: TextInputType.phone,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Mobile Phone *',
+                                        prefixIcon: Icon(Icons.phone_outlined),
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: emergencyCtrl,
+                                      keyboardType: TextInputType.phone,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Emergency Contact',
+                                        prefixIcon: Icon(Icons.contact_phone_outlined),
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: emailCtrl,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: const InputDecoration(
+                                  labelText: 'Email Address',
+                                  prefixIcon: Icon(Icons.email_outlined),
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: TextField(
+                                      controller: addressCtrl,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Residential Address',
+                                        prefixIcon: Icon(Icons.home_outlined),
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    flex: 1,
+                                    child: TextField(
+                                      controller: pincodeCtrl,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Pincode',
+                                        prefixIcon: Icon(Icons.pin_drop_outlined),
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // TAB 2: Education & Goals
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.only(top: 8, right: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextField(
+                                controller: collegeCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'College / Institute Name',
+                                  prefixIcon: Icon(Icons.account_balance_outlined),
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: TextField(
+                                      controller: courseCtrl,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Course / Degree',
+                                        prefixIcon: Icon(Icons.menu_book_rounded),
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    flex: 1,
+                                    child: TextField(
+                                      controller: yearCtrl,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Year / Semester',
+                                        prefixIcon: Icon(Icons.calendar_month_outlined),
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: rollNoCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Roll / Enrollment Number',
+                                  prefixIcon: Icon(Icons.numbers_rounded),
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: examTargetCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Target Exam / Competitive Goal',
+                                  prefixIcon: Icon(Icons.flag_outlined),
+                                  hintText: 'e.g. UPSC, MPSC, NEET, JEE, CA, Banking...',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // TAB 3: Gov ID & Photos
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.only(top: 8, right: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 150,
+                                    child: DropdownButtonFormField<String>(
+                                      initialValue: selectedGovIdType,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Gov ID Type',
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                      items: const [
+                                        DropdownMenuItem(value: 'aadhaar', child: Text('Aadhaar')),
+                                        DropdownMenuItem(value: 'pan', child: Text('PAN Card')),
+                                        DropdownMenuItem(value: 'driving_license', child: Text('License')),
+                                        DropdownMenuItem(value: 'voter_id', child: Text('Voter ID')),
+                                        DropdownMenuItem(value: 'passport', child: Text('Passport')),
+                                        DropdownMenuItem(value: 'other', child: Text('Other')),
+                                      ],
+                                      onChanged: (v) {
+                                        if (v != null) setDialogState(() => selectedGovIdType = v);
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: govIdCtrl,
+                                      textCapitalization: TextCapitalization.characters,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Gov ID Number',
+                                        prefixIcon: Icon(Icons.badge_outlined),
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Student Photo Section
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 28,
+                                      backgroundColor: theme.colorScheme.primaryContainer,
+                                      backgroundImage: currentPhotoUrl != null && currentPhotoUrl!.isNotEmpty
+                                          ? ImageService.getImageProvider(currentPhotoUrl!)
+                                          : null,
+                                      child: isUploadingPhoto
+                                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                          : (currentPhotoUrl == null || currentPhotoUrl!.isEmpty
+                                              ? const Icon(Icons.person_rounded, size: 28)
+                                              : null),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text('Student Profile Photo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                          Text(
+                                            currentPhotoUrl != null && currentPhotoUrl!.isNotEmpty
+                                                ? 'Photo attached to student pass'
+                                                : 'No photo uploaded yet',
+                                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    FilledButton.tonalIcon(
+                                      onPressed: isUploadingPhoto
+                                          ? null
+                                          : () async {
+                                              setDialogState(() => isUploadingPhoto = true);
+                                              try {
+                                                final url = await ImageService.pickAndUploadImage(
+                                                  context: ctx,
+                                                  folder: 'student_photos',
+                                                  canRemove: currentPhotoUrl != null && currentPhotoUrl!.isNotEmpty,
+                                                );
+                                                setDialogState(() => currentPhotoUrl = url);
+                                              } catch (e) {
+                                                if (ctx.mounted) {
+                                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                                    SnackBar(content: Text('Upload failed: $e')),
+                                                  );
+                                                }
+                                              } finally {
+                                                setDialogState(() => isUploadingPhoto = false);
+                                              }
+                                            },
+                                      icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                                      label: Text(currentPhotoUrl != null && currentPhotoUrl!.isNotEmpty ? 'Change' : 'Upload'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Gov ID Front Section
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 60,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade200,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.grey.shade400),
+                                        image: (currentFrontUrl != null && currentFrontUrl!.isNotEmpty && ImageService.getImageProvider(currentFrontUrl!) != null)
+                                            ? DecorationImage(
+                                                image: ImageService.getImageProvider(currentFrontUrl!)!,
+                                                fit: BoxFit.cover,
+                                              )
+                                            : null,
+                                      ),
+                                      child: isUploadingFront
+                                          ? const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
+                                          : (currentFrontUrl == null || currentFrontUrl!.isEmpty
+                                              ? const Icon(Icons.credit_card_rounded, color: Colors.grey)
+                                              : null),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text('Gov ID Front Side', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                          Text(
+                                            currentFrontUrl != null && currentFrontUrl!.isNotEmpty ? 'Document verified & uploaded' : 'Missing front proof',
+                                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: isUploadingFront
+                                          ? null
+                                          : () async {
+                                              setDialogState(() => isUploadingFront = true);
+                                              try {
+                                                final url = await ImageService.pickAndUploadImage(
+                                                  context: ctx,
+                                                  folder: 'requests_gov_ids',
+                                                  canRemove: currentFrontUrl != null && currentFrontUrl!.isNotEmpty,
+                                                );
+                                                setDialogState(() => currentFrontUrl = url);
+                                              } catch (e) {
+                                                if (ctx.mounted) {
+                                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                                    SnackBar(content: Text('Upload failed: $e')),
+                                                  );
+                                                }
+                                              } finally {
+                                                setDialogState(() => isUploadingFront = false);
+                                              }
+                                            },
+                                      icon: const Icon(Icons.upload_file_rounded, size: 16),
+                                      label: Text(currentFrontUrl != null && currentFrontUrl!.isNotEmpty ? 'Replace' : 'Upload'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Gov ID Back Section
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 60,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade200,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.grey.shade400),
+                                        image: (currentBackUrl != null && currentBackUrl!.isNotEmpty && ImageService.getImageProvider(currentBackUrl!) != null)
+                                            ? DecorationImage(
+                                                image: ImageService.getImageProvider(currentBackUrl!)!,
+                                                fit: BoxFit.cover,
+                                              )
+                                            : null,
+                                      ),
+                                      child: isUploadingBack
+                                          ? const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
+                                          : (currentBackUrl == null || currentBackUrl!.isEmpty
+                                              ? const Icon(Icons.flip_to_back_rounded, color: Colors.grey)
+                                              : null),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text('Gov ID Back / Address Side', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                          Text(
+                                            currentBackUrl != null && currentBackUrl!.isNotEmpty ? 'Address proof attached' : 'Optional back side',
+                                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: isUploadingBack
+                                          ? null
+                                          : () async {
+                                              setDialogState(() => isUploadingBack = true);
+                                              try {
+                                                final url = await ImageService.pickAndUploadImage(
+                                                  context: ctx,
+                                                  folder: 'requests_gov_ids',
+                                                  canRemove: currentBackUrl != null && currentBackUrl!.isNotEmpty,
+                                                );
+                                                setDialogState(() => currentBackUrl = url);
+                                              } catch (e) {
+                                                if (ctx.mounted) {
+                                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                                    SnackBar(content: Text('Upload failed: $e')),
+                                                  );
+                                                }
+                                              } finally {
+                                                setDialogState(() => isUploadingBack = false);
+                                              }
+                                            },
+                                      icon: const Icon(Icons.upload_file_rounded, size: 16),
+                                      label: Text(currentBackUrl != null && currentBackUrl!.isNotEmpty ? 'Replace' : 'Upload'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton.icon(
-              onPressed: () async {
-                final newName = nameCtrl.text.trim();
-                final newFather = fatherCtrl.text.trim();
-                final newPhone = phoneCtrl.text.trim();
-                final newEmail = emailCtrl.text.trim();
-                final newGovId = govIdCtrl.text.trim().toUpperCase();
-                final newDob = pickedDob != null
-                    ? pickedDob!.toIso8601String()
-                    : (studentData['dob']?.toString() ?? dobCtrl.text.trim());
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  final newName = nameCtrl.text.trim();
+                  final newFather = fatherCtrl.text.trim();
+                  final newPhone = phoneCtrl.text.trim();
+                  final newEmail = emailCtrl.text.trim();
+                  final newAddress = addressCtrl.text.trim();
+                  final newPincode = pincodeCtrl.text.trim();
+                  final newEmergency = emergencyCtrl.text.trim();
+                  final newCollege = collegeCtrl.text.trim();
+                  final newCourse = courseCtrl.text.trim();
+                  final newYear = yearCtrl.text.trim();
+                  final newRollNo = rollNoCtrl.text.trim();
+                  final newExamTarget = examTargetCtrl.text.trim();
+                  final newGovId = govIdCtrl.text.trim().toUpperCase();
+                  final newDob = pickedDob != null
+                      ? pickedDob!.toIso8601String()
+                      : (studentData['dob']?.toString() ?? dobCtrl.text.trim());
 
-                if (newName.isEmpty) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Name cannot be empty')),
-                  );
-                  return;
-                }
+                  if (newName.isEmpty) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(content: Text('Full Name cannot be empty')),
+                    );
+                    return;
+                  }
 
-                Navigator.of(ctx).pop();
+                  if (newPhone.isEmpty) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(content: Text('Mobile Phone cannot be empty')),
+                    );
+                    return;
+                  }
 
-                try {
-                  final updatedStudentData = Map<String, dynamic>.from(studentData);
-                  updatedStudentData['name'] = newName;
-                  updatedStudentData['fatherName'] = newFather;
-                  updatedStudentData['gender'] = selectedGender;
-                  updatedStudentData['dob'] = newDob;
-                  updatedStudentData['phone'] = newPhone;
-                  updatedStudentData['email'] = newEmail;
-                  updatedStudentData['govIdNumber'] = newGovId;
-                  updatedStudentData['govIdType'] = selectedGovIdType;
+                  Navigator.of(ctx).pop();
 
-                  await FirebaseFirestore.instance
-                      .collection('libraries')
-                      .doc(libraryId)
-                      .collection('requests')
-                      .doc(widget.requestId)
-                      .set({
-                    'studentData': updatedStudentData,
-                    'studentName': newName,
-                    'studentPhone': newPhone,
-                    'studentEmail': newEmail,
-                    'updatedAt': FieldValue.serverTimestamp(),
-                  }, SetOptions(merge: true));
+                  try {
+                    final updatedStudentData = Map<String, dynamic>.from(studentData);
+                    updatedStudentData['name'] = newName;
+                    updatedStudentData['fatherName'] = newFather;
+                    updatedStudentData['gender'] = selectedGender;
+                    updatedStudentData['dob'] = newDob;
+                    if (selectedBloodGroup != null) updatedStudentData['bloodGroup'] = selectedBloodGroup;
+                    updatedStudentData['phone'] = newPhone;
+                    updatedStudentData['email'] = newEmail;
+                    updatedStudentData['address'] = newAddress;
+                    updatedStudentData['pincode'] = newPincode;
+                    updatedStudentData['emergencyContact'] = newEmergency;
+                    updatedStudentData['college'] = newCollege;
+                    updatedStudentData['course'] = newCourse;
+                    updatedStudentData['year'] = newYear;
+                    updatedStudentData['rollNumber'] = newRollNo;
+                    updatedStudentData['examTarget'] = newExamTarget;
+                    updatedStudentData['govIdType'] = selectedGovIdType;
+                    updatedStudentData['govIdNumber'] = newGovId;
+                    if (currentFrontUrl != null) updatedStudentData['govIdImageUrl'] = currentFrontUrl;
+                    if (currentBackUrl != null) updatedStudentData['govIdBackImageUrl'] = currentBackUrl;
+                    if (currentPhotoUrl != null) updatedStudentData['photoUrl'] = currentPhotoUrl;
 
-                  if (mounted) {
-                    await _loadRequest();
+                    await FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('requests')
+                        .doc(widget.requestId)
+                        .set({
+                      'studentData': updatedStudentData,
+                      'studentName': newName,
+                      'studentPhone': newPhone,
+                      'studentEmail': newEmail,
+                      if (currentPhotoUrl != null) 'photoUrl': currentPhotoUrl,
+                      if (currentFrontUrl != null) 'govIdImageUrl': currentFrontUrl,
+                      if (currentBackUrl != null) 'govIdBackImageUrl': currentBackUrl,
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    }, SetOptions(merge: true));
+
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Row(
-                            children: [
-                              Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 20),
-                              SizedBox(width: 8),
-                              Text('Applicant details updated successfully!'),
-                            ],
+                      await _loadRequest();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 20),
+                                SizedBox(width: 8),
+                                Text('Applicant details & documents updated successfully!'),
+                              ],
+                            ),
+                            backgroundColor: Color(0xFF1E293B),
+                            behavior: SnackBarBehavior.floating,
                           ),
-                          backgroundColor: Color(0xFF1E293B),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'request');
                     }
                   }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to update details: $e')),
-                    );
-                  }
-                }
-              },
-              icon: const Icon(Icons.save_rounded, size: 18),
-              label: const Text('Save Changes'),
-            ),
-          ],
+                },
+                icon: const Icon(Icons.save_rounded, size: 18),
+                label: const Text('Save Changes'),
+              ),
+            ],
+          ),
         ),
       ),
     );

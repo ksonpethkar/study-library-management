@@ -13,6 +13,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/image_transparency_service.dart';
 import 'package:study_library/services/message_template_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/widgets/brand_color_picker_dialog.dart';
 
 class LibraryProfileScreen extends ConsumerStatefulWidget {
   const LibraryProfileScreen({super.key});
@@ -889,6 +890,20 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
     );
   }
 
+  Future<void> _openBrandColorStudio() async {
+    final picked = await BrandColorPickerDialog.show(
+      context,
+      initialColor: Color(_selectedAccentColor),
+      title: 'Brand Color Studio',
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedAccentColor = picked.toARGB32();
+        _hexColorController.text = '#${picked.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+      });
+    }
+  }
+
   Widget _buildBrandPaletteCard(ThemeData theme) {
     final currentColor = Color(_selectedAccentColor);
     final isDark = theme.brightness == Brightness.dark;
@@ -899,34 +914,43 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       iconColor: currentColor,
       title: 'Brand Palette & Theme Customization',
       subtitle: 'Personalize your primary colors across admin consoles, student portals, and passes',
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: currentColor.withValues(alpha: 0.15),
+      trailing: Tooltip(
+        message: 'Click to open Visual Color Picker Studio',
+        child: InkWell(
+          onTap: _openBrandColorStudio,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: currentColor.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: currentColor,
-                shape: BoxShape.circle,
-              ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: currentColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: currentColor.withValues(alpha: 0.4)),
             ),
-            const SizedBox(width: 6),
-            Text(
-              _hexColorController.text,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: currentColor,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: currentColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _hexColorController.text,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: currentColor,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.edit_rounded, size: 12, color: currentColor),
+              ],
             ),
-          ],
+          ),
         ),
       ),
       children: [
@@ -1138,33 +1162,48 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         const Divider(height: 1),
         const SizedBox(height: 16),
 
-        // 3. Custom Hex Color Input Field
+        // 3. Visual Color Picker Button & Custom Hex Color Input Field
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: TextFormField(
                 controller: _hexColorController,
                 decoration: InputDecoration(
                   labelText: 'Custom Brand Hex Code',
-                  hintText: '#1E3A8A',
-                  helperText: 'Enter any 6-digit RGB Hex color (e.g. #065F46 or 1E3A8A)',
-                  prefixIcon: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: currentColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: currentColor.withValues(alpha: 0.4),
-                            blurRadius: 4,
+                  hintText: '#C2410C',
+                  helperText: 'Tap color dot to pick visually, or enter any 6-digit RGB Hex color',
+                  prefixIcon: Tooltip(
+                    message: 'Pick color from 2D spectrum or swatches',
+                    child: InkWell(
+                      onTap: _openBrandColorStudio,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: currentColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: currentColor.withValues(alpha: 0.45),
+                                blurRadius: 4,
+                              ),
+                            ],
                           ),
-                        ],
+                          child: const Icon(Icons.colorize_rounded, size: 12, color: Colors.white),
+                        ),
                       ),
                     ),
+                  ),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.palette_rounded),
+                    tooltip: 'Open Color Studio',
+                    color: currentColor,
+                    onPressed: _openBrandColorStudio,
                   ),
                   border: const OutlineInputBorder(),
                   isDense: true,
@@ -1181,6 +1220,18 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                   }
                 },
               ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: _openBrandColorStudio,
+              style: FilledButton.styleFrom(
+                backgroundColor: currentColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.colorize_rounded, size: 18),
+              label: const Text('Pick Color', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),

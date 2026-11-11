@@ -110,12 +110,18 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         future: FirebaseFirestore.instance.collection('libraries').doc(libraryId).get(),
         builder: (context, snapshot) {
           String rules =
-              '1. Maintain complete silence in all study areas and reading halls.\n\n'
-              '2. Mobile phones must be kept on silent/vibrate mode at all times.\n\n'
-              '3. Seat allocation is strictly individual and non-transferable.\n\n'
-              '4. Outside food and beverages (except water) are prohibited inside study rooms.\n\n'
-              '5. Keep study cabins clean, tidy, and avoid damaging library property.\n\n'
-              '6. Carry your digital student ID card or attendance QR at all times.';
+              '1. Maintain complete silence in all study areas and reading halls.\n'
+              '   (अभ्यास कक्ष व वाचन विभागात संपूर्ण शांतता राखणे बंधनकारक आहे.)\n\n'
+              '2. Mobile phones must be kept on silent/vibrate mode at all times.\n'
+              '   (मोबाईल फोन नेहमी सायलेंट किंवा व्हायब्रेशन मोडवर ठेवणे अनिवार्य आहे.)\n\n'
+              '3. Seat allocation is strictly individual and non-transferable.\n'
+              '   (जागा वाटप वैयक्तिक असून दुसऱ्याला देणे किंवा शेअर करणे सक्त निषिद्ध आहे.)\n\n'
+              '4. Outside food and beverages (except water) are prohibited inside study rooms.\n'
+              '   (पाण्याव्यतिरिक्त बाहेरील खाद्यपदार्थ अभ्यास कक्षात आणण्यास मनाई आहे.)\n\n'
+              '5. Keep study cabins clean, tidy, and avoid damaging library property.\n'
+              '   (अभ्यास केबिन स्वच्छ ठेवा आणि मालमत्तेचे नुकसान टाळा.)\n\n'
+              '6. Carry your digital student ID card or attendance QR at all times.\n'
+              '   (आपले डिजिटल ओळखपत्र किंवा उपस्थिती QR नेहमी सोबत ठेवा.)';
 
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() ?? {};
@@ -428,7 +434,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Place 60-min soft-lock on the desk so other applicants or walk-ins cannot claim it while under review
+      // Place 24-hour soft-lock on the desk so other applicants or walk-ins cannot claim it while under review
       if (seatDetails.hasSelection && !seatDetails.isAutoAssign && (seatDetails.seatId?.isNotEmpty == true) && (seatDetails.sectionId?.isNotEmpty == true)) {
         try {
           await ref.read(seatRepositoryProvider).softLockSeat(
@@ -437,7 +443,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
             seatId: seatDetails.seatId!,
             candidateId: currentUser.uid,
             candidateName: regData['name'] ?? 'Applicant',
-            duration: const Duration(minutes: 60),
+            duration: const Duration(hours: 24),
           );
         } catch (e) {
           if (kDebugMode) debugPrint('Seat soft-lock error (proceeding anyway): $e');
@@ -553,18 +559,44 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         body: SafeArea(
           child: _SubmissionSuccessView(
             requestId: _requestId,
-            onDone: () => context.go(Routes.login),
+            onDone: () async {
+              final user = FirebaseAuth.instance.currentUser;
+              if (user != null) {
+                final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+                ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+                await persistUserRole(
+                  uid: user.uid,
+                  email: user.email ?? '',
+                  displayName: user.displayName ?? '',
+                  role: AppUserRole.student,
+                  libraryId: libId,
+                );
+              }
+              if (context.mounted) {
+                context.go(Routes.studentHome);
+              }
+            },
           ),
         ),
       );
     }
 
 
+    final formConfigAsync = ref.watch(formConfigStreamProvider);
+    final isGovIdVisible = FormConfigService.isFieldVisible(formConfigAsync.value ?? [], 'govId');
+    final stepTitle = isGovIdVisible ? 'Step 6 of 6: Review & Submit' : 'Step 5 of 5: Review & Submit';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Review & Submit')),
+      appBar: AppBar(
+        title: Text(stepTitle),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => ref.read(registrationStepProvider.notifier).goTo(5),
+        ),
+      ),
       body: Column(
         children: [
-          const LinearProgressIndicator(value: 5 / 5),
+          const LinearProgressIndicator(value: 1.0),
           Expanded(
             child: _isSubmitting
                 ? Center(
@@ -1154,7 +1186,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                     alignment: WrapAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'I agree to all $libName rules and regulations',
+                                        'I agree to all $libName rules & code of conduct (नियम व अटी मान्य)',
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500,
@@ -1176,7 +1208,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(40, 0, 8, 8),
                                   child: Wrap(
-                                    spacing: 6,
+                                    spacing: 4,
                                     runSpacing: 2,
                                     crossAxisAlignment: WrapCrossAlignment.center,
                                     children: [
@@ -1187,7 +1219,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                       InkWell(
                                         onTap: () => context.push(Routes.terms, extra: libId),
                                         child: Text(
-                                          'Terms of Service',
+                                          'Terms (नियम)',
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: theme.colorScheme.primary,
@@ -1200,7 +1232,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                       InkWell(
                                         onTap: () => context.push(Routes.privacyPolicy, extra: libId),
                                         child: Text(
-                                          'Privacy Policy',
+                                          'Privacy Policy (गोपनीयता धोरण)',
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: theme.colorScheme.primary,
@@ -1726,7 +1758,7 @@ class _SubmissionSuccessViewState extends State<_SubmissionSuccessView>
                       onPressed: widget.onDone,
                       icon: const Icon(Icons.check_circle_outline_rounded),
                       label: const Text(
-                        'Done — Return to Home',
+                        'View Admission Status ➔',
                         style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                       ),
                       style: FilledButton.styleFrom(

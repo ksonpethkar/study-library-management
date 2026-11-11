@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
@@ -49,8 +51,9 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Check clipboard on screen load in case student already completed payment
+    // Restore draft if user was interrupted or switched to UPI app
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreDraft();
       _checkClipboardForUtr();
     });
   }
@@ -68,7 +71,75 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
     if (state == AppLifecycleState.resumed) {
       // Auto-detect UTR when student returns from Google Pay, PhonePe, or Bank app
       _checkClipboardForUtr();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Auto-save draft before Android process suspension / app switch
+      _saveDraft();
     }
+  }
+
+  Future<void> _saveDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draft = {
+        'selectedPlanId': _selectedPlanId,
+        'keepSeat': _keepSeat,
+        'isBridgeSelected': _isBridgeSelected,
+        'paymentMode': _paymentMode.name,
+        'notes': _notesController.text,
+        'transactionRef': _transactionRefController.text,
+        'savedAt': DateTime.now().millisecondsSinceEpoch,
+      };
+      await prefs.setString('renewal_draft_cache', jsonEncode(draft));
+    } catch (_) {}
+  }
+
+  Future<void> _restoreDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('renewal_draft_cache');
+      if (raw == null || raw.isEmpty) return;
+
+      final draft = jsonDecode(raw) as Map<String, dynamic>;
+      final savedAt = draft['savedAt'] as int?;
+      // Expire draft if older than 24 hours
+      if (savedAt != null && DateTime.now().millisecondsSinceEpoch - savedAt > 86400000) {
+        await prefs.remove('renewal_draft_cache');
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          if (draft['selectedPlanId'] != null) {
+            _selectedPlanId = draft['selectedPlanId'].toString();
+          }
+          if (draft['keepSeat'] is bool) {
+            _keepSeat = draft['keepSeat'] as bool;
+          }
+          if (draft['isBridgeSelected'] is bool) {
+            _isBridgeSelected = draft['isBridgeSelected'] as bool;
+          }
+          if (draft['paymentMode'] != null) {
+            _paymentMode = RenewalPaymentMode.values.firstWhere(
+              (m) => m.name == draft['paymentMode'],
+              orElse: () => RenewalPaymentMode.upi,
+            );
+          }
+          if (draft['notes'] != null && _notesController.text.isEmpty) {
+            _notesController.text = draft['notes'].toString();
+          }
+          if (draft['transactionRef'] != null && _transactionRefController.text.isEmpty) {
+            _transactionRefController.text = draft['transactionRef'].toString();
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _clearDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('renewal_draft_cache');
+    } catch (_) {}
   }
 
   Future<void> _checkClipboardForUtr({bool showFeedbackIfEmpty = false}) async {
@@ -185,6 +256,64 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
     setState(() => _isSubmitting = true);
 
     try {
+      final refNumberStr = mode == RenewalPaymentMode.deskCash
+          ? 'Desk Cash Payment Requested'
+          : _transactionRefController.text.trim();
+
+      // Guard: Duplicate UTR Check (Guards against reused or duplicate payment references)
+      if (mode == RenewalPaymentMode.upi || (mode == RenewalPaymentMode.bank && refNumberStr.isNotEmpty)) {
+        // 1. Check if UTR already exists in completed payments
+        final dupPaymentSnap = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('payments')
+            .where('referenceNumber', isEqualTo: refNumberStr)
+            .limit(1)
+            .get();
+
+        if (dupPaymentSnap.docs.isNotEmpty) {
+          if (mounted) {
+            HapticFeedback.heavyImpact();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('⚠️ This UTR has already been recorded on a previous payment. Please verify your transaction reference number.'),
+                backgroundColor: Colors.redAccent,
+                behavior: SnackBarBehavior.floating,
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+          return;
+        }
+
+        // 2. Check if UTR is already in another pending renewal or admission request
+        final dupReqSnap = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('requests')
+            .where('referenceNumber', isEqualTo: refNumberStr)
+            .limit(2)
+            .get();
+
+        for (final doc in dupReqSnap.docs) {
+          final reqStatus = (doc.data()['status'] ?? '').toString().toLowerCase();
+          if (reqStatus == 'pending' || reqStatus == 'approved') {
+            if (mounted) {
+              HapticFeedback.heavyImpact();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('⚠️ A renewal or admission request with this UTR is already under review or approved. Please verify your reference number.'),
+                  backgroundColor: Colors.redAccent,
+                  behavior: SnackBarBehavior.floating,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+            }
+            return;
+          }
+        }
+      }
+
       final startDate = renewalCalc.startDate;
       final endDate = renewalCalc.endDate;
       final carriedDue = (student.pendingDueBalance != null && student.pendingDueBalance! > 0)
@@ -203,9 +332,6 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
           : (mode == RenewalPaymentMode.bank
               ? 'Direct Bank Transfer (NEFT/IMPS)'
               : 'Pay at Desk / Reception');
-      final refNumberStr = mode == RenewalPaymentMode.deskCash
-          ? 'Desk Cash Payment Requested'
-          : _transactionRefController.text.trim();
       final statusStr = mode == RenewalPaymentMode.deskCash
           ? 'desk_payment_pending'
           : 'pending';
@@ -278,7 +404,8 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
             duration: const Duration(seconds: 4),
           ),
         );
-        Navigator.pop(context);
+        await _clearDraft();
+        if (mounted) Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {

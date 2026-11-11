@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/models/library_model.dart';
+import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/waiting_list_model.dart';
+import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
+import 'package:study_library/features/students/presentation/providers/student_providers.dart';
+import 'package:study_library/features/student_app/presentation/screens/student_home_screen.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import '../providers/registration_provider.dart';
@@ -152,12 +156,26 @@ class _StudentRegistrationWizardState
     final libraryAsync = ref.watch(currentLibraryProvider);
     final waitingListAsync = ref.watch(waitingListStreamProvider);
     final queueInfoAsync = ref.watch(studentWaitingQueueProvider);
+    final studentAsync = ref.watch(currentStudentProvider);
+    final pendingRequestAsync = ref.watch(pendingRequestProvider);
 
     final library = libraryAsync.value;
     final libraryName = library?.name.isNotEmpty == true ? library!.name : 'Study Library';
     final libraryPhone = library?.phone ?? '';
 
-    // Check if the current student / user is ALREADY enrolled on the waiting list
+    // 1. Check if user is ALREADY an enrolled student in this library
+    final currentStudent = studentAsync.value;
+    if (currentStudent != null && !_bypassFullCapacity) {
+      return _buildAlreadyEnrolledView(currentStudent, libraryName);
+    }
+
+    // 2. Check if user ALREADY has an admission request pending approval
+    final pendingRequest = pendingRequestAsync.value;
+    if (pendingRequest != null && !_bypassFullCapacity) {
+      return _buildPendingApplicationView(pendingRequest, libraryName, libraryPhone);
+    }
+
+    // 3. Check if user is ALREADY on the priority waiting list
     final existingQueueInfo = queueInfoAsync.value;
     if (existingQueueInfo != null && !_bypassFullCapacity) {
       return _buildExistingTicketView(existingQueueInfo, libraryName, libraryPhone);
@@ -207,6 +225,290 @@ class _StudentRegistrationWizardState
       default:
         return isGovIdVisible ? const IdScanScreen() : const RegistrationFormScreen();
     }
+  }
+
+  /// ── 0a. ALREADY ENROLLED STUDENT VIEW ──
+  Widget _buildAlreadyEnrolledView(
+    StudentModel student,
+    String libraryName,
+  ) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Admission Status'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go(Routes.studentHome),
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check_circle_rounded,
+                    size: 48,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Already Enrolled!',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Hello ${student.name}! You are already registered as an enrolled student in $libraryName.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+                      context.go(Routes.studentHome);
+                    },
+                    icon: const Icon(Icons.badge_rounded),
+                    label: const Text('Open My Student Pass & Dashboard'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// ── 0b. EXISTING PENDING APPLICATION VIEW (GHOST LOOP PREVENTION) ──
+  Widget _buildPendingApplicationView(
+    Map<String, dynamic> request,
+    String libraryName,
+    String libraryPhone,
+  ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final studentName = request['studentName']?.toString() ?? 'Student';
+    final planName = request['planName']?.toString() ?? 'Selected Plan';
+    final requestedSeatLabel = request['requestedSeatLabel']?.toString() ?? 'Auto-Assign';
+    final requestId = request['id']?.toString() ?? '';
+    final createdAt = request['createdAt'];
+    String submittedDateStr = 'Recent';
+    if (createdAt is Timestamp) {
+      submittedDateStr = DateFormat('dd MMM yyyy, hh:mm a').format(createdAt.toDate());
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Admission Status'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(Routes.login);
+            }
+          },
+        ),
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.pending_actions_rounded,
+                    size: 44,
+                    color: Colors.amber.shade800,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Application Under Review',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: Text(
+                    '⏳ Pending Admin Approval',
+                    style: TextStyle(
+                      color: Colors.amber.shade900,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 0,
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: isDark ? Colors.white10 : Colors.black12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.person_outline_rounded, size: 20, color: Colors.brown),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                studentName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 24),
+                        _buildDetailRow('Library', libraryName),
+                        const SizedBox(height: 8),
+                        _buildDetailRow(
+                          'Requested Desk',
+                          requestedSeatLabel.toLowerCase().contains('auto')
+                              ? 'Auto-Assign'
+                              : 'Desk #$requestedSeatLabel',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildDetailRow('Applied Plan', planName),
+                        const SizedBox(height: 8),
+                        _buildDetailRow('Submitted On', submittedDateStr),
+                        if (requestId.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _buildDetailRow(
+                            'Application Ref',
+                            '#${requestId.length >= 8 ? requestId.substring(0, 8).toUpperCase() : requestId.toUpperCase()}',
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Hello $studentName! Your admission application has been received and is currently under review by library administration.\n\nYour digital student pass and seat will unlock automatically once approved.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+                      context.go(Routes.studentHome);
+                    },
+                    icon: const Icon(Icons.dashboard_rounded),
+                    label: const Text('Open Student Dashboard'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                if (libraryPhone.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _callPhone(libraryPhone),
+                          icon: const Icon(Icons.call_rounded, size: 18),
+                          label: const Text('Call Desk'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _openWhatsApp(
+                            libraryPhone,
+                            'Hello $libraryName, I have submitted an admission application (Ref #${requestId.length >= 8 ? requestId.substring(0, 8).toUpperCase() : requestId}). Could you please check my application status?',
+                          ),
+                          icon: const Icon(Icons.chat_rounded, size: 18, color: Colors.green),
+                          label: const Text('WhatsApp'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
+        ),
+      ],
+    );
   }
 
   /// ── 1. ACTIVE WAITING LIST TICKET VIEW ──

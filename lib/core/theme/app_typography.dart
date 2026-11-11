@@ -42,12 +42,16 @@ class AppTypography {
       labelMedium: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.5),
       labelSmall: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5),
     );
-    return base.apply(fontFamilyFallback: universalFontFallbacks);
+    return base.apply(
+      bodyColor: const Color(0xFF0F172A),
+      displayColor: const Color(0xFF09090B),
+      fontFamilyFallback: universalFontFallbacks,
+    );
   }
 
   static TextTheme getDarkTextTheme() {
     return getLightTextTheme().apply(
-      bodyColor: Colors.white,
+      bodyColor: const Color(0xFFF1F5F9),
       displayColor: Colors.white,
       fontFamilyFallback: universalFontFallbacks,
     );

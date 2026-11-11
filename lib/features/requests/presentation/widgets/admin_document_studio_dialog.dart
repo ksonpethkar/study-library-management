@@ -298,13 +298,36 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
     required IconData icon,
     required DocumentFilterMode mode,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final isSelected = _filterMode == mode;
+
     return ChoiceChip(
-      avatar: Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.grey.shade700),
-      label: Text(label, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+      avatar: Icon(
+        icon,
+        size: 16,
+        color: isSelected
+            ? Colors.white
+            : (isDark ? Colors.white70 : Colors.grey.shade700),
+      ),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          color: isSelected
+              ? Colors.white
+              : (isDark ? Colors.white : const Color(0xFF1E293B)),
+        ),
+      ),
       selected: isSelected,
       selectedColor: const Color(0xFF2563EB),
-      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
+      backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+      side: BorderSide(
+        color: isSelected
+            ? const Color(0xFF2563EB)
+            : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+      ),
       onSelected: (sel) {
         if (sel) setState(() => _filterMode = mode);
       },
@@ -358,7 +381,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                         ),
                         Text(
                           widget.documentTitle,
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                         ),
                       ],
                     ),
@@ -373,7 +396,15 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                       ],
                       selected: {_showingBackSide},
                       onSelectionChanged: (set) => setState(() => _showingBackSide = set.first),
-                      style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                      style: ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return Colors.white;
+                          }
+                          return isDark ? Colors.white70 : Colors.black87;
+                        }),
+                      ),
                     ),
                     const SizedBox(width: 10),
                   ],
@@ -398,11 +429,26 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                     // Rotate
                     OutlinedButton.icon(
                       onPressed: _rotateClockwise,
-                      icon: const Icon(Icons.rotate_right_rounded, size: 18),
-                      label: Text('Rotate (${_quarterTurns * 90}°)'),
+                      icon: Icon(
+                        Icons.rotate_right_rounded,
+                        size: 18,
+                        color: isDark ? Colors.white : theme.colorScheme.primary,
+                      ),
+                      label: Text(
+                        'Rotate (${_quarterTurns * 90}°)',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         padding: const EdgeInsets.symmetric(horizontal: 10),
+                        backgroundColor: isDark ? const Color(0xFF334155).withValues(alpha: 0.5) : Colors.white,
+                        side: BorderSide(
+                          color: isDark ? const Color(0xFF475569) : theme.colorScheme.outlineVariant,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -432,10 +478,28 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                       avatar: Icon(
                         _showWatermark ? Icons.verified_user_rounded : Icons.security_rounded,
                         size: 16,
-                        color: _showWatermark ? Colors.green.shade700 : Colors.grey,
+                        color: _showWatermark
+                            ? (isDark ? const Color(0xFF6EE7B7) : Colors.green.shade800)
+                            : (isDark ? Colors.white70 : Colors.grey.shade700),
                       ),
-                      label: const Text('Watermark Overlay', style: TextStyle(fontSize: 12)),
+                      label: Text(
+                        'Watermark Overlay',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: _showWatermark ? FontWeight.bold : FontWeight.w500,
+                          color: _showWatermark
+                              ? (isDark ? Colors.white : Colors.green.shade900)
+                              : (isDark ? Colors.white : const Color(0xFF1E293B)),
+                        ),
+                      ),
                       selected: _showWatermark,
+                      selectedColor: isDark ? const Color(0xFF065F46) : const Color(0xFFD1FAE5),
+                      backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      side: BorderSide(
+                        color: _showWatermark
+                            ? const Color(0xFF059669)
+                            : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+                      ),
                       onSelected: (val) => setState(() => _showWatermark = val),
                     ),
                     const SizedBox(width: 14),
@@ -531,6 +595,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                     width: 170,
                     child: DropdownButtonFormField<GovIdType>(
                       initialValue: _selectedType,
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                       decoration: const InputDecoration(
                         labelText: 'ID Type',
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -539,7 +604,13 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                       ),
                       items: GovIdType.values.map((t) => DropdownMenuItem(
                         value: t,
-                        child: Text(t.displayName, style: const TextStyle(fontSize: 13)),
+                        child: Text(
+                          t.displayName,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
                       )).toList(),
                       onChanged: (v) {
                         if (v != null) {

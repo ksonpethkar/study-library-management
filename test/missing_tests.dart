@@ -121,11 +121,13 @@ void main() {
     // ── Aadhaar ──
     group('Aadhaar', () {
       test('Valid 12-digit Aadhaar passes', () {
-        expect(GovIdValidator.validate(GovIdType.aadhaar, '234567890123'), isNull);
+        final check = AppValidators.generateVerhoeffCheckDigit('23456789012');
+        expect(GovIdValidator.validate(GovIdType.aadhaar, '23456789012$check'), isNull);
       });
 
       test('Valid Aadhaar with spaces passes', () {
-        expect(GovIdValidator.validate(GovIdType.aadhaar, '2345 6789 0123'), isNull);
+        final check = AppValidators.generateVerhoeffCheckDigit('23456789012');
+        expect(GovIdValidator.validate(GovIdType.aadhaar, '2345 6789 012$check'), isNull);
       });
 
       test('Aadhaar starting with 0 fails', () {

@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:study_library/core/router/app_router.dart';
 import '../providers/registration_provider.dart';
 import 'package:study_library/features/registration/data/ocr_parser.dart';
 import 'package:study_library/features/registration/data/document_layout_classifier.dart';
@@ -492,10 +494,22 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan Government ID')),
+      appBar: AppBar(
+        title: const Text('Step 1 of 6: Scan Government ID'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(Routes.login);
+            }
+          },
+        ),
+      ),
       body: Column(
         children: [
-          const LinearProgressIndicator(value: 1 / 5),
+          const LinearProgressIndicator(value: 1 / 6),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),

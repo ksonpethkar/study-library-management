@@ -312,7 +312,7 @@ class IdCardPdfService {
     final accentLight = colors['accentLight']!;
 
     final validTo = student.planEndDate != null ? dateFormat.format(student.planEndDate!) : 'N/A';
-    final validFrom = student.planStartDate != null ? dateFormat.format(student.planStartDate!) : dateFormat.format(DateTime.now());
+    final validFrom = student.planStartDate != null ? dateFormat.format(student.planStartDate!) : dateFormat.format(student.effectiveAdmissionDate);
 
     final seatText = SeatHelper.formatSeatLabel(
       seatId: student.seatId,
@@ -629,7 +629,7 @@ class IdCardPdfService {
                       final sec = studentSections?[stu.id] != null ? ' (${studentSections![stu.id]})' : '';
                       final plan = studentPlans?[stu.id];
                       final validTo = stu.planEndDate != null ? dateFormat.format(stu.planEndDate!) : 'N/A';
-                      final validFrom = stu.planStartDate != null ? dateFormat.format(stu.planStartDate!) : 'N/A';
+                      final validFrom = stu.planStartDate != null ? dateFormat.format(stu.planStartDate!) : dateFormat.format(stu.effectiveAdmissionDate);
 
                       return _buildCardCutoutUnit(
                         student: stu,

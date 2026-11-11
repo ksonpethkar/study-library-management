@@ -301,24 +301,31 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         }
 
         if (roleStr == 'student') {
-          // Verify that this user actually has an enrolled student record in Firestore
-          final studentDoc = await FirebaseFirestore.instance
-              .collection('libraries').doc(libId)
-              .collection('students').where('userId', isEqualTo: user.uid)
-              .limit(1).get()
-              .then<QuerySnapshot?>((v) => v, onError: (_) => null);
-
-          final email = user.email?.trim().toLowerCase() ?? '';
-          final emailMatch = (studentDoc == null || studentDoc.docs.isEmpty) && email.isNotEmpty
-              ? await FirebaseFirestore.instance
+          // Verify that this user actually has an enrolled student record or active admission request
+          final studentDoc = await AuthRoleService.findStudentDocumentForUser(user, libId);
+          bool hasActiveRequest = false;
+          if (studentDoc == null) {
+            try {
+              final email = user.email?.trim().toLowerCase() ?? '';
+              final rSnap = await FirebaseFirestore.instance
                   .collection('libraries').doc(libId)
-                  .collection('students').where('email', isEqualTo: email)
-                  .limit(1).get()
-                  .then<QuerySnapshot?>((v) => v, onError: (_) => null)
-              : null;
+                  .collection('requests')
+                  .where('studentId', isEqualTo: user.uid)
+                  .limit(1).get();
+              if (rSnap.docs.isNotEmpty) {
+                hasActiveRequest = true;
+              } else if (email.isNotEmpty) {
+                final rSnapEmail = await FirebaseFirestore.instance
+                    .collection('libraries').doc(libId)
+                    .collection('requests')
+                    .where('email', isEqualTo: email)
+                    .limit(1).get();
+                hasActiveRequest = rSnapEmail.docs.isNotEmpty;
+              }
+            } catch (_) {}
+          }
 
-          if ((studentDoc != null && studentDoc.docs.isNotEmpty) ||
-              (emailMatch != null && emailMatch.docs.isNotEmpty)) {
+          if (studentDoc != null || hasActiveRequest) {
             ref.read(currentLibraryIdProvider.notifier).set(libId);
             ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
             await _ensureMinAnimationDuration(startTime);
@@ -326,17 +333,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             context.go(Routes.studentHome);
             return;
           } else {
-            // Stale or ghost role — purge and send to login
+            // Stale or ghost role — purge cached role and proceed to full discovery
             ref.read(userRoleProvider.notifier).clear();
             final p = await SharedPreferences.getInstance();
             await p.remove('cached_current_user_role');
             await p.remove('persisted_role');
             await p.remove('persisted_uid');
-            await FirebaseAuth.instance.signOut();
-            await _ensureMinAnimationDuration(startTime);
-            if (!mounted) return;
-            context.go(Routes.login);
-            return;
           }
         }
       }
@@ -398,20 +400,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         }
       }
 
-      // 2c. Enrolled student lookup
-      final studentByUid = await FirebaseFirestore.instance
-          .collectionGroup('students')
-          .where('userId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
-      if (!mounted) return;
-
-      if (studentByUid.docs.isNotEmpty) {
-        final doc = studentByUid.docs.first;
-        final libId = doc.reference.parent.parent?.id ?? '';
-        if (libId.isNotEmpty) {
-          ref.read(currentLibraryIdProvider.notifier).set(libId);
-        }
+      // 2c. Enrolled student lookup (UID, Email, Phone variants)
+      final defaultLibId = CurrentLibraryNotifier.defaultLibraryId;
+      final studentDoc = await AuthRoleService.findStudentDocumentForUser(user, defaultLibId);
+      if (studentDoc != null) {
+        final libId = studentDoc.reference.parent.parent?.id ?? defaultLibId;
+        ref.read(currentLibraryIdProvider.notifier).set(libId);
         ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
         await persistUserRole(
           uid: user.uid,
@@ -426,8 +420,49 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return;
       }
 
-      // 2d. User is signed in to Firebase Auth but has no valid role or student profile
-      await FirebaseAuth.instance.signOut();
+      // 2d. Check Admission Requests in default library (pending, approved, payment pending)
+      final normalizedEmail = user.email?.trim().toLowerCase() ?? '';
+      QuerySnapshot? reqByUid;
+      try {
+        reqByUid = await FirebaseFirestore.instance
+            .collection('libraries').doc(defaultLibId)
+            .collection('requests').where('studentId', isEqualTo: user.uid)
+            .limit(1).get();
+      } catch (_) {}
+
+      QuerySnapshot? reqByEmail;
+      if ((reqByUid == null || reqByUid.docs.isEmpty) && normalizedEmail.isNotEmpty) {
+        try {
+          reqByEmail = await FirebaseFirestore.instance
+              .collection('libraries').doc(defaultLibId)
+              .collection('requests').where('email', isEqualTo: normalizedEmail)
+              .limit(1).get();
+        } catch (_) {}
+      }
+
+      final matchedReq = (reqByUid?.docs.isNotEmpty == true)
+          ? reqByUid!.docs.first
+          : (reqByEmail?.docs.isNotEmpty == true ? reqByEmail!.docs.first : null);
+
+      if (matchedReq != null) {
+        ref.read(currentLibraryIdProvider.notifier).set(defaultLibId);
+        ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+        await persistUserRole(
+          uid: user.uid,
+          email: user.email ?? '',
+          displayName: user.displayName ?? '',
+          role: AppUserRole.student,
+          libraryId: defaultLibId,
+        );
+        await _ensureMinAnimationDuration(startTime);
+        if (!mounted) return;
+        context.go(Routes.studentHome);
+        return;
+      }
+
+      // 2e. No existing profile or admission request found.
+      // Route to login where LoginScreen provides the interactive
+      // "Account Not Found / Apply for Admission" option without abruptly exiting the app.
       ref.read(userRoleProvider.notifier).clear();
       final p = await SharedPreferences.getInstance();
       await p.remove('cached_current_user_role');

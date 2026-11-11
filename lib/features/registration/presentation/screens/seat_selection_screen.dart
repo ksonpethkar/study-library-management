@@ -8,6 +8,7 @@ import 'package:study_library/models/section_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
 import '../providers/registration_provider.dart';
+import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 class SeatSelectionScreen extends ConsumerStatefulWidget {
@@ -259,15 +260,24 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
     final studentGenderStr = (regData['gender'] as String? ?? 'male').toLowerCase();
     final seatDetails = ref.watch(selectedSeatDetailsProvider);
 
+    final formConfigAsync = ref.watch(formConfigStreamProvider);
+    final isGovIdVisible = FormConfigService.isFieldVisible(formConfigAsync.value ?? [], 'govId');
+    final stepTitle = isGovIdVisible ? 'Step 5 of 6: Choose Desk' : 'Step 4 of 5: Choose Desk';
+    final progressValue = isGovIdVisible ? 5 / 6 : 4 / 5;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Step 5 of 6: Choose Desk'),
+        title: Text(stepTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => ref.read(registrationStepProvider.notifier).goTo(4),
         ),
       ),
-      body: sectionsAsync.when(
+      body: Column(
+        children: [
+          LinearProgressIndicator(value: progressValue),
+          Expanded(
+            child: sectionsAsync.when(
         loading: () => const Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -755,7 +765,10 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
           );
         },
       ),
-    );
+    ),
+  ],
+),
+);
   }
 
   Widget _buildLegendItem({

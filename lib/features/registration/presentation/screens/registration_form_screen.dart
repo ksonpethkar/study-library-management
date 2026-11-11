@@ -14,6 +14,8 @@ import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/utils/app_validators.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 import '../providers/registration_provider.dart';
 
 class RegistrationFormScreen extends ConsumerStatefulWidget {
@@ -724,6 +726,18 @@ class _RegistrationFormScreenState
     }
   }
 
+  void _handleBack(bool isGovIdVisible) {
+    if (isGovIdVisible) {
+      ref.read(registrationStepProvider.notifier).goTo(1);
+    } else {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(Routes.login);
+      }
+    }
+  }
+
   void _onNext() {
     if (!_formKey.currentState!.validate()) return;
 
@@ -872,11 +886,22 @@ class _RegistrationFormScreenState
     final autoCount = _autoFilledKeys.length;
     final hasOcr = autoCount > 0;
 
+    final formConfigAsync = ref.watch(formConfigStreamProvider);
+    final isGovIdVisible = FormConfigService.isFieldVisible(formConfigAsync.value ?? [], 'govId');
+    final stepTitle = isGovIdVisible ? 'Step 2 of 6: Personal Details' : 'Step 1 of 5: Personal Details';
+    final progressValue = isGovIdVisible ? 2 / 6 : 1 / 5;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Review Registration Details')),
+      appBar: AppBar(
+        title: Text(stepTitle),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => _handleBack(isGovIdVisible),
+        ),
+      ),
       body: Column(
         children: [
-          const LinearProgressIndicator(value: 2 / 5),
+          LinearProgressIndicator(value: progressValue),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
@@ -1801,8 +1826,7 @@ class _RegistrationFormScreenState
                               ),
                               const SizedBox(height: 10),
                               OutlinedButton(
-                                onPressed: () =>
-                                    ref.read(registrationStepProvider.notifier).goTo(1),
+                                onPressed: () => _handleBack(isGovIdVisible),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                 ),
@@ -1815,8 +1839,7 @@ class _RegistrationFormScreenState
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             OutlinedButton(
-                              onPressed: () =>
-                                  ref.read(registrationStepProvider.notifier).goTo(1),
+                              onPressed: () => _handleBack(isGovIdVisible),
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 24, vertical: 14),

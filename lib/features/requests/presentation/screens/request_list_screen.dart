@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
@@ -12,6 +13,7 @@ import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/student_provisioning_service.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/widgets/pulsing_glow_container.dart';
 
 /// Data representation of a student request from raw Firestore data.
 class StudentRequestItem {
@@ -1784,20 +1786,31 @@ class _RequestCard extends StatelessWidget {
                         if (request.studentPhone != null && request.studentPhone!.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 2),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.phone_rounded, size: 12, color: theme.colorScheme.onSurfaceVariant),
-                                const SizedBox(width: 4),
-                                Text(
-                                  request.studentPhone!,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.colorScheme.onSurfaceVariant,
+                            child: InkWell(
+                              onTap: () async {
+                                final clean = request.studentPhone!.replaceAll(RegExp(r'\D'), '');
+                                final uri = Uri.parse('tel:$clean');
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri);
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.phone_rounded, size: 12, color: Color(0xFF0284C7)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    request.studentPhone!,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF0284C7),
+                                      decoration: TextDecoration.underline,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         if (request.studentEmail != null && request.studentEmail!.isNotEmpty)

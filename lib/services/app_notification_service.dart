@@ -31,9 +31,11 @@ List<AppNotificationModel> _deduplicateNotifications(List<AppNotificationModel> 
   final List<String> orphanDocIds = [];
 
   for (final n in list) {
-    final normTitle = n.title.trim().toLowerCase();
-    final normBody = n.body.trim().toLowerCase();
-    final key = '${n.type.toLowerCase()}_${normTitle}_$normBody';
+    // Clean string normalization: remove punctuation and emojis so minor variations match
+    final cleanTitle = n.title.replaceAll(RegExp(r'[^\w\s]'), '').trim().toLowerCase();
+    final cleanBody = n.body.replaceAll(RegExp(r'[^\w\s]'), '').trim().toLowerCase();
+    final target = (n.targetUserId ?? '').trim().toLowerCase();
+    final key = '${cleanTitle}_${cleanBody}_$target';
 
     if (!uniqueMap.containsKey(key)) {
       uniqueMap[key] = n;
@@ -41,12 +43,13 @@ List<AppNotificationModel> _deduplicateNotifications(List<AppNotificationModel> 
       final existing = uniqueMap[key]!;
       // Keep newer notification timestamp
       final keepNewer = n.createdAt.isAfter(existing.createdAt);
-      final isUnread = (!existing.read) || (!n.read);
+      // If either notification was marked read, honor read status
+      final isRead = existing.read || n.read;
 
       final winner = keepNewer ? n : existing;
       final loser = keepNewer ? existing : n;
 
-      uniqueMap[key] = winner.copyWith(read: !isUnread);
+      uniqueMap[key] = winner.copyWith(read: isRead);
       orphanDocIds.add(loser.id);
     }
   }
@@ -177,28 +180,32 @@ class AppNotificationService {
     String? targetUserId,
     String? actionRoute,
     Map<String, dynamic>? metadata,
+    String? notificationId,
   }) async {
     try {
-      // Deduplicate recent identical dispatches within 30 minutes to prevent double-writes
+      final cleanTitle = title.replaceAll(RegExp(r'[^\w\s]'), '').trim().toLowerCase();
+      final cleanBody = body.replaceAll(RegExp(r'[^\w\s]'), '').trim().toLowerCase();
+
+      // Deduplicate recent identical dispatches within 60 minutes to prevent double-writes
       if (libraryId.isNotEmpty && type != 'general') {
         try {
           final recentSnap = await _firestore
               .collection('libraries')
               .doc(libraryId)
               .collection('notifications')
-              .where('type', isEqualTo: type)
-              .limit(10)
+              .orderBy('createdAt', descending: true)
+              .limit(25)
               .get();
 
           final isDuplicate = recentSnap.docs.any((d) {
             final dData = d.data();
-            final dTitle = (dData['title'] ?? '').toString().trim().toLowerCase();
-            final dBody = (dData['body'] ?? '').toString().trim().toLowerCase();
+            final dTitle = (dData['title'] ?? '').toString().replaceAll(RegExp(r'[^\w\s]'), '').trim().toLowerCase();
+            final dBody = (dData['body'] ?? '').toString().replaceAll(RegExp(r'[^\w\s]'), '').trim().toLowerCase();
             final dTarget = (dData['targetUserId'] ?? '').toString().trim();
             final dCreated = (dData['createdAt'] as Timestamp?)?.toDate();
 
-            if (dTitle == title.trim().toLowerCase() && dBody == body.trim().toLowerCase()) {
-              if (targetUserId == null || targetUserId.isEmpty || dTarget == targetUserId) {
+            if (dTitle == cleanTitle && dBody == cleanBody) {
+              if (targetUserId == null || targetUserId.isEmpty || dTarget == targetUserId || dTarget.isEmpty) {
                 if (dCreated != null && DateTime.now().difference(dCreated).inMinutes < 60) {
                   return true;
                 }
@@ -240,11 +247,9 @@ class AppNotificationService {
         } catch (_) {}
       }
 
-      final docRef = _firestore
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('notifications')
-          .doc();
+      final docRef = (notificationId != null && notificationId.isNotEmpty)
+          ? _firestore.collection('libraries').doc(libraryId).collection('notifications').doc(notificationId)
+          : _firestore.collection('libraries').doc(libraryId).collection('notifications').doc();
 
       final model = AppNotificationModel(
         id: docRef.id,
@@ -259,7 +264,7 @@ class AppNotificationService {
         metadata: metadata ?? {},
       );
 
-      await docRef.set(model.toFirestore());
+      await docRef.set(model.toFirestore(), SetOptions(merge: true));
 
       // Trigger Android system notification with short message snippet
       final channelId = switch (type) {

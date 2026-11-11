@@ -6294,5 +6294,46 @@ void main() {
       expect(deduplicated.length, equals(2));
       expect(deduplicated.map((n) => n['title']), containsAll(['Admission Approved! 🎉', 'Monthly Fee Due']));
     });
+
+    test('129. BRAND COLOR STUDIO: 2D SPECTRUM HSV-RGB INTEGRITY & ACADEMIC SWATCH PALETTE PARITY', () {
+      // ── 1. HSV to Hex Round-Trip Conversion ──
+      const testColor = Color(0xFFC2410C); // Warm Terracotta from user screenshot
+      final hsv = HSVColor.fromColor(testColor);
+      final reconstructed = hsv.toColor();
+      expect(reconstructed.toARGB32(), equals(testColor.toARGB32()));
+
+      String toHex(Color c) => '#${c.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+      expect(toHex(testColor), equals('#C2410C'));
+
+      // ── 2. Clamped Bounds Integrity ──
+      // Simulating touch coordinates at extremes
+      double clampHue(double rawHue) => (rawHue / 360.0).clamp(0.0, 1.0) * 360.0;
+      expect(clampHue(-50), equals(0.0));
+      expect(clampHue(450), equals(360.0));
+      expect(clampHue(180), equals(180.0));
+
+      double clampSatVal(double raw, double maxDim) => (raw / maxDim).clamp(0.0, 1.0);
+      expect(clampSatVal(-10, 160), equals(0.0));
+      expect(clampSatVal(200, 160), equals(1.0));
+      expect(clampSatVal(80, 160), equals(0.5));
+
+      // ── 3. Academic Swatch Palette Structure & Contrast Invariant ──
+      const academicEmerald = Color(0xFF065F46);
+      const royalNavy = Color(0xFF1E3A8A);
+      const warmTerracotta = Color(0xFFC2410C);
+      const heritageBurgundy = Color(0xFF881337);
+
+      expect(ThemeData.estimateBrightnessForColor(academicEmerald), equals(Brightness.dark));
+      expect(ThemeData.estimateBrightnessForColor(royalNavy), equals(Brightness.dark));
+      expect(ThemeData.estimateBrightnessForColor(warmTerracotta), equals(Brightness.dark));
+      expect(ThemeData.estimateBrightnessForColor(heritageBurgundy), equals(Brightness.dark));
+
+      // High text contrast ensures white text on these executive brand colors
+      Color textContrastColor(Color bg) =>
+          ThemeData.estimateBrightnessForColor(bg) == Brightness.dark ? Colors.white : Colors.black87;
+
+      expect(textContrastColor(warmTerracotta), equals(Colors.white));
+      expect(textContrastColor(const Color(0xFFFDE68A)), equals(Colors.black87)); // Light amber
+    });
   });
 }

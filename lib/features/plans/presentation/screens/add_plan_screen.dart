@@ -444,12 +444,36 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
                     ),
                     const SizedBox(height: 16),
                     SwitchListTile(
-                      title: const Text('Active'),
+                      title: const Text(
+                        'Active',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      subtitle: const Text(
+                        'Allow students to choose this plan during admission and renewals.',
+                        style: TextStyle(fontSize: 11.5),
+                      ),
                       value: _isActive,
                       onChanged: (val) => setState(() => _isActive = val),
                     ),
                     SwitchListTile(
-                      title: const Text('Featured'),
+                      title: Row(
+                        children: [
+                          Icon(
+                            Icons.star_rounded,
+                            color: _isFeatured ? const Color(0xFFD97706) : Colors.grey,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Featured',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      subtitle: const Text(
+                        'Highlights this plan with a golden "★ POPULAR" badge for students.',
+                        style: TextStyle(fontSize: 11.5),
+                      ),
                       value: _isFeatured,
                       onChanged: (val) => setState(() => _isFeatured = val),
                     ),

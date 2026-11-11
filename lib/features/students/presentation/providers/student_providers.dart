@@ -303,6 +303,90 @@ final studentPendingRenewalProvider = StreamProvider<Map<String, dynamic>?>((ref
   }
 });
 
+/// Real-time stream of the current student's most recently rejected plan renewal request (within the last 7 days).
+final studentRecentRejectedRenewalProvider = StreamProvider<Map<String, dynamic>?>((ref) async* {
+  final libraryId = ref.watch(currentLibraryIdProvider);
+  if (libraryId == null || libraryId.isEmpty) {
+    yield null;
+    return;
+  }
+
+  final studentAsync = ref.watch(currentStudentProvider);
+  final student = studentAsync.value;
+  final curUser = FirebaseAuth.instance.currentUser;
+  final curUid = curUser?.uid ?? '';
+  final curEmail = curUser?.email?.toLowerCase().trim() ?? '';
+  final studentId = student?.id ?? '';
+  final studentUserId = student?.userId ?? '';
+  final studentEmail = student?.email.toLowerCase().trim() ?? '';
+  final studentPhone = student?.phone.replaceAll(RegExp(r'\D'), '') ?? '';
+
+  final effectiveUserId = curUid.isNotEmpty
+      ? curUid
+      : (studentUserId.isNotEmpty ? studentUserId : studentId);
+
+  if (effectiveUserId.isEmpty) {
+    yield null;
+    return;
+  }
+
+  try {
+    final queryStream = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('requests')
+        .where('userId', isEqualTo: effectiveUserId)
+        .where('type', isEqualTo: 'renewal')
+        .snapshots();
+
+    final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+
+    await for (final snap in queryStream) {
+      final docs = snap.docs.where((d) {
+        final data = d.data();
+        final status = (data['status'] ?? '').toString().toLowerCase();
+        if (status != 'rejected') return false;
+
+        final rejectedAt = (data['rejectedAt'] as Timestamp?)?.toDate();
+        if (rejectedAt != null && rejectedAt.isBefore(sevenDaysAgo)) return false;
+
+        final sId = (data['studentId'] ?? '').toString();
+        final sUid = (data['studentUserId'] ?? data['userId'] ?? '').toString();
+        final sEmail = (data['studentEmail'] ?? '').toString().toLowerCase().trim();
+        final sPhone = (data['studentPhone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+
+        if (studentId.isNotEmpty && sId == studentId) return true;
+        if (curUid.isNotEmpty && (sUid == curUid || sId == curUid)) return true;
+        if (studentUserId.isNotEmpty && (sUid == studentUserId || sId == studentUserId)) return true;
+        if (curEmail.isNotEmpty && sEmail.isNotEmpty && curEmail == sEmail) return true;
+        if (studentEmail.isNotEmpty && sEmail.isNotEmpty && studentEmail == sEmail) return true;
+        if (studentPhone.isNotEmpty && sPhone.isNotEmpty &&
+            (studentPhone == sPhone || studentPhone.endsWith(sPhone) || sPhone.endsWith(studentPhone))) {
+          return true;
+        }
+
+        return false;
+      }).toList();
+
+      if (docs.isEmpty) {
+        yield null;
+      } else {
+        docs.sort((a, b) {
+          final tA = a.data()['rejectedAt'] as Timestamp? ?? a.data()['createdAt'] as Timestamp?;
+          final tB = b.data()['rejectedAt'] as Timestamp? ?? b.data()['createdAt'] as Timestamp?;
+          if (tA != null && tB != null) return tB.compareTo(tA);
+          return 0;
+        });
+        final d = docs.first;
+        yield {'id': d.id, ...d.data()};
+      }
+    }
+  } catch (e) {
+    debugPrint('studentRecentRejectedRenewalProvider stream error: $e');
+    yield null;
+  }
+});
+
 const _pageSize = 20;
 
 final studentPageProvider = StateNotifierProvider.autoDispose<StudentPageNotifier, StudentPageState>((ref) {

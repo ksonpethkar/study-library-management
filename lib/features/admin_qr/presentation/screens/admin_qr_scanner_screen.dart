@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -21,24 +22,84 @@ class AdminQrScannerScreen extends ConsumerStatefulWidget {
   ConsumerState<AdminQrScannerScreen> createState() => _AdminQrScannerScreenState();
 }
 
-class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
+class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> with WidgetsBindingObserver {
   late final MobileScannerController _controller;
   bool _isProcessing = false;
   bool _scanned = false;
+  bool _isExiting = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = MobileScannerController(
       detectionSpeed: DetectionSpeed.normal,
       facing: CameraFacing.back,
       torchEnabled: false,
+      autoStart: true,
     );
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_controller.value.isInitialized) return;
+
+    switch (state) {
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        // Instantly shut down camera hardware when app is backgrounded, minimized or screen locked
+        if (_controller.value.isRunning) {
+          unawaited(_controller.stop());
+        }
+        break;
+      case AppLifecycleState.resumed:
+        // Restart camera hardware when app returns to active foreground
+        if (!_isExiting && !_scanned && !_controller.value.isRunning) {
+          unawaited(_controller.start());
+        }
+        break;
+    }
+  }
+
+  Future<void> _safeStopAndExit() async {
+    if (_isExiting) return;
+    _isExiting = true;
+
+    try {
+      if (_controller.value.isRunning) {
+        await _controller.stop();
+      }
+    } catch (e) {
+      debugPrint('Notice during camera teardown on exit: $e');
+    }
+
+    if (mounted) {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(Routes.adminHome);
+      }
+    }
+  }
+
+  @override
   void dispose() {
-    _controller.dispose();
+    _isExiting = true;
+    WidgetsBinding.instance.removeObserver(this);
+    // Explicitly unbind and stop native CameraX before dispose.
+    // In mobile_scanner, dispose() sets _isDisposed = true first, causing internal
+    // _stop() to return false and skip unbinding the platform camera session.
+    if (_controller.value.isRunning) {
+      _controller.stop().then((_) {
+        _controller.dispose();
+      }).catchError((_) {
+        _controller.dispose();
+      });
+    } else {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
@@ -109,11 +170,16 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_scanned || _isProcessing) return;
+    if (_scanned || _isProcessing || _isExiting) return;
     final barcode = capture.barcodes.firstOrNull;
     if (barcode?.rawValue == null) return;
     HapticFeedback.mediumImpact();
     setState(() { _isProcessing = true; _scanned = true; });
+    try {
+      if (_controller.value.isRunning) {
+        await _controller.stop();
+      }
+    } catch (_) {}
     await _verifyStudent(barcode!.rawValue!);
   }
 
@@ -186,9 +252,14 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
     );
+    if (!_isExiting && !_controller.value.isRunning) {
+      try {
+        _controller.start();
+      } catch (_) {}
+    }
   }
 
-  void _showVerification(StudentModel student) {
+  Future<void> _showVerification(StudentModel student) async {
     if (!mounted) return;
     final theme = Theme.of(context);
     final now = DateTime.now();
@@ -206,7 +277,15 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
     final daysLeft = endDate != null ? endDate.difference(now).inDays : 0;
     final df = DateFormat('dd MMM yyyy');
 
-    showModalBottomSheet(
+    try {
+      if (_controller.value.isRunning) {
+        await _controller.stop();
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -294,9 +373,15 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
                         backgroundColor: const Color(0xFF059669),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.of(ctx).pop();
-                        context.push(Routes.adminRecordPayment.replaceFirst(':studentId', student.id));
+                        try {
+                          if (_controller.value.isRunning) {
+                            await _controller.stop();
+                          }
+                        } catch (_) {}
+                        if (!mounted) return;
+                        await context.push(Routes.adminRecordPayment.replaceFirst(':studentId', student.id));
                       },
                     ),
                   ),
@@ -309,7 +394,6 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
                     label: const Text('Scan Another Student'),
                     onPressed: () {
                       Navigator.of(ctx).pop();
-                      setState(() => _scanned = false);
                     },
                   ),
                 ),
@@ -319,10 +403,28 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
         ),
       ),
     );
+
+    // After sheet is dismissed or user returns to scanner
+    if (mounted && !_isExiting) {
+      setState(() => _scanned = false);
+      try {
+        if (!_controller.value.isRunning) {
+          await _controller.start();
+        }
+      } catch (_) {}
+    }
   }
 
-  void _openManualSearchDialog() {
-    showModalBottomSheet(
+  Future<void> _openManualSearchDialog() async {
+    try {
+      if (_controller.value.isRunning) {
+        await _controller.stop();
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -430,18 +532,32 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
         );
       },
     );
+
+    if (mounted && !_isExiting && !_scanned) {
+      try {
+        if (!_controller.value.isRunning) {
+          await _controller.start();
+        }
+      } catch (_) {}
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
-        ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _safeStopAndExit();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: _safeStopAndExit,
+          ),
         title: const Text('Scan Student ID'),
         centerTitle: true,
         actions: [
@@ -563,7 +679,8 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
             ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 

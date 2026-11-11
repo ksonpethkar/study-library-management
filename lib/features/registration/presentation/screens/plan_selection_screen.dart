@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/registration_provider.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
+import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/core/error/error_handler.dart';
 
@@ -15,11 +16,22 @@ class PlanSelectionScreen extends ConsumerWidget {
     final plansAsync = ref.watch(plansStreamProvider);
     final theme = Theme.of(context);
 
+    final formConfigAsync = ref.watch(formConfigStreamProvider);
+    final isGovIdVisible = FormConfigService.isFieldVisible(formConfigAsync.value ?? [], 'govId');
+    final stepTitle = isGovIdVisible ? 'Step 4 of 6: Select Plan' : 'Step 3 of 5: Select Plan';
+    final progressValue = isGovIdVisible ? 4 / 6 : 3 / 5;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Select Membership Plan')),
+      appBar: AppBar(
+        title: Text(stepTitle),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => ref.read(registrationStepProvider.notifier).goTo(3),
+        ),
+      ),
       body: Column(
         children: [
-          const LinearProgressIndicator(value: 4 / 5),
+          LinearProgressIndicator(value: progressValue),
           Expanded(
             child: plansAsync.when(
               data: (plans) {

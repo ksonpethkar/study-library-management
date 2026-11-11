@@ -563,16 +563,41 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                 );
               }
 
-              // Check if raw payment documents exist
+              // Check if raw payment documents exist (filtered by student to satisfy Firestore security rules)
+              final studentIdVal = student.id;
+              final studentUserIdVal = student.userId;
+              Query<Map<String, dynamic>> paymentQuery = FirebaseFirestore.instance
+                  .collection('libraries')
+                  .doc(libraryId)
+                  .collection('payments');
+
+              if (studentUserIdVal != null && studentUserIdVal.isNotEmpty && studentUserIdVal != studentIdVal) {
+                paymentQuery = paymentQuery.where(
+                  Filter.or(
+                    Filter('studentId', isEqualTo: studentIdVal),
+                    Filter('studentUserId', isEqualTo: studentUserIdVal),
+                  ),
+                );
+              } else {
+                paymentQuery = paymentQuery.where('studentId', isEqualTo: studentIdVal);
+              }
+
               return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: FirebaseFirestore.instance
-                    .collection('libraries')
-                    .doc(libraryId)
-                    .collection('payments')
-                    .snapshots(),
+                stream: paymentQuery.snapshots(),
                 builder: (context, paymentSnapshot) {
                   if (paymentSnapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
+                  }
+                  if (paymentSnapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Text(
+                          'No payment receipts available.',
+                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                    );
                   }
 
                   final allPaymentDocs = paymentSnapshot.data?.docs ?? [];

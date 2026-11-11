@@ -15,6 +15,7 @@ import 'package:study_library/features/requests/presentation/providers/request_p
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/in_app_notification_toast.dart';
+import 'package:study_library/core/widgets/pulsing_glow_container.dart';
 
 /// Stream provider for pending request count shown in the bottom nav badge.
 final _pendingCountProvider = StreamProvider.autoDispose<int>((ref) {
@@ -97,12 +98,35 @@ class _AdminShellState extends ConsumerState<AdminShell> with WidgetsBindingObse
   }
 
   Widget _badgedIcon(IconData icon, int count, {bool selected = false}) {
+    final baseIcon = Icon(selected
+        ? (icon == Icons.more_horiz_outlined ? Icons.more_horiz_rounded : icon)
+        : icon);
+    if (count <= 0) return baseIcon;
+
     return Badge(
-      isLabelVisible: count > 0,
-      label: Text(count > 99 ? '99+' : '$count'),
-      child: Icon(selected
-          ? (icon == Icons.more_horiz_outlined ? Icons.more_horiz_rounded : icon)
-          : icon),
+      isLabelVisible: true,
+      backgroundColor: const Color(0xFFEA580C),
+      label: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          baseIcon,
+          Positioned(
+            top: -2,
+            right: -3,
+            child: IgnorePointer(
+              child: LiveRadarDot(
+                color: const Color(0xFFEA580C),
+                size: 5,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

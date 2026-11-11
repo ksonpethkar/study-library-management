@@ -624,15 +624,22 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                   DropdownButtonFormField<MembershipStatus>(
                     isExpanded: true,
                     initialValue: _membershipStatus,
+                    itemHeight: 54.0,
                     decoration: const InputDecoration(
                       labelText: 'Membership Status',
                       prefixIcon: Icon(Icons.verified_user_outlined),
                       border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
+                    selectedItemBuilder: (context) {
+                      return MembershipStatus.values.map((s) {
+                        return _buildMembershipStatusBadge(s, isSelectedView: true);
+                      }).toList();
+                    },
                     items: MembershipStatus.values.map((s) {
                       return DropdownMenuItem(
                         value: s,
-                        child: Text(s.name.toUpperCase()),
+                        child: _buildMembershipStatusBadge(s, isSelectedView: false),
                       );
                     }).toList(),
                     onChanged: (v) {
@@ -1063,5 +1070,123 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         .where((w) => w.isNotEmpty)
         .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
         .join(' ');
+  }
+
+  Widget _buildMembershipStatusBadge(MembershipStatus status, {bool isSelectedView = false}) {
+    final (Color color, IconData icon, String desc) = switch (status) {
+      MembershipStatus.active => (
+        const Color(0xFF10B981),
+        Icons.check_circle_rounded,
+        'Pass Active • Seat Locked • Entry Allowed'
+      ),
+      MembershipStatus.grace => (
+        const Color(0xFFF59E0B),
+        Icons.hourglass_top_rounded,
+        'Within Grace Buffer • Seat Protected'
+      ),
+      MembershipStatus.expired => (
+        const Color(0xFFEF4444),
+        Icons.timer_off_rounded,
+        'Pass Expired • Seat Released to Pool'
+      ),
+      MembershipStatus.pending => (
+        const Color(0xFF6366F1),
+        Icons.pending_actions_rounded,
+        'New Applicant • Awaiting Fee / Seat'
+      ),
+      MembershipStatus.inactive => (
+        const Color(0xFF6B7280),
+        Icons.pause_circle_outline_rounded,
+        'Past Member • Ready for Renewal'
+      ),
+      MembershipStatus.archived => (
+        const Color(0xFF94A3B8),
+        Icons.inventory_2_outlined,
+        'Historical Record • Inactive History'
+      ),
+      MembershipStatus.blocked => (
+        const Color(0xFFDC2626),
+        Icons.block_rounded,
+        'Access Denied • Turnstile Blocked'
+      ),
+    };
+
+    if (isSelectedView) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: color.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 5),
+                Text(
+                  status.name.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              desc,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  status.name.toUpperCase(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  desc,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

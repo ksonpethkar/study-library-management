@@ -7,6 +7,7 @@ import '../../../../core/constants/firestore_paths.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/seat_model.dart';
 import '../../../../core/utils/seat_helper.dart';
+import 'package:study_library/services/app_notification_service.dart';
 
 class SeatRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -74,7 +75,7 @@ class SeatRepository {
           String label;
           switch (namingStyle) {
             case SeatNamingStyle.alphanumeric:
-              label = '${String.fromCharCode(65 + r)}${c + 1}'; // A1, A2
+              label = '${SeatHelper.rowLetter(r)}${c + 1}'; // A1, A2, ... Z1, AA1
               break;
             case SeatNamingStyle.numeric:
               label = '${startNumber + count}'; // Continuous: 1, 2, 3...
@@ -91,7 +92,7 @@ class SeatRepository {
                   ? section.name.trim().substring(0, 1).toUpperCase()
                   : 'S';
               label =
-                  '$sCode-${String.fromCharCode(65 + r)}${c + 1}'; // S-A1, S-A2
+                  '$sCode-${SeatHelper.rowLetter(r)}${c + 1}'; // S-A1, S-A2, ... S-AA1
               break;
           }
 
@@ -464,6 +465,8 @@ class SeatRepository {
           .collection(FirestorePaths.students)
           .doc(studentId);
 
+      String assignedLabel = seatId;
+
       // 2. Atomic Firestore Transaction for collision prevention
       await _firestore.runTransaction((tx) async {
         // READS FIRST
@@ -500,6 +503,7 @@ class SeatRepository {
         }
 
         final seatLabel = targetData['label'] ?? targetData['seatNumber']?.toString() ?? seatId;
+        assignedLabel = seatLabel.toString();
 
         // WRITES
         // Release previous seats if any
@@ -530,6 +534,16 @@ class SeatRepository {
           'updatedAt': FieldValue.serverTimestamp(),
         });
       });
+
+      // Dispatch push / in-app notification to the assigned student
+      AppNotificationService.sendNotification(
+        libraryId: libraryId,
+        targetUserId: studentId,
+        targetRole: 'student',
+        title: 'Desk Allocated 🪑',
+        body: 'You have been assigned to Seat #$assignedLabel.',
+        type: 'seat',
+      ).ignore();
 
       AuditLogger().log(
         action: AuditAction.updated,
@@ -637,6 +651,8 @@ class SeatRepository {
           .collection(FirestorePaths.students)
           .doc(studentId);
 
+      String changedToLabel = toSeatId;
+
       await _firestore.runTransaction((tx) async {
         // READS FIRST
         final toSeatSnap = await tx.get(toSeatRef);
@@ -656,6 +672,7 @@ class SeatRepository {
         }
 
         final toSeatLabel = toData['label'] ?? toData['seatNumber']?.toString() ?? toSeatId;
+        changedToLabel = toSeatLabel.toString();
 
         // WRITES
         tx.update(fromSeatRef, {
@@ -679,6 +696,16 @@ class SeatRepository {
           'updatedAt': FieldValue.serverTimestamp(),
         });
       });
+
+      // Dispatch push / in-app notification to the occupant
+      AppNotificationService.sendNotification(
+        libraryId: libraryId,
+        targetUserId: studentId,
+        targetRole: 'student',
+        title: 'Seat Allocation Updated 🪑',
+        body: 'Your desk has been updated to Seat #$changedToLabel.',
+        type: 'seat_change',
+      ).ignore();
 
       AuditLogger().log(
         action: AuditAction.updated,
@@ -740,6 +767,9 @@ class SeatRepository {
           .collection(FirestorePaths.students)
           .doc(studentBId);
 
+      String labelA = seatAId;
+      String labelB = seatBId;
+
       await _firestore.runTransaction((tx) async {
         final seatASnap = await tx.get(seatARef);
         final seatBSnap = await tx.get(seatBRef);
@@ -756,8 +786,8 @@ class SeatRepository {
         final seatAData = seatASnap.data() ?? {};
         final seatBData = seatBSnap.data() ?? {};
 
-        final labelA = seatAData['label'] ?? seatAData['seatNumber']?.toString() ?? seatAId;
-        final labelB = seatBData['label'] ?? seatBData['seatNumber']?.toString() ?? seatBId;
+        labelA = seatAData['label'] ?? seatAData['seatNumber']?.toString() ?? seatAId;
+        labelB = seatBData['label'] ?? seatBData['seatNumber']?.toString() ?? seatBId;
 
         // Seat A gets Student B
         tx.update(seatARef, {
@@ -793,6 +823,25 @@ class SeatRepository {
           'updatedAt': FieldValue.serverTimestamp(),
         });
       });
+
+      // Dispatch push / in-app notifications to both swapped occupants
+      AppNotificationService.sendNotification(
+        libraryId: libraryId,
+        targetUserId: studentAId,
+        targetRole: 'student',
+        title: 'Seat Allocation Updated 🪑',
+        body: 'Your desk has been swapped to Seat #$labelB.',
+        type: 'seat_change',
+      ).ignore();
+
+      AppNotificationService.sendNotification(
+        libraryId: libraryId,
+        targetUserId: studentBId,
+        targetRole: 'student',
+        title: 'Seat Allocation Updated 🪑',
+        body: 'Your desk has been swapped to Seat #$labelA.',
+        type: 'seat_change',
+      ).ignore();
 
       AuditLogger().log(
         action: AuditAction.updated,

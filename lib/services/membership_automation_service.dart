@@ -356,6 +356,46 @@ class MembershipAutomationService {
         }
       }
 
+      // Auto-unfreeze students whose study freeze duration has concluded
+      try {
+        final frozenSnap = await libRef
+            .collection('students')
+            .where('isFrozen', isEqualTo: true)
+            .get();
+
+        for (final doc in frozenSnap.docs) {
+          final sData = doc.data();
+          final rawFreezeEnd = sData['freezeEndDate'];
+          DateTime? fEnd;
+          if (rawFreezeEnd is Timestamp) {
+            fEnd = rawFreezeEnd.toDate();
+          } else if (rawFreezeEnd is String) {
+            fEnd = DateTime.tryParse(rawFreezeEnd);
+          }
+          if (fEnd != null && now.isAfter(fEnd)) {
+            batch.update(doc.reference, {
+              'isFrozen': false,
+              'freezeStatus': 'completed',
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+            hasBatchOps = true;
+
+            // Notify student that study freeze has concluded
+            libRef.collection('notifications').add({
+              'title': '🎉 Study Freeze Concluded',
+              'body': 'Welcome back, ${sData['name'] ?? 'Student'}! Your study freeze has ended and your pass is now active again.',
+              'targetRole': 'student',
+              'targetUserId': sData['userId'] as String? ?? doc.id,
+              'type': 'admission',
+              'read': false,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('Freeze auto-unfreeze check error: $e');
+      }
+
       // Record last run time & operational summary report
       final report = <String, dynamic>{
         'runAt': now.toIso8601String(),

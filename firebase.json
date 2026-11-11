@@ -39,7 +39,13 @@
       "**/*.apk",
       "**/*.exe"
     ],
-    "redirects": [],
+    "redirects": [
+      {
+        "source": "/app",
+        "destination": "/app/",
+        "type": 301
+      }
+    ],
     "rewrites": [
       {
         "source": "/app",

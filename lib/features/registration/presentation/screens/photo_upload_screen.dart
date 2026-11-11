@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/registration_provider.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 class PhotoUploadScreen extends ConsumerStatefulWidget {
@@ -77,11 +78,22 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
     final imageProvider = ImageService.getImageProvider(_photoUrlOrDataUrl);
     final hasPhoto = imageProvider != null;
 
+    final formConfigAsync = ref.watch(formConfigStreamProvider);
+    final isGovIdVisible = FormConfigService.isFieldVisible(formConfigAsync.value ?? [], 'govId');
+    final stepTitle = isGovIdVisible ? 'Step 3 of 6: Profile Photo' : 'Step 2 of 5: Profile Photo';
+    final progressValue = isGovIdVisible ? 3 / 6 : 2 / 5;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile Photo')),
+      appBar: AppBar(
+        title: Text(stepTitle),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => ref.read(registrationStepProvider.notifier).goTo(2),
+        ),
+      ),
       body: Column(
         children: [
-          const LinearProgressIndicator(value: 3 / 5),
+          LinearProgressIndicator(value: progressValue),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(24.0),

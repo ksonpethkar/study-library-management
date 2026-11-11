@@ -31,7 +31,7 @@ class EntrancePosterCard extends ConsumerWidget {
     return raw.trim().isNotEmpty ? raw.trim() : 'Reception Desk';
   }
 
-  Widget _buildFallbackLogo(Color color, {double size = 26}) {
+  Widget _buildFallbackLogo(Color color, {double size = 22}) {
     return Container(
       color: Colors.white,
       child: Center(
@@ -51,7 +51,7 @@ class EntrancePosterCard extends ConsumerWidget {
         child: Icon(
           Icons.local_library_rounded,
           color: color,
-          size: 20,
+          size: 18,
         ),
       ),
     );
@@ -151,7 +151,7 @@ class EntrancePosterCard extends ConsumerWidget {
           // ── 1. Top Institutional Brand Header Banner ───────────────────────
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [brandPrimary, brandDark],
@@ -163,17 +163,17 @@ class EntrancePosterCard extends ConsumerWidget {
               children: [
                 // 1. Prominent Centered Logo Crest
                 Container(
-                  width: 52,
-                  height: 52,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2.5),
+                    border: Border.all(color: Colors.white, width: 2.2),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.22),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
@@ -182,24 +182,24 @@ class EntrancePosterCard extends ConsumerWidget {
                         ? Image(
                             image: logoProvider,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => _buildFallbackLogo(brandPrimary, size: 26),
+                            errorBuilder: (context, error, stackTrace) => _buildFallbackLogo(brandPrimary, size: 22),
                           )
-                        : _buildFallbackLogo(brandPrimary, size: 26),
+                        : _buildFallbackLogo(brandPrimary, size: 22),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 5),
 
                 // 2. Centered "WELCOME TO" Royal Pill Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2.5),
                   decoration: BoxDecoration(
                     color: const Color(0xFFD97706),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.16),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        blurRadius: 5,
+                        offset: const Offset(0, 1.5),
                       ),
                     ],
                   ),
@@ -207,13 +207,13 @@ class EntrancePosterCard extends ConsumerWidget {
                     'WELCOME TO',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 9.5,
+                      fontSize: 8.5,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
+                      letterSpacing: 1.3,
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 5),
 
                 // Institutional Name
                 Text(
@@ -221,9 +221,9 @@ class EntrancePosterCard extends ConsumerWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 16.5,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
+                    letterSpacing: 0.4,
                   ),
                 ),
 
@@ -235,14 +235,14 @@ class EntrancePosterCard extends ConsumerWidget {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Color(0xFFFDE68A),
-                      fontSize: 10.5,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ],
 
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 // Address
                 Text(
                   libAddress,
@@ -251,32 +251,32 @@ class EntrancePosterCard extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 10,
-                    height: 1.25,
+                    fontSize: 9.2,
+                    height: 1.2,
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 5),
                 // Operating Hours Badge (High-Contrast Cocoa Badge with Gold Border & Ivory Text)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3.5),
                   decoration: BoxDecoration(
                     color: const Color(0xFF38241A),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFF5A624), width: 1.2),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFF5A624), width: 1.1),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFFFFF7ED)),
-                      const SizedBox(width: 6),
+                      const Icon(Icons.schedule_rounded, size: 11, color: Color(0xFFFFF7ED)),
+                      const SizedBox(width: 5),
                       Text(
                         'HOURS: $operatingHours',
                         style: const TextStyle(
                           color: Color(0xFFFFF7ED),
-                          fontSize: 9.5,
+                          fontSize: 9.0,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 0.4,
+                          letterSpacing: 0.3,
                         ),
                       ),
                     ],
@@ -289,29 +289,29 @@ class EntrancePosterCard extends ConsumerWidget {
           // ── 2. Real-Time Seat Tracker Body ─────────────────────────────────
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   // Urgency Seat Pill Badge (Replaces static seat count)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3.5),
                     decoration: BoxDecoration(
                       color: hasOccupancyData && availableSeats == 0
                           ? Colors.red.shade50
                           : const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: hasOccupancyData && availableSeats == 0
                             ? Colors.red.shade300
                             : const Color(0xFFF59E0B),
-                        width: 1.2,
+                        width: 1.1,
                       ),
                       boxShadow: [
                         BoxShadow(
                           color: (hasOccupancyData && availableSeats == 0 ? Colors.red : const Color(0xFFF59E0B)).withValues(alpha: 0.15),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
+                          blurRadius: 5,
+                          offset: const Offset(0, 1.5),
                         ),
                       ],
                     ),
@@ -322,12 +322,12 @@ class EntrancePosterCard extends ConsumerWidget {
                           hasOccupancyData && availableSeats == 0
                               ? Icons.error_outline_rounded
                               : Icons.bolt_rounded,
-                          size: 14,
+                          size: 13,
                           color: hasOccupancyData && availableSeats == 0
                               ? Colors.red.shade900
                               : const Color(0xFFD97706),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 5),
                         Text(
                           hasOccupancyData && availableSeats == 0
                               ? 'Full Capacity (Join Waiting List)'
@@ -338,9 +338,9 @@ class EntrancePosterCard extends ConsumerWidget {
                             color: hasOccupancyData && availableSeats == 0
                                 ? Colors.red.shade900
                                 : const Color(0xFF92400E),
-                            fontSize: 10.5,
+                            fontSize: 10,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 0.5,
+                            letterSpacing: 0.4,
                           ),
                         ),
                       ],
@@ -355,7 +355,7 @@ class EntrancePosterCard extends ConsumerWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFF0F172A),
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -365,8 +365,8 @@ class EntrancePosterCard extends ConsumerWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFF64748B),
-                          fontSize: 10,
-                          height: 1.25,
+                          fontSize: 9.5,
+                          height: 1.2,
                         ),
                       ),
                     ],
@@ -374,16 +374,16 @@ class EntrancePosterCard extends ConsumerWidget {
 
                   // ── High Contrast Optical QR Card with Rounded Eyes & Center Shield ───
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0), width: 1.3),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFF64748B).withValues(alpha: 0.12),
-                          blurRadius: 16,
-                          offset: const Offset(0, 5),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -393,7 +393,7 @@ class EntrancePosterCard extends ConsumerWidget {
                         QrImageView(
                           data: seatMapUrl,
                           version: QrVersions.auto,
-                          size: 180.0,
+                          size: 155.0,
                           backgroundColor: Colors.white,
                           eyeStyle: QrEyeStyle(
                             eyeShape: QrEyeShape.circle,
@@ -406,20 +406,20 @@ class EntrancePosterCard extends ConsumerWidget {
                         ),
                         // Center Emblem Shield
                         Container(
-                          width: 40,
-                          height: 40,
-                          padding: const EdgeInsets.all(3),
+                          width: 36,
+                          height: 36,
+                          padding: const EdgeInsets.all(2.5),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: brandPrimary.withValues(alpha: 0.35),
-                              width: 2,
+                              width: 1.8,
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.14),
-                                blurRadius: 6,
+                                blurRadius: 5,
                               ),
                             ],
                           ),
@@ -444,21 +444,21 @@ class EntrancePosterCard extends ConsumerWidget {
                         'LIBRARY AMENITIES & FACILITIES',
                         style: TextStyle(
                           color: Color(0xFF64748B),
-                          fontSize: 9.5,
+                          fontSize: 9.0,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
+                          letterSpacing: 1.0,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: activeAmenities.take(6).length,
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
-                          childAspectRatio: 2.35,
+                          childAspectRatio: 2.85,
                           crossAxisSpacing: 8,
-                          mainAxisSpacing: 6,
+                          mainAxisSpacing: 5,
                         ),
                         itemBuilder: (context, idx) {
                           final item = activeAmenities[idx];
@@ -502,10 +502,10 @@ class EntrancePosterCard extends ConsumerWidget {
                           return Container(
                             decoration: BoxDecoration(
                               color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -514,7 +514,7 @@ class EntrancePosterCard extends ConsumerWidget {
                                   children: [
                                     Icon(
                                       _getAmenityIconData(id, item['label']?.toString() ?? ''),
-                                      size: 13,
+                                      size: 12,
                                       color: _getAmenityIconColor(id, item['label']?.toString() ?? ''),
                                     ),
                                     const SizedBox(width: 4),
@@ -526,14 +526,14 @@ class EntrancePosterCard extends ConsumerWidget {
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           color: Color(0xFF1E293B),
-                                          fontSize: 9,
+                                          fontSize: 8.5,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 1.5),
                                 Text(
                                   desc,
                                   textAlign: TextAlign.center,
@@ -541,7 +541,7 @@ class EntrancePosterCard extends ConsumerWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     color: Color(0xFF64748B),
-                                    fontSize: 7.2,
+                                    fontSize: 7.0,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -560,7 +560,7 @@ class EntrancePosterCard extends ConsumerWidget {
           // ── 3. Dedicated Full-Width Institutional Footer (Always Visible at Bottom) ──
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             decoration: const BoxDecoration(
               color: Color(0xFFF8FAFC),
               border: Border(
@@ -587,7 +587,7 @@ class EntrancePosterCard extends ConsumerWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          Icon(Icons.phone_in_talk_rounded, size: 13, color: brandPrimary),
+                          Icon(Icons.phone_in_talk_rounded, size: 12, color: brandPrimary),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
@@ -595,7 +595,7 @@ class EntrancePosterCard extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Color(0xFF0F172A),
-                                fontSize: 11,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -603,12 +603,12 @@ class EntrancePosterCard extends ConsumerWidget {
                         ],
                       ),
                       if (library?.email.isNotEmpty == true) ...[
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1.5),
                         Text(
                           library!.email,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 8.5,
+                            fontSize: 8.0,
                             color: Color(0xFF64748B),
                           ),
                         ),
@@ -634,13 +634,13 @@ class EntrancePosterCard extends ConsumerWidget {
                       'study-lib-mgmt-2026.web.app',
                       style: TextStyle(
                         color: Color(0xFF4338CA),
-                        fontSize: 10,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE2E8F0),
                         borderRadius: BorderRadius.circular(4),
@@ -648,7 +648,7 @@ class EntrancePosterCard extends ConsumerWidget {
                       child: const Text(
                         'Instant Mobile Access',
                         style: TextStyle(
-                          fontSize: 7.5,
+                          fontSize: 7.0,
                           color: Color(0xFF475569),
                           fontWeight: FontWeight.w600,
                         ),

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/app_validators.dart';
@@ -58,7 +58,10 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   Gender _gender = Gender.male;
   GovIdType _govIdType = GovIdType.aadhaar;
   DateTime? _dob;
-  File? _pickedPhoto;
+  DateTime _admissionDate = DateTime.now();
+  String? _pickedPhotoUrlOrDataUrl;
+  String? _govIdImageUrl;
+  String? _govIdBackImageUrl;
   String? _selectedPlanId;
   DateTime? _customPlanEndDate;
   int _customDurationDays = 0; // 0 = Till Month End, 1 = Today only, -1 = Pick date
@@ -127,19 +130,29 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   Future<void> _pickPhoto() async {
     final source = await ImageService.showSourcePicker(
       context,
-      canRemove: _pickedPhoto != null,
+      canRemove: _pickedPhotoUrlOrDataUrl != null,
     );
     if (!mounted) return;
 
     if (source == null) {
       // User tapped remove or cancelled
-      setState(() => _pickedPhoto = null);
+      setState(() => _pickedPhotoUrlOrDataUrl = null);
       return;
     }
 
-    final compressed = await ImageService.pickAndCompressImage(source: source);
-    if (compressed != null && mounted) {
-      setState(() => _pickedPhoto = compressed);
+    try {
+      final dataUrl = await ImageService.pickImageAsDataUrl(
+        source: source,
+        maxWidth: 800,
+        quality: 75,
+      );
+      if (dataUrl != null && mounted) {
+        setState(() => _pickedPhotoUrlOrDataUrl = dataUrl);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'camera');
+      }
     }
   }
 
@@ -154,6 +167,20 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
     );
     if (picked != null && mounted) {
       setState(() => _dob = picked);
+    }
+  }
+
+  Future<void> _pickAdmissionDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _admissionDate,
+      firstDate: DateTime(2000),
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: 'Select Admission Date',
+    );
+    if (picked != null && mounted) {
+      setState(() => _admissionDate = picked);
     }
   }
 
@@ -182,6 +209,12 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
       onScanned: (result) {
         setState(() {
           _govIdType = result.detectedType;
+          if (result.frontImageBytes != null) {
+            _govIdImageUrl = 'data:image/jpeg;base64,${base64Encode(result.frontImageBytes!)}';
+          }
+          if (result.backImageBytes != null) {
+            _govIdBackImageUrl = 'data:image/jpeg;base64,${base64Encode(result.backImageBytes!)}';
+          }
           if (result.name?.isNotEmpty == true) _nameController.text = result.name!;
           if (result.fatherName?.isNotEmpty == true) _fatherNameController.text = result.fatherName!;
           if (result.idNumber?.isNotEmpty == true) {
@@ -221,7 +254,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   void _confirmDiscardAndExit() async {
     final hasContent = _nameController.text.isNotEmpty ||
         _phoneController.text.isNotEmpty ||
-        _pickedPhoto != null;
+        _pickedPhotoUrlOrDataUrl != null;
     if (!hasContent) {
       if (context.canPop()) {
         context.pop();
@@ -293,23 +326,11 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
 
     setState(() {
       _isLoading = true;
-      _loadingMessage = _pickedPhoto != null ? 'Uploading photo...' : 'Saving student...';
+      _loadingMessage = _pickedPhotoUrlOrDataUrl != null ? 'Processing photo...' : 'Saving student...';
     });
 
     try {
-      String photoUrl = '';
-      if (_pickedPhoto != null) {
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final storagePath = 'libraries/$libraryId/students/photo_$timestamp.jpg';
-        try {
-          photoUrl = await ImageService.uploadToStorage(
-            file: _pickedPhoto!,
-            path: storagePath,
-          );
-        } catch (e) {
-          debugPrint('Photo upload failed: $e, continuing without remote photo');
-        }
-      }
+      final photoUrl = _pickedPhotoUrlOrDataUrl ?? '';
 
       setState(() => _loadingMessage = 'Creating student profile in database...');
 
@@ -320,7 +341,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
 
       if (_selectedPlanId != null && _selectedPlanId!.isNotEmpty) {
         if (_selectedPlanId == 'custom') {
-          planStartDate = DateTime.now();
+          planStartDate = _admissionDate;
           final now = planStartDate;
           final nextMonthFirst = DateTime(now.year, now.month + 1, 1);
           final monthEnd = DateTime(nextMonthFirst.year, nextMonthFirst.month, 0, 23, 59, 59, 999);
@@ -332,7 +353,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
           final plan = plans.where((p) => p.id == _selectedPlanId).firstOrNull;
 
           if (plan != null) {
-            planStartDate = DateTime.now();
+            planStartDate = _admissionDate;
             final smartCalc = PlanCalculatorService.calculateSmartPlan(
               plan: plan,
               fromDate: planStartDate,
@@ -376,7 +397,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         pincode: _pincodeController.text.trim(),
         govIdType: _govIdType,
         govIdNumber: _govIdNumberController.text.trim(),
-        govIdImageUrl: '',
+        govIdImageUrl: _govIdImageUrl ?? '',
+        govIdBackImageUrl: _govIdBackImageUrl ?? '',
         photoUrl: photoUrl,
         college: _collegeController.text.trim(),
         course: _courseController.text.trim(),
@@ -398,7 +420,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         rollNumber: _rollNumberController.text.trim().isEmpty ? null : _rollNumberController.text.trim(),
         pendingDueBalance: remainingDue > 0 ? remainingDue : null,
         securityDepositAmount: (securityDeposit != null && securityDeposit > 0) ? securityDeposit : null,
-        createdAt: DateTime.now(),
+        admissionDate: _admissionDate,
+        createdAt: _admissionDate,
         updatedAt: DateTime.now(),
       );
 
@@ -558,10 +581,10 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       children: [
                         GestureDetector(
                           onTap: () {
-                            if (_pickedPhoto != null) {
+                            if (_pickedPhotoUrlOrDataUrl != null) {
                               ImageService.showImageViewer(
                                 context,
-                                imageFile: _pickedPhoto,
+                                imageUrl: _pickedPhotoUrlOrDataUrl,
                                 title: _nameController.text.isNotEmpty
                                     ? _nameController.text
                                     : 'Profile Photo',
@@ -573,9 +596,10 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                           child: CircleAvatar(
                             radius: 44,
                             backgroundColor: theme.colorScheme.primaryContainer,
-                            backgroundImage:
-                                _pickedPhoto != null ? FileImage(_pickedPhoto!) : null,
-                            child: _pickedPhoto == null
+                            backgroundImage: _pickedPhotoUrlOrDataUrl != null
+                                ? ImageService.getImageProvider(_pickedPhotoUrlOrDataUrl)
+                                : null,
+                            child: _pickedPhotoUrlOrDataUrl == null
                                 ? Icon(
                                     Icons.person_rounded,
                                     size: 44,
@@ -609,7 +633,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     child: TextButton(
                       onPressed: _pickPhoto,
                       child: Text(
-                        _pickedPhoto == null ? 'Upload Profile Photo' : 'Change Photo',
+                        _pickedPhotoUrlOrDataUrl == null ? 'Upload Profile Photo' : 'Change Photo',
                         style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -701,6 +725,42 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                         ],
                       );
                     },
+                  ),
+
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: _pickAdmissionDate,
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Admission Date *',
+                        prefixIcon: const Icon(Icons.event_available_rounded, color: Color(0xFF0284C7)),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton(
+                              onPressed: () => setState(() => _admissionDate = DateTime.now()),
+                              child: const Text('Today', style: TextStyle(fontSize: 11)),
+                            ),
+                            TextButton(
+                              onPressed: () => setState(() {
+                                final now = DateTime.now();
+                                _admissionDate = DateTime(now.year, now.month, 1);
+                              }),
+                              child: const Text('1st of Month', style: TextStyle(fontSize: 11)),
+                            ),
+                          ],
+                        ),
+                        border: const OutlineInputBorder(),
+                        helperText: 'Sets student seniority on ID cards and aligns initial billing cycle.',
+                      ),
+                      child: Text(
+                        DateFormat('dd MMMM yyyy').format(_admissionDate),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 24),

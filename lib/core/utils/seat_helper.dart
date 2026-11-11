@@ -4,6 +4,20 @@ import 'package:study_library/models/seat_model.dart';
 /// Utility helper to format and resolve human-friendly seat labels and numbers
 /// across the entire application (avoiding raw database IDs like `1790647291016_r0_c4`).
 class SeatHelper {
+  /// Converts a zero-based row index to a standard Excel-style row letter
+  /// (0 -> A, 25 -> Z, 26 -> AA, 27 -> AB, 51 -> AZ, 52 -> BA, etc.).
+  /// Prevents ASCII character arithmetic overflow (e.g. '[', '\', ']', '^').
+  static String rowLetter(int rowIndex) {
+    if (rowIndex < 0) return 'A';
+    String label = '';
+    int n = rowIndex;
+    while (n >= 0) {
+      label = String.fromCharCode(65 + (n % 26)) + label;
+      n = (n ~/ 26) - 1;
+    }
+    return label;
+  }
+
   /// Formats strictly the numeric or code portion of a seat identifier without any
   /// "Seat", "Desk", or "#" prefix (e.g. "7", "24", "60", "A-12").
   /// Ideal for small desk tiles and dense seating matrices where horizontal width is constrained.

@@ -439,7 +439,7 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
       appBar: AppBar(
         title: const Text('Staff & Admin Access'),
       ),
-      floatingActionButton: isOwner
+      floatingActionButton: (isOwner && (staffAsync.value?.isNotEmpty ?? false))
           ? FloatingActionButton.extended(
               onPressed: () => _showStaffDialog(),
               icon: const Icon(Icons.person_add_rounded),
@@ -452,7 +452,7 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
           await Future.delayed(const Duration(milliseconds: 500));
         },
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
           children: [
             // Info banner
             Container(
