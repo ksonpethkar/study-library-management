@@ -16,6 +16,7 @@ import 'package:study_library/services/form_config_service.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/widgets/cozy_pressable.dart';
 import '../providers/registration_provider.dart';
 
 class RegistrationFormScreen extends ConsumerStatefulWidget {
@@ -1806,7 +1807,67 @@ class _RegistrationFormScreenState
                     // Custom & Additional Fields (Category: custom)
                     _buildCategoryCustomFields(FormFieldCategory.custom, showSectionHeader: true, theme: theme),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
+
+                    // Bilingual Legal Notice & Trust Badge
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 4,
+                          runSpacing: 2,
+                          children: [
+                            Icon(
+                              Icons.verified_user_outlined,
+                              size: 13,
+                              color: theme.colorScheme.outline,
+                            ),
+                            Text(
+                              'Protected by Study Centre Guidelines •',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 11,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            CozyPressable(
+                              onTap: () => context.push(Routes.terms),
+                              pressScale: 0.95,
+                              child: Text(
+                                'Terms (नियम)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '•',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: theme.colorScheme.outlineVariant,
+                              ),
+                            ),
+                            CozyPressable(
+                              onTap: () => context.push(Routes.privacyPolicy),
+                              pressScale: 0.95,
+                              child: Text(
+                                'Privacy (गोपनीयता)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                     // Navigation buttons (Responsive layout)
                     LayoutBuilder(

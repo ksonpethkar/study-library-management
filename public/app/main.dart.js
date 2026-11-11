@@ -65088,9 +65088,9 @@ break}p=4
 s=7
 return A.d(A.Ta(),$async$W6)
 case 7:n=d
-m=n.c.length!==0?n.c:"1.5.50"
+m=n.c.length!==0?n.c:"1.5.51"
 g=A.cG(n.d,null)
-l=g==null?65:g
+l=g==null?66:g
 k=A.t(m)+"+"+A.t(l)
 s=8
 return A.d(A.ee(),$async$W6)
@@ -65124,9 +65124,9 @@ p=4
 s=7
 return A.d(A.Ta(),$async$aan)
 case 7:n=d
-m=n.c.length!==0?n.c:"1.5.50"
+m=n.c.length!==0?n.c:"1.5.51"
 k=A.cG(n.d,null)
-l=k==null?65:k
+l=k==null?66:k
 if(a.e==null){$.GO=!1
 s=1
 break}s=8
@@ -200392,11 +200392,14 @@ $3(a,b,c){var s=null
 return A.a4(b.x===B.ahx?B.ug:B.aCI,s,s,s,s)},
 $S:1255}
 A.bK1.prototype={
-$2(a,b){var s,r,q=null,p=B.a0.q(0.85),o=A.q(20),n=A.aa(B.a6.q(0.4),1),m=b.b
-m=m==null?q:m.c
+$2(a,b){var s,r,q,p=null,o=B.a0.q(0.85),n=A.q(20),m=A.aa(B.a6.q(0.4),1),l=b.b
+l=l==null?p:l.c
+l=A.c(A.jS(l==null?b.a.b:l,"camera"),p,p,p,p,B.ce1,B.a8,p,p)
 s=this.a
 r=t.p
-return A.aL(new A.T(B.og,A.w(q,A.A(A.a([B.aI5,B.ak,B.cAE,B.U,A.c(A.jS(m==null?b.a.b:m,"camera"),q,q,q,q,B.ce1,B.a8,q,q),B.bk,A.d2(B.iS,A.a([A.kD(B.I3,B.cAv,s.gbli(),q),A.bY(B.V4,B.cA0,s.gasZ(),q)],r),B.bz,B.ac,10,10)],r),B.k,q,B.h,B.G,0,B.t),B.o,q,q,new A.x(p,q,n,o,q,q,B.v),q,q,q,q,B.bw,q,q,q),q),q,q)},
+q=A.a([A.kD(B.I3,B.cAv,s.gbli(),p)],r)
+q.push(A.bY(B.V4,B.cA0,s.gasZ(),p))
+return A.aL(new A.T(B.og,A.w(p,A.A(A.a([B.aI5,B.ak,B.cAE,B.U,l,B.bk,A.d2(B.iS,q,B.bz,B.ac,10,10)],r),B.k,p,B.h,B.G,0,B.t),B.o,p,p,new A.x(o,p,m,n,p,p,B.v),p,p,p,p,B.bw,p,p,p),p),p,p)},
 $S:1256}
 A.Hc.prototype={
 N(a){var s,r,q,p=this,o=null,n=A.G(a),m=n.ax,l=m.ry,k=l==null
@@ -236981,7 +236984,7 @@ if(n===B.CS||n===B.ahM)p.c.K(o).f.a1(A.b8(A.w_("Reload",new A.c8A(),B.kW),null,n
 else{m=p.c
 if(n===B.CT){o=m.K(o).f
 n=l.r
-o.a1(A.b8(null,null,null,B.cs,B.ae,B.A,null,A.c(n==null?u.a2:n,null,null,null,null,null,null,null,null),null,B.N,null,null,null,null,null,null,null,null,null,null))}else m.K(o).f.a1(A.b8(null,null,null,B.ca,B.ae,B.A,null,A.c("Student portal is running the latest version (1.5.50).",null,null,null,null,null,null,null,null),null,B.N,null,null,null,null,null,null,null,null,null,null))}case 1:return A.n(q,r)}})
+o.a1(A.b8(null,null,null,B.cs,B.ae,B.A,null,A.c(n==null?u.a2:n,null,null,null,null,null,null,null,null),null,B.N,null,null,null,null,null,null,null,null,null,null))}else m.K(o).f.a1(A.b8(null,null,null,B.ca,B.ae,B.A,null,A.c("Student portal is running the latest version (1.5.51).",null,null,null,null,null,null,null,null),null,B.N,null,null,null,null,null,null,null,null,null,null))}case 1:return A.n(q,r)}})
 return A.o($async$U4,r)},
 bnP(a){var s,r,q,p,o=null,n=this.c
 n.toString
@@ -237147,7 +237150,7 @@ r=A.v(A.a([B.aMg,B.H,A.c(p.d,o,o,o,o,B.c_,o,o,o)],m),B.k,B.h,B.i,0,o,o)
 q=k.RG
 k=q==null?k.k2:q
 q=A.q(8)
-q=A.A(A.a([j,B.J,B.eE,B.U,s,B.aU,r,B.J,A.w(o,A.v(A.a([B.cwa,A.c("v1.5.50+65",o,o,o,o,B.afy,o,o,o)],m),B.k,B.ay,B.i,0,o,o),B.o,o,o,new A.x(k,o,o,q,o,o,B.v),o,o,o,o,B.jQ,o,o,o)],m),B.y,o,B.h,B.G,0,B.t)
+q=A.A(A.a([j,B.J,B.eE,B.U,s,B.aU,r,B.J,A.w(o,A.v(A.a([B.cwa,A.c("v1.5.51+66",o,o,o,o,B.afy,o,o,o)],m),B.k,B.ay,B.i,0,o,o),B.o,o,o,new A.x(k,o,o,q,o,o,B.v),o,o,o,o,B.jQ,o,o,o)],m),B.y,o,B.h,B.G,0,B.t)
 return A.cv(A.a([A.bI(B.rM,o,o,o,new A.c8B(a),o,o)],m),o,o,q,o,o,new A.au(n,B.I),l,o)},
 $S:5}
 A.c8B.prototype={
@@ -237291,7 +237294,7 @@ if(e==null)e="Call library team"}d=A.a([B.aEM],f)
 if(h&&i.gxB().length>1)B.f.C(d,A.a([B.ao,B.yV],f))
 r=A.D2(A.a([k,B.cw,r,B.cw,A.fv(B.iD,B.aK,new A.c9_(s,i,l,q),e,g,A.v(d,B.k,B.h,B.G,0,a2,a2))],f),B.a7,a2)
 q=A.D2(A.a([A.fv(B.yA,B.cF,new A.c90(l),"Code of conduct, silence hours & guidelines","Library Facilities & Rules Tour",a2),B.cw,A.fv(B.Ht,B.Qz,new A.c91(l),"Share your ideas or report a facility issue","Send Feedback / Suggestion",a2),B.cw,A.m9(new A.c92())],f),B.a7,a2)
-l=A.D2(A.a([A.fv(B.lJ,B.cF,new A.c93(l),"Explore latest student tools & automations","What's New in Cozy Corner",a2),B.cw,A.fv(B.HF,B.bi,s.gb_j(),"v1.5.50+65 \u2022 Tap to check","Check for Updates",a2),B.cw,A.fv(B.GW,B.kt,new A.c8U(l),"Study hall guidelines & membership policy","Terms of Service",a2),B.cw,A.fv(B.iB,B.b5,new A.c8V(l),"Data protection & privacy guidelines","Privacy Policy",a2),B.cw,A.fv(B.dB,B.cv,new A.c8W(s,i),"Facility details & system info","About Cozy Corner",a2)],f),B.a7,a2)
+l=A.D2(A.a([A.fv(B.lJ,B.cF,new A.c93(l),"Explore latest student tools & automations","What's New in Cozy Corner",a2),B.cw,A.fv(B.HF,B.bi,s.gb_j(),"v1.5.51+66 \u2022 Tap to check","Check for Updates",a2),B.cw,A.fv(B.GW,B.kt,new A.c8U(l),"Study hall guidelines & membership policy","Terms of Service",a2),B.cw,A.fv(B.iB,B.b5,new A.c8V(l),"Data protection & privacy guidelines","Privacy Policy",a2),B.cw,A.fv(B.dB,B.cv,new A.c8W(s,i),"Facility details & system info","About Cozy Corner",a2)],f),B.a7,a2)
 k=i==null?a2:i.b
 return A.fD(A.a([o,B.O,j,B.al,p,B.O,r,B.J,q,B.J,l,B.bk,A.cz(B.aET,A.c("Sign Out from "+(k==null?"Study Centre":k),a2,a2,a2,a2,B.ceS,a2,a2,a2),s.gawh(),A.de(a2,a2,a2,a2,a2,a2,a2,a2,a2,a2,a2,a2,B.cf,a2,new A.au(A.q(14),B.I),B.akJ,a2,a2,a2,a2)),B.el],f),a2,B.u_,a2,a2,!1)},
 $S:173}

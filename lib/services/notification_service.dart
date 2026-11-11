@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:study_library/core/utils/permission_utils.dart';
 
 /// Top-level background message handler (must be top-level function)
 @pragma('vm:entry-point')
@@ -30,13 +32,17 @@ class NotificationService {
     // Register background handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    // Request permission (Android 13+ and iOS)
-    final messaging = FirebaseMessaging.instance;
-    await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    // Request permission (Android 13+ and iOS) safely
+    try {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('FCM cold-start requestPermission suppressed: $e');
+    }
 
     // Init local notifications with monochrome silhouette icon (Android 12+ compliant)
     const androidSettings = AndroidInitializationSettings('@drawable/ic_stat_notification');
@@ -243,6 +249,12 @@ class NotificationService {
     } catch (e) {
       if (kDebugMode) debugPrint('FCM subscribeToLibraryTopics error: $e');
     }
+  }
+
+  /// Contextual permission requester with educational rationale bottom sheet
+  static Future<bool> requestNotificationPermissionWithRationale(BuildContext context) async {
+    if (kIsWeb) return true;
+    return await PermissionUtils.requestNotificationPermission(context);
   }
 
   /// Unsubscribes from all library topics on user logout

@@ -30,6 +30,7 @@ import 'package:study_library/core/theme/app_decorations.dart';
 import 'package:study_library/core/widgets/cozy_pressable.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/expiry_scheduler_service.dart';
+import 'package:study_library/services/expiry_notification_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -182,6 +183,13 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
       studentName: student.name,
       libraryName: libraryName,
       reminderDays: renewalDays,
+    ).ignore();
+
+    // Trigger local proactive self-check without requiring an admin dashboard trigger
+    ExpiryNotificationService.checkStudentSelfExpiry(
+      studentName: student.name,
+      planEndDate: planEndDate,
+      seatLabel: student.seatId ?? '',
     ).ignore();
   }
 
