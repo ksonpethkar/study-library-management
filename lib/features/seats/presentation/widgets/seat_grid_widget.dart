@@ -337,7 +337,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                                 ? 'Slide: ON'
                                 : (width < 380 ? 'Slide' : '🖐️ Slide to Select'),
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.bold,
                               color: _isSlideMode
                                   ? Theme.of(context).colorScheme.onPrimary
@@ -387,7 +387,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                                   ? 'Clear'
                                   : (width < 380 ? 'All' : 'Select All'),
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.bold,
                                 color: allSelected
                                     ? Theme.of(context).colorScheme.onPrimaryContainer
@@ -625,7 +625,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                                     const SizedBox(width: 4),
                                     Flexible(
                                       child: Text(
-                                        width < 420 ? 'Main Entrance' : 'Front Reception & Main Entrance',
+                                        width < 550 ? 'Main Entrance' : 'Front Reception & Main Entrance',
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 1,
                                         style: TextStyle(
@@ -639,20 +639,26 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.wifi_rounded, size: 13, color: Color(0xFF10B981)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    width < 420 ? 'Wi-Fi Zone' : 'High-Speed Wi-Fi Zone',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                              Flexible(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.wifi_rounded, size: 13, color: Color(0xFF10B981)),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        width < 550 ? 'Wi-Fi Zone' : 'High-Speed Wi-Fi Zone',
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -694,6 +700,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                                   seat: seat,
                                   isSelected: isSelected,
                                   isDimmed: isDimmed,
+                                  showGenderBadge: hasMixedRestrictions && seat.genderRestriction != GenderRestriction.any,
                                   columns: _columns,
                                   student: student,
                                   studentName: student?.name,
@@ -824,7 +831,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+        padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 4),
         decoration: BoxDecoration(
           color: isSelected
               ? activeColor.withValues(alpha: 0.18)
@@ -849,7 +856,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
             Text(
               '$label ($count)',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                 color: isSelected
                     ? activeColor
