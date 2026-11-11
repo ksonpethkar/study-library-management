@@ -9,6 +9,8 @@ import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
+enum LegalLanguage { en, mr }
+
 class TermsScreen extends ConsumerStatefulWidget {
   final String? libraryId;
   const TermsScreen({super.key, this.libraryId});
@@ -46,16 +48,52 @@ By enrolling, paying membership fees, or accessing the facilities of $libraryNam
 • Terms may be updated periodically to enhance facility standards. Continued use constitutes acceptance of revised terms.
 ''';
 
+  static String defaultTermsMarathi(String libraryName) => '''
+१. नियम व अटींची स्वीकृती
+$libraryName मध्ये प्रवेश घेऊन, शुल्क भरून किंवा अभ्यास केंद्राच्या सुविधांचा वापर करून, आपण व्यवस्थापनाने जारी केलेल्या सर्व नियमांचे व शिस्तभंगाच्या सूचनांचे काटेकोरपणे पालन करण्याचे मान्य करता.
+
+२. अभ्यास कक्ष शिस्त व शांतता क्षेत्र (Silent Zone)
+• अभ्यास कक्ष, केबिन आणि वाचन विभागात संपूर्ण शांतता राखणे बंधनकारक आहे.
+• मोबाईल फोन नेहमी सायलेंट किंवा व्हायब्रेशन मोडवर ठेवणे अनिवार्य आहे. अभ्यास कक्षात फोनवर बोलणे, गेम खेळणे किंवा गटचर्चा करण्यास सक्त मनाई आहे.
+• आवश्यक फोन कॉल्स घेण्यासाठी कृपया नियुक्त कॅफेटेरिया किंवा बाहेरील लॉबी परिसराचा वापर करावा.
+
+३. जागा (Seat) वाटप व सदस्यत्व नूतनीकरण
+• आपण निवडलेल्या शिफ्टनुसार किंवा २४/७ योजनेनुसार जागा वाटप केले जाते.
+• आरक्षित केलेली जागा फक्त संबंधित नोंदणीकृत सदस्यासाठीच मर्यादित आहे. आपली जागा दुसऱ्याला देणे, शेअर करणे किंवा मित्राला बसू देणे सक्त निषिद्ध आहे.
+• मुदत संपण्यापूर्वी सदस्यत्वाचे नूतनीकरण करणे आवश्यक आहे. मुदत व सवलत कालावधी (Grace Period) संपल्यानंतर सदर जागा आपोआप रिक्त करून प्रतीक्षा यादीतील विद्यार्थ्याला दिली जाईल.
+
+४. वैयक्तिक वस्तू व लॉकर सुरक्षा
+• लॅपटॉप, टॅब्लेट, पुस्तके, रोख रक्कम व इतर मौल्यवान वस्तूंची जबाबदारी पूर्णपणे सदस्याची राहील.
+• कोणत्याही वस्तू गहाळ झाल्यास, चोरीस गेल्यास किंवा नुकसान झाल्यास $libraryName व्यवस्थापन जबाबदार राहणार नाही.
+• लॉकर वाटप केले असल्यास, स्वतःचे मजबूत कुलूप लावणे आणि चावी सुरक्षित ठेवणे अनिवार्य आहे.
+
+५. शुल्क व परतावा धोरण (Non-Refundable Policy)
+• एकदा भरलेले प्रवेश शुल्क किंवा मासिक/त्रैमासिक सदस्यत्व शुल्क कोणत्याही परिस्थितीत परत (Refund) केले जाणार नाही किंवा हस्तांतरित केले जाणार नाही.
+• महिन्याच्या मध्यात जागा सोडल्यास कोणत्याही प्रकारचे सवलतीचे शुल्क परत दिले जाणार नाही.
+• अनामत रक्कम (Security Deposit) सर्व देणी पूर्ण झाल्यावर ७ कामकाजाच्या दिवसांत परत केली जाईल.
+
+६. मालमत्तेची काळजी व सीसीटीव्ही (CCTV) देखरेख
+• सुरक्षिततेसाठी संपूर्ण परिसरावर २४ तास सीसीटीव्ही कॅमेऱ्यांची नजर असते. कॅमेरे, वायरिंग किंवा अग्निशामक साधनांशी छेडछाड करणे हा कायदेशीर गुन्हा आहे.
+• अभ्यास टेबल, खुर्च्या, चार्जिंग सॉकेट्स, किंवा वाय-फाय उपकरणांचे नुकसान केल्यास त्याचा संपूर्ण दंड संबंधित सदस्याकडून वसूल केला जाईल.
+
+७. व्यवस्थापनाचे अधिकार व नियम सुधारणा
+• गैरवर्तन, कर्मचाऱ्यांशी असभ्य भाषा, किंवा नियमांचे वारंवार उल्लंघन केल्यास कोणतीही पूर्वसूचना किंवा शुल्क परतावा न देता सदस्यत्व रद्द करण्याचा अधिकार व्यवस्थापनाकडे राखीव आहे.
+• सुविधांचा दर्जा सुधारण्यासाठी नियमांमध्ये वेळोवेळी बदल केले जाऊ शकतात.
+''';
+
   @override
   ConsumerState<TermsScreen> createState() => _TermsScreenState();
 }
 
 class _TermsScreenState extends ConsumerState<TermsScreen> {
   bool _isSaving = false;
+  LegalLanguage _selectedLanguage = LegalLanguage.en;
 
-  void _openEditor(BuildContext context, String libraryId, String initialText, String libraryName) {
+  void _openEditor(BuildContext context, String libraryId, String initialText, String libraryName, [LegalLanguage? language]) {
+    final activeLanguage = language ?? _selectedLanguage;
     final controller = TextEditingController(text: initialText);
     final theme = Theme.of(context);
+    final isMr = activeLanguage == LegalLanguage.mr;
 
     showModalBottomSheet(
       context: context,
@@ -104,10 +142,10 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                     children: [
                       Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary),
                       const SizedBox(width: 8),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Edit Terms of Service',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          isMr ? 'Edit Terms of Service (मराठी)' : 'Edit Terms of Service (English)',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -136,7 +174,7 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                           runSpacing: 4,
                           children: [
                             Text(
-                              'Custom Library Terms & Rules',
+                              isMr ? 'Custom Marathi Rules (नियम व अटी)' : 'Custom Library Terms & Rules',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -152,12 +190,14 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                               label: const Text('Load Standard', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
                               onPressed: () {
                                 setDialogState(() {
-                                  controller.text = TermsScreen.defaultTerms(libraryName);
+                                  controller.text = isMr
+                                      ? TermsScreen.defaultTermsMarathi(libraryName)
+                                      : TermsScreen.defaultTerms(libraryName);
                                 });
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Standard study library template loaded'),
-                                    duration: Duration(seconds: 1),
+                                  SnackBar(
+                                    content: Text(isMr ? 'Standard Marathi template loaded' : 'Standard study library template loaded'),
+                                    duration: const Duration(seconds: 1),
                                   ),
                                 );
                               },
@@ -176,10 +216,12 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                               maxLines: null,
                               expands: true,
                               style: const TextStyle(fontSize: 13, height: 1.5),
-                              decoration: const InputDecoration(
-                                contentPadding: EdgeInsets.all(12),
+                              decoration: InputDecoration(
+                                contentPadding: const EdgeInsets.all(12),
                                 border: InputBorder.none,
-                                hintText: 'Enter library terms, rules, and student conduct guidelines...',
+                                hintText: isMr
+                                    ? 'ग्रंथालय नियम, शांतता सूचना आणि अटी प्रविष्ट करा...'
+                                    : 'Enter library terms, rules, and student conduct guidelines...',
                               ),
                             ),
                           ),
@@ -215,13 +257,14 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                                 setState(() => _isSaving = true);
 
                                 try {
+                                  final fieldKey = isMr ? 'termsOfService_mr' : 'termsOfService';
                                   await FirebaseFirestore.instance
                                       .collection('libraries')
                                       .doc(libraryId)
                                       .collection('settings')
                                       .doc('legal')
                                       .set({
-                                    'termsOfService': controller.text.trim(),
+                                    fieldKey: controller.text.trim(),
                                     'termsUpdatedAt': FieldValue.serverTimestamp(),
                                     'termsUpdatedBy': FirebaseAuth.instance.currentUser?.email ?? 'Admin',
                                   }, SetOptions(merge: true));
@@ -229,8 +272,8 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                                   if (context.mounted) {
                                     Navigator.pop(dialogCtx);
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Terms of Service published successfully!'),
+                                      SnackBar(
+                                        content: Text(isMr ? 'Terms (मराठी) published successfully!' : 'Terms of Service published successfully!'),
                                         behavior: SnackBarBehavior.floating,
                                       ),
                                     );
@@ -279,10 +322,13 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         final data = snapshot.data?.data();
-        final rawTerms = (data?['termsOfService'] as String?)?.trim();
+        final isMarathi = _selectedLanguage == LegalLanguage.mr;
+        final rawTerms = isMarathi
+            ? (data?['termsOfService_mr'] as String?)?.trim()
+            : (data?['termsOfService'] as String?)?.trim();
         final displayTerms = (rawTerms != null && rawTerms.isNotEmpty)
             ? rawTerms
-            : TermsScreen.defaultTerms(libraryName);
+            : (isMarathi ? TermsScreen.defaultTermsMarathi(libraryName) : TermsScreen.defaultTerms(libraryName));
         final updatedAt = data?['termsUpdatedAt'] as Timestamp?;
 
         return Scaffold(
@@ -292,15 +338,15 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
               tooltip: 'Back',
               onPressed: () => context.canPop() ? context.pop() : (Navigator.canPop(context) ? Navigator.pop(context) : context.go(Routes.login)),
             ),
-            title: const Text('Terms of Service'),
+            title: Text(isMarathi ? 'नियम व अटी (Terms)' : 'Terms of Service'),
             actions: [
               IconButton(
                 icon: const Icon(Icons.copy_rounded, size: 20),
-                tooltip: 'Copy Terms',
+                tooltip: isMarathi ? 'नियम कॉपी करा' : 'Copy Terms',
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: displayTerms));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Terms copied to clipboard'), behavior: SnackBarBehavior.floating),
+                    SnackBar(content: Text(isMarathi ? 'नियम क्लिपबोर्डवर कॉपी झाले' : 'Terms copied to clipboard'), behavior: SnackBarBehavior.floating),
                   );
                 },
               ),
@@ -308,7 +354,7 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                 IconButton(
                   icon: const Icon(Icons.edit_note_rounded),
                   tooltip: 'Edit Terms & Policies',
-                  onPressed: () => _openEditor(context, libraryId, displayTerms, libraryName),
+                  onPressed: () => _openEditor(context, libraryId, displayTerms, libraryName, _selectedLanguage),
                 ),
             ],
           ),
@@ -316,6 +362,27 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
             children: [
+                // Bilingual Language Switcher
+                Center(
+                  child: SegmentedButton<LegalLanguage>(
+                    segments: const [
+                      ButtonSegment(
+                        value: LegalLanguage.en,
+                        label: Text('English'),
+                        icon: Icon(Icons.language_rounded, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: LegalLanguage.mr,
+                        label: Text('मराठी (Marathi)'),
+                        icon: Icon(Icons.translate_rounded, size: 16),
+                      ),
+                    ],
+                    selected: {_selectedLanguage},
+                    onSelectionChanged: (set) => setState(() => _selectedLanguage = set.first),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // Header Badge
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -356,7 +423,7 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
                               ),
                               icon: const Icon(Icons.edit_rounded, size: 14),
                               label: const Text('Edit Terms', style: TextStyle(fontSize: 12)),
-                              onPressed: () => _openEditor(context, libraryId, displayTerms, libraryName),
+                              onPressed: () => _openEditor(context, libraryId, displayTerms, libraryName, _selectedLanguage),
                             ),
                         ],
                       ),

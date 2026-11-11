@@ -8,10 +8,39 @@ import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'terms_screen.dart';
 
 class PrivacyPolicyScreen extends ConsumerStatefulWidget {
   final String? libraryId;
   const PrivacyPolicyScreen({super.key, this.libraryId});
+
+  static String defaultPrivacyPolicyMarathi(String libraryName) => '''
+१. आम्ही संकलित करत असलेली माहिती
+आपण $libraryName मध्ये नोंदणी करता आणि अभ्यास केंद्राचा वापर करता, तेव्हा आम्ही पुढील माहिती संकलित करतो:
+• ओळख व संपर्क माहिती: पूर्ण नाव, मोबाईल क्रमांक, ईमेल, पत्ता आणि पालकांचा/आपत्कालीन संपर्क क्रमांक.
+• शैक्षणिक व ओळख पुरावा: स्पर्धा परीक्षांचे नाव, शासकीय ओळखपत्र (Mandatory ID proof), आणि डिजिटल ओळखपत्रासाठी छायाचित्र.
+• उपस्थिती व लॉग नोंदी: दैनंदिन चेक-इन आणि चेक-आउट वेळ, निवडलेली शिफ्ट आणि जागा वाटप तपशील.
+• शुल्क व पावती नोंदी: सदस्यत्व पावती क्रमांक, देय रक्कम इतिहास, आणि व्यवहार संदर्भ (आम्ही बँकेचे पासवर्ड किंवा कार्ड पिन संचयित करत नाही).
+
+२. माहितीचा वापर व कायदेशीर आधार
+आपली माहिती केवळ पुढील कारणांसाठी वापरली जाते:
+• अभ्यास टेबल आरक्षण, वेळेचे व्यवस्थापन, आणि लॉकर वाटप सुलभ करणे.
+• महत्त्वाची सूचना देणे — जसे की सदस्यत्व नूतनीकरण स्मरणपत्रे, फी पावत्या, आणि सुट्टीच्या सूचना (SMS किंवा WhatsApp द्वारे).
+• अभ्यास केंद्रातील सुरक्षा सुनिश्चित करणे, अनधिकृत प्रवेश रोखणे, आणि वादांचे निराकरण करणे.
+
+३. डेटा सुरक्षितता व क्लाउड स्टोअरेज
+सर्व विद्यार्थ्यांचा डेटा Firebase Cloud वरील एन्क्रिप्टेड (TLS/SSL) सर्व्हरवर सुरक्षित साठवला जातो. हा डेटा केवळ अधिकृत ग्रंथालय प्रशासकांसाठीच उपलब्ध असतो.
+
+४. तृतीय पक्षांशी (Third-Party) डेटा शेअरिंग
+$libraryName विद्यार्थ्यांचा वैयक्तिक डेटा कोणत्याही जाहिरातदार किंवा विपणन कंपन्यांना विकत नाही.
+डेटा केवळ अधिकृत संवाद सेवा पुरवठादार (WhatsApp/SMS गेटवे) आणि कायदेशीर न्यायालयीन प्रक्रियेसाठीच वापरला जातो.
+
+५. सीसीटीव्ही (CCTV) देखरेख व सुरक्षितता
+विद्यार्थ्यांच्या आणि मालमत्तेच्या सुरक्षेसाठी सार्वजनिक भागात २४/७ सीसीटीव्ही देखरेख असते. सुरक्षिततेच्या कारणाव्यतिरिक्त हे फुटेज इतर कोणालाही दिले जात नाही.
+
+६. आपले हक्क व गोपनीयता संपर्क
+आपल्याला आपल्या नोंदणीकृत प्रोफाइलचे पुनरावलोकन करण्याचा आणि दुरुस्तीची विनंती करण्याचा पूर्ण हक्क आहे. कोणत्याही शंका किंवा विनंतीसाठी थेट ग्रंथालय व्यवस्थापनाशी संपर्क साधावा.
+''';
 
   static String defaultPrivacyPolicy(String libraryName) =>
       '''
@@ -50,15 +79,19 @@ You have the right to review your registered profile data, request corrections, 
 
 class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
   bool _isSaving = false;
+  LegalLanguage _selectedLanguage = LegalLanguage.en;
 
   void _openEditor(
     BuildContext context,
     String libraryId,
     String initialText,
-    String libraryName,
-  ) {
+    String libraryName, [
+    LegalLanguage? language,
+  ]) {
+    final activeLanguage = language ?? _selectedLanguage;
     final controller = TextEditingController(text: initialText);
     final theme = Theme.of(context);
+    final isMr = activeLanguage == LegalLanguage.mr;
 
     showDialog(
       context: context,
@@ -74,10 +107,10 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
             children: [
               Icon(Icons.shield_outlined, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Edit Privacy Policy',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  isMr ? 'Edit Privacy Policy (मराठी)' : 'Edit Privacy Policy (English)',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
               IconButton(
@@ -99,7 +132,7 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                   runSpacing: 4,
                   children: [
                     Text(
-                      'Custom Library Privacy Guidelines',
+                      isMr ? 'Custom Marathi Privacy Guidelines (गोपनीयता धोरण)' : 'Custom Library Privacy Guidelines',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -124,17 +157,16 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                       ),
                       onPressed: () {
                         setDialogState(() {
-                          controller.text =
-                              PrivacyPolicyScreen.defaultPrivacyPolicy(
-                                libraryName,
-                              );
+                          controller.text = isMr
+                              ? PrivacyPolicyScreen.defaultPrivacyPolicyMarathi(libraryName)
+                              : PrivacyPolicyScreen.defaultPrivacyPolicy(libraryName);
                         });
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text(
-                              'Standard privacy policy template loaded',
+                              isMr ? 'Standard Marathi privacy template loaded' : 'Standard privacy policy template loaded',
                             ),
-                            duration: Duration(seconds: 1),
+                            duration: const Duration(seconds: 1),
                           ),
                         );
                       },
@@ -153,10 +185,12 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                     maxLines: null,
                     expands: true,
                     style: const TextStyle(fontSize: 13, height: 1.5),
-                    decoration: const InputDecoration(
-                      contentPadding: EdgeInsets.all(12),
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.all(12),
                       border: InputBorder.none,
-                      hintText: 'Enter privacy clauses, data protection guidelines, and student rights...',
+                      hintText: isMr
+                          ? 'गोपनीयता नियम, डेटा संरक्षण मार्गदर्शक तत्त्वे प्रविष्ट करा...'
+                          : 'Enter privacy clauses, data protection guidelines, and student rights...',
                     ),
                   ),
                 ),
@@ -188,13 +222,14 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                       setState(() => _isSaving = true);
 
                       try {
+                        final fieldKey = isMr ? 'privacyPolicy_mr' : 'privacyPolicy';
                         await FirebaseFirestore.instance
                             .collection('libraries')
                             .doc(libraryId)
                             .collection('settings')
                             .doc('legal')
                             .set({
-                              'privacyPolicy': controller.text.trim(),
+                              fieldKey: controller.text.trim(),
                               'privacyUpdatedAt': FieldValue.serverTimestamp(),
                               'privacyUpdatedBy':
                                   FirebaseAuth.instance.currentUser?.email ??
@@ -204,9 +239,9 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                         if (context.mounted) {
                           Navigator.pop(dialogCtx);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Text(
-                                'Privacy Policy published successfully!',
+                                isMr ? 'Privacy Policy (मराठी) published successfully!' : 'Privacy Policy published successfully!',
                               ),
                               behavior: SnackBarBehavior.floating,
                             ),
@@ -242,6 +277,7 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
     final libraryName = lib?.name.isNotEmpty == true
         ? lib!.name
         : 'The Cozy Corner Study Centre';
+    final isMarathi = _selectedLanguage == LegalLanguage.mr;
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
@@ -252,10 +288,12 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         final data = snapshot.data?.data();
-        final rawPolicy = (data?['privacyPolicy'] as String?)?.trim();
+        final rawPolicy = isMarathi
+            ? (data?['privacyPolicy_mr'] as String?)?.trim()
+            : (data?['privacyPolicy'] as String?)?.trim();
         final displayPolicy = (rawPolicy != null && rawPolicy.isNotEmpty)
             ? rawPolicy
-            : PrivacyPolicyScreen.defaultPrivacyPolicy(libraryName);
+            : (isMarathi ? PrivacyPolicyScreen.defaultPrivacyPolicyMarathi(libraryName) : PrivacyPolicyScreen.defaultPrivacyPolicy(libraryName));
         final updatedAt = data?['privacyUpdatedAt'] as Timestamp?;
 
         return Scaffold(
@@ -265,16 +303,16 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
               tooltip: 'Back',
               onPressed: () => context.canPop() ? context.pop() : (Navigator.canPop(context) ? Navigator.pop(context) : context.go(Routes.login)),
             ),
-            title: const Text('Privacy Policy'),
+            title: Text(isMarathi ? 'गोपनीयता धोरण (Privacy)' : 'Privacy Policy'),
             actions: [
               IconButton(
                 icon: const Icon(Icons.copy_rounded, size: 20),
-                tooltip: 'Copy Policy',
+                tooltip: isMarathi ? 'धोरण कॉपी करा' : 'Copy Policy',
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: displayPolicy));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Privacy Policy copied to clipboard'),
+                    SnackBar(
+                      content: Text(isMarathi ? 'गोपनीयता धोरण क्लिपबोर्डवर कॉपी झाले' : 'Privacy Policy copied to clipboard'),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
@@ -289,6 +327,7 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                     libraryId,
                     displayPolicy,
                     libraryName,
+                    _selectedLanguage,
                   ),
                 ),
             ],
@@ -297,6 +336,27 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
             children: [
+              // Bilingual Language Switcher
+              Center(
+                child: SegmentedButton<LegalLanguage>(
+                  segments: const [
+                    ButtonSegment(
+                      value: LegalLanguage.en,
+                      label: Text('English'),
+                      icon: Icon(Icons.language_rounded, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: LegalLanguage.mr,
+                      label: Text('मराठी (Marathi)'),
+                      icon: Icon(Icons.translate_rounded, size: 16),
+                    ),
+                  ],
+                  selected: {_selectedLanguage},
+                  onSelectionChanged: (set) => setState(() => _selectedLanguage = set.first),
+                ),
+              ),
+              const SizedBox(height: 16),
+
               // Header Badge
               Container(
                 padding: const EdgeInsets.all(16),
@@ -363,6 +423,7 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
                               libraryId,
                               displayPolicy,
                               libraryName,
+                              _selectedLanguage,
                             ),
                           ),
                       ],

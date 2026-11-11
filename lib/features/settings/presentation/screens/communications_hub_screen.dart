@@ -556,7 +556,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final isCompact = MediaQuery.of(context).size.width < 450;
+    final isCompact = MediaQuery.of(context).size.width < 600;
 
     return DefaultTabController(
       length: 3,
@@ -603,8 +603,6 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
             ),
           ],
           bottom: const TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
             tabs: [
               Tab(icon: Icon(Icons.bolt_rounded), text: 'Queue'),
               Tab(icon: Icon(Icons.hub_rounded), text: 'Channels'),
@@ -714,7 +712,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         ),
         const SizedBox(height: 14),
 
-        // Channel 2: 1-Tap WhatsApp (wa.me)
+        // Channel 2: 1-Tap WhatsApp
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -733,8 +731,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('1-Tap WhatsApp (wa.me)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                      Text('Direct WhatsApp links prefilled with receipt details & 0 cost', style: theme.textTheme.bodySmall),
+                      Text('WhatsApp Direct (1-Tap)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                      Text('Direct WhatsApp links prefilled with receipts & fee reminders', style: theme.textTheme.bodySmall),
                     ],
                   ),
                 ),
@@ -879,7 +877,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         ),
         const SizedBox(height: 14),
 
-        // Channel 4: Official Telegram Bot API
+        // Channel 4: Telegram Bot API
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -901,8 +899,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Official Telegram Bot API', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Unlimited free receipts & desk administration alerts', style: theme.textTheme.bodySmall),
+                          Text('Telegram Bot Alerts', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Free admin briefings, receipts & system alerts', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -970,8 +968,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Native Android Direct SMS (SIM)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('100% Free via Jio/Airtel daily quota', style: theme.textTheme.bodySmall),
+                          Text('Native Device SMS', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Free SMS dispatch using your phone SIM plan', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -1016,8 +1014,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Commercial SMS Gateway (Automated)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Hands-free background SMS delivery via Fast2SMS or DLT gateway', style: theme.textTheme.bodySmall),
+                          Text('SMS Gateway (Fast2SMS / DLT)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Automated background SMS delivery to students', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -1087,8 +1085,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('External Automation Connector (Zapier, Make & Webhooks)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Automatically trigger workflows in external apps (Zapier, Make, Cloud Webhook)', style: theme.textTheme.bodySmall),
+                          Text('External Webhooks (Zapier & Make)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Trigger external workflows and automations on key events', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -1137,8 +1135,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Soundbox Counter Alerts (Paytm / PhonePe Simulation)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                              Text('Melodic electronic chime + instant vocal speech readout when cash or UPI fees are received', style: theme.textTheme.bodySmall),
+                              Text('Payment Soundbox Audio Alerts', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                              Text('Audio chime and vocal payment announcements at the reception desk', style: theme.textTheme.bodySmall),
                             ],
                           ),
                         ),
@@ -1261,8 +1259,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         Card(
           color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
           child: SwitchListTile(
-            title: const Text('Master Automation Switch', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('Enable or pause all automated alerts across channels'),
+            title: const Text('All Automations', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('Master toggle for all automated reminders & alerts'),
             value: _allNotifications,
             onChanged: (val) {
               setState(() {
@@ -1321,7 +1319,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Renewal Reminders', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Sends timely reminders before and after membership expiry', style: theme.textTheme.bodySmall),
+                          Text('Notify students before and upon membership expiry', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -1335,11 +1333,11 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                   const Divider(height: 20),
                   const Text('Reminder Schedule:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  _buildStageChip('3 Days Before', 'Friendly renewal reminder sent to student app', Colors.indigo),
+                  _buildStageChip('3 Days Before', 'Advance reminder sent to student app', Colors.indigo),
                   const SizedBox(height: 4),
-                  _buildStageChip('Expiry Day', 'Due date notification with 1-Tap UPI renewal link', Colors.amber.shade900),
+                  _buildStageChip('Expiry Day', 'Due date alert with instant UPI renewal link', Colors.amber.shade900),
                   const SizedBox(height: 4),
-                  _buildStageChip('Grace Period', 'Courtesy warning before seat is opened to waitlist', Colors.red.shade800),
+                  _buildStageChip('Grace Period', 'Final notice before seat is released to waitlist', Colors.red.shade800),
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: _triggerTestRenewalPush,
@@ -1392,7 +1390,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                   contentPadding: EdgeInsets.zero,
                   secondary: const Icon(Icons.wb_sunny_rounded, color: Colors.orange),
                   title: const Text('8:00 AM Morning Briefing', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Occupancy %, expiring today, waitlist queue & pending requests', style: TextStyle(fontSize: 11)),
+                  subtitle: const Text('Occupancy, expiring memberships & pending requests', style: TextStyle(fontSize: 11)),
                   value: _morningBriefing && _allNotifications,
                   onChanged: _allNotifications ? (val) => setState(() => _morningBriefing = val) : null,
                 ),
@@ -1411,8 +1409,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   secondary: const Icon(Icons.nightlight_round, color: Colors.indigo),
-                  title: const Text('11:00 PM Nightly Financial Settlement', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Total revenue, UPI vs Cash breakdown, official receipts & admissions', style: TextStyle(fontSize: 11)),
+                  title: const Text('11:00 PM Nightly Settlement', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Daily collections, UPI vs Cash split & receipts', style: TextStyle(fontSize: 11)),
                   value: _nightlySettlement && _allNotifications,
                   onChanged: _allNotifications ? (val) => setState(() => _nightlySettlement = val) : null,
                 ),
@@ -1461,7 +1459,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Auto Waitlist Allocation', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Fills newly opened desks quickly and fairly', style: theme.textTheme.bodySmall),
+                          Text('Fills newly opened seats quickly and fairly', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -1474,7 +1472,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                 if (_waitlistCascade && _allNotifications) ...[
                   const Divider(height: 20),
                   Text(
-                    'When a seat becomes available, it is held for 2 hours for the first student on the waiting list. If not claimed within 2 hours, it automatically moves to the next student in line.',
+                    'When a seat becomes available, it is held for 2 hours for the first student on the waiting list before offering it to the next in line.',
                     style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 10),
@@ -1517,7 +1515,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
               SwitchListTile(
                 secondary: const Icon(Icons.alarm_on_rounded, color: Colors.amber),
                 title: const Text('Daily Expiry Morning Summary', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('8:00 AM summary of expired students & renewals due'),
+                subtitle: const Text('8:00 AM digest of expired seats & renewals due'),
                 value: _dailyExpirySummary && _allNotifications,
                 onChanged: _allNotifications ? (val) => setState(() => _dailyExpirySummary = val) : null,
               ),
@@ -1525,7 +1523,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
               SwitchListTile(
                 secondary: const Icon(Icons.report_problem_rounded, color: Colors.orange),
                 title: const Text('Student Issue & Seat Change Alerts', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Immediate notification when students submit issues or seat requests'),
+                subtitle: const Text('Instant alert when students report issues or request seat changes'),
                 value: _studentIssuesAlert && _allNotifications,
                 onChanged: _allNotifications ? (val) => setState(() => _studentIssuesAlert = val) : null,
               ),
@@ -1534,7 +1532,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         ),
         const SizedBox(height: 24),
 
-        // ── SECTION 2: STUDENT AUTOMATIONS ──────────────────────────────────
+        // ── SECTION 3: STUDENT AUTOMATIONS ──────────────────────────────────
         Text(
           'STUDENT AUTOMATIONS',
           style: theme.textTheme.labelMedium?.copyWith(
@@ -1558,15 +1556,15 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
               const Divider(height: 1),
               SwitchListTile(
                 secondary: const Icon(Icons.timelapse_rounded, color: Colors.deepOrange),
-                title: const Text('Plan Expiring Reminders (7-day & 3-day)', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Automated gentle reminder prompts to renew upcoming expirations'),
+                title: const Text('Upcoming Expiry Reminders', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Remind students 7 days and 3 days before membership expires'),
                 value: _planExpiring && _allNotifications,
                 onChanged: _allNotifications ? (val) => setState(() => _planExpiring = val) : null,
               ),
               const Divider(height: 1),
               SwitchListTile(
                 secondary: const Icon(Icons.event_busy_rounded, color: Colors.red),
-                title: const Text('Plan Expired Notice', style: TextStyle(fontWeight: FontWeight.w600)),
+                title: const Text('Plan Expiry Notice', style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: const Text('Notice sent on the day of membership expiry'),
                 value: _planExpired && _allNotifications,
                 onChanged: _allNotifications ? (val) => setState(() => _planExpired = val) : null,
@@ -1574,7 +1572,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
               const Divider(height: 1),
               SwitchListTile(
                 secondary: const Icon(Icons.campaign_rounded, color: Colors.purple),
-                title: const Text('Library Announcements & Broadcasts', style: TextStyle(fontWeight: FontWeight.w600)),
+                title: const Text('Broadcast Announcements', style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: const Text('Instant push to all enrolled students on new announcements'),
                 value: _announcementPush && _allNotifications,
                 onChanged: _allNotifications ? (val) => setState(() => _announcementPush = val) : null,
@@ -1803,7 +1801,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                '1-Tap courteous WhatsApp follow-ups for members with upcoming renewals, expiring today, or holding reserved desks under grace.',
+                                '1-Tap WhatsApp follow-ups for students expiring soon, due today, or in grace period.',
                                 style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                               ),
                             ],
