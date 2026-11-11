@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/registration_provider.dart';
-import '../../data/ocr_parser.dart';
-import '../../data/document_layout_classifier.dart';
+import 'package:study_library/features/registration/data/ocr_parser.dart';
+import 'package:study_library/features/registration/data/document_layout_classifier.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/services/ocr_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
@@ -23,13 +23,18 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
   Uint8List? _scannedBackBytes;
   String _statusMessage = 'Reading your ID document...';
   bool _frontScanned = false; // true after first (front) scan completes
+  DocumentSideClassification? _detectedLayout;
 
   /// IDs that have meaningful back-side content worth scanning
-  bool get _hasTwoSides =>
-      _selectedType == GovIdType.aadhaar ||
-      _selectedType == GovIdType.drivingLicence ||
-      _selectedType == GovIdType.passport ||
-      _selectedType == GovIdType.voterId;
+  bool get _hasTwoSides {
+    if (_selectedType == GovIdType.pan) return false;
+    if (_detectedLayout == DocumentSideClassification.bothSidesCombined) return false;
+    if (_detectedLayout == DocumentSideClassification.panCard) return false;
+    return _selectedType == GovIdType.aadhaar ||
+        _selectedType == GovIdType.drivingLicence ||
+        _selectedType == GovIdType.passport ||
+        _selectedType == GovIdType.voterId;
+  }
 
   Future<void> _captureAndScan(ImageSource source, {bool isBackSide = false}) async {
     final doc = await DocumentPickerService.pickDocument(
@@ -156,11 +161,19 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
         if (mounted) setState(() => _isProcessing = false);
         if (mounted) _showBackScanResult(backResult);
       } else {
-        // Front side: full extraction
+        // Front side: full extraction & orientation classification
         final qrParsed = QrIdParser.parseQrString(qrString);
         final detectedType = qrParsed?.type ?? OcrParser.detectGovIdType(rawText);
         final effectiveType = detectedType != GovIdType.other ? detectedType : _selectedType;
-        setState(() => _selectedType = effectiveType);
+        final layout = DocumentLayoutClassifier.classify(
+          rawText: rawText,
+          preferredType: effectiveType,
+        );
+
+        setState(() {
+          _selectedType = effectiveType;
+          _detectedLayout = layout;
+        });
 
         final result = OcrParser.parseUnified(
           qrString: qrString,
@@ -168,7 +181,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
           preferredType: effectiveType,
         );
 
-        ref.read(registrationNotifierProvider.notifier).updateFields({
+        final updates = <String, dynamic>{
           'govIdType': effectiveType.name,
           'govIdDataUrl': dataUrl,
           'govIdImageUrl': dataUrl,
@@ -186,7 +199,20 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
           if (result.college != null && result.college!.trim().isNotEmpty) 'college': result.college!.trim(),
           if (result.course != null && result.course!.trim().isNotEmpty) 'course': result.course!.trim(),
           if (result.rollNumber != null && result.rollNumber!.trim().isNotEmpty) 'rollNumber': result.rollNumber!.trim(),
-        });
+        };
+
+        if (layout == DocumentSideClassification.bothSidesCombined) {
+          // Both sides detected on single page (A4 Xerox or e-Aadhaar)
+          updates['govIdBackDataUrl'] = dataUrl;
+          updates['govIdBackImageUrl'] = dataUrl;
+          updates['govIdBackImagePath'] = dataUrl;
+          updates['govIdBackFileName'] = doc.fileName;
+          setState(() {
+            _scannedBackBytes = bytes;
+          });
+        }
+
+        ref.read(registrationNotifierProvider.notifier).updateFields(updates);
 
         ref.read(ocrResultProvider.notifier).setResult({
           'name': result.name,
@@ -280,6 +306,8 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
       'rollNumber': 'Roll / Enroll No.',
     };
 
+    final isIdValid = GovIdValidator.isValid(_selectedType, result.idNumber);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -308,23 +336,28 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Header
+              // Header with Honest Verification Status
               Row(
                 children: [
-                  Icon(Icons.check_circle_rounded,
-                      color: theme.colorScheme.primary, size: 28),
+                  Icon(
+                    isIdValid ? Icons.verified_rounded : Icons.info_outline_rounded,
+                    color: isIdValid ? Colors.green.shade600 : theme.colorScheme.primary,
+                    size: 28,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('ID Scanned Successfully!',
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold)),
                         Text(
-                          '${filled.length} field${filled.length == 1 ? '' : 's'} auto-filled  •  Confidence: ${result.confidence}%',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: theme.colorScheme.outline),
+                          isIdValid ? 'ID Scanned & Validated ✓' : 'ID Scanned (Please Review)',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          isIdValid
+                              ? '${_selectedType.displayName} Checksum Verified  •  Confidence: ${result.confidence}%'
+                              : '${filled.length} fields filled  •  Verify highlighted fields in step 2',
+                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
                         ),
                       ],
                     ),
@@ -343,8 +376,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                     child: Text(
                       'No fields could be extracted automatically.\nPlease fill in the form manually.',
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: Colors.grey.shade600),
+                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
                     ),
                   ),
                 )
@@ -354,20 +386,31 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                     controller: controller,
                     children: filled.entries.map((e) {
                       final label = labelMap[e.key] ?? e.key;
+                      bool? isValid;
+                      if (e.key == 'idNumber') isValid = GovIdValidator.isValid(_selectedType, e.value);
+                      if (e.key == 'name') isValid = GovIdValidator.isValidName(e.value);
+                      if (e.key == 'dob') isValid = GovIdValidator.isValidDob(e.value);
+                      if (e.key == 'pinCode') isValid = GovIdValidator.isValidPinCode(e.value);
+
+                      final iconData = isValid == true
+                          ? Icons.verified_rounded
+                          : (isValid == false ? Icons.warning_amber_rounded : Icons.check_rounded);
+                      final iconColor = isValid == true
+                          ? Colors.green.shade600
+                          : (isValid == false ? Colors.amber.shade800 : theme.colorScheme.primary);
+
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 5),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.check_rounded,
-                                color: theme.colorScheme.primary, size: 18),
+                            Icon(iconData, color: iconColor, size: 18),
                             const SizedBox(width: 8),
                             SizedBox(
                               width: 120,
                               child: Text(
                                 '$label:',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600, fontSize: 13),
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                               ),
                             ),
                             Expanded(
@@ -380,6 +423,13 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            if (isValid == true) ...[
+                              const SizedBox(width: 4),
+                              Text('✓', style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold, fontSize: 12)),
+                            ] else if (isValid == false) ...[
+                              const SizedBox(width: 4),
+                              Text('Review', style: TextStyle(color: Colors.amber.shade900, fontSize: 11, fontWeight: FontWeight.bold)),
+                            ],
                           ],
                         ),
                       );

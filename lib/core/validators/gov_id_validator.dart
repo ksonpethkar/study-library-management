@@ -357,4 +357,24 @@ class GovIdValidator {
         return TextCapitalization.none;
     }
   }
+
+  /// Helpful placeholder hint text for the given [GovIdType].
+  static String hintText(GovIdType type) {
+    switch (type) {
+      case GovIdType.aadhaar:
+        return 'e.g. 5482 1234 5678';
+      case GovIdType.pan:
+        return 'e.g. ABCDE1234F';
+      case GovIdType.voterId:
+        return 'e.g. ABC1234567';
+      case GovIdType.passport:
+        return 'e.g. A1234567';
+      case GovIdType.drivingLicence:
+        return 'e.g. MH12 20210001234';
+      case GovIdType.collegeId:
+        return 'e.g. ROLL-10492';
+      case GovIdType.other:
+        return 'Enter Government ID number';
+    }
+  }
 }

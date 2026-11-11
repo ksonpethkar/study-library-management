@@ -39,6 +39,13 @@ class IdScanResult {
   String? get address => backResult?.address ?? frontResult.address;
   String? get pinCode => backResult?.pinCode ?? frontResult.pinCode;
   String? get phone => frontResult.phone ?? backResult?.phone;
+
+  /// Validates format and mathematical checksum (e.g. Verhoeff for Aadhaar)
+  bool get isChecksumValid {
+    final num = idNumber;
+    if (num == null || num.trim().isEmpty) return false;
+    return GovIdValidator.isValid(detectedType, num);
+  }
 }
 
 class IdCardScannerDialog extends StatefulWidget {
@@ -86,7 +93,6 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
   bool _isScanning = false;
   String _scanStatus = '';
   bool _showBackScanStep = false;
-  DocumentSideClassification? _detectedLayout;
   String? _layoutGuidance;
 
   @override
@@ -176,7 +182,6 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
 
         setState(() {
           _detectedType = effectiveType;
-          _detectedLayout = layout;
           _isScanning = false;
 
           final hasAddress = (parsed.address != null && parsed.address!.trim().isNotEmpty);
@@ -267,7 +272,6 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
       _frontResult = null;
       _backResult = null;
       _showBackScanStep = false;
-      _detectedLayout = null;
       _layoutGuidance = null;
     });
   }
@@ -755,38 +759,38 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
                 const Divider(height: 12),
                 _buildExtractedRow(
                   'ID Number',
-                  f?.idNumber,
+                  f.idNumber,
                   isValid: isIdValid,
                   badgeText: isIdValid ? 'Checksum OK' : 'Check Digits',
                 ),
                 _buildExtractedRow(
                   'Full Name',
-                  f?.name,
+                  f.name,
                   isValid: isNameValid,
                   badgeText: isNameValid ? null : 'Review Name',
                 ),
-                _buildExtractedRow("Father's Name", f?.fatherName),
+                _buildExtractedRow("Father's Name", f.fatherName),
                 _buildExtractedRow(
                   'Date of Birth',
-                  f?.dob,
+                  f.dob,
                   isValid: isDobValid,
                   badgeText: isDobValid ? null : 'Review Date',
                 ),
-                _buildExtractedRow('Gender', f?.gender),
-                _buildExtractedRow('Blood Group', f?.bloodGroup ?? b?.bloodGroup),
-                _buildExtractedRow('Phone / Contact', f?.phone ?? b?.phone),
-                _buildExtractedRow('Vehicle Class', f?.vehicleClass ?? b?.vehicleClass),
+                _buildExtractedRow('Gender', f.gender),
+                _buildExtractedRow('Blood Group', f.bloodGroup ?? b?.bloodGroup),
+                _buildExtractedRow('Phone / Contact', f.phone ?? b?.phone),
+                _buildExtractedRow('Vehicle Class', f.vehicleClass ?? b?.vehicleClass),
                 if (hasAddress) ...[
-                  _buildExtractedRow('Address', b?.address ?? f?.address),
+                  _buildExtractedRow('Address', b?.address ?? f.address),
                   _buildExtractedRow(
                     'PIN Code',
-                    b?.pinCode ?? f?.pinCode,
+                    b?.pinCode ?? f.pinCode,
                     isValid: isPinValid,
                     badgeText: isPinValid ? null : 'Check PIN',
                   ),
                 ],
-                if (f?.college != null) _buildExtractedRow('College', f?.college),
-                if (f?.course != null) _buildExtractedRow('Course', f?.course),
+                if (f.college != null) _buildExtractedRow('College', f.college),
+                if (f.course != null) _buildExtractedRow('Course', f.course),
               ],
             ),
           ),

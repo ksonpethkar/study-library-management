@@ -47,10 +47,10 @@ class StudentRepository {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
-    return createStudent(libraryId, student);
+    return createStudent(libraryId, student, allowSharedGovId: false);
   }
 
-  Future<String> createStudent(String libraryId, StudentModel student) async {
+  Future<String> createStudent(String libraryId, StudentModel student, {bool allowSharedGovId = false}) async {
     try {
       final cleanPhone = student.phone.trim();
       if (cleanPhone.isNotEmpty) {
@@ -62,7 +62,9 @@ class StudentRepository {
             .limit(1)
             .get();
         if (existingPhone.docs.isNotEmpty) {
-          throw Exception('This phone number is already registered with us.');
+          final conflictData = existingPhone.docs.first.data();
+          final conflictName = (conflictData['name'] ?? 'another student').toString();
+          throw Exception('This phone number is already registered to student "$conflictName".');
         }
       }
 
@@ -71,26 +73,36 @@ class StudentRepository {
       String govIdHash = '';
       if (cleanGovId.isNotEmpty) {
         govIdHash = sha256.convert(utf8.encode(cleanGovId)).toString();
-        final existingGovIdByHash = await _firestore
-            .collection(FirestorePaths.libraries)
-            .doc(libraryId)
-            .collection(FirestorePaths.students)
-            .where('govIdHash', isEqualTo: govIdHash)
-            .limit(1)
-            .get();
-        if (existingGovIdByHash.docs.isNotEmpty) {
-          throw Exception('This ID number is already registered.');
-        }
+        if (!allowSharedGovId) {
+          final existingGovIdByHash = await _firestore
+              .collection(FirestorePaths.libraries)
+              .doc(libraryId)
+              .collection(FirestorePaths.students)
+              .where('govIdHash', isEqualTo: govIdHash)
+              .limit(1)
+              .get();
+          if (existingGovIdByHash.docs.isNotEmpty) {
+            final conflictData = existingGovIdByHash.docs.first.data();
+            final conflictName = (conflictData['name'] ?? 'another student').toString();
+            final conflictPhone = (conflictData['phone'] ?? '').toString();
+            final phoneSuffix = conflictPhone.isNotEmpty ? ' ($conflictPhone)' : '';
+            throw Exception('This Government ID is already registered to student "$conflictName"$phoneSuffix.');
+          }
 
-        final legacyGovId = await _firestore
-            .collection(FirestorePaths.libraries)
-            .doc(libraryId)
-            .collection(FirestorePaths.students)
-            .where('govIdNumber', isEqualTo: cleanGovId)
-            .limit(1)
-            .get();
-        if (legacyGovId.docs.isNotEmpty) {
-          throw Exception('This ID number is already registered.');
+          final legacyGovId = await _firestore
+              .collection(FirestorePaths.libraries)
+              .doc(libraryId)
+              .collection(FirestorePaths.students)
+              .where('govIdNumber', isEqualTo: cleanGovId)
+              .limit(1)
+              .get();
+          if (legacyGovId.docs.isNotEmpty) {
+            final conflictData = legacyGovId.docs.first.data();
+            final conflictName = (conflictData['name'] ?? 'another student').toString();
+            final conflictPhone = (conflictData['phone'] ?? '').toString();
+            final phoneSuffix = conflictPhone.isNotEmpty ? ' ($conflictPhone)' : '';
+            throw Exception('This Government ID is already registered to student "$conflictName"$phoneSuffix.');
+          }
         }
 
         encryptedGovId = EncryptionService.encryptGovId(cleanGovId, libraryId);
@@ -189,7 +201,9 @@ class StudentRepository {
             .get();
         for (final doc in existingPhone.docs) {
           if (doc.id != student.id) {
-            throw Exception('This phone number is already registered with us.');
+            final conflictData = doc.data();
+            final conflictName = (conflictData['name'] ?? 'another student').toString();
+            throw Exception('This phone number is already registered to student "$conflictName".');
           }
         }
       }

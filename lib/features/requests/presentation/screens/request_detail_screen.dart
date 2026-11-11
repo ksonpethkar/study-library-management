@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/models/student_model.dart';
+import 'package:study_library/models/library_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
@@ -144,7 +145,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     }
   }
 
-  Future<void> _approveRequest() async {
+  Future<void> _approveRequest({bool allowSharedGovId = false}) async {
     final String libraryId = ref.read(currentLibraryIdProvider) ?? '';
     if (libraryId.isEmpty || _requestData == null) return;
 
@@ -162,6 +163,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           libraryId: libraryId,
           requestId: widget.requestId,
           preloadedData: data,
+          allowSharedGovId: allowSharedGovId,
         );
 
         // Fetch newly provisioned student data to resolve exact plan dates
@@ -406,6 +408,62 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final errStr = e.toString().toLowerCase();
+        if (errStr.contains('government id') && errStr.contains('already registered to student')) {
+          final cleanMsg = e.toString().replaceAll('Exception: ', '').trim();
+          final studentData = (_requestData?['studentData'] as Map<String, dynamic>?) ?? {};
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  Icon(Icons.family_restroom_rounded, color: Colors.amber.shade800, size: 24),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Shared Family / Sibling ID', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    cleanMsg,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'In family registrations, siblings or dependents often share a guardian ID proof.\n\n'
+                    '• Choose "Edit ID Proof" to enter their personal Aadhaar or PAN card number.\n'
+                    '• Choose "Allow Sibling ID & Approve" to approve admission with the shared ID.',
+                    style: TextStyle(fontSize: 12.5, color: Colors.black87),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showEditApplicantDialog(studentData);
+                  },
+                  child: const Text('Edit ID Proof'),
+                ),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                  label: const Text('Allow Sibling ID & Approve'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _approveRequest(allowSharedGovId: true);
+                  },
+                ),
+              ],
+            ),
+          );
+          return;
+        }
         AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'request');
       }
     } finally {
@@ -501,6 +559,68 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${ErrorHandler.handleError(e)}'), backgroundColor: Colors.red),
         );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _reopenRequest() async {
+    final String libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    if (libraryId.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reopen Admission Request?'),
+        content: const Text(
+          'This will reset the application status back to "Pending Verification", allowing you to edit applicant details and approve admission.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reopen Application'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('requests')
+          .doc(widget.requestId)
+          .update({
+        'status': 'pending',
+        'reopenedAt': FieldValue.serverTimestamp(),
+        'rejectionReason': FieldValue.delete(),
+      });
+
+      AuditLogger().log(
+        action: AuditAction.updated,
+        entityType: AuditEntity.request,
+        libraryId: libraryId,
+        entityId: widget.requestId,
+        details: {'action': 'request_reopened'},
+      ).ignore();
+
+      await _loadRequest();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Request reset to Pending! You can now edit details and approve.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'request');
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -767,6 +887,24 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // 9. Reopen Action for Rejected Requests
+                      if (data['status'] == 'rejected') ...[
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E293B),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: _reopenRequest,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Reopen Request / Reset to Pending',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         ),
                         const SizedBox(height: 24),
                       ],
@@ -2032,9 +2170,14 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     final phoneCtrl = TextEditingController(text: (studentData['phone'] ?? _requestData?['studentPhone'] ?? '').toString());
     final emailCtrl = TextEditingController(text: (studentData['email'] ?? _requestData?['studentEmail'] ?? '').toString());
     final dobCtrl = TextEditingController(text: _formatDob(studentData['dob']));
+    final govIdCtrl = TextEditingController(text: (studentData['govIdNumber'] ?? '').toString());
 
     String rawGender = (studentData['gender'] ?? 'male').toString().toLowerCase();
     String selectedGender = rawGender.contains('female') ? 'female' : (rawGender.contains('other') ? 'other' : 'male');
+    String rawGovIdType = (studentData['govIdType'] ?? 'pan').toString().toLowerCase();
+    String selectedGovIdType = ['aadhaar', 'pan', 'driving_license', 'voter_id', 'passport', 'other'].contains(rawGovIdType)
+        ? rawGovIdType
+        : 'pan';
     DateTime? pickedDob;
 
     final theme = Theme.of(context);
@@ -2156,6 +2299,45 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                       border: OutlineInputBorder(),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 140,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: selectedGovIdType,
+                          decoration: const InputDecoration(
+                            labelText: 'Gov ID Type',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'aadhaar', child: Text('Aadhaar')),
+                            DropdownMenuItem(value: 'pan', child: Text('PAN Card')),
+                            DropdownMenuItem(value: 'driving_license', child: Text('License')),
+                            DropdownMenuItem(value: 'voter_id', child: Text('Voter ID')),
+                            DropdownMenuItem(value: 'passport', child: Text('Passport')),
+                            DropdownMenuItem(value: 'other', child: Text('Other')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setDialogState(() => selectedGovIdType = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: govIdCtrl,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: const InputDecoration(
+                            labelText: 'Gov ID Number',
+                            prefixIcon: Icon(Icons.badge_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -2171,6 +2353,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 final newFather = fatherCtrl.text.trim();
                 final newPhone = phoneCtrl.text.trim();
                 final newEmail = emailCtrl.text.trim();
+                final newGovId = govIdCtrl.text.trim().toUpperCase();
                 final newDob = pickedDob != null
                     ? pickedDob!.toIso8601String()
                     : (studentData['dob']?.toString() ?? dobCtrl.text.trim());
@@ -2192,6 +2375,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   updatedStudentData['dob'] = newDob;
                   updatedStudentData['phone'] = newPhone;
                   updatedStudentData['email'] = newEmail;
+                  updatedStudentData['govIdNumber'] = newGovId;
+                  updatedStudentData['govIdType'] = selectedGovIdType;
 
                   await FirebaseFirestore.instance
                       .collection('libraries')
@@ -3248,7 +3433,17 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     if (!mounted) return;
 
     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
-    final library = ref.read(currentLibraryProvider).value;
+    LibraryModel? library = ref.read(currentLibraryProvider).value;
+
+    // Guaranteed fallback if library provider was not yet loaded into memory
+    if (library == null && libraryId.isNotEmpty) {
+      try {
+        final libDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).get();
+        if (libDoc.exists && libDoc.data() != null) {
+          library = LibraryModel.fromJson({...libDoc.data()!, 'id': libDoc.id});
+        }
+      } catch (_) {}
+    }
 
     final data = _requestData ?? {};
     final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
@@ -3277,13 +3472,38 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         .toString();
 
     // 3. Resolve Human-Readable Seat Label (prevent raw Firestore database doc IDs)
-    final rawSeatLabel = (data['requestedSeatLabel'] ??
+    String? rawSeatLabel = (data['requestedSeatLabel'] ??
             studentData['requestedSeatLabel'] ??
             liveStudentData['seatNumber'] ??
             liveStudentData['seatLabel'] ??
             data['seatLabel'])
         ?.toString();
     final rawSeatId = (studentData['seatId'] ?? liveStudentData['seatId'] ?? data['requestedSeatId'])?.toString();
+    final rawSecId = (studentData['sectionId'] ?? liveStudentData['sectionId'] ?? data['requestedSectionId'] ?? data['sectionId'])?.toString();
+
+    if ((rawSeatLabel == null || rawSeatLabel.isEmpty || rawSeatLabel.contains('_r')) &&
+        libraryId.isNotEmpty &&
+        rawSeatId != null &&
+        rawSeatId.isNotEmpty &&
+        rawSecId != null &&
+        rawSecId.isNotEmpty) {
+      try {
+        final seatDoc = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('sections')
+            .doc(rawSecId)
+            .collection('seats')
+            .doc(rawSeatId)
+            .get();
+        if (seatDoc.exists && seatDoc.data() != null) {
+          final sLabel = seatDoc.data()!['label']?.toString();
+          if (sLabel != null && sLabel.isNotEmpty) {
+            rawSeatLabel = sLabel;
+          }
+        }
+      } catch (_) {}
+    }
     final friendlySeatLabel = _formatFriendlySeatLabel(rawSeatLabel, rawSeatId);
 
     // 4. Resolve Plan Name
@@ -3332,12 +3552,12 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         : 'The Cozy Corner Study Centre';
     final libraryAddress = (library?.address != null && library!.address.trim().isNotEmpty)
         ? library.address.trim()
-        : 'Someshwar Nagar, Parli';
+        : 'Front Of Reliance Fashion Factory, Nath Road, Parli-431515';
     final libraryHelpline = (library?.helplineNumber != null && library!.helplineNumber.trim().isNotEmpty)
         ? library.helplineNumber.trim()
         : ((library?.contact != null && library!.contact.trim().isNotEmpty)
             ? library.contact.trim()
-            : '+91 91569 44773');
+            : '9403243830');
 
     // 7. Dispatch via WhatsAppService with interactive preview sheet and clean UTF-8
     if (!mounted) return;

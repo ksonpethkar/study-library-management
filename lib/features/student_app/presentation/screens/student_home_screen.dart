@@ -200,6 +200,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     final plansAsync = ref.watch(plansStreamProvider);
     final sectionsAsync = ref.watch(sectionsProvider);
     final pendingSeatChange = ref.watch(studentPendingSeatChangeProvider).value;
+    final pendingRenewal = ref.watch(studentPendingRenewalProvider).value;
 
     final library = libraryAsync.value;
     final libraryName = library?.name.isNotEmpty == true ? library!.name : 'Study Library';
@@ -579,8 +580,18 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   error: (_, _) => const SizedBox.shrink(),
                 ),
 
-                // Phase 3: Contextual Seat Protection & Renewal Guarantee Alert Banner (7-day window & grace)
-                if (student.isExpired ||
+                // Contextual Renewal In-Progress Banner OR Expiry Alert Banner
+                if (pendingRenewal != null) ...[
+                  _buildPendingRenewalCard(
+                    context: context,
+                    theme: theme,
+                    libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
+                    pendingData: pendingRenewal,
+                    student: student,
+                    library: library,
+                  ),
+                  const SizedBox(height: 14),
+                ] else if (student.isExpired ||
                     (student.daysRemaining != null && student.daysRemaining! <= 7) ||
                     student.effectiveMembershipStatus == MembershipStatus.grace) ...[
                   _buildStudentExpiryAlertBanner(context, theme, student, seatLabel),
@@ -1942,6 +1953,280 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
         }
       }
     }
+  }
+
+  Widget _buildPendingRenewalCard({
+    required BuildContext context,
+    required ThemeData theme,
+    required String libraryId,
+    required Map<String, dynamic> pendingData,
+    required StudentModel student,
+    required LibraryModel? library,
+  }) {
+    final isDark = theme.brightness == Brightness.dark;
+    final requestId = (pendingData['id'] ?? pendingData['requestId'] ?? '').toString();
+    final planName = (pendingData['requestedPlanName'] ?? 'Membership Plan').toString();
+    final amount = (pendingData['amount'] as num?)?.toDouble() ?? 0.0;
+    final status = (pendingData['status'] ?? 'pending').toString().toLowerCase();
+    final isDeskPayment = status == 'desk_payment_pending' ||
+        (pendingData['paymentMethod'] ?? '').toString().toLowerCase().contains('cash') ||
+        (pendingData['paymentMethod'] ?? '').toString().toLowerCase().contains('desk');
+    final refNumber = (pendingData['referenceNumber'] ?? '').toString().trim();
+    final ts = pendingData['createdAt'] as Timestamp?;
+    final createdDate = ts?.toDate();
+    final seatLabel = SeatHelper.formatSeatLabel(seatId: student.seatId ?? student.previousSeatId);
+
+    final borderColor = isDeskPayment
+        ? const Color(0xFF0284C7).withValues(alpha: isDark ? 0.6 : 0.45)
+        : const Color(0xFF10B981).withValues(alpha: isDark ? 0.6 : 0.45);
+    final bgColor = isDeskPayment
+        ? (isDark ? const Color(0xFF0C243B) : const Color(0xFFF0F9FF))
+        : (isDark ? const Color(0xFF063327) : const Color(0xFFF0FDF4));
+    final headerTextColor = isDeskPayment
+        ? (isDark ? const Color(0xFFBAE6FD) : const Color(0xFF0369A1))
+        : (isDark ? const Color(0xFFA7F3D0) : const Color(0xFF065F46));
+    final badgeBgColor = isDeskPayment
+        ? (isDark ? const Color(0xFF0284C7) : const Color(0xFFBAE6FD))
+        : (isDark ? const Color(0xFF059669) : const Color(0xFFA7F3D0));
+    final badgeTextColor = isDeskPayment
+        ? (isDark ? Colors.white : const Color(0xFF0369A1))
+        : (isDark ? Colors.white : const Color(0xFF065F46));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: (isDeskPayment ? const Color(0xFF0284C7) : const Color(0xFF10B981)).withValues(alpha: 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isDeskPayment ? Icons.storefront_rounded : Icons.hourglass_top_rounded,
+                color: isDeskPayment ? const Color(0xFF0284C7) : const Color(0xFF059669),
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isDeskPayment ? 'Desk Renewal Registered' : 'Renewal Payment In Review',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14.5,
+                    color: headerTextColor,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeBgColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isDeskPayment ? 'PAY AT DESK' : 'VERIFYING UTR',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: badgeTextColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      planName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isDeskPayment
+                          ? 'Please deposit fee at reception to activate pass'
+                          : (refNumber.isNotEmpty && !refNumber.startsWith('Desk')
+                              ? 'Submitted UTR: $refNumber'
+                              : 'Online payment submitted for verification'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Text(
+                  '₹${amount.toStringAsFixed(0)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    color: isDeskPayment ? const Color(0xFF0284C7) : const Color(0xFF059669),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.shield_rounded, size: 14, color: isDeskPayment ? const Color(0xFF0284C7) : const Color(0xFF059669)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    student.seatId != null
+                        ? 'Your allocated $seatLabel is locked & protected while request is active'
+                        : 'Your pass will be activated immediately upon admin confirmation',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: borderColor.withValues(alpha: 0.3)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                createdDate != null
+                    ? 'Submitted ${DateFormat('dd MMM, hh:mm a').format(createdDate)}'
+                    : 'Submitted recently',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (library?.whatsappNumber.isNotEmpty == true || library?.contact.isNotEmpty == true) ...[
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        foregroundColor: const Color(0xFF25D366),
+                      ),
+                      icon: const Icon(Icons.chat_rounded, size: 14),
+                      label: const Text('Contact Desk', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      onPressed: () async {
+                        final rawPhone = (library?.whatsappNumber.isNotEmpty == true
+                                ? library!.whatsappNumber
+                                : library?.contact ?? '')
+                            .replaceAll(RegExp(r'\D'), '');
+                        if (rawPhone.isNotEmpty) {
+                          final targetPhone = rawPhone.length == 10 ? '91$rawPhone' : rawPhone;
+                          final msg = Uri.encodeComponent(
+                            'Hi, I have submitted a renewal request for $planName (₹${amount.toStringAsFixed(0)}). ${refNumber.isNotEmpty && !refNumber.startsWith("Desk") ? "UTR: $refNumber" : ""}\nPlease review and activate.',
+                          );
+                          final uri = Uri.parse('https://wa.me/$targetPhone?text=$msg');
+                          try {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          } catch (_) {}
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                      foregroundColor: Colors.redAccent,
+                    ),
+                    icon: const Icon(Icons.cancel_outlined, size: 14),
+                    label: const Text('Cancel', style: TextStyle(fontSize: 11)),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Cancel Renewal Request?'),
+                          content: const Text(
+                            'Are you sure you want to cancel this renewal request? You can submit another request or pay at the desk anytime.',
+                          ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep')),
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Cancel Request'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(libraryId)
+                              .collection('requests')
+                              .doc(requestId)
+                              .delete();
+                          ref.invalidate(studentPendingRenewalProvider);
+                          if (context.mounted) {
+                            HapticFeedback.lightImpact();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Renewal request cancelled.'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildAssignedSeatCard(

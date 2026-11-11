@@ -32,7 +32,7 @@ class RenewPlanScreen extends ConsumerStatefulWidget {
   ConsumerState<RenewPlanScreen> createState() => _RenewPlanScreenState();
 }
 
-class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
+class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsBindingObserver {
   String? _selectedPlanId;
   bool _keepSeat = true;
   bool _isBridgeSelected = false;
@@ -46,10 +46,94 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
   String? _paymentProofDataUrl;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Check clipboard on screen load in case student already completed payment
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkClipboardForUtr();
+    });
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _notesController.dispose();
     _transactionRefController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Auto-detect UTR when student returns from Google Pay, PhonePe, or Bank app
+      _checkClipboardForUtr();
+    }
+  }
+
+  Future<void> _checkClipboardForUtr({bool showFeedbackIfEmpty = false}) async {
+    try {
+      final clipData = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = clipData?.text?.trim() ?? '';
+      if (text.isEmpty) {
+        if (showFeedbackIfEmpty && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Clipboard is empty. Copy the 12-digit UTR from your UPI or Bank app.'),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Check for 12 numeric digits (Standard NPCI UPI UTR format)
+      final match = RegExp(r'\b\d{12}\b').firstMatch(text);
+      if (match != null) {
+        final utr = match.group(0)!;
+        if (_transactionRefController.text.trim() != utr) {
+          setState(() {
+            _transactionRefController.text = utr;
+          });
+          HapticFeedback.mediumImpact();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('✨ Auto-detected & applied 12-digit UTR: $utr'),
+                    ),
+                  ],
+                ),
+                backgroundColor: const Color(0xFF0D9488),
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } else if (showFeedbackIfEmpty && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('UTR $utr is already applied in the field.'),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else if (showFeedbackIfEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No 12-digit UPI UTR found on clipboard.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {}
   }
 
   Future<void> _submitRenewal({
@@ -1235,12 +1319,28 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                 // Bank UTR Reference Field
                                 TextField(
                                   controller: _transactionRefController,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: 'Bank Transfer UTR / Ref No. *',
                                     hintText: 'e.g. 423589123456 or IMPS12345',
-                                    prefixIcon: Icon(Icons.tag_rounded),
-                                    border: OutlineInputBorder(),
-                                    helperText: 'Enter transaction reference / UTR from your bank app after transfer',
+                                    prefixIcon: const Icon(Icons.tag_rounded),
+                                    suffixIcon: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (_transactionRefController.text.isNotEmpty)
+                                          IconButton(
+                                            icon: const Icon(Icons.clear_rounded, size: 18),
+                                            tooltip: 'Clear',
+                                            onPressed: () => setState(() => _transactionRefController.clear()),
+                                          ),
+                                        IconButton(
+                                          icon: const Icon(Icons.content_paste_go_rounded, color: Color(0xFF0D9488)),
+                                          tooltip: 'Paste from Clipboard',
+                                          onPressed: () => _checkClipboardForUtr(showFeedbackIfEmpty: true),
+                                        ),
+                                      ],
+                                    ),
+                                    border: const OutlineInputBorder(),
+                                    helperText: 'Auto-detects from clipboard or enter reference from bank app',
                                   ),
                                 ),
                                 _buildPaymentProofAttachmentWidget(theme),
@@ -1490,7 +1590,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                               ),
                               const SizedBox(height: 16),
 
-                              // UTR Reference Input Field
+                              // UTR Reference Input Field with Auto-Paste Suffix
                               TextField(
                                 controller: _transactionRefController,
                                 keyboardType: TextInputType.number,
@@ -1498,12 +1598,28 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                   FilteringTextInputFormatter.digitsOnly,
                                   LengthLimitingTextInputFormatter(12),
                                 ],
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: 'UTR / Transaction Reference No. *',
                                   hintText: 'e.g. 423589123456',
-                                  prefixIcon: Icon(Icons.tag_rounded),
-                                  border: OutlineInputBorder(),
-                                  helperText: 'Enter 12-digit numeric UTR from your bank or UPI payment confirmation',
+                                  prefixIcon: const Icon(Icons.tag_rounded),
+                                  suffixIcon: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (_transactionRefController.text.isNotEmpty)
+                                        IconButton(
+                                          icon: const Icon(Icons.clear_rounded, size: 18),
+                                          tooltip: 'Clear',
+                                          onPressed: () => setState(() => _transactionRefController.clear()),
+                                        ),
+                                      IconButton(
+                                        icon: const Icon(Icons.content_paste_go_rounded, color: Color(0xFF0D9488)),
+                                        tooltip: 'Paste from Clipboard',
+                                        onPressed: () => _checkClipboardForUtr(showFeedbackIfEmpty: true),
+                                      ),
+                                    ],
+                                  ),
+                                  border: const OutlineInputBorder(),
+                                  helperText: 'Auto-detects on resume or tap paste icon to insert 12-digit UTR',
                                 ),
                               ),
                               _buildPaymentProofAttachmentWidget(theme),

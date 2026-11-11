@@ -21,6 +21,7 @@ class StudentProvisioningService {
     required String libraryId,
     required String requestId,
     Map<String, dynamic>? preloadedData,
+    bool allowSharedGovId = false,
   }) async {
     if (libraryId.isEmpty || requestId.isEmpty) return null;
 
@@ -233,7 +234,7 @@ class StudentProvisioningService {
             updatedAt: DateTime.now(),
           );
 
-          createdStudentId = await _studentRepo.createStudent(libraryId, newStudent);
+          createdStudentId = await _studentRepo.createStudent(libraryId, newStudent, allowSharedGovId: allowSharedGovId);
         }
 
         // 3. Assign Seat if specified

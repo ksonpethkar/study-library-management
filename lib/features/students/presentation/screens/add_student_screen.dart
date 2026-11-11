@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/app_validators.dart';
+import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/widgets/id_card_scanner_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -180,9 +181,12 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
       initialType: _govIdType,
       onScanned: (result) {
         setState(() {
+          _govIdType = result.detectedType;
           if (result.name?.isNotEmpty == true) _nameController.text = result.name!;
           if (result.fatherName?.isNotEmpty == true) _fatherNameController.text = result.fatherName!;
-          if (result.idNumber?.isNotEmpty == true) _govIdNumberController.text = result.idNumber!;
+          if (result.idNumber?.isNotEmpty == true) {
+            _govIdNumberController.text = GovIdValidator.format(result.detectedType, result.idNumber!);
+          }
           final parsedDob = _tryParseDob(result.dob);
           if (parsedDob != null) _dob = parsedDob;
           if (result.gender != null) {
@@ -825,14 +829,41 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                         },
                       );
 
+                      final idText = _govIdNumberController.text.trim();
+                      final isIdValid = idText.isNotEmpty && GovIdValidator.isValid(_govIdType, idText);
+
                       final idNumberField = TextFormField(
                         controller: _govIdNumberController,
+                        keyboardType: GovIdValidator.keyboardType(_govIdType),
+                        inputFormatters: GovIdValidator.inputFormatters(_govIdType),
                         decoration: InputDecoration(
-                          labelText: '${_govIdType.name.toUpperCase()} Number',
+                          labelText: '${_govIdType.displayName} Number',
                           prefixIcon: const Icon(Icons.numbers_rounded),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
                           border: const OutlineInputBorder(),
+                          suffixIcon: idText.isEmpty
+                              ? null
+                              : Tooltip(
+                                  message: isIdValid
+                                      ? '${_govIdType.displayName} Checksum Valid ✓'
+                                      : 'Invalid format or checksum mismatch',
+                                  child: Icon(
+                                    isIdValid ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                                    color: isIdValid ? Colors.green.shade600 : Colors.amber.shade800,
+                                    size: 20,
+                                  ),
+                                ),
+                          enabledBorder: idText.isNotEmpty
+                              ? OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: isIdValid ? Colors.green.shade400 : Colors.amber.shade600,
+                                    width: 1.5,
+                                  ),
+                                )
+                              : null,
                         ),
+                        validator: (v) => GovIdValidator.validate(_govIdType, v, isRequired: false),
+                        onChanged: (_) => setState(() {}),
                       );
 
                       if (constraints.maxWidth < 560) {

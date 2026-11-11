@@ -314,7 +314,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
             // Filter Tabs
             Builder(
               builder: (context) {
-                final allNotifs = notifsAsync.value ?? [];
+                final allNotifs = AppNotificationService.deduplicate(notifsAsync.value ?? [], widget.libraryId);
                 final alertsState = (widget.libraryId.isNotEmpty && widget.role == 'admin')
                     ? ref.watch(systemAlertsProvider(widget.libraryId))
                     : const SystemAlertsState();
@@ -379,8 +379,9 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                   final unreadPending = (widget.pendingRequestsCount - alertsState.acknowledgedPendingCount).clamp(0, 999999);
                   final unreadRenewals = (widget.renewalsDueCount - alertsState.acknowledgedRenewalsCount).clamp(0, 999999);
 
-                  // Filter items based on selected category chip
-                  final items = notifications.where((n) => _matchesCategory(n, _selectedCategory)).toList();
+                  // Filter items based on selected category chip (deduplicated defensively)
+                  final deduplicatedNotifs = AppNotificationService.deduplicate(notifications, widget.libraryId);
+                  final items = deduplicatedNotifs.where((n) => _matchesCategory(n, _selectedCategory)).toList();
 
                   final showPending = widget.role == 'admin' &&
                       widget.pendingRequestsCount > 0 &&

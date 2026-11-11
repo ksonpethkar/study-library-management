@@ -555,19 +555,42 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
 
                   // ID Number TextField
                   Expanded(
-                    child: TextFormField(
-                      controller: _idNumberController,
-                      decoration: InputDecoration(
-                        labelText: '${_selectedType.displayName} Number',
-                        hintText: _selectedType.placeholder,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: const OutlineInputBorder(),
-                        isDense: true,
-                        prefixIcon: const Icon(Icons.credit_card_rounded, size: 20),
-                      ),
-                      textCapitalization: GovIdValidator.textCapitalization(_selectedType),
-                      keyboardType: GovIdValidator.keyboardType(_selectedType),
-                      inputFormatters: GovIdValidator.inputFormatters(_selectedType),
+                    child: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _idNumberController,
+                      builder: (context, val, child) {
+                        final rawText = val.text.trim();
+                        final isValid = rawText.isNotEmpty &&
+                            GovIdValidator.isValid(_selectedType, rawText);
+                        final showWarning = rawText.isNotEmpty && !isValid;
+
+                        return TextFormField(
+                          controller: _idNumberController,
+                          decoration: InputDecoration(
+                            labelText: '${_selectedType.displayName} Number',
+                            hintText: _selectedType.placeholder,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                            prefixIcon: const Icon(Icons.credit_card_rounded, size: 20),
+                            suffixIcon: rawText.isEmpty
+                                ? null
+                                : isValid
+                                    ? const Tooltip(
+                                        message: 'Valid Checksum / Format Verified',
+                                        child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 18),
+                                      )
+                                    : showWarning
+                                        ? const Tooltip(
+                                            message: 'Invalid format or checksum mismatch',
+                                            child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 18),
+                                          )
+                                        : null,
+                          ),
+                          textCapitalization: GovIdValidator.textCapitalization(_selectedType),
+                          keyboardType: GovIdValidator.keyboardType(_selectedType),
+                          inputFormatters: GovIdValidator.inputFormatters(_selectedType),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),

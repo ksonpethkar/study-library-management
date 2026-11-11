@@ -161,6 +161,10 @@ final studentNotificationsStreamProvider =
 class AppNotificationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  /// Exposes deduplication logic to UI and stream consumers
+  static List<AppNotificationModel> deduplicate(List<AppNotificationModel> list, [String? libraryId]) =>
+      _deduplicateNotifications(list, libraryId);
+
   /// Dispatches a notification across the system:
   /// 1. Persists to Firestore `/libraries/{libId}/notifications`
   /// 2. Fires Android status bar notification with BigTextStyle short message

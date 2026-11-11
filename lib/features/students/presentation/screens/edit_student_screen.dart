@@ -14,6 +14,8 @@ import 'package:flutter/services.dart';
 import 'package:study_library/core/utils/app_validators.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/validators/gov_id_validator.dart';
+import 'package:study_library/core/widgets/id_card_scanner_dialog.dart';
 
 class EditStudentScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -80,6 +82,53 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
       c.dispose();
     }
     super.dispose();
+  }
+
+  void _openOcrScanner() {
+    IdCardScannerDialog.show(
+      context,
+      initialType: _govIdType,
+      onScanned: (result) {
+        setState(() {
+          _govIdType = result.detectedType;
+          if (result.name?.isNotEmpty == true) _nameController.text = result.name!;
+          if (result.fatherName?.isNotEmpty == true) _fatherNameController.text = result.fatherName!;
+          if (result.idNumber?.isNotEmpty == true) {
+            _govIdNumberController.text = GovIdValidator.format(result.detectedType, result.idNumber!);
+          }
+          if (result.dob?.isNotEmpty == true) {
+            try {
+              final parts = result.dob!.split('/');
+              if (parts.length == 3) {
+                _dob = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+              }
+            } catch (_) {}
+          }
+          if (result.gender?.isNotEmpty == true) {
+            final g = result.gender!.toLowerCase();
+            if (g.contains('female')) {
+              _gender = Gender.female;
+            } else if (g.contains('male')) {
+              _gender = Gender.male;
+            } else {
+              _gender = Gender.other;
+            }
+          }
+          if (result.address?.isNotEmpty == true) _addressController.text = result.address!;
+          if (result.pinCode?.isNotEmpty == true) _pincodeController.text = result.pinCode!;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.isChecksumValid
+                  ? 'ID Scanned & Verified (${result.detectedType.name.toUpperCase()})'
+                  : 'ID Scanned with potential checksum discrepancy - please review',
+            ),
+            backgroundColor: result.isChecksumValid ? const Color(0xFF059669) : const Color(0xFFD97706),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _loadStudent({String? overrideLibId}) async {
@@ -658,9 +707,20 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                   const SizedBox(height: 24),
 
                   // Section 3: Identity & Education
-                  _buildSectionHeader(context, 'Identity & Education', Icons.school_outlined),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildSectionHeader(context, 'Identity & Education', Icons.school_outlined),
+                      TextButton.icon(
+                        onPressed: _openOcrScanner,
+                        icon: const Icon(Icons.document_scanner_outlined, size: 18),
+                        label: const Text('Scan ID Card'),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 12),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         flex: 2,
@@ -668,18 +728,52 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                           isExpanded: true,
                           initialValue: _govIdType,
                           decoration: const InputDecoration(labelText: 'ID Type', border: OutlineInputBorder()),
-                          items: GovIdType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.name.toUpperCase()))).toList(),
+                          items: GovIdType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.displayName))).toList(),
                           onChanged: (v) {
-                            if (v != null) setState(() => _govIdType = v);
+                            if (v != null) {
+                              setState(() {
+                                _govIdType = v;
+                                _govIdNumberController.text = GovIdValidator.format(v, _govIdNumberController.text);
+                              });
+                            }
                           },
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         flex: 3,
-                        child: TextFormField(
-                          controller: _govIdNumberController,
-                          decoration: const InputDecoration(labelText: 'ID Number', border: OutlineInputBorder()),
+                        child: ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _govIdNumberController,
+                          builder: (context, val, child) {
+                            final rawText = val.text.trim();
+                            final isValid = rawText.isNotEmpty &&
+                                GovIdValidator.isValid(_govIdType, rawText);
+                            final showWarning = rawText.isNotEmpty && !isValid;
+
+                            return TextFormField(
+                              controller: _govIdNumberController,
+                              keyboardType: GovIdValidator.keyboardType(_govIdType),
+                              inputFormatters: GovIdValidator.inputFormatters(_govIdType),
+                              decoration: InputDecoration(
+                                labelText: 'ID Number',
+                                hintText: _govIdType.placeholder,
+                                border: const OutlineInputBorder(),
+                                suffixIcon: rawText.isEmpty
+                                    ? null
+                                    : isValid
+                                        ? const Tooltip(
+                                            message: 'Valid Checksum / Format Verified',
+                                            child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 20),
+                                          )
+                                        : showWarning
+                                            ? const Tooltip(
+                                                message: 'Invalid format or checksum mismatch',
+                                                child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 20),
+                                              )
+                                            : null,
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],
