@@ -20,6 +20,8 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
+import 'package:study_library/models/student_model.dart';
+import 'package:study_library/core/validators/gov_id_validator.dart';
 
 class ReviewSubmitScreen extends ConsumerStatefulWidget {
   const ReviewSubmitScreen({super.key});
@@ -636,8 +638,35 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                 _buildSummaryRow('Email', regData['email']),
                               if (regData['emergencyContact'] != null && regData['emergencyContact'].toString().trim().isNotEmpty)
                                 _buildSummaryRow('Emergency Contact', regData['emergencyContact'].toString()),
-                              if (regData['govIdNumber'] != null && regData['govIdNumber'].isNotEmpty)
-                                _buildSummaryRow('Government ID', '${(regData['govIdType'] ?? 'ID').toString().toUpperCase()} - ${regData['govIdNumber']}'),
+                              if (regData['govIdNumber'] != null && regData['govIdNumber'].toString().trim().isNotEmpty) ...[
+                                Builder(
+                                  builder: (ctx) {
+                                    final rawType = (regData['govIdType'] ?? 'aadhaar').toString().toLowerCase();
+                                    final idType = GovIdType.values.firstWhere(
+                                      (t) => t.name.toLowerCase() == rawType,
+                                      orElse: () => GovIdType.aadhaar,
+                                    );
+                                    final numStr = regData['govIdNumber'].toString().trim();
+                                    final isValid = GovIdValidator.isValid(idType, numStr);
+                                    return _buildSummaryRow(
+                                      'Government ID',
+                                      '${idType.displayName} - $numStr',
+                                      trailing: Padding(
+                                        padding: const EdgeInsets.only(left: 6),
+                                        child: isValid
+                                            ? const Tooltip(
+                                                message: 'Checksum / Format Verified',
+                                                child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 16),
+                                              )
+                                            : const Tooltip(
+                                                message: 'Unverified / Checksum mismatch',
+                                                child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 16),
+                                              ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                               if (regData['address'] != null && regData['address'].isNotEmpty)
                                 _buildSummaryRow('Address', regData['address']),
                               if (regData['pincode'] != null && regData['pincode'].toString().trim().isNotEmpty)
@@ -1256,7 +1285,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value) {
+  Widget _buildSummaryRow(String label, String value, {Widget? trailing}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: LayoutBuilder(
@@ -1268,7 +1297,12 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
               children: [
                 Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Row(
+                  children: [
+                    Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                    ?trailing,
+                  ],
+                ),
               ],
             );
           }
@@ -1282,6 +1316,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
               Expanded(
                 child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
               ),
+              ?trailing,
             ],
           );
         },
