@@ -14,6 +14,7 @@ import 'package:study_library/features/students/presentation/providers/student_p
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class AdminQrScannerScreen extends ConsumerStatefulWidget {
   const AdminQrScannerScreen({super.key});
@@ -626,6 +627,16 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> wit
                               icon: const Icon(Icons.refresh_rounded, size: 18),
                               label: const Text('Restart Camera'),
                             ),
+                            if (!kIsWeb)
+                              OutlinedButton.icon(
+                                onPressed: () => openAppSettings(),
+                                icon: const Icon(Icons.settings_rounded, size: 18),
+                                label: const Text('Open Settings'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(color: Colors.white38),
+                                ),
+                              ),
                             FilledButton.icon(
                               onPressed: _openManualSearchDialog,
                               icon: const Icon(Icons.search_rounded, size: 18),

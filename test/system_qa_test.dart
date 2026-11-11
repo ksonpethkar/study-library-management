@@ -3648,6 +3648,30 @@ void main() {
       expect(darkTheme.colorScheme.primary, isNotNull);
       expect(lightTheme.useMaterial3, isTrue);
       expect(darkTheme.useMaterial3, isTrue);
+
+      // 5. Obsidian Noir (Sleek luxury charcoal) High-Contrast Validation
+      const obsidianNoir = Color(0xFF18181B);
+      final obsidianLight = custom_theme.AppTheme.fromSeed(obsidianNoir, brightness: Brightness.light);
+      final obsidianDark = custom_theme.AppTheme.fromSeed(obsidianNoir, brightness: Brightness.dark);
+
+      // Light mode: deep luxury charcoal primary, pure white surface, high-contrast dark text
+      expect(obsidianLight.colorScheme.primary, equals(const Color(0xFF18181B)));
+      expect(obsidianLight.colorScheme.onPrimary, equals(Colors.white));
+      expect(obsidianLight.colorScheme.onSurface, equals(const Color(0xFF09090B)));
+      expect(obsidianLight.colorScheme.onSurfaceVariant, equals(const Color(0xFF3F3F46)));
+      expect(obsidianLight.colorScheme.surface, equals(Colors.white));
+
+      // Dark mode: crisp pure white primary for pop, deep zinc-950 surface, pure white text
+      expect(obsidianDark.colorScheme.primary, equals(const Color(0xFFFAFAFA)));
+      expect(obsidianDark.colorScheme.onPrimary, equals(const Color(0xFF18181B)));
+      expect(obsidianDark.colorScheme.surface, equals(const Color(0xFF09090B)));
+      expect(obsidianDark.colorScheme.onSurface, equals(const Color(0xFFFAFAFA)));
+
+      // Chip theme & typography high-contrast validation
+      expect(obsidianLight.chipTheme.labelStyle?.color, equals(const Color(0xFF0F172A)));
+      expect(obsidianDark.chipTheme.labelStyle?.color, equals(const Color(0xFFF1F5F9)));
+      expect(obsidianLight.textTheme.bodyMedium?.color, equals(const Color(0xFF0F172A)));
+      expect(obsidianDark.textTheme.bodyMedium?.color, equals(const Color(0xFFF1F5F9)));
     });
 
     test('96. PHASE 1: STUDENT BIRTHDAY CELEBRATION ENGINE & WI-FI 1-TAP CREDENTIALS HOTSPOT', () {
