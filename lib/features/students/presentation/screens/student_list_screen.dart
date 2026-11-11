@@ -17,6 +17,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/widgets/loading_skeleton.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'student_detail_screen.dart';
+import 'package:study_library/features/requests/presentation/screens/request_list_screen.dart';
+import 'package:study_library/features/requests/presentation/screens/request_detail_screen.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 enum StudentSortOrder {
   recent,
@@ -392,6 +395,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           var filtered = searchResults.where((s) => _matchesFilter(s, _selectedFilter)).toList();
           _applySort(filtered);
 
+          final allRequests = ref.watch(requestsStreamProvider).value ?? [];
+          final pendingAdmissions = allRequests.where((r) =>
+            r.isPending && (r.type.toLowerCase() == 'registration' || r.type.toLowerCase() == 'newregistration')
+          ).toList();
+
           // If on wide desktop workbench (>= 1024px)
           if (isSplitDesktop) {
             if (filtered.isNotEmpty &&
@@ -410,7 +418,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                     children: [
                       if (!_isSelectionMode) ...[
                         _buildSearchBar(theme),
-                        _buildFilterChips(),
+                        _buildFilterChips(pendingAdmissionsCount: pendingAdmissions.length),
                       ],
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -433,7 +441,9 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                         ),
                       ),
                       Expanded(
-                        child: filtered.isEmpty
+                        child: (_selectedFilter == 'Pending' && pendingAdmissions.isNotEmpty)
+                            ? _buildPendingAdmissionsList(context, theme, pendingAdmissions, filtered)
+                            : filtered.isEmpty
                             ? Center(
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
@@ -524,10 +534,14 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
             children: [
               if (!_isSelectionMode) ...[
                 _buildSearchBar(theme),
-                _buildFilterChips(),
+                _buildFilterChips(pendingAdmissionsCount: pendingAdmissions.length),
+                if (pendingAdmissions.isNotEmpty && _selectedFilter != 'Pending')
+                  _buildPendingAdmissionsBanner(context, theme, pendingAdmissions.length),
               ],
               Expanded(
-                child: students.isEmpty
+                child: (_selectedFilter == 'Pending' && pendingAdmissions.isNotEmpty)
+                    ? _buildPendingAdmissionsList(context, theme, pendingAdmissions, filtered)
+                    : students.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -551,26 +565,41 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.search_off_rounded, size: 64, color: theme.colorScheme.outline),
+                                Icon(
+                                  _selectedFilter == 'Pending'
+                                      ? Icons.how_to_reg_outlined
+                                      : Icons.search_off_rounded,
+                                  size: 64,
+                                  color: theme.colorScheme.outline,
+                                ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  _selectedFilter == 'Due Soon'
-                                      ? 'No students expiring in the next 14 days'
-                                      : (_selectedFilter == 'Has Dues'
-                                          ? 'No students with pending dues'
-                                          : 'No matching students'),
+                                  _selectedFilter == 'Pending'
+                                      ? 'No pending admissions or approvals'
+                                      : (_selectedFilter == 'Due Soon'
+                                          ? 'No students expiring in the next 14 days'
+                                          : (_selectedFilter == 'Has Dues'
+                                              ? 'No students with pending dues'
+                                              : 'No matching students')),
                                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _selectedFilter == 'Pending'
+                                      ? 'All student registrations and online admission requests have been reviewed.'
+                                      : 'Try changing your search or filter',
+                                  style: theme.textTheme.bodyMedium,
+                                  textAlign: TextAlign.center,
                                 ),
                                 if (_selectedFilter != 'All') ...[
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 14),
                                   FilledButton.tonalIcon(
                                     onPressed: () => setState(() => _selectedFilter = 'All'),
                                     icon: const Icon(Icons.people_alt_rounded),
                                     label: const Text('Show All Students'),
                                   ),
                                 ],
-                                const SizedBox(height: 8),
-                                Text('Try changing your search or filter', style: theme.textTheme.bodyMedium),
                               ],
                             ),
                           )
@@ -1709,21 +1738,374 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     );
   }
 
-  Widget _buildFilterChips() {
+  Widget _buildFilterChips({int pendingAdmissionsCount = 0}) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
       child: Row(
-        children: _filters.map((f) => Padding(
-          padding: const EdgeInsets.only(right: 8.0),
-          child: ChoiceChip(
-            label: Text(f),
-            selected: _selectedFilter == f,
-            onSelected: (s) {
-              if (s) setState(() => _selectedFilter = f);
-            },
+        children: _filters.map((f) {
+          final isPendingChip = f == 'Pending';
+          final showBadge = isPendingChip && pendingAdmissionsCount > 0;
+          final label = showBadge ? 'Pending ($pendingAdmissionsCount)' : f;
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ChoiceChip(
+              label: Text(label),
+              avatar: showBadge
+                  ? const Icon(Icons.mark_email_unread_rounded, size: 16, color: Color(0xFF0284C7))
+                  : null,
+              selected: _selectedFilter == f,
+              onSelected: (s) {
+                if (s) setState(() => _selectedFilter = f);
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildPendingAdmissionsBanner(
+    BuildContext context,
+    ThemeData theme,
+    int count,
+  ) {
+    final isDark = theme.brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0C243B) : const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF0284C7).withValues(alpha: isDark ? 0.4 : 0.25),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => setState(() => _selectedFilter = 'Pending'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0284C7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.how_to_reg, color: Colors.white, size: 15),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$count New Student Admission${count > 1 ? "s" : ""} Pending',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFF0369A1),
+                        ),
+                      ),
+                      Text(
+                        'Tap to review in Pending list or assign desk',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF0284C7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 13,
+                  color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF0284C7),
+                ),
+              ],
+            ),
           ),
-        )).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingAdmissionCard(
+    BuildContext context,
+    ThemeData theme,
+    StudentRequestItem req,
+  ) {
+    final isDark = theme.brightness == Brightness.dark;
+    const primaryColor = Color(0xFF0284C7);
+    final seatLabel = req.targetSeatLabel ?? req.currentSeatLabel;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: primaryColor.withValues(alpha: isDark ? 0.4 : 0.25),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => RequestDetailScreen(requestId: req.id),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(14.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: primaryColor.withValues(alpha: 0.15),
+                      child: Text(
+                        req.studentName.isNotEmpty ? req.studentName[0].toUpperCase() : '?',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  req.studentName,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: primaryColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'NEW ADMISSION',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: primaryColor,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          if (req.studentPhone != null && req.studentPhone!.isNotEmpty)
+                            Row(
+                              children: [
+                                Icon(Icons.phone_outlined, size: 13, color: theme.colorScheme.outline),
+                                const SizedBox(width: 4),
+                                Text(
+                                  req.studentPhone!,
+                                  style: TextStyle(fontSize: 12.5, color: theme.colorScheme.outline),
+                                ),
+                                const Spacer(),
+                                if (req.createdAt != null)
+                                  Text(
+                                    DateFormat('MMM d • h:mm a').format(req.createdAt!),
+                                    style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.chair_outlined, size: 14, color: Color(0xFF0284C7)),
+                          const SizedBox(width: 4),
+                          Text(
+                            seatLabel != null && seatLabel.isNotEmpty ? 'Desk #$seatLabel' : 'Auto Seat',
+                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (req.requestedPlanName != null && req.requestedPlanName!.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          req.requestedPlanName!,
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    if (req.amount != null && req.amount! > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '₹${req.amount!.toInt()}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF059669),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    if (req.studentPhone != null && req.studentPhone!.isNotEmpty)
+                      IconButton.filledTonal(
+                        onPressed: () {
+                          final clean = req.studentPhone!.replaceAll(RegExp(r'\D'), '');
+                          final wa = clean.startsWith('91') ? clean : '91$clean';
+                          launchUrl(Uri.parse('https://wa.me/$wa'), mode: LaunchMode.externalApplication);
+                        },
+                        icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                        tooltip: 'WhatsApp Applicant',
+                        style: IconButton.styleFrom(
+                          backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.15),
+                          foregroundColor: const Color(0xFF128C7E),
+                          minimumSize: const Size(36, 36),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    const Spacer(),
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => RequestDetailScreen(requestId: req.id),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.check_circle_outline, size: 16),
+                      label: const Text('Review & Approve'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF0284C7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingAdmissionsList(
+    BuildContext context,
+    ThemeData theme,
+    List<StudentRequestItem> pendingAdmissions,
+    List<StudentModel> enrolledPending,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(requestsStreamProvider);
+        await ref.read(studentPageProvider.notifier).loadFirst();
+      },
+      child: ListView(
+        controller: _scrollController,
+        padding: const EdgeInsets.only(top: 8, bottom: 96),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.how_to_reg_rounded, size: 16, color: Color(0xFF0284C7)),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Online Admission Requests (${pendingAdmissions.length})',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => context.push(Routes.adminRequests),
+                  icon: const Icon(Icons.open_in_new, size: 14),
+                  label: const Text('Requests Hub', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+          ...pendingAdmissions.map((req) => _buildPendingAdmissionCard(context, theme, req)),
+          if (enrolledPending.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Enrolled Students (${enrolledPending.length})',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+              ),
+            ),
+            ...enrolledPending.map((student) => _buildStudentCardContent(student, false, theme)),
+          ],
+        ],
       ),
     );
   }

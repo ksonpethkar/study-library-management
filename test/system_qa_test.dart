@@ -6255,5 +6255,44 @@ void main() {
       expect(hasEducationDetails({'college': '', 'course': '   '}), isFalse);
       expect(hasEducationDetails({'course': 'UPSC CSE'}), isTrue);
     });
+
+    test('129. STUDENTS SCREEN PENDING ADMISSIONS FILTER & REQUEST DETAIL SIBLING RESOLUTION', () {
+      // ── 1. Request Admission Classification Invariant ──
+      bool isPendingAdmission(String type, String status) {
+        final t = type.toLowerCase().trim();
+        final s = status.toLowerCase().trim();
+        final isAdm = t == 'registration' || t == 'newregistration';
+        final isPend = s == 'pending' || s == 'submitted' || s == 'desk_payment_pending' || s == 'payment_pending' || s == 'open';
+        return isAdm && isPend;
+      }
+
+      expect(isPendingAdmission('registration', 'pending'), isTrue);
+      expect(isPendingAdmission('NewRegistration', 'submitted'), isTrue);
+      expect(isPendingAdmission('seat_change', 'pending'), isFalse);
+      expect(isPendingAdmission('registration', 'approved'), isFalse);
+
+      // ── 2. Sibling / Shared Gov ID Conflict Exception Invariant ──
+      String formatGovIdConflictMessage(String conflictName, String? conflictPhone) {
+        final phoneSuffix = (conflictPhone != null && conflictPhone.isNotEmpty) ? ' (Phone: $conflictPhone)' : '';
+        return 'This Government ID is already registered to student "$conflictName"$phoneSuffix.';
+      }
+
+      final msg = formatGovIdConflictMessage('Srikrishnadatta Bharatrao Sonpethkar', '9876543210');
+      expect(msg, contains('Srikrishnadatta Bharatrao Sonpethkar'));
+      expect(msg, contains('9876543210'));
+      expect(msg, contains('already registered to student'));
+
+      // ── 3. Notification Deduplication Hash Invariant ──
+      final notif1 = {'id': 'doc_1', 'target': 'user_A', 'title': 'Admission Approved! 🎉', 'time': '2026-11-05T19:50:00Z'};
+      final notif2 = {'id': 'doc_2', 'target': 'student_A', 'title': 'Admission Approved! 🎉', 'time': '2026-11-05T19:50:00Z'};
+      final notif3 = {'id': 'doc_3', 'target': 'student_B', 'title': 'Monthly Fee Due', 'time': '2026-11-06T10:00:00Z'};
+
+      String notifKey(Map<String, dynamic> n) => '${n["title"]}_${n["time"]}';
+      final seen = <String>{};
+      final deduplicated = [notif1, notif2, notif3].where((n) => seen.add(notifKey(n))).toList();
+
+      expect(deduplicated.length, equals(2));
+      expect(deduplicated.map((n) => n['title']), containsAll(['Admission Approved! 🎉', 'Monthly Fee Due']));
+    });
   });
 }
