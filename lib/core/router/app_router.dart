@@ -370,13 +370,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.terms,
         pageBuilder: (context, state) => AppPageTransitions.slideRight(
-          state: state, child: const TermsScreen(),
+          state: state,
+          child: TermsScreen(
+            libraryId: (state.extra as String?) ?? state.uri.queryParameters['libraryId'],
+          ),
         ),
       ),
       GoRoute(
         path: Routes.privacyPolicy,
         pageBuilder: (context, state) => AppPageTransitions.slideRight(
-          state: state, child: const PrivacyPolicyScreen(),
+          state: state,
+          child: PrivacyPolicyScreen(
+            libraryId: (state.extra as String?) ?? state.uri.queryParameters['libraryId'],
+          ),
         ),
       ),
 

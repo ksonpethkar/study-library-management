@@ -184,7 +184,7 @@ class _AdminShellState extends ConsumerState<AdminShell> with WidgetsBindingObse
         }
       },
       child: Scaffold(
-        extendBody: isMainTab,
+        extendBody: false,
         body: Listener(
           onPointerDown: (_) => InactivityLockService.recordInteraction(),
           child: widget.child,

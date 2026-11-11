@@ -5089,7 +5089,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.50+64'));
+      expect(formattedVersion, equals('v1.5.50+65'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -6072,6 +6072,68 @@ void main() {
 
       final tickerText = 'LIVE $formattedTime';
       expect(tickerText, equals('LIVE 17:30:45'));
+    });
+
+    test('126. Soft-Lock 10-Minute Expiration: Effective status, real-time promotion, and collision prevention', () {
+      final now = DateTime.now();
+
+      // Case A: Active 10-minute soft-lock (expires in 8 minutes)
+      final activeSoftLockSeat = SeatModel(
+        id: 'seat_101',
+        sectionId: 'sec_quiet',
+        label: '101',
+        row: 1,
+        col: 1,
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+        reservationType: 'online_admission',
+        reservedCandidateId: 'cand_temp_123',
+        reservedCandidateName: 'Applicant Rohan',
+        reservationExpiresAt: now.add(const Duration(minutes: 8)),
+      );
+
+      expect(activeSoftLockSeat.status, equals(SeatStatus.reserved));
+      expect(activeSoftLockSeat.isCurrentlyReserved, isTrue);
+      expect(activeSoftLockSeat.effectiveStatus, equals(SeatStatus.reserved));
+      expect(activeSoftLockSeat.hasActiveSoftLock, isTrue);
+      expect(activeSoftLockSeat.isOccupied, isFalse);
+
+      // Case B: Expired soft-lock (expired 2 minutes ago)
+      final expiredSoftLockSeat = SeatModel(
+        id: 'seat_102',
+        sectionId: 'sec_quiet',
+        label: '102',
+        row: 1,
+        col: 2,
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+        reservationType: 'online_admission',
+        reservedCandidateId: 'cand_expired_456',
+        reservedCandidateName: 'Applicant Suresh',
+        reservationExpiresAt: now.subtract(const Duration(minutes: 2)),
+      );
+
+      // Even though raw Firestore status is SeatStatus.reserved, dynamic effectiveStatus evaluates to available
+      expect(expiredSoftLockSeat.isCurrentlyReserved, isFalse);
+      expect(expiredSoftLockSeat.effectiveStatus, equals(SeatStatus.available));
+      expect(expiredSoftLockSeat.hasActiveSoftLock, isFalse);
+      expect(expiredSoftLockSeat.isOccupied, isFalse);
+
+      // Case C: Permanently occupied seat (allocated to active student)
+      final occupiedSeat = SeatModel(
+        id: 'seat_103',
+        sectionId: 'sec_quiet',
+        label: '103',
+        row: 1,
+        col: 3,
+        status: SeatStatus.occupied,
+        genderRestriction: GenderRestriction.any,
+        studentId: 'stud_789',
+      );
+
+      expect(occupiedSeat.effectiveStatus, equals(SeatStatus.occupied));
+      expect(occupiedSeat.isOccupied, isTrue);
+      expect(occupiedSeat.hasActiveSoftLock, isFalse);
     });
   });
 }

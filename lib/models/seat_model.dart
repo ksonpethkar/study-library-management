@@ -49,6 +49,24 @@ class SeatModel {
     return false;
   }
 
+  /// Dynamic effective status: If a seat was marked 'reserved' but its reservation expired,
+  /// it automatically behaves as 'available' in memory and UI.
+  SeatStatus get effectiveStatus {
+    if (status == SeatStatus.reserved && !isCurrentlyReserved) {
+      return SeatStatus.available;
+    }
+    return status;
+  }
+
+  /// True if the seat is occupied by an active student
+  bool get isOccupied =>
+      effectiveStatus == SeatStatus.occupied ||
+      (studentId != null && studentId!.isNotEmpty);
+
+  /// True if currently held under a live, non-expired soft-lock
+  bool get hasActiveSoftLock =>
+      status == SeatStatus.reserved && isCurrentlyReserved;
+
   factory SeatModel.fromJson(Map<String, dynamic> json) {
     return SeatModel(
       id: json['id'] as String? ?? '',

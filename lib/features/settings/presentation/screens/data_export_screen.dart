@@ -407,7 +407,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
             // ─────────────────────────────────────────────────────────────
             // SECTION 1: FINANCIAL & REVENUE REPORTS
             // ─────────────────────────────────────────────────────────────
-            _buildSectionHeader(context, 'Financial & Revenue Reports'),
+            _buildSectionHeader(context, 'Financial & Revenue Reports', icon: Icons.account_balance_wallet_rounded),
             const SizedBox(height: 8),
 
             _buildExportCard(
@@ -415,7 +415,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
               icon: Icons.receipt_long_rounded,
               iconColor: Colors.green,
               title: 'Payments & Collections Ledger',
-              subtitle: 'Transaction ID, Student Name, Phone, Membership #, Mode, Amount, Installment, Balance Due',
+              subtitle: 'Complete log of student fee receipts, UPI payments, and carried dues.',
               badgeText: _dateRangeType.label,
               isExporting: _activeExportKey == 'payments',
               isPreviewing: _activePreviewKey == 'payments',
@@ -449,7 +449,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
               icon: Icons.payments_rounded,
               iconColor: Colors.deepOrange,
               title: 'Expenses & Outflows Ledger',
-              subtitle: 'Rent, Electricity, Wi-Fi, Staff Salaries, Maintenance, Cleaning, Drinking Water, Vendor details',
+              subtitle: 'Itemized operational outflows, utility bills, vendor payouts, and salaries.',
               badgeText: _dateRangeType.label,
               isExporting: _activeExportKey == 'expenses',
               isPreviewing: _activePreviewKey == 'expenses',
@@ -483,7 +483,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
               icon: Icons.query_stats_rounded,
               iconColor: Colors.purple,
               title: 'Financial P&L Executive Summary',
-              subtitle: 'Total Revenue, Total Expenses, Net Margin, Mode-wise Collections, Category-wise Outflows',
+              subtitle: 'Net margin breakdown comparing gross fee collections with total outflows.',
               badgeText: 'P&L Report',
               isExporting: _activeExportKey == 'pnl',
               isPreviewing: _activePreviewKey == 'pnl',
@@ -515,34 +515,39 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
             // ─────────────────────────────────────────────────────────────
             // SECTION 2: STUDENTS & DUE COLLECTIONS
             // ─────────────────────────────────────────────────────────────
-            _buildSectionHeader(context, 'Students & Due Management'),
+            _buildSectionHeader(context, 'Students & Due Management', icon: Icons.group_rounded),
             const SizedBox(height: 8),
 
-            // Optional status filter chip for students
+            // Modern touch-friendly status filter chips matching period filter
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
-              child: Row(
-                children: [
-                  Text('Student Status:', style: TextStyle(fontSize: 12, color: theme.colorScheme.outline)),
-                  const SizedBox(width: 8),
-                  DropdownButton<String>(
-                    value: _studentStatusFilter,
-                    isDense: true,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
-                    items: const [
-                      DropdownMenuItem(value: 'all', child: Text('All Students')),
-                      DropdownMenuItem(value: 'active', child: Text('Active Only')),
-                      DropdownMenuItem(value: 'expired', child: Text('Expired Only')),
-                      DropdownMenuItem(value: 'grace', child: Text('Grace Period')),
-                      DropdownMenuItem(value: 'blocked', child: Text('Blocked Only')),
-                    ],
-                    onChanged: isAnyBusy
-                        ? null
-                        : (val) {
-                            if (val != null) setState(() => _studentStatusFilter = val);
-                          },
-                  ),
-                ],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final entry in const [
+                      ('all', 'All Students'),
+                      ('active', 'Active Only'),
+                      ('grace', 'Grace Period'),
+                      ('expired', 'Expired Only'),
+                      ('blocked', 'Blocked Only'),
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: FilterChip(
+                          label: Text(entry.$2),
+                          selected: _studentStatusFilter == entry.$1,
+                          onSelected: isAnyBusy
+                              ? null
+                              : (selected) {
+                                  if (selected) {
+                                    setState(() => _studentStatusFilter = entry.$1);
+                                  }
+                                },
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
 
@@ -551,7 +556,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
               icon: Icons.people_alt_rounded,
               iconColor: Colors.blue,
               title: 'Students Master Directory',
-              subtitle: 'Full profiles, Seats, Shifts, Plans, Expiry dates, Due balances, KYC ID, Father & Emergency contacts',
+              subtitle: 'Comprehensive roster with active shifts, assigned desks, KYC verification, and dues.',
               badgeText: _studentStatusFilter.toUpperCase(),
               isExporting: _activeExportKey == 'students',
               isPreviewing: _activePreviewKey == 'students',
@@ -588,7 +593,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
               icon: Icons.warning_amber_rounded,
               iconColor: Colors.amber.shade900,
               title: 'Fee Defaulters & Overdue Balances',
-              subtitle: 'Students with unpaid dues, expired memberships, or active grace period with days overdue',
+              subtitle: 'Prioritized recovery list of overdue student balances with days elapsed and phone contacts.',
               badgeText: 'Action Required',
               isExporting: _activeExportKey == 'defaulters',
               isPreviewing: _activePreviewKey == 'defaulters',
@@ -617,7 +622,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
             // ─────────────────────────────────────────────────────────────
             // SECTION 3: OPERATIONS & CAPACITY
             // ─────────────────────────────────────────────────────────────
-            _buildSectionHeader(context, 'Operations & Space Capacity'),
+            _buildSectionHeader(context, 'Operations & Space Capacity', icon: Icons.meeting_room_rounded),
             const SizedBox(height: 8),
 
             _buildExportCard(
@@ -625,7 +630,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
               icon: Icons.chair_rounded,
               iconColor: Colors.teal,
               title: 'Seat Allocation & Occupancy Matrix',
-              subtitle: 'Seat labels, Sections/Halls, Shift timings, Status (Occupied / Available), Student occupant & expiry',
+              subtitle: 'Real-time physical desk inventory, shift utilization, active occupants, and vacant seats.',
               badgeText: 'Live Inventory',
               isExporting: _activeExportKey == 'seats',
               isPreviewing: _activePreviewKey == 'seats',
@@ -656,7 +661,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
               icon: Icons.hourglass_top_rounded,
               iconColor: Colors.indigo,
               title: 'Waiting List Queue Register',
-              subtitle: 'Queue positions, Student contacts, Preferred shift/hall, Suggested seat allocation, and Notes',
+              subtitle: 'Queued admissions with preferred study shifts, halls, and suggested seat allocations.',
               badgeText: 'Waitlist',
               isExporting: _activeExportKey == 'waiting_list',
               isPreviewing: _activePreviewKey == 'waiting_list',
@@ -735,164 +740,227 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         onTap: isDisabled ? null : onPreview,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: iconColor, size: 24),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.all(16),
+          child: isDesktop
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: iconColor.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: iconColor, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  title,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  badgeText,
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: theme.colorScheme.onSurfaceVariant,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        OutlinedButton.icon(
+                          onPressed: isDisabled ? null : onPreview,
+                          icon: isPreviewing
+                              ? SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary),
+                                )
+                              : const Icon(Icons.visibility_outlined, size: 16),
+                          label: const Text('View', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.4)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(6),
+                        const SizedBox(width: 10),
+                        FilledButton.icon(
+                          onPressed: isDisabled ? null : onExport,
+                          icon: isExporting
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.download_rounded, size: 16),
+                          label: const Text('Export CSV', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text(
-                            badgeText,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Tier: Icon + Title + Badge
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: iconColor.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: iconColor, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14.5,
+                                        letterSpacing: -0.1,
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.surfaceContainerHighest,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      badgeText,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.2,
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                subtitle,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Bottom Tier: Touch-friendly full-width action bar
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: isDisabled ? null : onPreview,
+                            icon: isPreviewing
+                                ? SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary),
+                                  )
+                                : const Icon(Icons.visibility_outlined, size: 16),
+                            label: const Text('View Preview', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                            style: OutlinedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(vertical: 9),
+                              side: BorderSide(color: theme.colorScheme.outlineVariant),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: isDisabled ? null : onExport,
+                            icon: isExporting
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Icon(Icons.download_rounded, size: 16),
+                            label: const Text('Export CSV', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                            style: FilledButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(vertical: 9),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.3,
-                      ),
-                    ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Dual Action Cluster: View Preview (Eye) & Download CSV
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 1. Eye Icon / Preview Button
-                  if (isDesktop)
-                    OutlinedButton.icon(
-                      onPressed: isDisabled ? null : onPreview,
-                      icon: isPreviewing
-                          ? SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary),
-                            )
-                          : const Icon(Icons.visibility_rounded, size: 16),
-                      label: const Text('View', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.4)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    )
-                  else
-                    Container(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: IconButton(
-                        tooltip: 'View Report Preview',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: isDisabled ? null : onPreview,
-                        icon: isPreviewing
-                            ? SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary),
-                              )
-                            : Icon(
-                                Icons.visibility_rounded,
-                                color: theme.colorScheme.primary,
-                                size: 20,
-                              ),
-                      ),
-                    ),
-                  const SizedBox(width: 8),
-                  // 2. Download CSV Button
-                  if (isDesktop)
-                    FilledButton.icon(
-                      onPressed: isDisabled ? null : onExport,
-                      icon: isExporting
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.download_rounded, size: 16),
-                      label: const Text('CSV', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    )
-                  else
-                    Container(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: IconButton(
-                        tooltip: 'Download CSV',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: isDisabled ? null : onExport,
-                        icon: isExporting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(
-                                Icons.download_rounded,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
         ),
       ),
     );

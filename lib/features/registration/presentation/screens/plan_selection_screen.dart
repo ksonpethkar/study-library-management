@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../providers/registration_provider.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
@@ -55,10 +56,6 @@ class PlanSelectionScreen extends ConsumerWidget {
                 final daysInCurrentMonth = DateTime(now.year, now.month + 1, 0).day;
                 final daysRemainingInMonth = (daysInCurrentMonth - now.day + 1).clamp(1, daysInCurrentMonth);
                 final monthEnd = DateTime(now.year, now.month + 1, 0);
-                const monthNames = [
-                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-                ];
-                final currentMonthName = monthNames[now.month - 1];
                 final isProratedSeason = now.day > 1;
 
                 final selectedPlan = activePlans.where((p) => p.id == selectedPlanId).firstOrNull;
@@ -124,20 +121,36 @@ class PlanSelectionScreen extends ConsumerWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Current Cycle: ${now.day.toString().padLeft(2, '0')} $currentMonthName → ${monthEnd.day} $currentMonthName',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
-                                      ),
-                                      Text(
-                                        isProratedSeason
-                                            ? '$daysRemainingInMonth days remaining in $currentMonthName • Fair Pro-rata Applied'
-                                            : 'Full monthly cycle • 30 days complete coverage',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: theme.brightness == Brightness.dark
-                                              ? Colors.grey.shade300
-                                              : const Color(0xFF1E40AF),
-                                        ),
+                                      Builder(
+                                        builder: (context) {
+                                          final cycleStart = selectedSmartCalc?.startDate ?? now;
+                                          final cycleEnd = selectedSmartCalc?.endDate ?? monthEnd;
+                                          final startStr = DateFormat('dd MMM').format(cycleStart);
+                                          final endStr = DateFormat('dd MMM').format(cycleEnd);
+                                          final remainingDays = selectedSmartCalc?.daysRemaining ?? daysRemainingInMonth;
+                                          final isProrated = selectedSmartCalc?.isProrated ?? isProratedSeason;
+
+                                          return Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Current Cycle: $startStr → $endStr',
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                                              ),
+                                              Text(
+                                                isProrated
+                                                    ? '$remainingDays days remaining • Fair Pro-rata Applied'
+                                                    : 'Full cycle • $remainingDays days complete coverage',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: theme.brightness == Brightness.dark
+                                                      ? Colors.grey.shade300
+                                                      : const Color(0xFF1E40AF),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
                                       ),
                                     ],
                                   ),
@@ -150,7 +163,7 @@ class PlanSelectionScreen extends ConsumerWidget {
                                     border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.4)),
                                   ),
                                   child: Text(
-                                    '$daysRemainingInMonth Days',
+                                    '${selectedSmartCalc?.daysRemaining ?? daysRemainingInMonth} Days',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -458,8 +471,8 @@ class PlanSelectionScreen extends ConsumerWidget {
                                                       const SizedBox(width: 4),
                                                       Text(
                                                         smartCalc.hasBridgeOption
-                                                            ? 'Pro-rata ₹${smartCalc.formattedProratedPrice} (${smartCalc.daysRemaining}d) • Bridge Pass Option'
-                                                            : 'Pro-rata: ₹${smartCalc.formattedProratedPrice} (${smartCalc.daysRemaining}d to month-end)',
+                                                            ? 'Pro-rata ${smartCalc.formattedProratedPrice} (${smartCalc.daysRemaining}d) • Bridge Pass Option'
+                                                            : 'Pro-rata: ${smartCalc.formattedProratedPrice} (${smartCalc.daysRemaining}d to ${DateFormat('dd MMM').format(smartCalc.endDate)})',
                                                         style: TextStyle(
                                                           fontSize: 10.5,
                                                           fontWeight: FontWeight.bold,
@@ -482,7 +495,7 @@ class PlanSelectionScreen extends ConsumerWidget {
                                           children: [
                                             if (smartCalc.isProrated) ...[
                                               Text(
-                                                'Full Month: ₹${plan.price.toStringAsFixed(0)}',
+                                                'Full Plan: ₹${plan.price.toStringAsFixed(0)}',
                                                 style: TextStyle(
                                                   fontSize: 11,
                                                   color: Colors.grey.shade600,
@@ -575,8 +588,8 @@ class PlanSelectionScreen extends ConsumerWidget {
                                     const SizedBox(height: 2),
                                     Text(
                                       selectedSmartCalc.isProrated
-                                          ? 'Payable at Desk: ₹${selectedSmartCalc.formattedProratedPrice} for ${selectedSmartCalc.daysRemaining} days (${now.day} $currentMonthName → ${monthEnd.day} $currentMonthName)'
-                                          : 'Payable at Desk: ₹${selectedSmartCalc.formattedFullPrice} (Full Month Pass)',
+                                          ? 'Payable at Desk: ${selectedSmartCalc.formattedProratedPrice} for ${selectedSmartCalc.daysRemaining} days (${DateFormat('dd MMM').format(selectedSmartCalc.startDate)} → ${DateFormat('dd MMM').format(selectedSmartCalc.endDate)})'
+                                          : 'Payable at Desk: ${selectedSmartCalc.formattedFullPrice} (${selectedSmartCalc.cycleLabel})',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
@@ -588,8 +601,8 @@ class PlanSelectionScreen extends ConsumerWidget {
                               ),
                               Text(
                                 selectedSmartCalc.isProrated
-                                    ? '₹${selectedSmartCalc.formattedProratedPrice}'
-                                    : '₹${selectedSmartCalc.formattedFullPrice}',
+                                    ? selectedSmartCalc.formattedProratedPrice
+                                    : selectedSmartCalc.formattedFullPrice,
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w900,

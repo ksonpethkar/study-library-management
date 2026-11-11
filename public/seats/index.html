@@ -1336,6 +1336,23 @@
         });
     }
 
+    function resolveEffectiveStatus(seat) {
+      const rawStatus = (seat.status || 'available').toLowerCase();
+      if (rawStatus === 'reserved') {
+        if (!seat.reservationExpiresAt) return 'available';
+        let expDate = null;
+        if (seat.reservationExpiresAt.seconds) {
+          expDate = new Date(seat.reservationExpiresAt.seconds * 1000);
+        } else {
+          expDate = new Date(seat.reservationExpiresAt);
+        }
+        if (!isNaN(expDate.getTime()) && expDate < new Date()) {
+          return 'available';
+        }
+      }
+      return rawStatus;
+    }
+
     function renderSeats(seats, cols) {
       if (!seats || seats.length === 0) {
         seats = generateDefaultSeats();
@@ -1376,7 +1393,7 @@
       grid.innerHTML = '';
       seats.forEach((seat, idx) => {
         const div = document.createElement('div');
-        const status = (seat.status || 'available').toLowerCase();
+        const status = resolveEffectiveStatus(seat);
         div.className = `seat-cell ${status}` + (seat.id === selectedSeatId ? ' selected' : '');
         div.id = 'cell_' + seat.id;
         
@@ -1475,7 +1492,7 @@
       let occupied = 0;
 
       seats.forEach(s => {
-        const status = (s.status || 'available').toLowerCase();
+        const status = resolveEffectiveStatus(s);
         if (status === 'available') available++;
         if (status === 'occupied' || status === 'reserved') occupied++;
       });

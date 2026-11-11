@@ -234,7 +234,10 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final media = MediaQuery.of(context);
-    final maxHeight = media.size.height * 0.88;
+    // Reserve space for the system navigation bar so the bottom controls
+    // are never hidden behind the device's gesture / button nav bar.
+    final bottomInset = media.viewPadding.bottom;
+    final maxHeight = media.size.height * 0.88 - bottomInset;
 
     return Center(
       child: ConstrainedBox(

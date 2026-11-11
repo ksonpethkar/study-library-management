@@ -559,11 +559,17 @@ class _MaintenanceDiagnosticsScreenState extends ConsumerState<MaintenanceDiagno
                   ),
                   const SizedBox(height: 24),
                   OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF059669),
+                      side: const BorderSide(color: Color(0xFF059669), width: 1.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                     icon: _isScanning
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF059669)),
                           )
                         : const Icon(Icons.refresh_rounded),
                     label: Text(_isScanning ? 'Scanning Database...' : 'Re-Run Diagnostic Scan'),
@@ -776,18 +782,26 @@ class _MaintenanceDiagnosticsScreenState extends ConsumerState<MaintenanceDiagno
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
+              flex: 2,
               child: Text(
                 label,
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 8),
-            Text(
-              '$curStr / $maxStr (${(percent * 100).toStringAsFixed(1)}%)',
-              style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold),
+            const SizedBox(width: 6),
+            Expanded(
+              flex: 3,
+              child: Text(
+                '$curStr / $maxStr (${(percent * 100).toStringAsFixed(1)}%)',
+                style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+              ),
             ),
           ],
         ),

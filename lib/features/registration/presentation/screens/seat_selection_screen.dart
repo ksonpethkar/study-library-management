@@ -129,6 +129,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
     required SectionModel section,
     required String studentGenderStr,
     required bool isOccupied,
+    required bool isReserved,
     required bool isMaintenance,
     required bool isGenderAllowed,
   }) {
@@ -142,6 +143,26 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
               const Icon(Icons.lock_rounded, color: Colors.white70, size: 18),
               const SizedBox(width: 8),
               Text('Desk #${seat.label} is currently occupied. Please choose an available desk.'),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (isReserved) {
+      HapticFeedback.lightImpact();
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.timer_outlined, color: Colors.amber, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Desk #${seat.label} is temporarily held under a 10-min reservation. Please select another desk or check back shortly.'),
+              ),
             ],
           ),
           behavior: SnackBarBehavior.floating,
@@ -820,9 +841,9 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
           ),
           itemBuilder: (context, index) {
             final seat = sortedSeats[index];
-            final isOccupied = seat.status == SeatStatus.occupied ||
-                (seat.studentId != null && seat.studentId!.isNotEmpty);
-            final isMaintenance = seat.status == SeatStatus.maintenance;
+            final isOccupied = seat.isOccupied;
+            final isReserved = seat.hasActiveSoftLock;
+            final isMaintenance = seat.effectiveStatus == SeatStatus.maintenance;
             final isSelected = !seatDetails.isAutoAssign &&
                 (seat.id == seatDetails.seatId || seat.label == seatDetails.seatLabel);
 
@@ -860,6 +881,11 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
               bgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
               borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
               textColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+            } else if (isReserved) {
+              bgColor = isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7);
+              borderColor = const Color(0xFFF59E0B);
+              textColor = const Color(0xFFB45309);
+              borderWidth = 1.2;
             } else if (isMaintenance) {
               bgColor = isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7);
               borderColor = const Color(0xFFF59E0B);
@@ -896,6 +922,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                 section: section,
                 studentGenderStr: studentGenderStr,
                 isOccupied: isOccupied,
+                isReserved: isReserved,
                 isMaintenance: isMaintenance,
                 isGenderAllowed: isGenderAllowed,
               ),
@@ -950,6 +977,12 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                         top: 2,
                         right: 2,
                         child: Icon(Icons.lock_rounded, size: 9, color: textColor),
+                      )
+                    else if (isReserved)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Icon(Icons.timer_rounded, size: 9, color: textColor),
                       )
                     else if (isMaintenance)
                       Positioned(

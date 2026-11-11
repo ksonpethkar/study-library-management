@@ -423,36 +423,49 @@ class _MessageTemplateStudioScreenState
     final library = ref.watch(currentLibraryProvider).value;
     final screenWidth = MediaQuery.of(context).size.width;
     final isWide = screenWidth > 960;
+    final isMobile = screenWidth <= 600;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('WhatsApp & Message Template Studio', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text('WYSIWYG personalization, dynamic tags & multi-language presets', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
+        title: isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Message Templates', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('WhatsApp & SMS Studio', style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
+                ],
+              )
+            : const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('WhatsApp & Message Template Studio', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('WYSIWYG personalization, dynamic tags & multi-language presets', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
         actions: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF25D366),
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: _isSaving ? null : _saveAllTemplates,
               icon: _isSaving
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.save_rounded, size: 18),
-              label: Text(_isSaving ? 'Saving...' : 'Save All', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.save_rounded, size: 16),
+              label: Text(_isSaving ? 'Saving...' : 'Save All', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             ),
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 14),
           indicatorColor: const Color(0xFF25D366),
           indicatorWeight: 3,
           labelColor: isDark ? const Color(0xFF25D366) : const Color(0xFF075E54),
@@ -494,7 +507,7 @@ class _MessageTemplateStudioScreenState
                   );
                 } else {
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).padding.bottom + 48),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -528,28 +541,64 @@ class _MessageTemplateStudioScreenState
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFF25D366).withValues(alpha: 0.3)),
           ),
-          child: Row(
-            children: [
-              const Icon(Icons.language_rounded, color: Color(0xFF25D366), size: 20),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
+          child: LayoutBuilder(
+            builder: (context, boxConstraints) {
+              final isCompact = boxConstraints.maxWidth < 580;
+              if (isCompact) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Multilingual Presets', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    Text('Load standard, professionally crafted templates in your preferred language', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const Row(
+                      children: [
+                        Icon(Icons.language_rounded, color: Color(0xFF25D366), size: 20),
+                        SizedBox(width: 8),
+                        Text('Multilingual Presets', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Load standard, professionally crafted templates in your preferred language',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        _buildLanguageChoiceChip('🇬🇧 English', 'en'),
+                        _buildLanguageChoiceChip('🇮🇳 हिंदी', 'hi'),
+                        _buildLanguageChoiceChip('🚩 मराठी', 'mr'),
+                      ],
+                    ),
                   ],
-                ),
-              ),
-              Wrap(
-                spacing: 6,
+                );
+              }
+              return Row(
                 children: [
-                  _buildLanguageChoiceChip('🇬🇧 English', 'en'),
-                  _buildLanguageChoiceChip('🇮🇳 हिंदी', 'hi'),
-                  _buildLanguageChoiceChip('🚩 मराठी', 'mr'),
+                  const Icon(Icons.language_rounded, color: Color(0xFF25D366), size: 20),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Multilingual Presets', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text('Load standard, professionally crafted templates in your preferred language',
+                            style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      _buildLanguageChoiceChip('🇬🇧 English', 'en'),
+                      _buildLanguageChoiceChip('🇮🇳 हिंदी', 'hi'),
+                      _buildLanguageChoiceChip('🚩 मराठी', 'mr'),
+                    ],
+                  ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
 

@@ -556,6 +556,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final isCompact = MediaQuery.of(context).size.width < 450;
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -571,7 +573,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
               }
             },
           ),
-          title: const Text('Communications & Automation'),
+          title: const Text('Communications'),
           actions: [
             IconButton(
               icon: const Icon(Icons.mark_chat_unread_rounded, color: Color(0xFF25D366)),
@@ -582,7 +584,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
               padding: const EdgeInsets.only(right: 12.0),
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 onPressed: _isSaving ? null : _saveSettings,
@@ -594,17 +596,19 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       )
                     : const Icon(Icons.save_rounded, size: 16),
                 label: Text(
-                  _isSaving ? 'Saving...' : 'Save Changes',
+                  _isSaving ? 'Saving...' : (isCompact ? 'Save' : 'Save Changes'),
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
             ),
           ],
           bottom: const TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
-              Tab(icon: Icon(Icons.bolt_rounded), text: 'Action Queue'),
-              Tab(icon: Icon(Icons.hub_rounded), text: 'Delivery Channels'),
-              Tab(icon: Icon(Icons.auto_awesome_rounded), text: 'Automation Rules'),
+              Tab(icon: Icon(Icons.bolt_rounded), text: 'Queue'),
+              Tab(icon: Icon(Icons.hub_rounded), text: 'Channels'),
+              Tab(icon: Icon(Icons.auto_awesome_rounded), text: 'Automations'),
             ],
           ),
         ),
@@ -1278,9 +1282,9 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         ),
         const SizedBox(height: 18),
 
-        // ── SECTION 1: CORE AUTOMATION ENGINE (PHASES 1, 2, 3) ───────────────
+        // ── SECTION 1: CORE AUTOMATION ENGINE ───────────────────────────────
         Text(
-          'CORE LIBRARY AUTOMATIONS (PHASES 1, 2, 3)',
+          'CORE AUTOMATIONS',
           style: theme.textTheme.labelMedium?.copyWith(
             letterSpacing: 1.2,
             fontWeight: FontWeight.bold,
@@ -1316,7 +1320,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Automated Multi-Stage Renewal Reminders', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Renewal Reminders', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                           Text('Sends timely reminders before and after membership expiry', style: theme.textTheme.bodySmall),
                         ],
                       ),
@@ -1329,7 +1333,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                 ),
                 if (_multiStageRenewals && _allNotifications) ...[
                   const Divider(height: 20),
-                  const Text('Automated Lifecycle Alerts Dispatched:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const Text('Reminder Schedule:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   _buildStageChip('3 Days Before', 'Friendly renewal reminder sent to student app', Colors.indigo),
                   const SizedBox(height: 4),
@@ -1340,7 +1344,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                   OutlinedButton.icon(
                     onPressed: _triggerTestRenewalPush,
                     icon: const Icon(Icons.send_to_mobile_rounded, size: 16),
-                    label: const Text('Send Test Renewal Reminder (This Device)'),
+                    label: const Text('Send Test Reminder'),
                   ),
                 ],
               ],
@@ -1376,8 +1380,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Daily Library Summary & Financial Briefing", style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                          Text('Automated morning briefing and closing financial summary', style: theme.textTheme.bodySmall),
+                          Text("Daily Owner Briefings", style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Morning occupancy & nightly revenue summaries', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),
@@ -1400,7 +1404,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       icon: _isSendingMorningBriefing
                           ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.send_rounded, size: 15),
-                      label: Text(_isSendingMorningBriefing ? 'Dispatching...' : 'Send 8 AM Morning Briefing Now (Preview)'),
+                      label: Text(_isSendingMorningBriefing ? 'Dispatching...' : 'Preview Morning Briefing'),
                     ),
                   ),
                 const Divider(height: 16),
@@ -1420,7 +1424,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       icon: _isSendingNightlySettlement
                           ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.send_rounded, size: 15),
-                      label: Text(_isSendingNightlySettlement ? 'Dispatching...' : 'Send 11 PM Nightly Settlement Now (Preview)'),
+                      label: Text(_isSendingNightlySettlement ? 'Dispatching...' : 'Preview Nightly Settlement'),
                     ),
                   ),
               ],
@@ -1456,7 +1460,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Automatic Waitlist Seat Allocation', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Auto Waitlist Allocation', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                           Text('Fills newly opened desks quickly and fairly', style: theme.textTheme.bodySmall),
                         ],
                       ),
@@ -1479,7 +1483,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                     icon: _isTestingCascade
                         ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.sync_rounded, size: 16),
-                    label: Text(_isTestingCascade ? 'Scanning Waitlist...' : 'Check & Assign Available Waitlist Seats'),
+                    label: Text(_isTestingCascade ? 'Scanning Waitlist...' : 'Check & Allocate Seats'),
                   ),
                 ],
               ],

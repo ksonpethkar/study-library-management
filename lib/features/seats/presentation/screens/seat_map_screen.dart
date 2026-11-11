@@ -444,7 +444,7 @@ class SeatMapScreen extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        '${section.rows} Rows × ${section.cols} Columns • ${section.capacity} Desks',
+                        '${section.capacity} Desks',
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -460,6 +460,38 @@ class SeatMapScreen extends ConsumerWidget {
               ],
             ),
             const Divider(height: 24),
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline, color: Color(0xFF10B981)),
+              title: const Text('Reset All Desks to Any / Unisex'),
+              subtitle: const Text('Remove Boys/Girls badges and allow all students'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                try {
+                  final seats = await seatRepo.getSeatsOnce(libraryId, section.id);
+                  final realSeatIds = seats.where((s) => !s.id.startsWith('missing_')).map((s) => s.id).toList();
+                  if (realSeatIds.isNotEmpty) {
+                    await seatRepo.bulkAssignGender(libraryId, section.id, realSeatIds, GenderRestriction.any);
+                    await seatRepo.updateSection(
+                      libraryId: libraryId,
+                      section: section.copyWith(genderRestriction: 'any'),
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('All ${realSeatIds.length} desks reset to Any / Unisex!'),
+                          backgroundColor: const Color(0xFF10B981),
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
+                  }
+                }
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Edit Section'),
@@ -578,14 +610,14 @@ class SeatMapScreen extends ConsumerWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 10, 16, 2),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-          width: 1,
+          width: 0.8,
         ),
       ),
       child: Row(

@@ -524,8 +524,17 @@ class StudentProvisioningService {
                     final seatData = seatDoc.data() ?? {};
                     final occupant = (seatData['studentId'] ?? '').toString();
                     final seatStatus = (seatData['status'] ?? 'available').toString();
+                    final resExpiresRaw = seatData['reservationExpiresAt'];
+                    DateTime? resExpires;
+                    if (resExpiresRaw is Timestamp) {
+                      resExpires = resExpiresRaw.toDate();
+                    } else if (resExpiresRaw is String) {
+                      resExpires = DateTime.tryParse(resExpiresRaw);
+                    }
+                    final isExpiredReservation = seatStatus == 'reserved' &&
+                        (resExpires == null || resExpires.isBefore(DateTime.now()));
 
-                    if (occupant.isEmpty || occupant == targetStudentId || seatStatus == 'available') {
+                    if (occupant.isEmpty || occupant == targetStudentId || seatStatus == 'available' || isExpiredReservation) {
                       await _seatRepo.assignStudent(libraryId, targetSecId, requestedDesk, targetStudentId);
                       assignedSeatId = requestedDesk;
                       assignedSectionId = targetSecId;

@@ -158,7 +158,7 @@ class _StudentShellState extends ConsumerState<StudentShell> with WidgetsBinding
         }
       },
       child: Scaffold(
-        extendBody: isMainTab,
+        extendBody: false,
         body: InactivityDetectorWrapper(child: widget.child),
         bottomNavigationBar: isMainTab
             ? SafeArea(

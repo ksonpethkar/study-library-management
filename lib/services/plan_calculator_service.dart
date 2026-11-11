@@ -280,7 +280,8 @@ class PlanCalculatorService {
     bool isProrated = false;
 
     // Check if Bridge Bundle option is available (Joining on or after 20th of the month)
-    final bool hasBridgeOption = startDay.day >= 20 && (plan.durationUnit == DurationUnit.months || isDays);
+    // Multi-month passes already span multiple months, so bridge bundle is only for 1-month passes.
+    final bool hasBridgeOption = startDay.day >= 20 && (plan.durationUnit == DurationUnit.months || isDays) && duration == 1;
     double? bridgePrice;
     DateTime? bridgeEndDate;
     String? bridgeCycleLabel;
@@ -354,9 +355,10 @@ class PlanCalculatorService {
     if (isBridgeBundle && bridgePrice != null) {
       finalProratedPrice = bridgePrice;
     } else if (isProrated) {
-      final daysInCurrentMonth = DateTime(startDay.year, startDay.month + 1, 0).day;
-      final currentDailyRate = plan.price / daysInCurrentMonth;
-      final rawFee = daysRemaining * currentDailyRate;
+      // Use the actual subscription cycle's duration so multi-month plans (e.g. 3M, 6M)
+      // are accurately prorated based on their full duration instead of dividing by a single month.
+      final cycleDailyRate = totalCycleDays > 0 ? (plan.price / totalCycleDays) : (plan.price / 30);
+      final rawFee = daysRemaining * cycleDailyRate;
       finalProratedPrice = ((rawFee / 10).round() * 10.0).clamp(50.0, plan.price);
     }
 

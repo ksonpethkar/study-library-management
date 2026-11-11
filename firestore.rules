@@ -379,8 +379,20 @@ service cloud.firestore {
       }
 
       // ── Settings ─────────────────────────────────────────────────────────
-      // SEC-3 FIX: Require authentication to read settings (protects stamp URLs,
-      // watermark images, custom terms, form config — not fully public data)
+      // Public read on 'legal' and 'form_config' so prospective and registering
+      // students can view official rules, policies, and custom form fields.
+      match /settings/legal {
+        allow read: if true;
+        allow write: if isOwner(libraryId) || staffCan(libraryId, 'canManageSettings');
+      }
+
+      match /settings/form_config {
+        allow read: if true;
+        allow write: if isOwner(libraryId) || staffCan(libraryId, 'canManageSettings');
+      }
+
+      // SEC-3 FIX: Require authentication to read sensitive settings (protects stamp URLs,
+      // watermark images, security PINs, webhooks, communications — not fully public data)
       match /settings/{id} {
         allow read: if isAuth();
         allow write: if isOwner(libraryId) || staffCan(libraryId, 'canManageSettings');

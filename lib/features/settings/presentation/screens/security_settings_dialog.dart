@@ -416,7 +416,7 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -430,6 +430,8 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
                                             Text(
                                               widget.isStudent ? 'Personal 4-Digit PIN' : 'Admin 4-Digit Security PIN',
                                               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 2,
                                             ),
                                             const SizedBox(height: 2),
                                             Text(

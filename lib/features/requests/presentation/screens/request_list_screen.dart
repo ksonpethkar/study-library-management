@@ -473,7 +473,7 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${counts.totalPending} Requests Across Modules',
+                      '${counts.totalPending} ${counts.totalPending == 1 ? "Request" : "Requests"} Across Modules',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                     Text(
@@ -492,28 +492,28 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
             children: [
               if (counts.admissionsPending > 0)
                 _buildBreakdownPill(
-                  label: '${counts.admissionsPending} Admissions',
+                  label: '${counts.admissionsPending} ${counts.admissionsPending == 1 ? "Admission" : "Admissions"}',
                   icon: Icons.school_rounded,
                   color: const Color(0xFF2563EB),
                   onTap: () => setState(() => _selectedCategory = 'registration'),
                 ),
               if (counts.seatChangesPending > 0)
                 _buildBreakdownPill(
-                  label: '${counts.seatChangesPending} Seat Shifts',
+                  label: '${counts.seatChangesPending} ${counts.seatChangesPending == 1 ? "Seat Shift" : "Seat Shifts"}',
                   icon: Icons.event_seat_rounded,
                   color: const Color(0xFFD97706),
                   onTap: () => setState(() => _selectedCategory = 'seat_change'),
                 ),
               if (counts.renewalsPending > 0)
                 _buildBreakdownPill(
-                  label: '${counts.renewalsPending} Plan Renewals',
+                  label: '${counts.renewalsPending} ${counts.renewalsPending == 1 ? "Plan Renewal" : "Plan Renewals"}',
                   icon: Icons.autorenew_rounded,
                   color: const Color(0xFF059669),
                   onTap: () => setState(() => _selectedCategory = 'renewal'),
                 ),
               if (counts.profileUpdatesPending > 0)
                 _buildBreakdownPill(
-                  label: '${counts.profileUpdatesPending} Profile Edits',
+                  label: '${counts.profileUpdatesPending} ${counts.profileUpdatesPending == 1 ? "Profile Edit" : "Profile Edits"}',
                   icon: Icons.person_outline_rounded,
                   color: const Color(0xFF7C3AED),
                   onTap: () => setState(() => _selectedCategory = 'profile_update'),
@@ -648,7 +648,9 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
                 leading: buildBackButton(),
                 title: const Text('Requests Hub'),
                 bottom: TabBar(
-                  isScrollable: false,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   tabs: [
                     Tab(
                       child: Row(
@@ -810,10 +812,9 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(32.0, 32.0, 32.0, MediaQuery.of(context).padding.bottom + 48.0),
           children: [
-            Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
+            Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
@@ -857,7 +858,6 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
                   ],
                 ],
               ),
-            ),
           ],
         ),
       );
@@ -869,7 +869,7 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
         await Future.delayed(const Duration(milliseconds: 500));
       },
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 48),
         itemCount: (isPendingTab && _selectedCategory == 'all' && items.isNotEmpty)
             ? items.length + 1
             : items.length,
@@ -1761,53 +1761,64 @@ class _RequestCard extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Wrap(
-                          spacing: 8,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            if (request.membershipNumber != null && request.membershipNumber!.isNotEmpty)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'Member ID: ${request.membershipNumber}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                              )
-                            else if (request.studentPhone != null && request.studentPhone!.isNotEmpty)
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.phone_rounded, size: 12, color: theme.colorScheme.onSurfaceVariant),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    request.studentPhone!,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
+                        const SizedBox(height: 3),
+                        if (request.membershipNumber != null && request.membershipNumber!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                            if (request.studentEmail != null && request.studentEmail!.isNotEmpty)
-                              Text(
-                                request.studentEmail!,
+                              child: Text(
+                                'Member ID: ${request.membershipNumber}',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: theme.colorScheme.outline,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
                                 ),
                               ),
-                          ],
-                        ),
+                            ),
+                          ),
+                        if (request.studentPhone != null && request.studentPhone!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.phone_rounded, size: 12, color: theme.colorScheme.onSurfaceVariant),
+                                const SizedBox(width: 4),
+                                Text(
+                                  request.studentPhone!,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (request.studentEmail != null && request.studentEmail!.isNotEmpty)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.email_outlined, size: 12, color: theme.colorScheme.outline),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  request.studentEmail!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),
@@ -2181,12 +2192,6 @@ class _RequestCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    tooltip: 'View Details',
-                    icon: Icon(Icons.arrow_forward_rounded, size: 18, color: theme.colorScheme.primary),
-                    onPressed: () => context.push('${Routes.adminRequests}/${request.id}'),
                   ),
                 ],
               )

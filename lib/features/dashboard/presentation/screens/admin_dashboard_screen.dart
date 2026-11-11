@@ -528,7 +528,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 130.0),
+                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 48.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

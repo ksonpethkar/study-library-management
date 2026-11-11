@@ -239,37 +239,6 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
               ),
               const SizedBox(height: 8),
             ],
-            // Secondary Gender Legend
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildGenderLegendItem(
-                  const Color(0xFF1976D2),
-                  Icons.male_rounded,
-                  'Boys Reserved',
-                ),
-                const SizedBox(width: 16),
-                _buildGenderLegendItem(
-                  const Color(0xFFE91E63),
-                  Icons.female_rounded,
-                  'Girls Reserved',
-                ),
-                const SizedBox(width: 16),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle_outline, size: 14, color: isDark ? Colors.white60 : Colors.black54),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Any / Unisex',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black87),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
             // Quick Filter Chips Bar (Live dynamic counts)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -283,7 +252,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                     Theme.of(context).colorScheme.primary,
                     Icons.apps_rounded,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   _buildFilterChip(
                     'available',
                     'Vacant',
@@ -291,7 +260,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                     const Color(0xFF10B981),
                     Icons.event_seat_rounded,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   _buildFilterChip(
                     'occupied',
                     'Occupied',
@@ -299,22 +268,26 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                     const Color(0xFFEF4444),
                     Icons.person_rounded,
                   ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    'boys',
-                    'Boys Zone',
-                    sectionSeats.where((s) => s.genderRestriction == GenderRestriction.male).length,
-                    const Color(0xFF1976D2),
-                    Icons.male_rounded,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    'girls',
-                    'Girls Zone',
-                    sectionSeats.where((s) => s.genderRestriction == GenderRestriction.female).length,
-                    const Color(0xFFE91E63),
-                    Icons.female_rounded,
-                  ),
+                  if (sectionSeats.any((s) => s.genderRestriction == GenderRestriction.male)) ...[
+                    const SizedBox(width: 6),
+                    _buildFilterChip(
+                      'boys',
+                      'Boys',
+                      sectionSeats.where((s) => s.genderRestriction == GenderRestriction.male).length,
+                      const Color(0xFF1976D2),
+                      Icons.male_rounded,
+                    ),
+                  ],
+                  if (sectionSeats.any((s) => s.genderRestriction == GenderRestriction.female)) ...[
+                    const SizedBox(width: 6),
+                    _buildFilterChip(
+                      'girls',
+                      'Girls',
+                      sectionSeats.where((s) => s.genderRestriction == GenderRestriction.female).length,
+                      const Color(0xFFE91E63),
+                      Icons.female_rounded,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -422,56 +395,9 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                       ),
                     ),
 
-                  // Room View Toggle Button (Snap directly to physical room columns)
-                  if (widget.cols > 0) ...[
-                    const SizedBox(width: 6),
-                    InkWell(
-                      onTap: () => _setColumns(widget.cols),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: _columns == widget.cols
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: _columns == widget.cols
-                                ? Theme.of(context).colorScheme.primary
-                                : Colors.transparent,
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.meeting_room_rounded,
-                              size: 14,
-                              color: _columns == widget.cols
-                                  ? Theme.of(context).colorScheme.onPrimaryContainer
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              width < 420 ? '${widget.cols} Col' : '🏛️ Room View (${widget.cols})',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: _columns == widget.cols
-                                    ? Theme.of(context).colorScheme.onPrimaryContainer
-                                    : Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-
                   const Spacer(),
 
-                  // 3. High-Visibility Laptop & Mobile Zoom Controls (- / Reset / +)
+                  // 3. High-Visibility Laptop & Mobile Zoom Controls (Zoom Out / Fit / Zoom In)
                   Container(
                     decoration: BoxDecoration(
                       color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
@@ -490,25 +416,11 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                             onTap: () => _stepColumns(-1, tiers),
                             borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
                             child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: width < 380 ? 6 : 9, vertical: 5),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.zoom_out_rounded,
-                                    size: 17,
-                                    color: isDark ? Colors.white70 : Colors.black87,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '−',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white70 : Colors.black87,
-                                    ),
-                                  ),
-                                ],
+                              padding: EdgeInsets.symmetric(horizontal: width < 380 ? 7 : 10, vertical: 6),
+                              child: Icon(
+                                Icons.zoom_out_rounded,
+                                size: 18,
+                                color: isDark ? Colors.white70 : Colors.black87,
                               ),
                             ),
                           ),
@@ -524,10 +436,10 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                           child: InkWell(
                             onTap: () => _setColumns(tiers[tiers.length ~/ 2]),
                             child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: width < 380 ? 5 : 7, vertical: 5),
+                              padding: EdgeInsets.symmetric(horizontal: width < 380 ? 6 : 8, vertical: 6),
                               child: Icon(
                                 Icons.fit_screen_rounded,
-                                size: 15,
+                                size: 16,
                                 color: isDark ? Colors.white60 : Colors.black54,
                               ),
                             ),
@@ -545,25 +457,11 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                             onTap: () => _stepColumns(1, tiers),
                             borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
                             child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: width < 380 ? 6 : 9, vertical: 5),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '+',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white70 : Colors.black87,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Icon(
-                                    Icons.zoom_in_rounded,
-                                    size: 17,
-                                    color: isDark ? Colors.white70 : Colors.black87,
-                                  ),
-                                ],
+                              padding: EdgeInsets.symmetric(horizontal: width < 380 ? 7 : 10, vertical: 6),
+                              child: Icon(
+                                Icons.zoom_in_rounded,
+                                size: 18,
+                                color: isDark ? Colors.white70 : Colors.black87,
                               ),
                             ),
                           ),
@@ -702,7 +600,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                         // Top Spatial Orientation Banner (Entrance & Front Reception)
                         Container(
                           margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(8),
@@ -711,28 +609,35 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.door_front_door_outlined, size: 14, color: Theme.of(context).colorScheme.primary),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'Front Reception & Main Entrance',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: isDark ? Colors.white70 : const Color(0xFF334155),
+                              Flexible(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.door_front_door_outlined, size: 14, color: Theme.of(context).colorScheme.primary),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        width < 420 ? 'Main Entrance' : 'Front Reception & Main Entrance',
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Icon(Icons.wifi_rounded, size: 13, color: Color(0xFF10B981)),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'High-Speed Wi-Fi Zone',
+                                    width < 420 ? 'Wi-Fi Zone' : 'High-Speed Wi-Fi Zone',
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
@@ -818,7 +723,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                         // Bottom Spatial Orientation Banner (Silent Zone & Restrooms)
                         Container(
                           margin: const EdgeInsets.only(top: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(8),
@@ -827,28 +732,35 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.volume_off_rounded, size: 14, color: Color(0xFF0D9488)),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'Deep Silent Reading Zone',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: isDark ? Colors.white70 : const Color(0xFF334155),
+                              Flexible(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.volume_off_rounded, size: 14, color: Color(0xFF0D9488)),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        width < 420 ? 'Silent Zone' : 'Deep Silent Reading Zone',
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Icon(Icons.water_drop_outlined, size: 13, color: Color(0xFF3B82F6)),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'Water & Restrooms ➔',
+                                    width < 420 ? 'Washrooms' : 'Water & Restrooms ➔',
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
@@ -904,7 +816,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
         decoration: BoxDecoration(
           color: isSelected
               ? activeColor.withValues(alpha: 0.18)
@@ -925,11 +837,11 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
               size: 13,
               color: isSelected ? activeColor : (isDark ? Colors.white60 : Colors.black54),
             ),
-            const SizedBox(width: 5),
+            const SizedBox(width: 4),
             Text(
               '$label ($count)',
               style: TextStyle(
-                fontSize: 11.5,
+                fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                 color: isSelected
                     ? activeColor
@@ -953,30 +865,6 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
             color: bgColor,
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: borderColor, width: 1.2),
-          ),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGenderLegendItem(Color color, IconData icon, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 15,
-          height: 15,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Icon(icon, size: 11, color: Colors.white),
           ),
         ),
         const SizedBox(width: 5),

@@ -329,6 +329,19 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
           section: updatedSection,
         );
 
+        // Cascade update existing seats to match section's new gender restriction
+        if (_genderRestriction.name != widget.section!.genderRestriction) {
+          final realSeatIds = realSeats.where((s) => !s.id.startsWith('missing_')).map((s) => s.id).toList();
+          if (realSeatIds.isNotEmpty) {
+            await repository.bulkAssignGender(
+              widget.libraryId,
+              widget.section!.id,
+              realSeatIds,
+              _genderRestriction,
+            );
+          }
+        }
+
         // Check if admin requested additional seats
         final additionalCount = int.tryParse(_addSeatsController.text.trim()) ?? 0;
         if (additionalCount > 0) {

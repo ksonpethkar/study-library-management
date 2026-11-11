@@ -1,9 +1,9 @@
 {
-  "versionCode": 64,
-  "latestVersionCode": 64,
-  "latestBuild": 64,
+  "versionCode": 65,
+  "latestVersionCode": 65,
+  "latestBuild": 65,
   "latestVersion": "1.5.50",
-  "versionName": "1.5.50+64",
+  "versionName": "1.5.50+65",
   "apkSize": "136.9 MB",
   "releaseNotes": "v1.5.50: Dynamic Admission Form Builder with custom field categories, date picker and dropdown support; Staff DocID & RBAC security hardening; recursive section desk backup & restore; Student Study Freeze requests & approvals; and App Auto-Lock on pause/resume.",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.50/StudyLibrary.apk",

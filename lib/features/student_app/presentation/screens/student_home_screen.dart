@@ -459,7 +459,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           return RefreshIndicator(
             onRefresh: _refreshAll,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 48.0),
               children: [
                 _buildHolidayNoticeBanner(context, ref),
                 const AppUpdateBanner(),

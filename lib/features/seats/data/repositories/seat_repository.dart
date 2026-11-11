@@ -475,12 +475,28 @@ class SeatRepository {
         final targetData = targetSeatSnap.data() ?? {};
         final currentOccupant = targetData['studentId'] as String?;
         final currentStatus = targetData['status'] as String?;
+        final resExpiresRaw = targetData['reservationExpiresAt'];
+        DateTime? resExpires;
+        if (resExpiresRaw is Timestamp) {
+          resExpires = resExpiresRaw.toDate();
+        } else if (resExpiresRaw is String) {
+          resExpires = DateTime.tryParse(resExpiresRaw);
+        }
+
+        final isSoftLockActive = currentStatus == SeatStatus.reserved.name &&
+            resExpires != null &&
+            resExpires.isAfter(DateTime.now());
 
         if (currentStatus == SeatStatus.occupied.name &&
             currentOccupant != null &&
             currentOccupant.isNotEmpty &&
             currentOccupant != studentId) {
           throw Exception('Seat is already occupied by another student.');
+        }
+
+        final reservedCandidateId = targetData['reservedCandidateId'] as String?;
+        if (isSoftLockActive && reservedCandidateId != null && reservedCandidateId != studentId) {
+          throw Exception('Seat is temporarily held for another applicant (10-minute reservation).');
         }
 
         final seatLabel = targetData['label'] ?? targetData['seatNumber']?.toString() ?? seatId;
@@ -495,10 +511,14 @@ class SeatRepository {
           });
         }
 
-        // Occupy target seat
+        // Occupy target seat and purge any stale reservation fields
         tx.update(targetSeatRef, {
           'status': SeatStatus.occupied.name,
           'studentId': studentId,
+          'reservationType': FieldValue.delete(),
+          'reservedCandidateId': FieldValue.delete(),
+          'reservedCandidateName': FieldValue.delete(),
+          'reservationExpiresAt': FieldValue.delete(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
@@ -819,9 +839,25 @@ class SeatRepository {
         final data = snap.data() ?? {};
         final status = data['status'] as String?;
         final occupant = data['studentId'] as String?;
+        final resExpiresRaw = data['reservationExpiresAt'];
+        DateTime? resExpires;
+        if (resExpiresRaw is Timestamp) {
+          resExpires = resExpiresRaw.toDate();
+        } else if (resExpiresRaw is String) {
+          resExpires = DateTime.tryParse(resExpiresRaw);
+        }
+
+        final isSoftLockActive = status == SeatStatus.reserved.name &&
+            resExpires != null &&
+            resExpires.isAfter(DateTime.now());
 
         if (status == SeatStatus.occupied.name && occupant != null && occupant.isNotEmpty && occupant != candidateId) {
           throw Exception('This desk is currently occupied by an active student.');
+        }
+
+        final reservedCandidateId = data['reservedCandidateId'] as String?;
+        if (isSoftLockActive && reservedCandidateId != null && reservedCandidateId != candidateId) {
+          throw Exception('This desk is temporarily reserved by another student. Please select an available desk.');
         }
 
         tx.update(seatRef, {
@@ -1050,9 +1086,21 @@ class SeatRepository {
         .collection(FirestorePaths.seats)
         .snapshots()
         .map((snapshot) {
-          final list = snapshot.docs
-              .map((doc) => SeatModel.fromJson({...doc.data(), 'id': doc.id}))
-              .toList();
+          final list = snapshot.docs.map((doc) {
+            final seat = SeatModel.fromJson({...doc.data(), 'id': doc.id});
+            // Auto-heal expired soft-locks in background so Firestore state stays in sync
+            if (seat.status == SeatStatus.reserved && !seat.isCurrentlyReserved) {
+              doc.reference.update({
+                'status': SeatStatus.available.name,
+                'reservationType': FieldValue.delete(),
+                'reservedCandidateId': FieldValue.delete(),
+                'reservedCandidateName': FieldValue.delete(),
+                'reservationExpiresAt': FieldValue.delete(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              }).catchError((_) {});
+            }
+            return seat;
+          }).toList();
           list.sort(SeatHelper.compareSeats);
           return list;
         });
@@ -1069,9 +1117,20 @@ class SeatRepository {
         .doc(sectionId)
         .collection(FirestorePaths.seats)
         .get();
-    final list = snapshot.docs
-        .map((doc) => SeatModel.fromJson({...doc.data(), 'id': doc.id}))
-        .toList();
+    final list = snapshot.docs.map((doc) {
+      final seat = SeatModel.fromJson({...doc.data(), 'id': doc.id});
+      if (seat.status == SeatStatus.reserved && !seat.isCurrentlyReserved) {
+        doc.reference.update({
+          'status': SeatStatus.available.name,
+          'reservationType': FieldValue.delete(),
+          'reservedCandidateId': FieldValue.delete(),
+          'reservedCandidateName': FieldValue.delete(),
+          'reservationExpiresAt': FieldValue.delete(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }).catchError((_) {});
+      }
+      return seat;
+    }).toList();
     list.sort(SeatHelper.compareSeats);
     return list;
   }
@@ -1128,10 +1187,22 @@ class SeatRepository {
 
         total += seatsSnapshot.docs.length;
         for (var seatDoc in seatsSnapshot.docs) {
-          final status = seatDoc.data()['status'];
-          if (status == SeatStatus.occupied.name) {
+          final data = seatDoc.data();
+          final status = data['status'];
+          final resExpiresRaw = data['reservationExpiresAt'];
+          DateTime? resExpires;
+          if (resExpiresRaw is Timestamp) {
+            resExpires = resExpiresRaw.toDate();
+          } else if (resExpiresRaw is String) {
+            resExpires = DateTime.tryParse(resExpiresRaw);
+          }
+          final isSoftLockActive = status == SeatStatus.reserved.name &&
+              resExpires != null &&
+              resExpires.isAfter(DateTime.now());
+
+          if (status == SeatStatus.occupied.name || isSoftLockActive) {
             occupied++;
-          } else if (status == SeatStatus.available.name) {
+          } else {
             available++;
           }
         }

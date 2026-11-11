@@ -2836,8 +2836,17 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               final seatData = seatDoc.data() ?? {};
               final occupant = (seatData['studentId'] ?? '').toString();
               final seatStatus = (seatData['status'] ?? 'available').toString();
+              final resExpiresRaw = seatData['reservationExpiresAt'];
+              DateTime? resExpires;
+              if (resExpiresRaw is Timestamp) {
+                resExpires = resExpiresRaw.toDate();
+              } else if (resExpiresRaw is String) {
+                resExpires = DateTime.tryParse(resExpiresRaw);
+              }
+              final isExpiredReservation = seatStatus == 'reserved' &&
+                  (resExpires == null || resExpires.isBefore(DateTime.now()));
 
-              if (occupant.isEmpty || occupant == studentId || seatStatus == 'available') {
+              if (occupant.isEmpty || occupant == studentId || seatStatus == 'available' || isExpiredReservation) {
                 final seatRepo = ref.read(seatRepositoryProvider);
                 await seatRepo.assignStudent(libraryId, targetSecId, requestedDesk, studentId);
                 assignedSeatId = requestedDesk;

@@ -10,7 +10,8 @@ import 'package:study_library/features/auth/presentation/providers/auth_provider
 import 'package:study_library/core/utils/error_formatter.dart';
 
 class TermsScreen extends ConsumerStatefulWidget {
-  const TermsScreen({super.key});
+  final String? libraryId;
+  const TermsScreen({super.key, this.libraryId});
 
   static String defaultTerms(String libraryName) => '''
 1. Acceptance of Rules & Regulations
@@ -259,44 +260,15 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
     final theme = Theme.of(context);
     final role = ref.watch(userRoleProvider);
     final isAdmin = role == AppUserRole.admin;
-    final libraryId = ref.watch(currentLibraryIdProvider);
+    final currentLibId = ref.watch(currentLibraryIdProvider);
+    final libraryId = (widget.libraryId != null && widget.libraryId!.isNotEmpty)
+        ? widget.libraryId!
+        : (currentLibId != null && currentLibId.isNotEmpty
+            ? currentLibId
+            : CurrentLibraryNotifier.defaultLibraryId);
     final lib = ref.watch(currentLibraryProvider).value;
-    final libraryName = lib?.name.isNotEmpty == true ? lib!.name : 'Study Centre';
+    final libraryName = lib?.name.isNotEmpty == true ? lib!.name : 'The Cozy Corner Study Centre';
 
-    if (libraryId == null || libraryId.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Back',
-            onPressed: () => context.canPop() ? context.pop() : (Navigator.canPop(context) ? Navigator.pop(context) : context.go(Routes.login)),
-          ),
-          title: const Text('Terms of Service'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.copy_rounded, size: 20),
-              tooltip: 'Copy Terms',
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: TermsScreen.defaultTerms(libraryName)));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Terms copied to clipboard'), behavior: SnackBarBehavior.floating),
-                );
-              },
-            ),
-          ],
-        ),
-        body: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              TermsScreen.defaultTerms(libraryName),
-              style: const TextStyle(fontSize: 14, height: 1.6),
-            ),
-          ],
-        ),
-      );
-    }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance

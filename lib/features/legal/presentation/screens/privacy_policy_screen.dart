@@ -10,7 +10,8 @@ import 'package:study_library/features/auth/presentation/providers/auth_provider
 import 'package:study_library/core/utils/error_formatter.dart';
 
 class PrivacyPolicyScreen extends ConsumerStatefulWidget {
-  const PrivacyPolicyScreen({super.key});
+  final String? libraryId;
+  const PrivacyPolicyScreen({super.key, this.libraryId});
 
   static String defaultPrivacyPolicy(String libraryName) =>
       '''
@@ -231,53 +232,16 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
     final theme = Theme.of(context);
     final role = ref.watch(userRoleProvider);
     final isAdmin = role == AppUserRole.admin;
-    final libraryId = ref.watch(currentLibraryIdProvider);
+    final currentLibId = ref.watch(currentLibraryIdProvider);
+    final libraryId = (widget.libraryId != null && widget.libraryId!.isNotEmpty)
+        ? widget.libraryId!
+        : (currentLibId != null && currentLibId.isNotEmpty
+            ? currentLibId
+            : CurrentLibraryNotifier.defaultLibraryId);
     final lib = ref.watch(currentLibraryProvider).value;
     final libraryName = lib?.name.isNotEmpty == true
         ? lib!.name
-        : 'Study Centre';
-
-    if (libraryId == null || libraryId.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Back',
-            onPressed: () => context.canPop() ? context.pop() : (Navigator.canPop(context) ? Navigator.pop(context) : context.go(Routes.login)),
-          ),
-          title: const Text('Privacy Policy'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.copy_rounded, size: 20),
-              tooltip: 'Copy Policy',
-              onPressed: () {
-                Clipboard.setData(
-                  ClipboardData(
-                    text: PrivacyPolicyScreen.defaultPrivacyPolicy(libraryName),
-                  ),
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Privacy Policy copied to clipboard'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-        body: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              PrivacyPolicyScreen.defaultPrivacyPolicy(libraryName),
-              style: const TextStyle(fontSize: 14, height: 1.6),
-            ),
-          ],
-        ),
-      );
-    }
+        : 'The Cozy Corner Study Centre';
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance

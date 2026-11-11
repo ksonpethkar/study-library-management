@@ -42,11 +42,16 @@ class SeatTile extends StatelessWidget {
     if (name == null || name.trim().isEmpty) return '';
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.length == 1) {
-      return parts.first;
+      final s = parts.first;
+      if (s.isEmpty) return '';
+      return s[0].toUpperCase() + (s.length > 1 ? s.substring(1).toLowerCase() : '');
     }
     final first = parts.first;
-    final lastInitial = parts.last[0].toUpperCase();
-    return '$first $lastInitial.';
+    final capFirst = first.isNotEmpty
+        ? first[0].toUpperCase() + (first.length > 1 ? first.substring(1).toLowerCase() : '')
+        : '';
+    final lastInitial = parts.last.isNotEmpty ? parts.last[0].toUpperCase() : '';
+    return lastInitial.isNotEmpty ? '$capFirst $lastInitial.' : capFirst;
   }
 
   String _buildTooltipText() {
@@ -441,7 +446,7 @@ class SeatTile extends StatelessWidget {
             ),
             Text(
               studentName != null && studentName!.isNotEmpty
-                  ? (isOnLeave ? '${studentName!.split(' ').first} (Leave)' : studentName!.split(' ').first)
+                  ? (isOnLeave ? '${_formatShortName(studentName)} (Leave)' : _formatShortName(studentName))
                   : (isOnLeave
                       ? 'On Leave'
                       : (seat.status == SeatStatus.occupied

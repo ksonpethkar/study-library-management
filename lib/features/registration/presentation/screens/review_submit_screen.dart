@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../providers/registration_provider.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/services/image_service.dart';
@@ -706,8 +707,6 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                           final dailyRate = selectedPlan != null ? PlanCalculatorService.getDailyRate(selectedPlan) : 0.0;
                           final smartCalc = selectedPlan != null ? PlanCalculatorService.calculateSmartPlan(plan: selectedPlan) : null;
                           final now = DateTime.now();
-                          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                          final currentMonthName = monthNames[now.month - 1];
 
                           return Card(
                             elevation: 0,
@@ -784,7 +783,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                           children: [
                                             if (smartCalc != null && smartCalc.isProrated) ...[
                                               Text(
-                                                'Full Month: ₹${selectedPlan.price.toStringAsFixed(0)}',
+                                                'Full Plan: ₹${selectedPlan.price.toStringAsFixed(0)}',
                                                 style: TextStyle(
                                                   decoration: TextDecoration.lineThrough,
                                                   decorationColor: Colors.grey.shade500,
@@ -795,7 +794,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                                 ),
                                               ),
                                               Text(
-                                                '₹${smartCalc.formattedProratedPrice}',
+                                                smartCalc.formattedProratedPrice,
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.w900,
                                                   fontSize: 22,
@@ -930,15 +929,15 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                                 Icon(Icons.calendar_month_rounded, size: 16, color: Colors.amber.shade900),
                                                 const SizedBox(width: 6),
                                                 Text(
-                                                  'Active Cycle: Today (${now.day} $currentMonthName) → ${smartCalc.endDate.day} $currentMonthName',
+                                                   'Active Cycle: Today (${DateFormat('dd MMM').format(now)}) → ${DateFormat('dd MMM').format(smartCalc.endDate)}',
                                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.amber.shade900),
                                                 ),
                                               ],
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
-                                              '• ${smartCalc.daysRemaining} days remaining in current monthly cycle.\n'
-                                              '• Amount Due at Reception Desk: ₹${smartCalc.formattedProratedPrice} (Cash / UPI on physical arrival).',
+                                              '• ${smartCalc.daysRemaining} days remaining in ${smartCalc.cycleLabel}.\n'
+                                              '• Amount Due at Reception Desk: ${smartCalc.formattedProratedPrice} (Cash / UPI on physical arrival).',
                                               style: TextStyle(fontSize: 11.5, height: 1.4, color: Colors.brown.shade800),
                                             ),
                                           ],
@@ -1157,7 +1156,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                         style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
                                       ),
                                       InkWell(
-                                        onTap: () => context.push(Routes.terms),
+                                        onTap: () => context.push(Routes.terms, extra: libId),
                                         child: Text(
                                           'Terms of Service',
                                           style: TextStyle(
@@ -1170,7 +1169,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                       ),
                                       Text('&', style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
                                       InkWell(
-                                        onTap: () => context.push(Routes.privacyPolicy),
+                                        onTap: () => context.push(Routes.privacyPolicy, extra: libId),
                                         child: Text(
                                           'Privacy Policy',
                                           style: TextStyle(
