@@ -1,6 +1,7 @@
+Add-Type -AssemblyName System.Net.Http
 $token = (gh auth token).Trim()
 $filePath = "c:\Users\ksonp\Downloads\Cozy Corner\study_library\StudyLibrary.apk"
-$releaseId = "442198460"
+$releaseId = "442764479"
 $url = "https://uploads.github.com/repos/ksonpethkar/study-library-management/releases/$releaseId/assets?name=StudyLibrary.apk"
 
 $client = [System.Net.Http.HttpClient]::new()

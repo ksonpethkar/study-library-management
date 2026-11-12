@@ -72,7 +72,7 @@ class FacilityTourSheet extends StatefulWidget {
 class _FacilityTourSheetState extends State<FacilityTourSheet> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  static const int _totalPages = 5;
+  static const int _totalPages = 3;
 
   final List<_TourStepData> _steps = const [
     _TourStepData(
@@ -82,22 +82,22 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
       icon: Icons.chair_rounded,
       iconColor: Color(0xFF2563EB),
       title: 'Dedicated Desk & Shift',
-      subtitle: 'Your personal, quiet study zone every day',
+      subtitle: 'Your personal, quiet study zone reserved exclusively for you',
       items: [
-        _TourFeatureItem(
-          icon: Icons.access_time_filled_rounded,
-          title: 'Flexible Study Shifts',
-          description: 'Morning, Evening, or 24×7 Full Day. Your reserved seat is guaranteed during your designated hours.',
-        ),
         _TourFeatureItem(
           icon: Icons.event_seat_rounded,
           title: 'Fixed Reserved Desk',
-          description: 'Your assigned seat number is exclusively yours. Leave books safely without worry of seat loss.',
+          description: 'Your assigned cabin is yours during your shift. Leave reference books safely without worry of seat loss.',
+        ),
+        _TourFeatureItem(
+          icon: Icons.access_time_filled_rounded,
+          title: 'Guaranteed Study Shifts',
+          description: 'Morning, Evening, or 24×7 Full Day. Peace of mind with your seat reserved during your designated hours.',
         ),
         _TourFeatureItem(
           icon: Icons.swap_horiz_rounded,
-          title: 'Easy Seat Transfers',
-          description: 'Want a window desk or a quieter corner? You can request a seat change once every 30 days via the app.',
+          title: 'Easy Desk Transfers',
+          description: 'Need a window desk or a quieter corner? Request a seat change directly in the app once every 30 days.',
         ),
       ],
     ),
@@ -112,101 +112,44 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
       items: [
         _TourFeatureItem(
           icon: Icons.touch_app_rounded,
-          title: 'Contactless Check-In',
-          description: 'Show your personal student QR pass at the entrance scanner when arriving for automatic check-in.',
+          title: 'Fast Contactless Check-In',
+          description: 'Flash your personal student QR pass at the entrance scanner for automatic, hands-free check-in.',
         ),
         _TourFeatureItem(
           icon: Icons.wifi_off_rounded,
           title: '100% Offline Ready',
-          description: 'Your pass is saved locally on your phone. It scans reliably even without an active internet connection.',
+          description: 'Pass is saved locally on your phone. It scans reliably even in basement reading halls without active internet.',
         ),
         _TourFeatureItem(
-          icon: Icons.security_rounded,
-          title: 'Protected Identity',
-          description: 'Your pass contains verified membership security to prevent unauthorized access and protect students.',
+          icon: Icons.query_builder_rounded,
+          title: 'Automated Study Streaks',
+          description: 'Automatically tracks your daily study hours and consistency streaks to help maintain your preparation momentum.',
         ),
       ],
     ),
     _TourStepData(
       stepNumber: 3,
-      badge: 'COMFORT & FOCUS',
+      badge: 'AMENITIES & PAYMENTS',
       badgeColor: Color(0xFF7C3AED),
-      icon: Icons.wifi_rounded,
+      icon: Icons.bolt_rounded,
       iconColor: Color(0xFF7C3AED),
-      title: '5G Wi-Fi & Amenities',
-      subtitle: 'Premium facilities designed for long study marathons',
+      title: '5G Wi-Fi, Silence & 1-Tap Pay',
+      subtitle: 'Premium facilities and hassle-free fee renewals',
       items: [
         _TourFeatureItem(
-          icon: Icons.speed_rounded,
-          title: 'High-Speed Optical Fiber',
-          description: 'High-speed dual-band Wi-Fi optimized for streaming video lectures, test series, and PDFs without lag.',
+          icon: Icons.wifi_rounded,
+          title: 'High-Speed 5G Optical Fiber',
+          description: 'Dual-band Wi-Fi optimized for lecture streaming, test series & PDFs, with power charging sockets at every desk.',
         ),
-        _TourFeatureItem(
-          icon: Icons.power_rounded,
-          title: 'Power at Every Desk',
-          description: 'Dedicated electrical plug points and mobile chargers at every single study cabin.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.ac_unit_rounded,
-          title: 'Silent Climate Control',
-          description: 'Chilled air-conditioned study halls with ergonomic cushioned chairs built for long sitting hours.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.local_drink_rounded,
-          title: 'Clean RO Water & Lockers',
-          description: 'Free purified cold drinking water station and lockable personal lockers for your heavy reference books.',
-        ),
-      ],
-    ),
-    _TourStepData(
-      stepNumber: 4,
-      badge: 'COMMUNITY CODE',
-      badgeColor: Color(0xFFD97706),
-      icon: Icons.volume_off_rounded,
-      iconColor: Color(0xFFD97706),
-      title: 'Silent Study Code',
-      subtitle: 'Maintaining an environment of deep focus and mutual respect',
-      items: [
         _TourFeatureItem(
           icon: Icons.volume_mute_rounded,
-          title: 'Strict Hall Silence',
-          description: 'Keep your mobile on silent or vibration mode. Discussions and whisperings are strictly prohibited in study halls.',
+          title: 'Strict Silent Study Ethics',
+          description: 'Silent study halls for deep focus, with a designated calling area in reception for urgent phone calls.',
         ),
         _TourFeatureItem(
-          icon: Icons.phone_in_talk_rounded,
-          title: 'Designated Calling Zone',
-          description: 'Please step outside into the reception area or phone booths for all urgent phone calls.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.cleaning_services_rounded,
-          title: 'Clean Desk Etiquette',
-          description: 'Keep your study desk tidy and dispose of disposable water bottles or coffee cups in designated bins.',
-        ),
-      ],
-    ),
-    _TourStepData(
-      stepNumber: 5,
-      badge: 'EASY PAYMENTS',
-      badgeColor: Color(0xFFEA580C),
-      icon: Icons.receipt_long_rounded,
-      iconColor: Color(0xFFEA580C),
-      title: '1-Tap Renewals & Receipts',
-      subtitle: 'Hassle-free fee payments and instant digital invoices',
-      items: [
-        _TourFeatureItem(
-          icon: Icons.notifications_active_rounded,
-          title: 'Advance Due Alerts',
-          description: 'Receive a polite reminder 3 days prior to membership expiry with your exact payable amount.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.shield_rounded,
-          title: 'Courtesy Buffer Days',
-          description: 'Busy with an exam? Your reserved desk remains protected under grace days before being released.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.qr_code_scanner_rounded,
-          title: '1-Tap UPI & PDF Receipts',
-          description: 'Pay instantly via GPay, PhonePe, Paytm, or BHIM UPI and immediately download your stamped fee receipt.',
+          icon: Icons.receipt_long_rounded,
+          title: '1-Tap UPI Renewals & Receipts',
+          description: 'Pay via GPay, PhonePe, or Paytm with automatic grace day buffers and instant stamped fee receipt downloads.',
         ),
       ],
     ),
@@ -407,13 +350,13 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              _currentPage == _totalPages - 1 ? 'Get Started' : 'Next',
+                              _currentPage == _totalPages - 1 ? 'Got It, Let\'s Study! 🚀' : 'Next',
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(width: 6),
                             Icon(
                               _currentPage == _totalPages - 1
-                                  ? Icons.check_circle_rounded
+                                  ? Icons.rocket_launch_rounded
                                   : Icons.arrow_forward_rounded,
                               size: 18,
                             ),
