@@ -23,6 +23,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/utils/file_download_helper.dart';
 
 enum RenewalTiming { advance, continuousGrace, immediate }
 enum RenewalPaymentMode { upi, bank, deskCash }
@@ -205,6 +206,47 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
         );
       }
     } catch (_) {}
+  }
+
+  Future<void> _saveQrImage(String qrData, String amount) async {
+    try {
+      final painter = QrPainter(
+        data: qrData,
+        version: QrVersions.auto,
+        gapless: true,
+        color: const Color(0xFF000000),
+        emptyColor: const Color(0xFFFFFFFF),
+      );
+      final byteData = await painter.toImageData(600);
+      if (byteData != null) {
+        final bytes = byteData.buffer.asUint8List();
+        await FileDownloadHelper.downloadFile(
+          fileName: 'cozy_corner_payment_qr.png',
+          bytes: bytes,
+          mimeType: 'image/png',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('QR Code saved to Gallery / Downloads! Open PhonePe -> Scanner -> Gallery icon to pay.'),
+              backgroundColor: Color(0xFF059669),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save QR: ${AppErrorFormatter.toUserFriendly(e, actionContext: "payment")}'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _submitRenewal({
@@ -1492,14 +1534,20 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                         final isMerchant = payData['accountType'] == 'merchant';
                         final mcc = payData['mcc']?.toString() ?? (isMerchant ? '8299' : null);
                         final mccParam = (mcc != null && mcc.isNotEmpty) ? '&mc=$mcc' : '';
-                        final isAboveLimit = effectivePrice > 2000 && !isMerchant;
+                        final isAboveLimit = effectivePrice >= 2000 && !isMerchant;
+
+                        final cleanStudentName = student.name.replaceAll(RegExp(r'[^a-zA-Z0-9 ]'), '').trim();
+                        final sanitizedNote = cleanStudentName.isNotEmpty
+                            ? (cleanStudentName.length > 20 ? cleanStudentName.substring(0, 20) : cleanStudentName)
+                            : 'CozyCorner';
+                        final tnParam = '&tn=${Uri.encodeComponent("Renewal $sanitizedNote")}';
 
                         // Smart URI Routing:
-                        // NPCI caps pre-filled deep links at ₹2,000 for personal savings (P2P) VPAs.
-                        // For amounts > ₹2,000, we default to Open-Amount Intent (Payee pre-filled, student enters amount)
-                        // to guarantee zero bank rejection errors.
-                        final lockedUpiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}$mccParam&am=$planPriceStr&cu=INR&tn=${Uri.encodeComponent("Renewal - ${student.name}")}';
-                        final openUpiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}$mccParam&cu=INR&tn=${Uri.encodeComponent("Renewal - ${student.name}")}';
+                        // NPCI & PhonePe block pre-filled collect deep links (&am=) on personal savings (P2P) VPAs.
+                        // For amounts >= ₹2,000 or any P2P account with collect restrictions,
+                        // default to Open-Amount Intent (Payee pre-filled, student enters amount) to eliminate bank/app rejection.
+                        final lockedUpiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}$mccParam&am=$planPriceStr&cu=INR$tnParam';
+                        final openUpiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}$mccParam&cu=INR$tnParam';
 
                         final activeUpiUri = (isAboveLimit && !_forceLockedQr) ? openUpiUri : lockedUpiUri;
 

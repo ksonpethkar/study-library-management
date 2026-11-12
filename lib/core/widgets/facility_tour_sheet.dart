@@ -15,18 +15,27 @@ class FacilityTourSheet extends StatefulWidget {
   const FacilityTourSheet({super.key, this.onComplete});
 
   static const String _prefTourKey = 'student_facility_tour_completed';
+  static bool _isTourOpen = false;
+  static bool _hasCheckedInSession = false;
 
   /// Automatically checks if the user has completed the tour and presents it on first launch.
   static Future<void> checkAndShow(BuildContext context, {bool force = false}) async {
+    if (_isTourOpen) return;
+    if (!force && _hasCheckedInSession) return;
+    _hasCheckedInSession = true;
+
     try {
+      final prefs = await SharedPreferences.getInstance();
       if (!force) {
-        final prefs = await SharedPreferences.getInstance();
         final completed = prefs.getBool(_prefTourKey) ?? false;
         if (completed) return;
       }
 
-      await Future.delayed(const Duration(milliseconds: 800));
-      if (!context.mounted) return;
+      // Mark completed immediately so subsequent fast rebuilds or race conditions never re-trigger
+      await prefs.setBool(_prefTourKey, true);
+
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!context.mounted || _isTourOpen) return;
 
       await show(context, force: force);
     } catch (_) {}
@@ -34,18 +43,26 @@ class FacilityTourSheet extends StatefulWidget {
 
   /// Displays the interactive 5-step facility tour modal.
   static Future<void> show(BuildContext context, {bool force = false}) async {
-    await showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => const FacilityTourSheet(),
-    );
+    if (_isTourOpen) return;
+    _isTourOpen = true;
 
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_prefTourKey, true);
     } catch (_) {}
+
+    try {
+      if (!context.mounted) return;
+      await showModalBottomSheet(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => const FacilityTourSheet(),
+      );
+    } finally {
+      _isTourOpen = false;
+    }
   }
 
   @override
@@ -285,14 +302,30 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
                       ),
                     ),
                     const Spacer(),
-                    // Top Skip Button
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        foregroundColor: Colors.grey.shade600,
-                      ),
-                      onPressed: _finishTour,
-                      child: const Text('Skip Tour', style: TextStyle(fontWeight: FontWeight.w600)),
+                    // Top Skip and Close Buttons (Instant 1-Tap Dismiss)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                          ),
+                          onPressed: _finishTour,
+                          child: const Text('Skip Tour', style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                          tooltip: 'Close Tour',
+                          style: IconButton.styleFrom(
+                            backgroundColor: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.all(6),
+                          ),
+                          onPressed: _finishTour,
+                        ),
+                      ],
                     ),
                   ],
                 ),

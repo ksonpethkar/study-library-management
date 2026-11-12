@@ -558,50 +558,67 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
 
     final isCompact = MediaQuery.of(context).size.width < 600;
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Back to Settings',
-            onPressed: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              } else {
-                context.go(Routes.adminMore);
-              }
-            },
-          ),
-          title: const Text('Communications'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.mark_chat_unread_rounded, color: Color(0xFF25D366)),
-              tooltip: 'WhatsApp & Message Template Studio',
-              onPressed: () => context.push(Routes.adminMessageTemplates),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.adminMore);
+        }
+      },
+      child: DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Back to Settings',
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go(Routes.adminMore);
+                }
+              },
             ),
-            Padding(
-              padding: const EdgeInsets.only(right: 12.0),
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: _isSaving ? null : _saveSettings,
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.save_rounded, size: 16),
-                label: Text(
-                  _isSaving ? 'Saving...' : (isCompact ? 'Save' : 'Save Changes'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
+            title: const FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Communications Hub',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.5),
               ),
             ),
-          ],
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.mark_chat_unread_rounded, color: Color(0xFF25D366)),
+                tooltip: 'WhatsApp & Message Template Studio',
+                onPressed: () => context.push(Routes.adminMessageTemplates),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _isSaving ? null : _saveSettings,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.save_rounded, size: 16),
+                  label: Text(
+                    _isSaving ? 'Saving...' : (isCompact ? 'Save' : 'Save Changes'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ),
+            ],
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.bolt_rounded), text: 'Queue'),
@@ -619,6 +636,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                   _buildRulesTab(theme),
                 ],
               ),
+        ),
       ),
     );
   }

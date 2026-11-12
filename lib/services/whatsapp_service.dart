@@ -396,7 +396,7 @@ class WhatsAppService {
     final libName = libraryName.isNotEmpty ? libraryName : 'The Cozy Corner Study Centre';
     final seatText = seatLabel.isNotEmpty ? 'Seat #$seatLabel' : 'your allocated desk';
     final amtText = renewalAmount != null && renewalAmount > 0 ? '₹${renewalAmount.toStringAsFixed(0)}' : 'your membership fee';
-    final isAbove2k = renewalAmount != null && renewalAmount > 2000;
+    final isAbove2k = renewalAmount != null && renewalAmount >= 2000;
     final upiLink = (libraryUpiId != null && libraryUpiId.isNotEmpty)
         ? (isAbove2k
             ? 'upi://pay?pa=$libraryUpiId&pn=${Uri.encodeComponent(libName)}&cu=INR'
@@ -644,7 +644,7 @@ class WhatsAppService {
     String? libraryAddress,
     String? libraryUpiId,
     String? adminTemplate,
-    int holdHours = 2,
+    int holdHours = 24,
     BuildContext? context,
   }) async {
     String finalMessage;
@@ -658,6 +658,7 @@ class WhatsAppService {
         libraryAddress: libraryAddress,
         libraryHelpline: libraryHelpline,
         libraryUpiId: libraryUpiId,
+        holdingHours: holdHours.toString(),
       );
     } else {
       final buffer = StringBuffer()

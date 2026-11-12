@@ -16,6 +16,7 @@ import 'package:study_library/features/seats/presentation/providers/seat_provide
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/services/message_template_service.dart';
 
 class WaitingListScreen extends ConsumerStatefulWidget {
   final int initialTab;
@@ -69,6 +70,35 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
         ? library.waitingListNotificationTemplate
         : 'Hello {studentName}, exciting news! Seat {seatLabel} has just become available for you at {libraryName}. Your position on the waiting list has arrived! Please visit or contact us to confirm your admission.';
     _policyInitialized = true;
+  }
+
+  void _updateTemplateHours(int newHours) {
+    var cur = _notificationTemplateController.text;
+    if (cur.trim().isEmpty) {
+      _notificationTemplateController.text = MessageTemplateService.waitlistOfferMarathi
+          .replaceAll('{holdingHours}', '$newHours');
+      return;
+    }
+
+    final marathiDigits = {
+      12: '१२',
+      24: '२४',
+      48: '४८',
+    }[newHours] ?? '$newHours';
+
+    // Replace Marathi patterns
+    cur = cur.replaceAll(RegExp(r'(पुढील\s*)([०-९]+|\d+)(\s*तासांत)'), '\${1}$marathiDigits\$3');
+    cur = cur.replaceAll(RegExp(r'([०-९]+|\d+)(\s*तासांत)'), '$marathiDigits\$2');
+
+    // Replace English patterns
+    cur = cur.replaceAll(RegExp(r'(within|next|for)\s*(\d+)\s*(hours|hrs)', caseSensitive: false), '\$1 $newHours \$3');
+    cur = cur.replaceAll(RegExp(r'(\d+)\s*(hours|hrs)', caseSensitive: false), '$newHours \$2');
+
+    // Replace Hindi patterns
+    cur = cur.replaceAll(RegExp(r'(अगले\s*)([०-९]+|\d+)(\s*घंटों|\s*घंटे)'), '\${1}$newHours\$3');
+    cur = cur.replaceAll(RegExp(r'([०-९]+|\d+)(\s*घंटों)'), '$newHours\$2');
+
+    _notificationTemplateController.text = cur;
   }
 
   Future<void> _savePolicySettings() async {
@@ -304,6 +334,7 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
       libraryHelpline: library?.phone,
       libraryAddress: library?.address,
       adminTemplate: adminTemplate,
+      holdHours: library?.waitingListHoldingHours ?? _holdingHours,
       context: context,
     );
 
@@ -852,7 +883,13 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
                     ButtonSegment(value: 48, label: Text('48 Hours')),
                   ],
                   selected: {_holdingHours},
-                  onSelectionChanged: (set) => setState(() => _holdingHours = set.first),
+                  onSelectionChanged: (set) {
+                    final newHours = set.first;
+                    setState(() {
+                      _holdingHours = newHours;
+                      _updateTemplateHours(newHours);
+                    });
+                  },
                 ),
 
                 const SizedBox(height: 24),
@@ -875,22 +912,139 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
                 ),
 
                 const SizedBox(height: 24),
-                const Text(
-                  'WhatsApp Notification Message Template',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'WhatsApp Message Template',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      children: [
+                        ActionChip(
+                          avatar: const Text('🇮🇳', style: TextStyle(fontSize: 11)),
+                          label: const Text('मराठी', style: TextStyle(fontSize: 11)),
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                          onPressed: () {
+                            setState(() {
+                              _notificationTemplateController.text = MessageTemplateService.waitlistOfferMarathi
+                                  .replaceAll('{holdingHours}', '$_holdingHours');
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 4),
+                        ActionChip(
+                          avatar: const Text('🇬🇧', style: TextStyle(fontSize: 11)),
+                          label: const Text('English', style: TextStyle(fontSize: 11)),
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                          onPressed: () {
+                            setState(() {
+                              _notificationTemplateController.text = MessageTemplateService.defaultWaitlistOfferTemplate
+                                  .replaceAll('{holdingHours}', '$_holdingHours');
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 4),
+                        ActionChip(
+                          avatar: const Text('🇮🇳', style: TextStyle(fontSize: 11)),
+                          label: const Text('हिन्दी', style: TextStyle(fontSize: 11)),
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                          onPressed: () {
+                            setState(() {
+                              _notificationTemplateController.text = MessageTemplateService.waitlistOfferHindi
+                                  .replaceAll('{holdingHours}', '$_holdingHours');
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Variables available: {studentName}, {seatLabel}, {libraryName}',
+                  'Tap variables to insert: dynamically adjusts for $_holdingHours hours',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    '{studentName}',
+                    '{seatLabel}',
+                    '{holdingHours}',
+                    '{planName}',
+                    '{libraryName}',
+                    '{libraryAddress}',
+                    '{libraryHelpline}',
+                  ].map((tag) => ActionChip(
+                    label: Text(tag, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                    onPressed: () {
+                      final text = _notificationTemplateController.text;
+                      final selection = _notificationTemplateController.selection;
+                      if (selection.isValid && selection.start >= 0) {
+                        final newText = text.replaceRange(selection.start, selection.end, tag);
+                        _notificationTemplateController.value = TextEditingValue(
+                          text: newText,
+                          selection: TextSelection.collapsed(offset: selection.start + tag.length),
+                        );
+                      } else {
+                        _notificationTemplateController.text = '$text $tag';
+                      }
+                      setState(() {});
+                    },
+                  )).toList(),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _notificationTemplateController,
-                  maxLines: 4,
+                  maxLines: 5,
+                  onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     hintText: 'Enter custom WhatsApp message...',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Live preview card showing the exact message with holding hours
+                Card(
+                  color: Colors.green.withValues(alpha: 0.06),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.green.withValues(alpha: 0.25)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.mark_chat_unread_rounded, size: 16, color: Colors.green),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Live WhatsApp Offer Preview ($_holdingHours Hours Window)',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          MessageTemplateService.substitute(
+                            _notificationTemplateController.text,
+                            studentName: 'Shubham',
+                            libraryName: libraryName,
+                            seatLabel: 'Seat #14',
+                            planName: 'Monthly Full-Day',
+                            libraryAddress: library?.address ?? 'Someshwar Nagar, Parli',
+                            libraryHelpline: library?.phone ?? '+91 94032 43830',
+                            holdingHours: '$_holdingHours',
+                          ),
+                          style: const TextStyle(fontSize: 12, height: 1.35),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 

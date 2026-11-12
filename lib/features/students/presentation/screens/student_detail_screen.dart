@@ -2725,19 +2725,24 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   }
                 },
               ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.isEmbeddedInSplitView ? s.name : 'Student Details',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            if (widget.isEmbeddedInSplitView)
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Text(
-                '${s.phone} • Desk ${seatLabel.isNotEmpty ? seatLabel : (s.seatId ?? "Unallocated")}',
-                style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                widget.isEmbeddedInSplitView ? s.name : 'Student Details',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.5),
               ),
-          ],
+              if (widget.isEmbeddedInSplitView)
+                Text(
+                  '${s.phone} • Desk ${seatLabel.isNotEmpty ? seatLabel : (s.seatId ?? "Unallocated")}',
+                  style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                ),
+            ],
+          ),
         ),
         actions: [
           // WhatsApp quick-message button
@@ -2763,20 +2768,41 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             },
             tooltip: 'Print / Share ID Card',
           ),
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () async {
-              await context.push('/admin/students/${widget.studentId}/edit');
-              _loadStudent(); // Reload after edit
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            tooltip: 'More Actions',
+            onSelected: (value) async {
+              if (value == 'edit') {
+                await context.push('/admin/students/${widget.studentId}/edit');
+                _loadStudent();
+              } else if (value == 'delete') {
+                _deleteStudent();
+              }
             },
-            tooltip: 'Edit Student',
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Text('Edit Student'),
+                  ],
+                ),
+              ),
+              if (ref.watch(canDeleteStudentsProvider))
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_rounded, color: Colors.red, size: 18),
+                      SizedBox(width: 8),
+                      Text('Delete Student', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+            ],
           ),
-          if (ref.watch(canDeleteStudentsProvider))
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: _deleteStudent,
-              tooltip: 'Delete Student',
-            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -4057,11 +4083,15 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
               children: [
                 const Icon(Icons.document_scanner_rounded, size: 16, color: Colors.blue),
                 const SizedBox(width: 6),
-                Text(
-                  hasDoc ? '${s.govIdType.displayName} Document Attached' : 'Government ID Document',
-                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Text(
+                    hasDoc ? '${s.govIdType.displayName} Attached' : 'Government ID Document',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 6),
                 TextButton.icon(
                   onPressed: () {
                     AdminDocumentStudioDialog.show(
@@ -4077,8 +4107,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     );
                   },
                   icon: Icon(hasDoc ? Icons.auto_fix_high_rounded : Icons.add_photo_alternate_rounded, size: 14),
-                  label: Text(hasDoc ? 'Document Studio' : 'Scan / Attach ID', style: const TextStyle(fontSize: 11.5)),
-                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  label: Text(hasDoc ? 'Studio' : 'Attach ID', style: const TextStyle(fontSize: 11.5)),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  ),
                 ),
               ],
             ),

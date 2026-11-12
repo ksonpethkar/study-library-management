@@ -119,7 +119,12 @@ class _MaintenanceDiagnosticsScreenState extends ConsumerState<MaintenanceDiagno
           children: [
             Icon(Icons.cleaning_services_rounded, color: Color(0xFFE11D48)),
             SizedBox(width: 8),
-            Text('Confirm Safe Data Pruning'),
+            Expanded(
+              child: Text(
+                'Confirm Safe Data Pruning',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
           ],
         ),
         content: const Text(

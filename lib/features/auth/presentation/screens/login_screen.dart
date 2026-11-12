@@ -140,7 +140,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // ── Step 0: Priority Master Admin / Whitelist check ───────────────
       if (normalizedEmail.isNotEmpty) {
         final isWhitelisted = await AdminWhitelistService.isEmailWhitelisted(normalizedEmail)
-            .timeout(const Duration(seconds: 2), onTimeout: () => false);
+            .timeout(const Duration(seconds: 4), onTimeout: () => false);
         if (isWhitelisted) {
           await _goAdmin(user: user, libId: defaultLibId);
           return;
@@ -161,7 +161,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       // ── Step 1: Check persisted role (fastest path for returning users - 0ms if cached) ──
       final persisted = await readPersistedUserRole(user.uid)
-          .timeout(const Duration(seconds: 2), onTimeout: () => null);
+          .timeout(const Duration(seconds: 4), onTimeout: () => null);
       if (!mounted) return;
 
       if (persisted != null && persisted['role'] != null) {
@@ -209,7 +209,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       .collection('students').where('email', isEqualTo: normalizedEmail)
                       .limit(1).get()
                   : Future<QuerySnapshot?>.value(null)),
-            ]).timeout(const Duration(seconds: 2));
+            ]).timeout(const Duration(seconds: 4));
 
             final studentByUid = checkResults[0];
             final studentByEmail = checkResults.length > 1 ? checkResults[1] : null;
@@ -242,7 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final discoveryResults = await Future.wait<dynamic>([
         // [0] Check if user owns a library
         ref.read(libraryRepositoryProvider).getLibraryByOwnerId(user.uid)
-            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+            .timeout(const Duration(seconds: 6), onTimeout: () => null),
 
         // [1] Check if student is in default library by userId
         FirebaseFirestore.instance
@@ -250,7 +250,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             .collection('students').where('userId', isEqualTo: user.uid)
             .limit(1).get()
             .then<QuerySnapshot?>((v) => v, onError: (_) => null)
-            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+            .timeout(const Duration(seconds: 6), onTimeout: () => null),
 
         // [2] Check if student is in default library by normalized email
         (normalizedEmail.isNotEmpty
@@ -260,7 +260,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 .limit(1).get()
                 .then<QuerySnapshot?>((v) => v, onError: (_) => null)
             : Future<QuerySnapshot?>.value(null))
-            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+            .timeout(const Duration(seconds: 6), onTimeout: () => null),
 
         // [3] Check if student is in default library by raw email (case-insensitive fallback)
         (rawEmail.isNotEmpty && rawEmail != normalizedEmail
@@ -270,7 +270,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 .limit(1).get()
                 .then<QuerySnapshot?>((v) => v, onError: (_) => null)
             : Future<QuerySnapshot?>.value(null))
-            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+            .timeout(const Duration(seconds: 6), onTimeout: () => null),
 
         // [4] Check if user has an existing admission request in default library by studentId
         FirebaseFirestore.instance
@@ -278,7 +278,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             .collection('requests').where('studentId', isEqualTo: user.uid)
             .limit(1).get()
             .then<QuerySnapshot?>((v) => v, onError: (_) => null)
-            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+            .timeout(const Duration(seconds: 6), onTimeout: () => null),
 
         // [5] Check if user has an existing admission request in default library by email
         (normalizedEmail.isNotEmpty
@@ -288,7 +288,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 .limit(1).get()
                 .then<QuerySnapshot?>((v) => v, onError: (_) => null)
             : Future<QuerySnapshot?>.value(null))
-            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+            .timeout(const Duration(seconds: 6), onTimeout: () => null),
 
         // [6] Check staff by email
         (normalizedEmail.isNotEmpty
@@ -298,8 +298,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 .limit(1).get()
                 .then<QuerySnapshot?>((v) => v, onError: (_) => null)
             : Future<QuerySnapshot?>.value(null))
-            .timeout(const Duration(seconds: 2), onTimeout: () => null),
-      ]).timeout(const Duration(seconds: 3), onTimeout: () => [null, null, null, null, null, null, null]);
+            .timeout(const Duration(seconds: 6), onTimeout: () => null),
+      ]).timeout(const Duration(seconds: 8), onTimeout: () => [null, null, null, null, null, null, null]);
 
       if (!mounted) return;
 
@@ -339,6 +339,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         // Link userId if it was matched by email
         if ((matchedStudentDoc.data() as Map<String, dynamic>?)?['userId'] != user.uid) {
           matchedStudentDoc.reference.update({'userId': user.uid}).ignore();
+        }
+        await _goStudent(user: user, libId: libId);
+        return;
+      }
+
+      // Comprehensive student search by Phone / UID fallback via AuthRoleService
+      final deepStudentDoc = await AuthRoleService.findStudentDocumentForUser(user, defaultLibId);
+      if (deepStudentDoc != null && deepStudentDoc.exists) {
+        final libId = deepStudentDoc.reference.parent.parent?.id ?? defaultLibId;
+        if ((deepStudentDoc.data() as Map<String, dynamic>?)?['userId'] != user.uid) {
+          deepStudentDoc.reference.update({'userId': user.uid}).ignore();
         }
         await _goStudent(user: user, libId: libId);
         return;
@@ -840,106 +851,111 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 24),
 
                 // Smart Unified Trust Badge (Centered & Responsive)
+                // Clean Smart Portal Security Capsule (Line-by-line hierarchy)
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
                       ),
                     ),
-                    child: Row(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.lock_outline_rounded,
-                          size: 14,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Smart Portal Access • Secure & Instant Sign-In',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onSurfaceVariant,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.verified_user_rounded,
+                              size: 14,
+                              color: theme.colorScheme.primary,
                             ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Smart Portal Access',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Secure & Instant Sign-In',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                // Legal & Compliance Footer (Centered & Bilingual Aware)
+                const SizedBox(height: 20),
+                // Legal & Compliance Footer (Clean, elegant, line-by-line)
                 Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 4,
-                      runSpacing: 2,
-                      children: [
-                        Text(
-                          'By continuing, you agree to our',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-                          ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'By continuing, you agree to our',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                         ),
-                        CozyPressable(
-                          onTap: () => context.push(Routes.terms),
-                          pressScale: 0.95,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CozyPressable(
+                            onTap: () => context.push(Routes.terms),
+                            pressScale: 0.95,
                             child: Text(
                               'Terms (नियम)',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.primary,
+                                decoration: TextDecoration.underline,
+                                decorationColor: theme.colorScheme.primary.withValues(alpha: 0.4),
                               ),
                             ),
                           ),
-                        ),
-                        Text(
-                          '•',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.outlineVariant,
-                          ),
-                        ),
-                        CozyPressable(
-                          onTap: () => context.push(Routes.privacyPolicy),
-                          pressScale: 0.95,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(6),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Text(
+                              '•',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.outlineVariant,
+                              ),
                             ),
+                          ),
+                          CozyPressable(
+                            onTap: () => context.push(Routes.privacyPolicy),
+                            pressScale: 0.95,
                             child: Text(
                               'Privacy Policy (गोपनीयता धोरण)',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.primary,
+                                decoration: TextDecoration.underline,
+                                decorationColor: theme.colorScheme.primary.withValues(alpha: 0.4),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],

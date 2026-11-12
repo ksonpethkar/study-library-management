@@ -36,6 +36,7 @@ class MessageTemplateService {
     TemplateVariable(tag: '{shiftName}', label: 'Shift', example: 'Full Day', description: 'Enrolled study shift name'),
     TemplateVariable(tag: '{shiftTiming}', label: 'Shift Timing', example: '07:00 AM – 11:00 PM', description: 'Study shift operating hours'),
     TemplateVariable(tag: '{daysRemaining}', label: 'Days Left', example: '3', description: 'Number of days left before expiry (alias: {days})'),
+    TemplateVariable(tag: '{holdingHours}', label: 'Holding Window', example: '24', description: 'Seat reservation holding window in hours (alias: {holdHours})'),
   ];
 
   static List<String> get availableVariables =>
@@ -65,6 +66,7 @@ class MessageTemplateService {
     String? libraryUpiId,
     String? paymentDate,
     String? daysRemaining,
+    String? holdingHours,
   }) {
     if (template.isEmpty) return '';
 
@@ -83,7 +85,8 @@ class MessageTemplateService {
         .replaceAll('{upi}', '{libraryUpiId}')
         .replaceAll('{helpline}', '{libraryHelpline}')
         .replaceAll('{address}', '{libraryAddress}')
-        .replaceAll('{days}', '{daysRemaining}');
+        .replaceAll('{days}', '{daysRemaining}')
+        .replaceAll('{holdHours}', '{holdingHours}');
 
     // Substitute canonical tags
     return result
@@ -107,7 +110,8 @@ class MessageTemplateService {
         .replaceAll('{shiftTiming}', shiftTiming ?? '')
         .replaceAll('{libraryUpiId}', libraryUpiId ?? '')
         .replaceAll('{paymentDate}', paymentDate ?? '')
-        .replaceAll('{daysRemaining}', daysRemaining ?? '');
+        .replaceAll('{daysRemaining}', daysRemaining ?? '')
+        .replaceAll('{holdingHours}', holdingHours ?? '24');
   }
 
   /// Generates a realistic mock preview of the template
@@ -350,7 +354,7 @@ class MessageTemplateService {
       '✨ *Study Seat Available — {libraryName}*\n\n'
       'Dear *{studentName}*,\n'
       'Great news! A dedicated study seat (*{seatLabel}*) is now available for you under the *{planName}* plan at *{libraryName}*.\n\n'
-      'Kindly visit the library reception within 24 hours to confirm your admission and complete registration.\n\n'
+      'Kindly visit the library reception within {holdingHours} hours to confirm your admission and complete registration.\n\n'
       '📍 *Address:* {libraryAddress}\n'
       '📞 *Helpline:* {libraryHelpline}\n\n'
       'We look forward to welcoming you! 📖✨\n'
@@ -360,7 +364,7 @@ class MessageTemplateService {
       '✨ *सीट उपलब्ध सूचना — {libraryName}*\n\n'
       'नमस्ते *{studentName}*,\n'
       'खुशखबरी! *{libraryName}* में आपके लिए *{planName}* के अंतर्गत एक सीट (*{seatLabel}*) उपलब्ध हो गई है।\n\n'
-      'कृपया अगले 24 घंटों में रिसेप्शन पर आकर अपना प्रवेश सुनिश्चित करें।\n\n'
+      'कृपया अगले {holdingHours} घंटों में रिसेप्शन पर आकर अपना प्रवेश सुनिश्चित करें।\n\n'
       '📍 *पता:* {libraryAddress}\n'
       '📞 *सहायता केंद्र:* {libraryHelpline}\n\n'
       '— *{libraryName}*';
@@ -369,7 +373,7 @@ class MessageTemplateService {
       '✨ *अभ्यास बैठक (Seat) उपलब्ध — {libraryName}*\n\n'
       'सस्नेह नमस्कार *{studentName}*,\n'
       'आनंदाची बातमी! *{libraryName}* मध्ये आपल्यासाठी *{planName}* अंतर्गत डेस्क (*{seatLabel}*) उपलब्ध झाली आहे.\n\n'
-      'कृपया पुढील २४ तासांत लायब्ररी रिसेप्शनला भेट देऊन आपला प्रवेश निश्चित करावा.\n\n'
+      'कृपया पुढील {holdingHours} तासांत लायब्ररी रिसेप्शनला भेट देऊन आपला प्रवेश निश्चित करावा.\n\n'
       '📍 *पत्ता:* {libraryAddress}\n'
       '📞 *हेल्पलाईन:* {libraryHelpline}\n\n'
       '— *{libraryName} व्यवस्थापन*';

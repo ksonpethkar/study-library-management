@@ -1108,11 +1108,47 @@ class _StudentTransactionsSection extends StatelessWidget {
                                 Text('RECEIPT', style: TextStyle(color: Colors.blue, fontSize: 9, fontWeight: FontWeight.bold)),
                               ],
                             ),
+                          )
+                        else if (isPaid)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.verified_rounded, size: 10, color: Colors.teal),
+                                SizedBox(width: 3),
+                                Text('VERIFIED RECORD', style: TextStyle(color: Colors.teal, fontSize: 9, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.hourglass_top_rounded, size: 10, color: Colors.orange),
+                                SizedBox(width: 3),
+                                Text('PENDING VERIFICATION', style: TextStyle(color: Colors.orange, fontSize: 9, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
                           ),
                       ],
                     ),
                     subtitle: Text(
-                      '${item['title']} • ${item['method']}\n${dateFormat.format(item['date'] as DateTime)}',
+                      receiptId != null
+                          ? '${item['title']} • ${item['method']}\n${dateFormat.format(item['date'] as DateTime)}'
+                          : (isPaid
+                              ? 'Payment Logged • ${item['method']}\n${dateFormat.format(item['date'] as DateTime)} • Receipt in issuance'
+                              : 'Payment Record • ${item['method']}\n${dateFormat.format(item['date'] as DateTime)} • Awaiting admin verification'),
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                     ),
                     isThreeLine: true,
@@ -1136,7 +1172,11 @@ class _StudentTransactionsSection extends StatelessWidget {
                               );
                             },
                           )
-                        : null,
+                        : IconButton(
+                            icon: const Icon(Icons.info_outline_rounded, size: 18, color: Colors.grey),
+                            tooltip: 'Payment Details',
+                            onPressed: () => _showPaymentInfoSheet(context, item, isPaid, dateFormat),
+                          ),
                     onTap: () {
                       if (receiptId != null) {
                         final rModel = item['receiptModel'] as ReceiptModel?;
@@ -1153,7 +1193,7 @@ class _StudentTransactionsSection extends StatelessWidget {
                           ),
                         );
                       } else {
-                        context.push(Routes.studentReceipts);
+                        _showPaymentInfoSheet(context, item, isPaid, dateFormat);
                       }
                     },
                   ),
@@ -1163,6 +1203,128 @@ class _StudentTransactionsSection extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  void _showPaymentInfoSheet(
+    BuildContext context,
+    Map<String, dynamic> item,
+    bool isPaid,
+    DateFormat dateFormat,
+  ) {
+    final amount = (item['amount'] as double).toStringAsFixed(0);
+    final method = item['method'] ?? 'UPI';
+    final dateStr = dateFormat.format(item['date'] as DateTime);
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: isPaid
+                        ? Colors.teal.withValues(alpha: 0.15)
+                        : Colors.orange.withValues(alpha: 0.15),
+                    child: Icon(
+                      isPaid ? Icons.check_circle_rounded : Icons.pending_actions_rounded,
+                      color: isPaid ? Colors.teal : Colors.orange.shade700,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '₹$amount • $method',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        ),
+                        Text(
+                          isPaid ? 'Verified Payment Ledger Record' : 'Payment Awaiting Office Verification',
+                          style: TextStyle(
+                            color: isPaid ? Colors.teal : Colors.orange.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isPaid
+                        ? Colors.teal.withValues(alpha: 0.2)
+                        : Colors.orange.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Transaction Date:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(dateStr, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Payment Mode:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(method, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    const Divider(height: 16),
+                    Text(
+                      isPaid
+                          ? 'This payment has been confirmed in the study centre accounts ledger. The formal tax invoice/receipt is currently being formatted by the management.'
+                          : 'This transaction was registered via $method and is currently under verification by the reception staff. Once verified, your membership pass validity will update automatically and a downloadable PDF receipt will be issued.',
+                      style: const TextStyle(fontSize: 12.5, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonal(
+                  onPressed: () => Navigator.pop(sheetCtx),
+                  child: const Text('Got it'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -461,7 +461,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                     ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
-                      label: 'B&W High-Contrast',
+                      label: 'B&W Crisp',
                       icon: Icons.contrast_rounded,
                       mode: DocumentFilterMode.highContrast,
                     ),
@@ -580,7 +580,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
               ),
             ),
 
-            // Bottom In-Line ID Details Editor
+            // Bottom In-Line ID Details Editor (Responsive Mobile-First)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -588,97 +588,119 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                 borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
                 border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : Colors.grey.shade200)),
               ),
-              child: Row(
-                children: [
-                  // ID Type Dropdown
-                  SizedBox(
-                    width: 170,
-                    child: DropdownButtonFormField<GovIdType>(
-                      initialValue: _selectedType,
-                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      decoration: const InputDecoration(
-                        labelText: 'ID Type',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      items: GovIdType.values.map((t) => DropdownMenuItem(
-                        value: t,
-                        child: Text(
-                          t.displayName,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 540;
+
+                  final dropdownWidget = DropdownButtonFormField<GovIdType>(
+                    initialValue: _selectedType,
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    decoration: const InputDecoration(
+                      labelText: 'ID Type',
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: GovIdType.values.map((t) => DropdownMenuItem(
+                      value: t,
+                      child: Text(
+                        t.displayName,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
-                      )).toList(),
-                      onChanged: (v) {
-                        if (v != null) {
-                          setState(() {
-                            _selectedType = v;
-                            _idNumberController.text = GovIdValidator.format(v, _idNumberController.text);
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+                      ),
+                    )).toList(),
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() {
+                          _selectedType = v;
+                          _idNumberController.text = GovIdValidator.format(v, _idNumberController.text);
+                        });
+                      }
+                    },
+                  );
 
-                  // ID Number TextField
-                  Expanded(
-                    child: ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: _idNumberController,
-                      builder: (context, val, child) {
-                        final rawText = val.text.trim();
-                        final isValid = rawText.isNotEmpty &&
-                            GovIdValidator.isValid(_selectedType, rawText);
-                        final showWarning = rawText.isNotEmpty && !isValid;
+                  final idFieldWidget = ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _idNumberController,
+                    builder: (context, val, child) {
+                      final rawText = val.text.trim();
+                      final isValid = rawText.isNotEmpty &&
+                          GovIdValidator.isValid(_selectedType, rawText);
+                      final showWarning = rawText.isNotEmpty && !isValid;
 
-                        return TextFormField(
-                          controller: _idNumberController,
-                          decoration: InputDecoration(
-                            labelText: '${_selectedType.displayName} Number',
-                            hintText: _selectedType.placeholder,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            border: const OutlineInputBorder(),
-                            isDense: true,
-                            prefixIcon: const Icon(Icons.credit_card_rounded, size: 20),
-                            suffixIcon: rawText.isEmpty
-                                ? null
-                                : isValid
-                                    ? const Tooltip(
-                                        message: 'Valid Checksum / Format Verified',
-                                        child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 18),
-                                      )
-                                    : showWarning
-                                        ? const Tooltip(
-                                            message: 'Invalid format or checksum mismatch',
-                                            child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 18),
-                                          )
-                                        : null,
-                          ),
-                          textCapitalization: GovIdValidator.textCapitalization(_selectedType),
-                          keyboardType: GovIdValidator.keyboardType(_selectedType),
-                          inputFormatters: GovIdValidator.inputFormatters(_selectedType),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+                      return TextFormField(
+                        controller: _idNumberController,
+                        decoration: InputDecoration(
+                          labelText: '${_selectedType.displayName} Number',
+                          hintText: _selectedType.placeholder,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          prefixIcon: const Icon(Icons.credit_card_rounded, size: 18),
+                          suffixIcon: rawText.isEmpty
+                              ? null
+                              : isValid
+                                  ? const Tooltip(
+                                      message: 'Valid Checksum / Format Verified',
+                                      child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 18),
+                                    )
+                                  : showWarning
+                                      ? const Tooltip(
+                                          message: 'Invalid format or checksum mismatch',
+                                          child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 18),
+                                        )
+                                      : null,
+                        ),
+                        textCapitalization: GovIdValidator.textCapitalization(_selectedType),
+                        keyboardType: GovIdValidator.keyboardType(_selectedType),
+                        inputFormatters: GovIdValidator.inputFormatters(_selectedType),
+                      );
+                    },
+                  );
 
-                  // Save Details Button
-                  FilledButton.icon(
+                  final saveButton = FilledButton.icon(
                     onPressed: _isSavingDetails ? null : _saveIdDetails,
                     icon: _isSavingDetails
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.save_rounded, size: 18),
                     label: const Text('Save ID'),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                  ),
-                ],
+                  );
+
+                  if (isNarrow) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            SizedBox(width: 120, child: dropdownWidget),
+                            const SizedBox(width: 8),
+                            Expanded(child: idFieldWidget),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: saveButton,
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      SizedBox(width: 150, child: dropdownWidget),
+                      const SizedBox(width: 10),
+                      Expanded(child: idFieldWidget),
+                      const SizedBox(width: 10),
+                      saveButton,
+                    ],
+                  );
+                },
               ),
             ),
           ],

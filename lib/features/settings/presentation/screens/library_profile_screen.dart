@@ -954,111 +954,122 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         ),
       ),
       children: [
-        // 1. Live Interactive Preview Canvas
-        Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.black26 : currentColor.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: currentColor.withValues(alpha: 0.25)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        // 1. Live Interactive Preview Canvas (Luminance Adaptive)
+        Builder(
+          builder: (context) {
+            final previewAccent = (isDark && currentColor.computeLuminance() < 0.2)
+                ? const Color(0xFFFAFAFA)
+                : currentColor;
+            final previewBtnText = previewAccent.computeLuminance() > 0.5
+                ? const Color(0xFF18181B)
+                : Colors.white;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.black26 : previewAccent.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: previewAccent.withValues(alpha: 0.35)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.visibility_rounded, size: 16, color: currentColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Real-Time Theme Preview',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: currentColor,
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.visibility_rounded, size: 16, color: previewAccent),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Real-Time Theme Preview',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: previewAccent,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: previewAccent,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'PREVIEW',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: previewBtnText),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: currentColor,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      'PREVIEW',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () {},
+                        style: FilledButton.styleFrom(
+                          backgroundColor: previewAccent,
+                          foregroundColor: previewBtnText,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: const Icon(Icons.add_task_rounded, size: 16),
+                        label: const Text('Primary Action'),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: previewAccent.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: previewAccent),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, size: 14, color: previewAccent),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Active Status Pill',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: previewAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: theme.colorScheme.outlineVariant),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.chair_rounded, size: 14, color: previewAccent),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Desk 12 • Reserved',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  FilledButton.icon(
-                    onPressed: () {},
-                    style: FilledButton.styleFrom(
-                      backgroundColor: currentColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    icon: const Icon(Icons.add_task_rounded, size: 16),
-                    label: const Text('Primary Action'),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: currentColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: currentColor),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check_circle_rounded, size: 14, color: currentColor),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Active Status Pill',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: currentColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white10 : Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: theme.colorScheme.outlineVariant),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.chair_rounded, size: 14, color: currentColor),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Desk 12 • Reserved',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            );
+          },
         ),
 
         // 2. Curated Palette Presets Grid
@@ -1128,17 +1139,19 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            preset['name'] as String,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                              color: isSelected
-                                  ? (isDark ? Colors.white : (pColor.computeLuminance() < 0.15 ? const Color(0xFF0F172A) : pColor))
-                                  : theme.colorScheme.onSurface,
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              preset['name'] as String,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                color: isSelected
+                                    ? (isDark ? Colors.white : (pColor.computeLuminance() < 0.15 ? const Color(0xFF0F172A) : pColor))
+                                    : theme.colorScheme.onSurface,
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -1364,13 +1377,24 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Library Profile'),
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Library Profile',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.5),
+          ),
+        ),
         actions: [
           if (!_isLoading)
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: TextButton.icon(
                 onPressed: _isSaving ? null : _saveProfile,
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                ),
                 icon: _isSaving
                     ? const SizedBox(
                         width: 16,
@@ -1476,9 +1500,13 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                                     child: InkWell(
                                       customBorder: const CircleBorder(),
                                       onTap: _pickLogo,
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(8.0),
-                                        child: Icon(Icons.camera_alt_rounded, size: 18, color: Colors.white),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Icon(
+                                          Icons.camera_alt_rounded,
+                                          size: 18,
+                                          color: theme.colorScheme.onPrimary,
+                                        ),
                                       ),
                                     ),
                                   ),

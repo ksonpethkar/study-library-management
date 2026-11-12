@@ -12,6 +12,7 @@ import 'package:study_library/services/badge_service.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/student_provisioning_service.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
+import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 /// Data representation of a student request from raw Firestore data.
@@ -39,6 +40,7 @@ class StudentRequestItem {
   final String? paymentModeLabel;
   final String? referenceNumber;
   final String? studentUserId;
+  final String? photoUrl;
   final DateTime? cycleStartDate;
   final DateTime? cycleEndDate;
 
@@ -76,6 +78,7 @@ class StudentRequestItem {
     this.paymentModeLabel,
     this.referenceNumber,
     this.studentUserId,
+    this.photoUrl,
     this.cycleStartDate,
     this.cycleEndDate,
   });
@@ -96,6 +99,7 @@ class StudentRequestItem {
 
     final rawCurrentSeat = (data['currentSeatLabel'] ?? data['currentSeatId'] ?? studentData['currentSeatId']) as String?;
     final rawTargetSeat = (data['targetSeatLabel'] ?? data['targetSeatId'] ?? data['seatId'] ?? studentData['targetSeatId']) as String?;
+    final rawPhoto = (data['photoUrl'] ?? studentData['photoUrl'] ?? data['photo'] ?? studentData['photo']) as String?;
 
     return StudentRequestItem(
       id: doc.id,
@@ -121,6 +125,7 @@ class StudentRequestItem {
       paymentModeLabel: data['paymentModeLabel'] as String?,
       referenceNumber: (data['referenceNumber'] ?? data['reference']) as String?,
       studentUserId: (data['studentUserId'] ?? data['userId'] ?? studentData['userId']) as String?,
+      photoUrl: rawPhoto,
       cycleStartDate: _parseDate(data['cycleStartDate']),
       cycleEndDate: _parseDate(data['cycleEndDate']),
     );
@@ -1745,11 +1750,27 @@ class _RequestCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    foregroundColor: theme.colorScheme.onPrimaryContainer,
-                    child: const Icon(Icons.person_rounded, size: 22),
+                  GestureDetector(
+                    onTap: () {
+                      if (request.photoUrl != null && request.photoUrl!.isNotEmpty) {
+                        ImageService.showImageViewer(
+                          context,
+                          imageUrl: request.photoUrl!,
+                          title: request.studentName,
+                        );
+                      }
+                    },
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      foregroundColor: theme.colorScheme.onPrimaryContainer,
+                      backgroundImage: (request.photoUrl != null && request.photoUrl!.isNotEmpty)
+                          ? NetworkImage(request.photoUrl!)
+                          : null,
+                      child: (request.photoUrl == null || request.photoUrl!.isEmpty)
+                          ? const Icon(Icons.person_rounded, size: 22)
+                          : null,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

@@ -94,10 +94,13 @@ class AuthRepository {
         .snapshots();
   }
 
+  static const String serverClientId =
+      '670017745754-k4gjhigg2oabuon0a86vp3vaurhqefmg.apps.googleusercontent.com';
+
   Future<void> warmUpGoogleSignIn() async {
     if (!kIsWeb && !_googleSignInInitialized) {
       try {
-        await GoogleSignIn.instance.initialize();
+        await GoogleSignIn.instance.initialize(serverClientId: serverClientId);
         _googleSignInInitialized = true;
       } catch (e) {
         if (kDebugMode) debugPrint('GoogleSignIn warm-up: $e');
@@ -106,10 +109,10 @@ class AuthRepository {
   }
 
   Future<UserCredential> _nativeGoogleSignIn() async {
-    // Initialize GoogleSignIn once
+    // Initialize GoogleSignIn once with serverClientId so OIDC idToken is generated
     if (!_googleSignInInitialized) {
       try {
-        await GoogleSignIn.instance.initialize();
+        await GoogleSignIn.instance.initialize(serverClientId: serverClientId);
       } catch (_) { /* intentionally silent */ }
       _googleSignInInitialized = true;
     }
@@ -119,6 +122,10 @@ class AuthRepository {
 
     // Get the idToken from authentication
     final idToken = account.authentication.idToken;
+    if (idToken == null || idToken.isEmpty) {
+      if (kDebugMode) debugPrint('Google Sign-In returned null or empty idToken');
+      throw Exception('Google Sign-In could not obtain a valid identity token. Please try again.');
+    }
 
     // Create Firebase credential with idToken
     final credential = GoogleAuthProvider.credential(idToken: idToken);

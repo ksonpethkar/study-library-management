@@ -72,6 +72,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
   late final AnimationController _cardFlipController;
   late final Animation<double> _cardFlipAnimation;
   bool _birthdayDismissed = false;
+  bool _hasCheckedStartupDialogs = false;
 
   @override
   void initState() {
@@ -100,6 +101,21 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           break;
       }
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _hasCheckedStartupDialogs) return;
+      _hasCheckedStartupDialogs = true;
+      _runStartupDialogChecks();
+    });
+  }
+
+  Future<void> _runStartupDialogChecks() async {
+    if (!mounted) return;
+    await WhatsNewService.checkAndShow(context, isStudent: true);
+    if (!mounted) return;
+    await UpdateReminderDialog.checkAndShow(context, ref);
+    if (!mounted) return;
+    await FacilityTourSheet.checkAndShow(context);
   }
 
   @override
@@ -195,14 +211,6 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (context.mounted) {
-        WhatsNewService.checkAndShow(context, isStudent: true);
-        UpdateReminderDialog.checkAndShow(context, ref);
-        FacilityTourSheet.checkAndShow(context);
-      }
-    });
-
     final theme = Theme.of(context);
     final libraryAsync = ref.watch(currentLibraryProvider);
     final studentAsync = ref.watch(currentStudentProvider);
