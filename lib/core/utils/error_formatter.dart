@@ -64,7 +64,7 @@ class AppErrorFormatter {
       }
       if ((str.contains('seat') || str.contains('desk')) &&
           (str.contains('occupied') || str.contains('already occupied') || str.contains('reserved') || str.contains('held') || str.contains('assigned'))) {
-        return 'This study desk was just assigned to another student. Please select an available seat.';
+        return 'This study desk is currently reserved or occupied. Please select an available seat or choose Auto-Assign.';
       }
     }
 

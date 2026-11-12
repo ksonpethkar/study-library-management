@@ -546,7 +546,22 @@ class OcrParser {
   static GovIdType detectGovIdType(String rawText) {
     final text = rawText.toUpperCase();
 
-    // 1. Passport check (Look for PASSPORT, MRZ P<IND, or Passport No W0255557)
+    // 1. Aadhaar check (Priority #1: Covers >95% of applicants, contains unique authority identifiers)
+    if (text.contains('AADHAAR') ||
+        text.contains('आधार') ||
+        text.contains('UIDAI') ||
+        text.contains('UNIQUE IDENTIFICATION') ||
+        text.contains('विशिष्ट ओळख') ||
+        text.contains('MERA AADHAAR') ||
+        text.contains('ENROLMENT NO') ||
+        text.contains('ENROLMENT') ||
+        text.contains('नोंदणी क्रमांक') ||
+        RegExp(r'\b\d{4}/\d{5}/\d{5}\b').hasMatch(text) ||
+        RegExp(r'\b\d{4}\s\d{4}\s\d{4}\b').hasMatch(text)) {
+      return GovIdType.aadhaar;
+    }
+
+    // 2. Passport check (Look for PASSPORT, MRZ P<IND, or Passport No W0255557)
     if (text.contains('PASSPORT') ||
         text.contains('P<IND') ||
         text.contains('P<') ||
@@ -555,7 +570,7 @@ class OcrParser {
       return GovIdType.passport;
     }
 
-    // 2. Driving Licence check (Look for DL keywords or MH RTO pattern)
+    // 3. Driving Licence check (Look for DL keywords or MH RTO pattern)
     if (text.contains('DRIVING LICENCE') ||
         text.contains('DRIVING LICENSE') ||
         text.contains('UNION OF INDIA DRIVING') ||
@@ -566,7 +581,7 @@ class OcrParser {
       return GovIdType.drivingLicence;
     }
 
-    // 3. Voter ID / EPIC check (Election Commission of India)
+    // 4. Voter ID / EPIC check (Election Commission of India)
     if (text.contains('ELECTION COMMISSION') ||
         text.contains('ELECTOR PHOTO') ||
         (text.contains('IDENTITY CARD') && (text.contains('EPIC') || text.contains('VOTER') || text.contains('ELECTOR'))) ||
@@ -574,35 +589,21 @@ class OcrParser {
       return GovIdType.voterId;
     }
 
-    // 4. PAN Card check (10-char alphanumeric or Income Tax keywords)
-    // Supports: INCOME TAX, GOVT OF INDIA (with or without dot), आयकर विभाग, भारत सरकार, PERMANENT ACCOUNT
+    // 5. PAN Card check (Strict: 10-char alphanumeric or explicit Income Tax / Permanent Account keywords)
+    // NOTE: Removed generic 'भारत सरकार' & 'GOVT OF INDIA + DATE OF BIRTH' which falsely matched Aadhaar documents!
     if (RegExp(r'\b[A-Z]{5}[0-9OIS]{4}[A-Z]\b').hasMatch(text) ||
         text.contains('INCOME TAX') ||
         text.contains('INCOMETAX') ||
         text.contains('PERMANENT ACCOUNT') ||
         text.contains('ACCOUNT NUMBER CARD') ||
-        text.contains('आयकर विभाग') ||
-        text.contains('भारत सरकार') ||
-        ((text.contains('GOVT OF INDIA') || text.contains('GOVERNMENT OF INDIA') || text.contains('GOVT. OF INDIA')) &&
-         (text.contains('FATHER') || text.contains('FATHERS') || text.contains('DATE OF BIRTH') || text.contains('SIGNATURE')))) {
+        text.contains('आयकर विभाग')) {
       return GovIdType.pan;
     }
 
-    // 5. College / Student ID check (Strict: Must mention academic institute + student credential)
+    // 6. College / Student ID check (Strict: Must mention academic institute + student credential)
     if ((text.contains('COLLEGE') || text.contains('INSTITUTE') || text.contains('UNIVERSITY') || text.contains('POLYTECHNIC')) &&
         (text.contains('STUDENT') || text.contains('ROLL') || text.contains('ENROLL') || text.contains('SEMESTER') || text.contains('STUDENT CARD') || text.contains('IDENTITY CARD'))) {
       return GovIdType.collegeId;
-    }
-
-    // 6. Aadhaar check (Specific to UIDAI or 12-digit pattern)
-    // NOTE: We do NOT use generic "GOVERNMENT OF INDIA" as a sole match!
-    if (text.contains('AADHAAR') ||
-        text.contains('UIDAI') ||
-        text.contains('UNIQUE IDENTIFICATION') ||
-        text.contains('MERA AADHAAR') ||
-        text.contains('ENROLMENT NO') ||
-        RegExp(r'\b\d{4}\s\d{4}\s\d{4}\b').hasMatch(text)) {
-      return GovIdType.aadhaar;
     }
 
     // Default to Aadhaar
@@ -1098,14 +1099,22 @@ class OcrParser {
           confidence += 30;
         }
       }
+    } else {
+      // 2b. Aadhaar Letter Enrolment Number Fallback (e.g. 2821/14005/02968)
+      final enrolMatch = RegExp(r'\b(\d{4}/\d{5}/\d{5})\b').firstMatch(rawText) ??
+          RegExp(r'(?:Enrolment\s*No\.?|नोंदणी\s*क्रमांक)[^\d\n\r]*(\d{4}/\d{5}/\d{5}|\d{14})', caseSensitive: false).firstMatch(rawText);
+      if (enrolMatch != null) {
+        aadhaarNumber = enrolMatch.group(1)?.trim();
+        confidence += 35;
+      }
     }
 
     // 3. DOB
     final dob = _extractDob(rawText);
     if (dob != null) confidence += 15;
 
-    // 4. Gender
-    final gender = _extractGender(rawText);
+    // 4. Gender (Direct or derived from relation)
+    String? gender = _extractGender(rawText);
     if (gender != null) confidence += 10;
 
     // 5. English Name: Look specifically for clean English words above DOB / Gender
@@ -1155,10 +1164,10 @@ class OcrParser {
       }
     }
 
-    // 6. Father / Care of
+    // 6. Father / Care of / Spouse
     String? fatherName;
     final relMatch = RegExp(
-      r'(?:C/O|S/O|D/O|W/O|Care of|Son of|Daughter of|Wife of|आत्मज|नाते|वडील|पती)[:\s]+([^\n\r,]+)',
+      r'(?:C/O|S/O|D/O|W/O|Care of|Son of|Daughter of|Wife of|आत्मज|नाते|वडील|पती|पत्नी)[:\s]+([^\n\r,]+)',
       caseSensitive: false,
     ).firstMatch(rawText);
     if (relMatch != null) {
@@ -1172,12 +1181,22 @@ class OcrParser {
       }
     }
 
-    // 7. Address & PIN (Aadhaar Back)
+    // Infer gender from W/O if not found via standard keywords
+    if (gender == null) {
+      final lower = rawText.toLowerCase();
+      if (lower.contains('w/o') || lower.contains('wife of') || lower.contains('पत्नी')) {
+        gender = 'female';
+        confidence += 5;
+      }
+    }
+
+    // 7. Address & PIN (Aadhaar Back or Aadhaar Letter)
     final address = _extractAadhaarAddress(cleanLines, text);
     final pinCode = _extractPin(text);
     if (address != null) confidence += 15;
 
     final phone = _extractPhone(text);
+    if (phone != null) confidence += 10;
 
     return OcrResult(
       name: name,
@@ -1194,6 +1213,7 @@ class OcrParser {
   }
 
   static String? _extractAadhaarAddress(List<String> cleanLines, String text) {
+    // 1. Standard Address label search
     int addrStartIdx = -1;
     for (int i = 0; i < cleanLines.length; i++) {
       final l = cleanLines[i].toLowerCase();
@@ -1221,6 +1241,24 @@ class OcrParser {
       }
     }
 
+    // 2. Aadhaar Letter / Enrolment Letter format (Address follows C/O, S/O, W/O, D/O)
+    final relIdx = cleanLines.indexWhere((l) => RegExp(r'\b(?:C/O|S/O|D/O|W/O|Care of|Wife of|Son of)\b', caseSensitive: false).hasMatch(l));
+    if (relIdx >= 0 && relIdx + 1 < cleanLines.length) {
+      final addrLines = <String>[];
+      for (int i = relIdx + 1; i < cleanLines.length && i < relIdx + 6; i++) {
+        final l = cleanLines[i].trim();
+        if (l.toLowerCase().contains('mobile:') || l.toLowerCase().contains('phone:') || l.toLowerCase().contains('enrolment')) break;
+        if (!_isAadhaarBoilerplate(l) && !_isKeyword(l)) {
+          addrLines.add(l);
+        }
+        if (RegExp(r'\b\d{6}\b').hasMatch(l)) break;
+      }
+      if (addrLines.isNotEmpty) {
+        return addrLines.join(', ').replaceAll(RegExp(r',\s*,+'), ',').trim();
+      }
+    }
+
+    // 3. Fallback: Proximity to PIN code
     final pin = _extractPin(text);
     if (pin != null) {
       final pinIdx = cleanLines.indexWhere((l) => l.contains(pin));

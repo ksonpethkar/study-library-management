@@ -31,10 +31,18 @@ class DocumentLayoutClassifier {
     final lower = rawText.toLowerCase();
 
     // ── 1. PAN Card Detection (Always single-sided) ───────────────────────────
-    final isPan = preferredType == GovIdType.pan ||
-        lower.contains('income tax department') ||
-        lower.contains('permanent account number card') ||
-        RegExp(r'\b[a-z]{5}[0-9]{4}[a-z]\b', caseSensitive: false).hasMatch(lower);
+    final hasAadhaarMarkers = lower.contains('aadhaar') ||
+        lower.contains('आधार') ||
+        lower.contains('uidai') ||
+        lower.contains('unique identification') ||
+        lower.contains('विशिष्ट ओळख') ||
+        lower.contains('enrolment');
+
+    final isPan = !hasAadhaarMarkers &&
+        (lower.contains('income tax department') ||
+         lower.contains('permanent account number card') ||
+         RegExp(r'\b[a-z]{5}[0-9]{4}[a-z]\b', caseSensitive: false).hasMatch(lower) ||
+         (preferredType == GovIdType.pan && !lower.contains('government of india')));
 
     if (isPan) {
       return DocumentSideClassification.panCard;

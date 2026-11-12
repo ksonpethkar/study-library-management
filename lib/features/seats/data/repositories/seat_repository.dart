@@ -427,8 +427,10 @@ class SeatRepository {
     String libraryId,
     String sectionId,
     String seatId,
-    String studentId,
-  ) async {
+    String studentId, {
+    String? studentUserId,
+    bool overrideSoftLock = true,
+  }) async {
     try {
       // 1. Sweep any previously occupied seats for this student across all sections
       final oldSeatRefs = <DocumentReference>[];
@@ -465,6 +467,16 @@ class SeatRepository {
           .collection(FirestorePaths.students)
           .doc(studentId);
 
+      String? resolvedUserId = studentUserId;
+      if (resolvedUserId == null || resolvedUserId.isEmpty) {
+        try {
+          final sSnap = await studentRef.get();
+          if (sSnap.exists) {
+            resolvedUserId = (sSnap.data()?['userId'] as String?)?.trim();
+          }
+        } catch (_) {}
+      }
+
       String assignedLabel = seatId;
 
       // 2. Atomic Firestore Transaction for collision prevention
@@ -490,15 +502,43 @@ class SeatRepository {
             resExpires != null &&
             resExpires.isAfter(DateTime.now());
 
+        final isSameStudent = currentOccupant == studentId ||
+            (resolvedUserId != null && resolvedUserId.isNotEmpty && currentOccupant == resolvedUserId);
+
         if (currentStatus == SeatStatus.occupied.name &&
             currentOccupant != null &&
             currentOccupant.isNotEmpty &&
-            currentOccupant != studentId) {
-          throw Exception('Seat is already occupied by another student.');
+            !isSameStudent) {
+          // Verify occupant is still an active enrolled student (not deleted/archived ghost)
+          bool isOccupantActive = true;
+          try {
+            final occSnap = await _firestore
+                .collection(FirestorePaths.libraries)
+                .doc(libraryId)
+                .collection(FirestorePaths.students)
+                .doc(currentOccupant)
+                .get();
+            if (!occSnap.exists) {
+              isOccupantActive = false;
+            } else {
+              final occStatus = (occSnap.data()?['membershipStatus'] as String?)?.toLowerCase();
+              if (occStatus == 'archived' || occStatus == 'deleted' || occStatus == 'inactive' || occStatus == 'expired') {
+                isOccupantActive = false;
+              }
+            }
+          } catch (_) {}
+
+          if (isOccupantActive) {
+            throw Exception('Seat is already occupied by another student.');
+          }
         }
 
         final reservedCandidateId = targetData['reservedCandidateId'] as String?;
-        if (isSoftLockActive && reservedCandidateId != null && reservedCandidateId != studentId) {
+        final isReservedForThisStudent = reservedCandidateId != null &&
+            (reservedCandidateId == studentId ||
+                (resolvedUserId != null && resolvedUserId.isNotEmpty && reservedCandidateId == resolvedUserId));
+
+        if (isSoftLockActive && reservedCandidateId != null && !isReservedForThisStudent && !overrideSoftLock) {
           throw Exception('Seat is temporarily held for another applicant (10-minute reservation).');
         }
 

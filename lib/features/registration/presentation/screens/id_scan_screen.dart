@@ -166,7 +166,37 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
         // Front side: full extraction & orientation classification
         final qrParsed = QrIdParser.parseQrString(qrString);
         final detectedType = qrParsed?.type ?? OcrParser.detectGovIdType(rawText);
-        final effectiveType = detectedType != GovIdType.other ? detectedType : _selectedType;
+        
+        // Safeguard: Never allow false PAN / generic detection to override user-selected Aadhaar
+        // unless unmistakable evidence of that ID type exists in text
+        GovIdType effectiveType;
+        if (detectedType == GovIdType.other) {
+          effectiveType = _selectedType;
+        } else if (_selectedType == GovIdType.aadhaar && detectedType != GovIdType.aadhaar) {
+          final upper = rawText.toUpperCase();
+          final isDefinitePan = upper.contains('INCOME TAX') ||
+              RegExp(r'\b[A-Z]{5}[0-9]{4}[A-Z]\b').hasMatch(upper);
+          final isDefiniteDl = upper.contains('DRIVING LICENCE') ||
+              upper.contains('DRIVING LICENSE');
+          final isDefiniteVoter = upper.contains('ELECTION COMMISSION');
+          final isDefinitePassport = upper.contains('PASSPORT') ||
+              upper.contains('P<IND');
+
+          if (isDefinitePan) {
+            effectiveType = GovIdType.pan;
+          } else if (isDefiniteDl) {
+            effectiveType = GovIdType.drivingLicence;
+          } else if (isDefiniteVoter) {
+            effectiveType = GovIdType.voterId;
+          } else if (isDefinitePassport) {
+            effectiveType = GovIdType.passport;
+          } else {
+            effectiveType = _selectedType;
+          }
+        } else {
+          effectiveType = detectedType;
+        }
+
         final layout = DocumentLayoutClassifier.classify(
           rawText: rawText,
           preferredType: effectiveType,

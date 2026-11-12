@@ -214,8 +214,8 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
         data: qrData,
         version: QrVersions.auto,
         gapless: true,
-        color: const Color(0xFF000000),
-        emptyColor: const Color(0xFFFFFFFF),
+        eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF000000)),
+        dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF000000)),
       );
       final byteData = await painter.toImageData(600);
       if (byteData != null) {
@@ -1611,6 +1611,16 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                                       'Google Pay • PhonePe • Paytm • BHIM • Any UPI',
                                       style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                                     ),
+                                    const SizedBox(height: 4),
+                                    TextButton.icon(
+                                      onPressed: () => _saveQrImage(activeUpiUri, effectivePrice.toStringAsFixed(0)),
+                                      icon: const Icon(Icons.download_rounded, size: 15),
+                                      label: const Text('Save QR to Photos / Downloads', style: TextStyle(fontSize: 11.5)),
+                                      style: TextButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      ),
+                                    ),
                                     if (isAboveLimit) ...[
                                       const SizedBox(height: 6),
                                       InkWell(
@@ -1706,6 +1716,11 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                                       );
                                     },
                                   ),
+                                  ActionChip(
+                                    avatar: const Icon(Icons.download_rounded, size: 14),
+                                    label: const Text('Save QR to Photos', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5)),
+                                    onPressed: () => _saveQrImage(lockedUpiUri, planPriceStr),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -1762,6 +1777,76 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                                     }
                                   }
                                 },
+                              ),
+
+                              // PhonePe & GPay Direct Pay Card
+                              Container(
+                                margin: const EdgeInsets.only(top: 12),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(Icons.help_outline_rounded, size: 16, color: Color(0xFF475569)),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'PhonePe / GPay Troubleshooting',
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1E293B)),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    const Text(
+                                      'If PhonePe blocks direct payment with "cannot be completed through this mode":\n'
+                                      '1. Tap "Copy UPI" below ➔ open PhonePe ➔ tap "To UPI ID" ➔ paste & pay.\n'
+                                      '2. OR tap "Save QR" below ➔ open PhonePe Scanner ➔ tap Gallery icon ➔ select QR.',
+                                      style: TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.35),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            icon: const Icon(Icons.copy_rounded, size: 13),
+                                            label: const Text('1. Copy UPI ID', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                            style: OutlinedButton.styleFrom(
+                                              visualDensity: VisualDensity.compact,
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                            ),
+                                            onPressed: () {
+                                              Clipboard.setData(ClipboardData(text: upiId));
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('UPI ID $upiId copied! In PhonePe, select "To UPI ID" and paste.'),
+                                                  backgroundColor: const Color(0xFF0F172A),
+                                                  behavior: SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            icon: const Icon(Icons.download_rounded, size: 13),
+                                            label: const Text('2. Save QR Image', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                            style: OutlinedButton.styleFrom(
+                                              visualDensity: VisualDensity.compact,
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                            ),
+                                            onPressed: () => _saveQrImage(lockedUpiUri, planPriceStr),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 16),
 

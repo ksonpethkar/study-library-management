@@ -168,8 +168,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   currentOccupant.isNotEmpty &&
                   currentOccupant != applicantUid &&
                   currentOccupant != studentId) {
-                isSeatOccupied = true;
-                occupantId = currentOccupant;
+                // Verify if this occupant actually exists and is currently active (not ghost/deleted/archived)
+                bool isActuallyActive = false;
                 try {
                   final occDoc = await FirebaseFirestore.instance
                       .collection('libraries')
@@ -178,9 +178,19 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                       .doc(currentOccupant)
                       .get();
                   if (occDoc.exists) {
-                    occupantName = occDoc.data()?['name']?.toString() ?? 'Enrolled Student';
+                    final occData = occDoc.data() ?? {};
+                    final occStatus = (occData['membershipStatus'] as String?)?.toLowerCase();
+                    if (occStatus != 'archived' && occStatus != 'deleted' && occStatus != 'inactive' && occStatus != 'expired') {
+                      isActuallyActive = true;
+                      occupantName = occData['name']?.toString() ?? 'Enrolled Student';
+                    }
                   }
                 } catch (_) {}
+
+                if (isActuallyActive) {
+                  isSeatOccupied = true;
+                  occupantId = currentOccupant;
+                }
               }
             }
           } catch (seatErr) {
@@ -4484,7 +4494,14 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
               if (occupant.isEmpty || occupant == studentId || seatStatus == 'available' || isExpiredReservation) {
                 final seatRepo = ref.read(seatRepositoryProvider);
-                await seatRepo.assignStudent(libraryId, targetSecId, requestedDesk, studentId);
+                await seatRepo.assignStudent(
+                  libraryId,
+                  targetSecId,
+                  requestedDesk,
+                  studentId,
+                  studentUserId: studentUserId,
+                  overrideSoftLock: true,
+                );
                 assignedSeatId = requestedDesk;
                 assignedSectionId = targetSecId;
               }

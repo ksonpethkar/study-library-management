@@ -238,6 +238,7 @@ class StudentProvisioningService {
             seatId: requestedSeatId,
             sectionId: requestedSectionId,
             planId: planId,
+            admissionDate: DateTime.now(),
             planStartDate: isPaid ? planStartDate : null,
             planEndDate: isPaid ? planEndDate : null,
             membershipStatus: isPaid ? MembershipStatus.active : MembershipStatus.inactive,
@@ -270,6 +271,8 @@ class StudentProvisioningService {
               requestedSectionId,
               requestedSeatId,
               createdStudentId,
+              studentUserId: studentUserId,
+              overrideSoftLock: true,
             );
           } catch (e) {
             if (kDebugMode) debugPrint('Failed to assign seat during provisioning: $e');
@@ -333,7 +336,14 @@ class StudentProvisioningService {
             }
           } else {
             try {
-              await _seatRepo.assignStudent(libraryId, targetSectionId, targetSeatId, targetStudentId);
+              await _seatRepo.assignStudent(
+                libraryId,
+                targetSectionId,
+                targetSeatId,
+                targetStudentId,
+                studentUserId: studentUserId,
+                overrideSoftLock: true,
+              );
             } catch (e) {
               if (kDebugMode) debugPrint('Error assigning target seat: $e');
             }
@@ -577,7 +587,14 @@ class StudentProvisioningService {
                         (resExpires == null || resExpires.isBefore(DateTime.now()));
 
                     if (occupant.isEmpty || occupant == targetStudentId || seatStatus == 'available' || isExpiredReservation) {
-                      await _seatRepo.assignStudent(libraryId, targetSecId, requestedDesk, targetStudentId);
+                      await _seatRepo.assignStudent(
+                        libraryId,
+                        targetSecId,
+                        requestedDesk,
+                        targetStudentId,
+                        studentUserId: studentUserId,
+                        overrideSoftLock: true,
+                      );
                       assignedSeatId = requestedDesk;
                       assignedSectionId = targetSecId;
                     }

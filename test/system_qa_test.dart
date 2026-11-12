@@ -501,8 +501,41 @@ void main() {
       // College ID detection
       expect(OcrParser.detectGovIdType('ABC COLLEGE OF ENGINEERING STUDENT IDENTITY CARD ROLL NO 42'), equals(GovIdType.collegeId));
 
-      // Aadhaar detection
+      // Aadhaar detection & Aadhaar Letter OCR Invariants
       expect(OcrParser.detectGovIdType('GOVERNMENT OF INDIA UNIQUE IDENTIFICATION AUTHORITY AADHAAR 1234 5678 9012'), equals(GovIdType.aadhaar));
+      expect(
+        OcrParser.detectGovIdType(
+          'UNIQUE IDENTIFICATION AUTHORITY OF INDIA भारतीय विशिष्ट ओळख प्राधिकरण नोंदणी क्रमांक / ENROLMENT NO.: 2821/14005/02968 '
+          'CHANDRAKALA PADMAKARRAO SONPETHKAR W/O PADMAKARRAO SONPETHKAR DHEKANMOHA BHIR BEED MAHARASHTRA PIN CODE: 431122 MOBILE: 9921448238 DATE OF BIRTH: 01/01/1946',
+        ),
+        equals(GovIdType.aadhaar),
+      );
+
+      // Verify Aadhaar letter is accurately parsed into structured fields
+      final aadhaarLetterResult = OcrParser.parseByType(
+        GovIdType.aadhaar,
+        'Unique Identification Authority of India\n'
+        'भारतीय विशिष्ट ओळख प्राधिकरण\n'
+        'नोंदणी क्रमांक / Enrolment No.: 2821/14005/02968\n\n'
+        'To,\n'
+        'Chandrakala Padmakarrao Sonpethkar\n'
+        'W/O Padmakarrao Sonpethkar,\n'
+        'Dhekanmoha, Bhir, Beed, Beed, Maharashtra,\n'
+        'PIN Code: 431122,\n'
+        'Mobile: 9921448238\n'
+        'Date of Birth: 01/01/1946\n',
+      );
+      expect(aadhaarLetterResult.name, equals('Chandrakala Padmakarrao Sonpethkar'));
+      expect(aadhaarLetterResult.dob, equals('01/01/1946'));
+      expect(aadhaarLetterResult.fatherName, equals('Padmakarrao Sonpethkar'));
+      expect(aadhaarLetterResult.gender, equals('female'));
+      expect(aadhaarLetterResult.idNumber, equals('2821/14005/02968'));
+      expect(aadhaarLetterResult.pinCode, equals('431122'));
+      expect(aadhaarLetterResult.phone, equals('9921448238'));
+      expect(aadhaarLetterResult.address, contains('Dhekanmoha'));
+
+      // Validate Enrolment format in GovIdValidator
+      expect(GovIdValidator.isValid(GovIdType.aadhaar, '2821/14005/02968'), isTrue);
     });
 
     test('20. Biometric & Security Firestore Recovery Schema Completeness', () {

@@ -25,9 +25,17 @@ class AadhaarInputFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     final text = newValue.text;
+    // Keep enrolment number formatting (e.g. 2821/14005/02968) intact
+    if (text.contains('/')) {
+      return text.length <= 16 ? newValue : oldValue;
+    }
+
     final digits = text.replaceAll(RegExp(r'\D'), '');
-    if (digits.length > 12) {
+    if (digits.length > 14) {
       return oldValue;
+    }
+    if (digits.length > 12) {
+      return newValue;
     }
 
     final buffer = StringBuffer();
@@ -65,6 +73,11 @@ class GovIdValidator {
       case GovIdType.aadhaar:
         // Support Masked Aadhaar: XXXX XXXX 1234 or •••• •••• 1234
         if (RegExp(r'^(?:[Xx*•]{4}[\s\-]?){2}(\d{4})$').hasMatch(clean)) {
+          return null;
+        }
+
+        // Support Aadhaar Enrolment Number (14 digits or with slashes: e.g. 2821/14005/02968)
+        if (RegExp(r'^\d{4}/\d{5}/\d{5}$').hasMatch(clean) || (clean.length == 14 && RegExp(r'^\d{14}$').hasMatch(clean))) {
           return null;
         }
 
@@ -271,6 +284,7 @@ class GovIdValidator {
     final trimmed = value.trim();
     switch (type) {
       case GovIdType.aadhaar:
+        if (trimmed.contains('/')) return trimmed; // Preserve enrolment format
         // Group into 4-digit blocks: 1234 5678 9012
         final digits = trimmed.replaceAll(RegExp(r'\D'), '');
         if (digits.length <= 4) return digits;
@@ -296,7 +310,7 @@ class GovIdValidator {
       case GovIdType.aadhaar:
         return [
           AadhaarInputFormatter(),
-          LengthLimitingTextInputFormatter(14), // 12 digits + 2 spaces
+          LengthLimitingTextInputFormatter(16), // 12 digits + 2 spaces or 14-digit enrolment + 2 slashes
         ];
 
       case GovIdType.pan:

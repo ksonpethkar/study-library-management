@@ -1987,10 +1987,32 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                                           controller: _upiIdController,
                                           decoration: const InputDecoration(
                                             labelText: 'Library UPI ID / VPA',
-                                            hintText: 'e.g. 7276959070@upi',
+                                            hintText: 'e.g. 7276959070@upi or business@okhdfcbank',
                                             border: OutlineInputBorder(),
                                             prefixIcon: Icon(Icons.qr_code_2_rounded),
                                             isDense: true,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF0FDF4),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                                          ),
+                                          child: const Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Icon(Icons.verified_rounded, size: 16, color: Color(0xFF16A34A)),
+                                              SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  'Pro-Tip: Using a PhonePe for Business, Paytm Merchant, or Google Pay Business QR / UPI ID enables 1-tap app payments above ₹2,000 without PhonePe collect blocks.',
+                                                  style: TextStyle(fontSize: 11, color: Color(0xFF166534), height: 1.3),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                         const SizedBox(height: 12),
