@@ -1532,7 +1532,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                             : (library?.name.isNotEmpty == true ? library!.name : 'Study Library');
 
                         final isMerchant = payData['accountType'] == 'merchant';
-                        final mcc = payData['mcc']?.toString() ?? (isMerchant ? '8299' : null);
+                        final mcc = isMerchant ? (payData['mcc']?.toString() ?? '8299') : null;
                         final mccParam = (mcc != null && mcc.isNotEmpty) ? '&mc=$mcc' : '';
                         final isAboveLimit = effectivePrice >= 2000 && !isMerchant;
 
@@ -1540,14 +1540,19 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                         final sanitizedNote = cleanStudentName.isNotEmpty
                             ? (cleanStudentName.length > 20 ? cleanStudentName.substring(0, 20) : cleanStudentName)
                             : 'CozyCorner';
-                        final tnParam = '&tn=${Uri.encodeComponent("Renewal $sanitizedNote")}';
+                        final tnParam = isMerchant ? '&tn=${Uri.encodeComponent("Renewal $sanitizedNote")}' : '';
 
                         // Smart URI Routing:
-                        // NPCI & PhonePe block pre-filled collect deep links (&am=) on personal savings (P2P) VPAs.
+                        // NPCI & PhonePe block pre-filled collect deep links (&am=, &tn=, &mc=) on personal savings (P2P) VPAs.
+                        // For personal savings VPAs, never include merchant MCC codes or collect notes that trigger PhonePe rejection.
                         // For amounts >= ₹2,000 or any P2P account with collect restrictions,
-                        // default to Open-Amount Intent (Payee pre-filled, student enters amount) to eliminate bank/app rejection.
-                        final lockedUpiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}$mccParam&am=$planPriceStr&cu=INR$tnParam';
-                        final openUpiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}$mccParam&cu=INR$tnParam';
+                        // default to Open-Amount P2P Intent to eliminate bank/app rejection.
+                        final lockedUpiUri = isMerchant
+                            ? 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}$mccParam&am=$planPriceStr&cu=INR$tnParam'
+                            : (isAboveLimit
+                                ? 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}&cu=INR'
+                                : 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}&am=$planPriceStr&cu=INR');
+                        final openUpiUri = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(payeeName)}&cu=INR';
 
                         final activeUpiUri = (isAboveLimit && !_forceLockedQr) ? openUpiUri : lockedUpiUri;
 

@@ -28,6 +28,7 @@ import 'package:study_library/services/upi_ocr_parser.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/soundbox_service.dart';
+import 'package:study_library/services/remote_config_service.dart';
 import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 
@@ -142,9 +143,14 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
     _loadStudentDetails();
   }
 
+  String get _effectiveLibraryId {
+    final raw = ref.read(currentLibraryIdProvider);
+    return (raw != null && raw.isNotEmpty) ? raw : RemoteConfigService.defaultLibraryId;
+  }
+
   Future<void> _loadStudentDetails() async {
     try {
-      final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+      final libraryId = _effectiveLibraryId;
       if (libraryId.isEmpty) return;
 
       final doc = await FirebaseFirestore.instance
@@ -227,7 +233,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
 
   Future<void> _loadPaymentMethods() async {
     try {
-      final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+      final libraryId = _effectiveLibraryId;
       if (libraryId.isEmpty) return;
 
       final doc = await FirebaseFirestore.instance
@@ -484,7 +490,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       final remainingDue = _isPartialPayment ? _calculatedRemainingDue : 0.0;
 
       final repo = ref.read(paymentRepositoryProvider);
-      final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+      final libraryId = _effectiveLibraryId;
 
       // 1. Duplicate check (amount within 5 mins)
       final isDup = await repo.checkDuplicatePayment(libraryId, widget.studentId, amount);
@@ -803,7 +809,14 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                 final status = seatData['status'] as String? ?? 'available';
                 if (occupant == null || occupant.isEmpty || occupant == widget.studentId || status == 'available') {
                   final seatRepo = ref.read(seatRepositoryProvider);
-                  await seatRepo.assignStudent(libraryId, effectiveSecId, effectiveSeatId, widget.studentId);
+                  await seatRepo.assignStudent(
+                    libraryId,
+                    effectiveSecId,
+                    effectiveSeatId,
+                    widget.studentId,
+                    studentUserId: _studentUserId,
+                    overrideSoftLock: true,
+                  );
                   studentUpdates['seatId'] = effectiveSeatId;
                   studentUpdates['sectionId'] = effectiveSecId;
                 }
@@ -997,6 +1010,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       }
     } catch (e, stack) {
       HapticFeedback.heavyImpact();
+      debugPrint('Record payment failed: $e\n$stack');
       // S9: Report payment errors to Crashlytics
       if (!kIsWeb) {
         FirebaseCrashlytics.instance.recordError(e, stack, reason: 'record_payment_failed', fatal: false);

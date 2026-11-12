@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:study_library/models/payment_model.dart';
+import 'package:study_library/services/remote_config_service.dart';
 
 class PaymentRepository {
   final FirebaseFirestore _firestore;
@@ -8,8 +9,10 @@ class PaymentRepository {
   PaymentRepository({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> _paymentsRef(String libraryId) =>
-      _firestore.collection('libraries').doc(libraryId).collection('payments');
+  CollectionReference<Map<String, dynamic>> _paymentsRef(String libraryId) {
+    final effectiveLibId = libraryId.isNotEmpty ? libraryId : RemoteConfigService.defaultLibraryId;
+    return _firestore.collection('libraries').doc(effectiveLibId).collection('payments');
+  }
 
   Future<String> recordPayment(String libraryId, String studentId, PaymentModel payment) async {
     final doc = _paymentsRef(libraryId).doc();
@@ -27,7 +30,13 @@ class PaymentRepository {
         .where('studentId', isEqualTo: studentId)
         .snapshots()
         .map((snap) {
-          final payments = snap.docs.map((doc) => PaymentModel.fromJson(doc.data())).toList();
+          final payments = snap.docs.map((doc) {
+            final data = doc.data();
+            if (!data.containsKey('id') || (data['id'] as String?)?.isEmpty == true) {
+              data['id'] = doc.id;
+            }
+            return PaymentModel.fromJson(data);
+          }).toList();
           payments.sort((a, b) => b.date.compareTo(a.date));
           return payments;
         });
@@ -35,16 +44,23 @@ class PaymentRepository {
 
   Future<bool> checkDuplicatePayment(String libraryId, String studentId, double amount) async {
     final fiveMinsAgo = DateTime.now().subtract(const Duration(minutes: 5));
-    final snapshot = await _paymentsRef(libraryId)
-        .where('studentId', isEqualTo: studentId)
-        .get();
-    
-    return snapshot.docs.any((doc) {
-      final data = doc.data();
-      final docAmount = (data['amount'] ?? 0).toDouble();
-      final docDate = DateTime.tryParse(data['date'] ?? '') ?? DateTime(2000);
-      return docAmount == amount && docDate.isAfter(fiveMinsAgo);
-    });
+    try {
+      final snapshot = await _paymentsRef(libraryId)
+          .where('studentId', isEqualTo: studentId)
+          .get();
+      
+      return snapshot.docs.any((doc) {
+        final data = doc.data();
+        if (!data.containsKey('id') || (data['id'] as String?)?.isEmpty == true) {
+          data['id'] = doc.id;
+        }
+        final payment = PaymentModel.fromJson(data);
+        return (payment.amount - amount).abs() < 0.01 && payment.date.isAfter(fiveMinsAgo);
+      });
+    } catch (_) {
+      // Resilient duplicate check: unexpected data format must never abort payment recording
+      return false;
+    }
   }
 
   /// Queries the library payments ledger to detect if a transaction reference / UTR
@@ -57,19 +73,21 @@ class PaymentRepository {
     final cleanRef = referenceNumber.trim();
     if (cleanRef.isEmpty || cleanRef.length < 6) return null;
 
-    final snapshot = await _paymentsRef(libraryId)
-        .where('referenceNumber', isEqualTo: cleanRef)
-        .limit(2)
-        .get();
+    try {
+      final snapshot = await _paymentsRef(libraryId)
+          .where('referenceNumber', isEqualTo: cleanRef)
+          .limit(2)
+          .get();
 
-    for (final doc in snapshot.docs) {
-      if (excludePaymentId != null && doc.id == excludePaymentId) continue;
-      final data = doc.data();
-      if (!data.containsKey('id') || (data['id'] as String?)?.isEmpty == true) {
-        data['id'] = doc.id;
+      for (final doc in snapshot.docs) {
+        if (excludePaymentId != null && doc.id == excludePaymentId) continue;
+        final data = doc.data();
+        if (!data.containsKey('id') || (data['id'] as String?)?.isEmpty == true) {
+          data['id'] = doc.id;
+        }
+        return PaymentModel.fromJson(data);
       }
-      return PaymentModel.fromJson(data);
-    }
+    } catch (_) {}
     return null;
   }
 

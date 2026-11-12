@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:study_library/models/receipt_model.dart';
+import 'package:study_library/services/remote_config_service.dart';
 
 class ReceiptRepository {
   final FirebaseFirestore _firestore;
@@ -9,13 +10,16 @@ class ReceiptRepository {
   ReceiptRepository({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> _receiptsRef(String libraryId) =>
-      _firestore.collection('libraries').doc(libraryId).collection('receipts');
+  CollectionReference<Map<String, dynamic>> _receiptsRef(String libraryId) {
+    final effectiveLibId = libraryId.isNotEmpty ? libraryId : RemoteConfigService.defaultLibraryId;
+    return _firestore.collection('libraries').doc(effectiveLibId).collection('receipts');
+  }
 
   Future<String> getNextReceiptNumber(String libraryId) async {
+    final effectiveLibId = libraryId.isNotEmpty ? libraryId : RemoteConfigService.defaultLibraryId;
     final counterRef = _firestore
         .collection('libraries')
-        .doc(libraryId)
+        .doc(effectiveLibId)
         .collection('metadata')
         .doc('receiptCounter');
 
@@ -23,7 +27,7 @@ class ReceiptRepository {
     try {
       final templateDoc = await _firestore
           .collection('libraries')
-          .doc(libraryId)
+          .doc(effectiveLibId)
           .collection('settings')
           .doc('receipt_template')
           .get();

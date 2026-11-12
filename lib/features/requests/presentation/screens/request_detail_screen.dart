@@ -168,7 +168,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   currentOccupant.isNotEmpty &&
                   currentOccupant != applicantUid &&
                   currentOccupant != studentId) {
-                // Verify if this occupant actually exists and is currently active (not ghost/deleted/archived)
+                // Verify if this occupant actually exists, is active, and is actually assigned to THIS seat
                 bool isActuallyActive = false;
                 try {
                   final occDoc = await FirebaseFirestore.instance
@@ -180,7 +180,20 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   if (occDoc.exists) {
                     final occData = occDoc.data() ?? {};
                     final occStatus = (occData['membershipStatus'] as String?)?.toLowerCase();
-                    if (occStatus != 'archived' && occStatus != 'deleted' && occStatus != 'inactive' && occStatus != 'expired') {
+                    final occSeatId = (occData['seatId'] ?? '').toString();
+                    final occPhone = (occData['phone'] ?? '').toString().trim();
+                    final occUid = (occData['userId'] ?? '').toString().trim();
+                    final reqPhone = (studentDataMap['phone'] ?? reqData?['studentPhone'] ?? '').toString().trim();
+
+                    final isActuallyInactive = occStatus == 'archived' ||
+                        occStatus == 'deleted' ||
+                        occStatus == 'inactive' ||
+                        occStatus == 'expired';
+                    final isMovedAway = occSeatId.isNotEmpty && occSeatId != reqSeatId;
+                    final isSameApplicant = (reqPhone.isNotEmpty && occPhone == reqPhone) ||
+                        (applicantUid.isNotEmpty && occUid == applicantUid);
+
+                    if (!isActuallyInactive && !isMovedAway && !isSameApplicant) {
                       isActuallyActive = true;
                       occupantName = occData['name']?.toString() ?? 'Enrolled Student';
                     }
@@ -268,13 +281,27 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   icon: const Icon(Icons.bolt_rounded, size: 16),
                   label: const Text('Auto-Assign'),
                 ),
-                ElevatedButton.icon(
+                OutlinedButton.icon(
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     _showChangeDeskSheet(data, studentData);
                   },
                   icon: const Icon(Icons.swap_horiz_rounded, size: 16),
                   label: const Text('Pick Another Desk'),
+                ),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    setState(() => _isRequestedSeatOccupied = false);
+                    _approveRequest(
+                      allowSharedGovId: allowSharedGovId,
+                      allowSharedPhone: allowSharedPhone,
+                      mergeExistingPhone: mergeExistingPhone,
+                    );
+                  },
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                  label: const Text('Force Allocate & Approve'),
                 ),
               ],
             ),

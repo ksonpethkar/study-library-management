@@ -72,6 +72,19 @@ class AppErrorFormatter {
       if (str.contains('permission-denied') || str.contains('unauthorized')) {
         return 'You do not have permission to record payments. Please check with the library owner.';
       }
+      if (str.contains('network') || str.contains('socket') || str.contains('offline') || str.contains('timeout')) {
+        return 'Network connection issue while recording payment. Please check your internet connection.';
+      }
+      if (str.contains('duplicate') || str.contains('already recorded') || str.contains('utr')) {
+        String customMsg = error.toString().replaceAll('Exception: ', '').trim();
+        return customMsg.isNotEmpty ? customMsg : 'A similar payment or transaction reference was already recorded.';
+      }
+      if (error is Exception) {
+        final clean = error.toString().replaceAll('Exception: ', '').trim();
+        if (clean.isNotEmpty && !clean.contains('[') && !clean.contains('type \'') && clean.length < 120) {
+          return clean;
+        }
+      }
       return 'Payment could not be recorded. Please verify the amount and payment details and try again.';
     }
 

@@ -1,78 +1,78 @@
-{
-  "versionCode": 2068,
-  "latestVersionCode": 2068,
-  "latestBuild": 2068,
-  "latestVersion": "1.5.53",
-  "versionName": "1.5.53+2068",
-  "apkSize": "54.1 MB",
-  "releaseNotes": "v1.5.53: Fixed student Google Sign-In with serverClientId, zero-truncation mobile AppBars, adaptive contrast for Obsidian Noir theme, line-by-line login security hierarchy, PopScope back navigation safety, and student applicant photo preview in Requests Hub.",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.53/StudyLibrary.apk",
-  "mandatory": false,
-  "organization": {
-    "name": "The Cozy Corner Study Centre",
-    "address": "Front Of Reliance Fashion Factory, Nath Road, Parli-431515",
-    "contact": "+91 94032 43830",
-    "email": "thecozycornersc@gmail.com",
-    "operatingHours": "6:00 AM - 11:00 PM",
-    "accentColor": "#5D4037",
-    "logoUrl": "/app/favicon.png"
-  },
-  "studentFeatures": [
-    {
-      "icon": "document_scanner",
-      "badge": "Form Builder",
-      "title": "Smart Admission Form & Custom Categories",
-      "description": "Category-grouped custom fields, native calendar date selection, numeric formatting, and dynamic dropdown options during registration."
-    },
-    {
-      "icon": "event_seat",
-      "badge": "Study Freeze",
-      "title": "Membership Pause & Study Freeze Requests",
-      "description": "Request a temporary pause on your active study membership directly from your account during exam breaks or travel."
-    },
-    {
-      "icon": "badge",
-      "badge": "Smart Pass",
-      "title": "Real-Time Pass Validity & Dynamic Status",
-      "description": "Your digital student pass automatically updates to Active, Grace Period, or Expired with live anti-fraud verification."
-    },
-    {
-      "icon": "campaign",
-      "badge": "Notice Board",
-      "title": "Multi-Notice Carousel & Dedicated Notice Board",
-      "description": "Browse library announcements in a swipeable dashboard carousel and view full circulars in the circulars hub."
-    },
-    {
-      "icon": "navigation",
-      "badge": "Seamless Nav",
-      "title": "Smart Back Navigation & Double-Tap Exit Guard",
-      "description": "Smooth page transitions with dedicated back buttons and double-tap exit prevention across all student screens."
-    }
-  ],
-  "adminFeatures": [
-    {
-      "icon": "lock",
-      "badge": "Security Hardening",
-      "title": "Staff RBAC & Zero Superadmin Escalation",
-      "description": "Strict granular staff role permissions (canDeleteStudents, canViewRevenue, etc.) without granting unintended master privileges."
-    },
-    {
-      "icon": "sync",
-      "badge": "Full Backup",
-      "title": "Recursive Section Seats Backup & Restore",
-      "description": "Complete JSON database exports now recursively preserve all hall section desks and seat allocations."
-    },
-    {
-      "icon": "approval",
-      "badge": "Freeze Manager",
-      "title": "Study Freeze Review & Auto-Extension Engine",
-      "description": "Review and approve student freeze requests with automated plan recalculations and seat holding adjustments."
-    },
-    {
-      "icon": "system_update",
-      "badge": "Auto-Lock",
-      "title": "Background App Auto-Lock & Session Revocation",
-      "description": "App automatically locks with PIN/Biometrics upon backgrounding, paired with real remote session revocation."
-    }
-  ]
+﻿{
+    "versionCode":  2068,
+    "latestVersionCode":  2068,
+    "latestBuild":  2068,
+    "latestVersion":  "1.5.53",
+    "versionName":  "1.5.53+2068",
+    "apkSize":  "138.0 MB",
+    "releaseNotes":  "v1.5.53: Fixed student Google Sign-In with serverClientId, zero-truncation mobile AppBars, adaptive contrast for Obsidian Noir theme, line-by-line login security hierarchy, PopScope back navigation safety, and student applicant photo preview in Requests Hub.",
+    "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.53/StudyLibrary.apk",
+    "mandatory":  false,
+    "organization":  {
+                         "name":  "The Cozy Corner Study Centre",
+                         "address":  "Front Of Reliance Fashion Factory, Nath Road, Parli-431515",
+                         "contact":  "+91 94032 43830",
+                         "email":  "thecozycornersc@gmail.com",
+                         "operatingHours":  "6:00 AM - 11:00 PM",
+                         "accentColor":  "#5D4037",
+                         "logoUrl":  "/app/favicon.png"
+                     },
+    "studentFeatures":  [
+                            {
+                                "icon":  "document_scanner",
+                                "badge":  "Form Builder",
+                                "title":  "Smart Admission Form \u0026 Custom Categories",
+                                "description":  "Category-grouped custom fields, native calendar date selection, numeric formatting, and dynamic dropdown options during registration."
+                            },
+                            {
+                                "icon":  "event_seat",
+                                "badge":  "Study Freeze",
+                                "title":  "Membership Pause \u0026 Study Freeze Requests",
+                                "description":  "Request a temporary pause on your active study membership directly from your account during exam breaks or travel."
+                            },
+                            {
+                                "icon":  "badge",
+                                "badge":  "Smart Pass",
+                                "title":  "Real-Time Pass Validity \u0026 Dynamic Status",
+                                "description":  "Your digital student pass automatically updates to Active, Grace Period, or Expired with live anti-fraud verification."
+                            },
+                            {
+                                "icon":  "campaign",
+                                "badge":  "Notice Board",
+                                "title":  "Multi-Notice Carousel \u0026 Dedicated Notice Board",
+                                "description":  "Browse library announcements in a swipeable dashboard carousel and view full circulars in the circulars hub."
+                            },
+                            {
+                                "icon":  "navigation",
+                                "badge":  "Seamless Nav",
+                                "title":  "Smart Back Navigation \u0026 Double-Tap Exit Guard",
+                                "description":  "Smooth page transitions with dedicated back buttons and double-tap exit prevention across all student screens."
+                            }
+                        ],
+    "adminFeatures":  [
+                          {
+                              "icon":  "lock",
+                              "badge":  "Security Hardening",
+                              "title":  "Staff RBAC \u0026 Zero Superadmin Escalation",
+                              "description":  "Strict granular staff role permissions (canDeleteStudents, canViewRevenue, etc.) without granting unintended master privileges."
+                          },
+                          {
+                              "icon":  "sync",
+                              "badge":  "Full Backup",
+                              "title":  "Recursive Section Seats Backup \u0026 Restore",
+                              "description":  "Complete JSON database exports now recursively preserve all hall section desks and seat allocations."
+                          },
+                          {
+                              "icon":  "approval",
+                              "badge":  "Freeze Manager",
+                              "title":  "Study Freeze Review \u0026 Auto-Extension Engine",
+                              "description":  "Review and approve student freeze requests with automated plan recalculations and seat holding adjustments."
+                          },
+                          {
+                              "icon":  "system_update",
+                              "badge":  "Auto-Lock",
+                              "title":  "Background App Auto-Lock \u0026 Session Revocation",
+                              "description":  "App automatically locks with PIN/Biometrics upon backgrounding, paired with real remote session revocation."
+                          }
+                      ]
 }

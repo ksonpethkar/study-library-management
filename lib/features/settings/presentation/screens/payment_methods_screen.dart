@@ -246,7 +246,9 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
         'payeeName': payeeName,
         'upiPhone': upiPhone,
         'accountType': _accountType,
-        'mcc': _mccController.text.trim().isNotEmpty ? _mccController.text.trim() : '8299',
+        'mcc': _accountType == 'merchant'
+            ? (_mccController.text.trim().isNotEmpty ? _mccController.text.trim() : '8299')
+            : null,
         'bankDetails': bankDetails,
         'cashDetails': cashDetails,
         'chequeDetails': chequeDetails,

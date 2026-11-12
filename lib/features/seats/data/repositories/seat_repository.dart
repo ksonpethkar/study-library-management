@@ -509,27 +509,42 @@ class SeatRepository {
             currentOccupant != null &&
             currentOccupant.isNotEmpty &&
             !isSameStudent) {
-          // Verify occupant is still an active enrolled student (not deleted/archived ghost)
-          bool isOccupantActive = true;
-          try {
-            final occSnap = await _firestore
-                .collection(FirestorePaths.libraries)
-                .doc(libraryId)
-                .collection(FirestorePaths.students)
-                .doc(currentOccupant)
-                .get();
-            if (!occSnap.exists) {
-              isOccupantActive = false;
-            } else {
-              final occStatus = (occSnap.data()?['membershipStatus'] as String?)?.toLowerCase();
-              if (occStatus == 'archived' || occStatus == 'deleted' || occStatus == 'inactive' || occStatus == 'expired') {
-                isOccupantActive = false;
-              }
-            }
-          } catch (_) {}
+          // If overrideSoftLock is requested (e.g. admin explicit desk allocation/approval), allow reassignment
+          if (!overrideSoftLock) {
+            // Verify occupant is still an active enrolled student assigned to THIS seat
+            bool isOccupantActive = false;
+            try {
+              final occRef = _firestore
+                  .collection(FirestorePaths.libraries)
+                  .doc(libraryId)
+                  .collection(FirestorePaths.students)
+                  .doc(currentOccupant);
+              final occSnap = await tx.get(occRef);
+              if (occSnap.exists) {
+                final occData = occSnap.data() ?? {};
+                final occStatus = (occData['membershipStatus'] as String?)?.toLowerCase();
+                final occSeatId = (occData['seatId'] ?? '').toString();
+                final occUid = (occData['userId'] ?? '').toString().trim();
 
-          if (isOccupantActive) {
-            throw Exception('Seat is already occupied by another student.');
+                final isActuallyInactive = occStatus == 'archived' ||
+                    occStatus == 'deleted' ||
+                    occStatus == 'inactive' ||
+                    occStatus == 'expired';
+                final isMovedToOtherSeat = occSeatId.isNotEmpty && occSeatId != seatId;
+                final isSamePerson = (resolvedUserId != null && resolvedUserId.isNotEmpty && occUid == resolvedUserId);
+
+                if (!isActuallyInactive && !isMovedToOtherSeat && !isSamePerson) {
+                  isOccupantActive = true;
+                }
+              }
+            } catch (_) {
+              // If lookup fails or tx read unavailable, do not falsely block assignment
+              isOccupantActive = false;
+            }
+
+            if (isOccupantActive) {
+              throw Exception('Seat is already occupied by another student.');
+            }
           }
         }
 

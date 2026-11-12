@@ -1157,6 +1157,9 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
         await StudentProvisioningService.approveAndProvisionRequest(
           libraryId: libraryId,
           requestId: requestId,
+          allowSharedGovId: true,
+          allowSharedPhone: true,
+          mergeExistingPhone: true,
         );
       } else {
         final updateData = <String, dynamic>{
