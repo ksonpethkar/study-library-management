@@ -511,20 +511,27 @@
 
         <div class="badge-container">
           <span class="badge badge-success">● Production Ready</span>
-          <span class="badge" id="appVersionBadge">v1.5.50+64</span>
-          <span class="badge badge-size" id="apkSizeBadge">136.9 MB</span>
+          <span class="badge" id="appVersionBadge">v1.5.53+2068</span>
+          <span class="badge badge-size" id="apkSizeBadge">54.2 MB (Optimized)</span>
         </div>
 
         <div class="btn-group">
           <!-- Direct High-Speed Download URL -->
-          <a href="https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.50/StudyLibrary.apk" class="download-btn" id="downloadBtn">
+          <a href="https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.53/StudyLibrary.apk" class="download-btn" id="downloadBtn">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            <span id="downloadBtnText">Download Android APK (v1.5.50)</span>
+            <span id="downloadBtnText">Download Android APK (54.2 MB • Optimized)</span>
           </a>
+
+          <!-- Alternative Architecture Links -->
+          <div class="alt-downloads" style="display: flex; justify-content: center; gap: 12px; margin-top: -6px; margin-bottom: 6px; font-size: 0.78rem;">
+            <a href="https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.53/StudyLibrary-Universal.apk" style="color: var(--text-muted); text-decoration: underline;" title="Complete all-in-one APK for all chipsets">Universal Fat APK (138 MB)</a>
+            <span style="color: var(--text-muted);">•</span>
+            <a href="https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.53/StudyLibrary-armeabi-v7a.apk" style="color: var(--text-muted); text-decoration: underline;" title="Optimized for older 32-bit devices">Legacy 32-Bit (47 MB)</a>
+          </div>
 
           <!-- Live Seat Map Direct Link -->
           <a href="/seats/?lib=aPSMq8xSAjuZQh2fTtuY" class="seat-btn" id="seatMapBtn">
@@ -758,10 +765,10 @@
 
         if (size) {
           var sizeBadge = document.getElementById('apkSizeBadge');
-          if (sizeBadge) sizeBadge.textContent = size;
+          if (sizeBadge) sizeBadge.textContent = size.indexOf('Optimized') !== -1 ? size : (size + ' (Optimized)');
 
           var btnText = document.getElementById('downloadBtnText');
-          if (btnText) btnText.textContent = 'Download Android APK (' + size + ')';
+          if (btnText) btnText.textContent = 'Download Android APK (' + size + ' • Optimized)';
         }
 
         if (url) {
