@@ -126,6 +126,7 @@ class _StudentNoticeDetailSheetState
   Future<void> _shareNotice() async {
     HapticFeedback.lightImpact();
     final text = '📢 *${widget.announcement.title}*\n\n${widget.announcement.message}\n\n— The Cozy Corner Study Centre';
+    // ignore: deprecated_member_use
     await Share.share(text, subject: widget.announcement.title);
   }
 

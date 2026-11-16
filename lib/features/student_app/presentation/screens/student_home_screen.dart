@@ -567,7 +567,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                         onTap: () => StudentNoticeDetailSheet.show(
                           context,
                           announcement: topAnnouncement,
-                          studentId: student?.id,
+                          studentId: student.id,
                           libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
                         ),
                         borderRadius: BorderRadius.circular(16),
