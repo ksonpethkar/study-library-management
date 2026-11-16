@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/theme/app_theme.dart' as custom_theme;
 import 'package:study_library/core/providers/font_settings_provider.dart';
@@ -5154,7 +5155,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.53+68'));
+      expect(formattedVersion, equals('v1.5.54+2070'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -6483,7 +6484,9 @@ void main() {
       }
 
       // 5. StateNotifier Preference Persistence Roundtrip
-      final notifier = FontSettingsNotifier();
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(fontSettingsProvider.notifier);
       await notifier.setFontScale(AppFontScale.comfort);
       await notifier.setFontFamily(AppFontFamily.academic);
 
