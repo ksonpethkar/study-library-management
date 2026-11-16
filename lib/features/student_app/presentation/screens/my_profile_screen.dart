@@ -663,16 +663,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                       title: student.name,
                                     )
                                 : null,
-                            child: CircleAvatar(
-                              radius: 46,
-                              backgroundColor: const Color(0xFF312E81),
-                              backgroundImage: hasPhoto ? ImageService.getImageProvider(student.photoUrl) : null,
-                              child: !hasPhoto
-                                  ? Text(
-                                      student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-                                      style: const TextStyle(fontSize: 36, color: Colors.white, fontWeight: FontWeight.bold),
-                                    )
-                                  : null,
+                            child: Builder(
+                              builder: (context) {
+                                final photoProvider = ImageService.getImageProvider(student.photoUrl);
+                                return CircleAvatar(
+                                  radius: 46,
+                                  backgroundColor: const Color(0xFF312E81),
+                                  backgroundImage: photoProvider,
+                                  child: photoProvider == null
+                                      ? Text(
+                                          student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                                          style: const TextStyle(fontSize: 36, color: Colors.white, fontWeight: FontWeight.bold),
+                                        )
+                                      : null,
+                                );
+                              },
                             ),
                           ),
                           if (_isUploadingPhoto)

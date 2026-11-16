@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'app_colors.dart';
 import 'app_typography.dart';
+import '../providers/font_settings_provider.dart';
 
 /// AppTheme provides the complete Material 3 ThemeData.
 class AppTheme {
@@ -9,9 +10,13 @@ class AppTheme {
 
   /// Build a full ThemeData seeded from the library's accent color.
   /// Falls back to [AppColors.primaryLight] / [AppColors.primaryDark] if seed is null.
-  static ThemeData fromSeed(Color seedColor, {Brightness brightness = Brightness.light}) {
+  static ThemeData fromSeed(
+    Color seedColor, {
+    Brightness brightness = Brightness.light,
+    AppFontFamily fontFamily = AppFontFamily.modern,
+  }) {
     final colorScheme = buildColorScheme(seedColor, brightness);
-    return _build(colorScheme, brightness);
+    return _build(colorScheme, brightness, fontFamily);
   }
 
   /// High-contrast ColorScheme builder that guarantees WCAG AAA compliant text
@@ -122,12 +127,18 @@ class AppTheme {
   }
 
   /// Shared builder used by both factory and legacy getters.
-  static ThemeData _build(ColorScheme colorScheme, Brightness brightness) {
+  static ThemeData _build(
+    ColorScheme colorScheme,
+    Brightness brightness, [
+    AppFontFamily fontFamily = AppFontFamily.modern,
+  ]) {
     final isDark = brightness == Brightness.dark;
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      textTheme: isDark ? AppTypography.getDarkTextTheme() : AppTypography.getLightTextTheme(),
+      textTheme: isDark
+          ? AppTypography.getDarkTextTheme(fontFamily)
+          : AppTypography.getLightTextTheme(fontFamily),
       fontFamilyFallback: const [
         'Noto Sans',
         'Noto Sans Devanagari',

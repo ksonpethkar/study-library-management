@@ -1767,10 +1767,8 @@ class _RequestCard extends StatelessWidget {
                       radius: 20,
                       backgroundColor: theme.colorScheme.primaryContainer,
                       foregroundColor: theme.colorScheme.onPrimaryContainer,
-                      backgroundImage: (request.photoUrl != null && request.photoUrl!.isNotEmpty)
-                          ? NetworkImage(request.photoUrl!)
-                          : null,
-                      child: (request.photoUrl == null || request.photoUrl!.isEmpty)
+                      backgroundImage: ImageService.getImageProvider(request.photoUrl),
+                      child: ImageService.getImageProvider(request.photoUrl) == null
                           ? const Icon(Icons.person_rounded, size: 22)
                           : null,
                     ),

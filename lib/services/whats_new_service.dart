@@ -126,7 +126,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.53+68';
+  static const String currentVersionIdentifier = '1.5.54+2070';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -135,8 +135,48 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.50)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.54 Build 2070)
   static final List<ReleaseChange> adminChanges = [
+    const ReleaseChange(
+      icon: Icons.calendar_month_rounded,
+      rawIconName: 'card_membership',
+      badge: 'Plan Engine',
+      title: 'Dynamic Plan Transitions, Month-End Cycles & Surplus Wallet',
+      description:
+          'Intelligent real-time detection of upgrades vs downgrades. Features Mode 0 (Scheduled on expiry with 0 lost days), strict calendar month-end alignment (1M, 3M, 6M, 12M), and surplus balance storage in student wallet.',
+      actionRoute: Routes.adminStudents,
+      actionLabel: 'View Students',
+    ),
+    const ReleaseChange(
+      icon: Icons.restore_rounded,
+      rawIconName: 'approval',
+      badge: '1-Click Undo',
+      title: '48-Hour Atomic Plan Reversion & Receipt Voiding',
+      description:
+          'Accidentally changed a student plan? Instantly revert back to the previous plan, restore validity dates, void generated receipts, and retract wallet balances with a single tap within 48 hours.',
+      actionRoute: Routes.adminStudents,
+      actionLabel: 'Student Directory',
+    ),
+    const ReleaseChange(
+      icon: Icons.qr_code_scanner_rounded,
+      rawIconName: 'qr_code',
+      badge: 'Live Attendance',
+      title: 'Automatic QR Attendance & Seat Occupancy Dwell Times',
+      description:
+          'Scanning student passes now automatically logs attendance in real time (lastScannedAt & attendanceLogs) and records desk occupancy timestamps (assignedAt & vacatedAt) for dwell analytics.',
+      actionRoute: Routes.adminQrScanner,
+      actionLabel: 'Open Scanner',
+    ),
+    const ReleaseChange(
+      icon: Icons.palette_rounded,
+      rawIconName: 'palette',
+      badge: 'Brand Studio',
+      title: 'Interactive 2D Spectrum & Academic Swatch Matrix',
+      description:
+          'Customize your library brand theme with real-time preview, dynamic contrast calculations, and instant synchronization to student passes and dashboards.',
+      actionRoute: Routes.adminSettings,
+      actionLabel: 'Brand Settings',
+    ),
     const ReleaseChange(
       icon: Icons.history_edu_rounded,
       rawIconName: 'history_edu',
@@ -291,8 +331,38 @@ class WhatsNewService {
     ),
   ];
 
-  /// Student-Friendly Highlights (v1.5.50)
+  /// Student-Friendly Highlights (v1.5.54 Build 2070)
   static final List<ReleaseChange> studentChanges = [
+    const ReleaseChange(
+      icon: Icons.calendar_month_rounded,
+      rawIconName: 'card_membership',
+      badge: 'Transparent Plans',
+      title: 'Month-End Aligned Subscriptions & Fair Pro-Rata',
+      description:
+          'Your study plan now neatly aligns to calendar month ends with fair pro-rata adjustments so you only pay for the exact study days you use.',
+      actionRoute: Routes.studentHome,
+      actionLabel: 'My Dashboard',
+    ),
+    const ReleaseChange(
+      icon: Icons.account_balance_wallet_rounded,
+      rawIconName: 'receipt',
+      badge: 'Wallet Balance',
+      title: 'Account Credit Balance for Renewals & Adjustments',
+      description:
+          'Any plan adjustments or surplus payments are safely preserved in your personal library wallet balance and automatically applied to your next renewal.',
+      actionRoute: Routes.studentProfile,
+      actionLabel: 'View Profile',
+    ),
+    const ReleaseChange(
+      icon: Icons.qr_code_2_rounded,
+      rawIconName: 'qr_code',
+      badge: 'Digital Pass',
+      title: 'Live Anti-Fraud Status & Real-Time QR Check-In',
+      description:
+          'Your digital student pass automatically updates to Active, Grace Period, or Expired with instant entry verification at the front desk.',
+      actionRoute: Routes.studentHome,
+      actionLabel: 'View Digital Pass',
+    ),
     const ReleaseChange(
       icon: Icons.cake_rounded,
       rawIconName: 'cake',

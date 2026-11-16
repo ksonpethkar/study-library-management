@@ -483,21 +483,26 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 // Header Greeting
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: () {
-                        if (photoUrl.isNotEmpty) {
-                          ImageService.showImageViewer(context, imageUrl: photoUrl, title: studentName);
-                        }
+                    Builder(
+                      builder: (context) {
+                        final studentPhotoProvider = ImageService.getImageProvider(photoUrl);
+                        return GestureDetector(
+                          onTap: () {
+                            if (photoUrl.isNotEmpty) {
+                              ImageService.showImageViewer(context, imageUrl: photoUrl, title: studentName);
+                            }
+                          },
+                          child: CircleAvatar(
+                            radius: 30,
+                            backgroundColor: theme.colorScheme.primaryContainer,
+                            backgroundImage: studentPhotoProvider,
+                            child: studentPhotoProvider == null
+                                ? Text(studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
+                                : null,
+                          ),
+                        );
                       },
-                      child: CircleAvatar(
-                        radius: 30,
-                        backgroundColor: theme.colorScheme.primaryContainer,
-                        backgroundImage: photoUrl.isNotEmpty ? ImageService.getImageProvider(photoUrl) : null,
-                        child: photoUrl.isEmpty
-                            ? Text(studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
-                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
-                            : null,
-                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1095,16 +1100,21 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             children: [
               Column(
                 children: [
-                  CircleAvatar(
-                    radius: 34,
-                    backgroundColor: const Color(0xFF312E81),
-                    backgroundImage: photoUrl.isNotEmpty ? ImageService.getImageProvider(photoUrl) : null,
-                    child: photoUrl.isEmpty
-                        ? Text(
-                            studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
-                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-                          )
-                        : null,
+                  Builder(
+                    builder: (context) {
+                      final cardPhotoProvider = ImageService.getImageProvider(photoUrl);
+                      return CircleAvatar(
+                        radius: 34,
+                        backgroundColor: const Color(0xFF312E81),
+                        backgroundImage: cardPhotoProvider,
+                        child: cardPhotoProvider == null
+                            ? Text(
+                                studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                              )
+                            : null,
+                      );
+                    },
                   ),
                   const SizedBox(height: 6),
                   Container(

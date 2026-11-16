@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -14,6 +13,8 @@ import 'package:study_library/services/image_transparency_service.dart';
 import 'package:study_library/services/message_template_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/core/widgets/brand_color_picker_dialog.dart';
+import 'package:study_library/core/providers/font_settings_provider.dart';
+import 'package:study_library/features/settings/presentation/widgets/typography_settings_sheet.dart';
 
 class LibraryProfileScreen extends ConsumerStatefulWidget {
   const LibraryProfileScreen({super.key});
@@ -493,12 +494,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
   }
 
   ImageProvider? _getLogoImage() {
-    if (_logoUrl == null || _logoUrl!.isEmpty) return null;
-    if (_logoUrl!.startsWith('data:image')) {
-      final base64String = _logoUrl!.split(',').last;
-      return MemoryImage(base64Decode(base64String));
-    }
-    return NetworkImage(_logoUrl!);
+    return ImageService.getImageProvider(_logoUrl);
   }
 
   Future<void> _showAddCustomFacilityDialog() async {
@@ -1254,6 +1250,82 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
     );
   }
 
+  Widget _buildTypographyCard(ThemeData theme) {
+    final fontSettings = ref.watch(fontSettingsProvider);
+    return _buildBentoCard(
+      theme: theme,
+      icon: Icons.format_size_rounded,
+      iconColor: const Color(0xFF8B5CF6),
+      title: 'Typography & Text Density Studio',
+      subtitle: 'Customize reading comfort, font scale (${fontSettings.scale.percentage}) & curated academic styles',
+      trailing: Tooltip(
+        message: 'Open Typography Studio',
+        child: InkWell(
+          onTap: () => TypographySettingsSheet.show(context),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${fontSettings.scale.label} (${fontSettings.scale.percentage})',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF8B5CF6),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.tune_rounded, size: 13, color: Color(0xFF8B5CF6)),
+              ],
+            ),
+          ),
+        ),
+      ),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Active Theme: ${fontSettings.family.name}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${fontSettings.family.headingFamily} + ${fontSettings.family.bodyFamily} · ${fontSettings.scale.description}',
+                    style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              onPressed: () => TypographySettingsSheet.show(context),
+              icon: const Icon(Icons.format_size_rounded, size: 16),
+              label: const Text('Customize Fonts'),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: const Color(0xFF8B5CF6),
+                side: const BorderSide(color: Color(0xFF8B5CF6)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildGstBillingCard(ThemeData theme) {
     return _buildBentoCard(
       theme: theme,
@@ -1566,6 +1638,8 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
 
                       // ── 0. Brand Palette & Theme Studio ─────────────────
                       _buildBrandPaletteCard(theme),
+                      const SizedBox(height: 16),
+                      _buildTypographyCard(theme),
 
                       // ── 1. Basic Identity & Branding ─────────────────────
                       _buildBentoCard(

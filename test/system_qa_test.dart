@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/theme/app_theme.dart' as custom_theme;
+import 'package:study_library/core/providers/font_settings_provider.dart';
+import 'package:study_library/core/theme/app_typography.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image/image.dart' as img;
 import 'dart:typed_data';
@@ -1776,8 +1778,8 @@ void main() {
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.53'));
-      expect(AppConstants.buildNumber, equals(68));
+      expect(AppConstants.appVersion, equals('1.5.54'));
+      expect(AppConstants.buildNumber, equals(2070));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -5130,8 +5132,8 @@ void main() {
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.53'));
-      expect(AppConstants.buildNumber, equals(68));
+      expect(AppConstants.appVersion, equals('1.5.54'));
+      expect(AppConstants.buildNumber, equals(2070));
 
       // 2. Student-facing release changes include all 4 automation features
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
@@ -6202,8 +6204,8 @@ void main() {
     test('126. MOBILE PERSPECTIVE INVARIANTS: BOTTOM SCROLL CLEARANCE, TABBAR SCROLLABILITY & ZERO-TEXT-SQUISHING', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.53'));
-      expect(AppConstants.buildNumber, equals(68));
+      expect(AppConstants.appVersion, equals('1.5.54'));
+      expect(AppConstants.buildNumber, equals(2070));
 
       // 2. Minimum bottom clearance for mobile navigation bar & FAB visibility (>= 100dp)
       const standardShellBottomClearance = 110.0;
@@ -6443,6 +6445,56 @@ void main() {
       // Verify that once marked completed, subsequent checks are strictly ignored
       final isCompleted = prefs.getBool(prefKey) ?? false;
       expect(isCompleted, isTrue);
+    });
+
+    test('Test 133: TYPOGRAPHY & FONT SCALING STUDIO: 4-TIER PRESETS, CLAMPED SCALING & SCHOLASTIC GOOGLE FONTS PARITY', () async {
+      SharedPreferences.setMockInitialValues({});
+
+      // 1. AppFontScale Presets Integrity
+      expect(AppFontScale.values.length, equals(4));
+      expect(AppFontScale.compact.factor, equals(0.88));
+      expect(AppFontScale.standard.factor, equals(1.00));
+      expect(AppFontScale.comfort.factor, equals(1.12));
+      expect(AppFontScale.large.factor, equals(1.25));
+
+      // 2. Clamped Scaling Range Protection (0.85x to 1.30x)
+      for (final scale in AppFontScale.values) {
+        expect(scale.factor, greaterThanOrEqualTo(0.85));
+        expect(scale.factor, lessThanOrEqualTo(1.30));
+      }
+
+      // 3. AppFontFamily Presets Integrity
+      expect(AppFontFamily.values.length, equals(3));
+      expect(AppFontFamily.modern.headingFamily, equals('Poppins'));
+      expect(AppFontFamily.modern.bodyFamily, equals('Inter'));
+      expect(AppFontFamily.academic.headingFamily, equals('Outfit'));
+      expect(AppFontFamily.academic.bodyFamily, equals('Plus Jakarta Sans'));
+      expect(AppFontFamily.warm.headingFamily, equals('Lexend'));
+      expect(AppFontFamily.warm.bodyFamily, equals('Nunito Sans'));
+
+      // 4. TextTheme Generation Parity across all 3 Scholastic Families
+      for (final family in AppFontFamily.values) {
+        final lightTheme = AppTypography.getLightTextTheme(family);
+        final darkTheme = AppTypography.getDarkTextTheme(family);
+        expect(lightTheme.titleLarge, isNotNull);
+        expect(lightTheme.bodyMedium, isNotNull);
+        expect(darkTheme.titleLarge, isNotNull);
+        expect(darkTheme.bodyMedium, isNotNull);
+      }
+
+      // 5. StateNotifier Preference Persistence Roundtrip
+      final notifier = FontSettingsNotifier();
+      await notifier.setFontScale(AppFontScale.comfort);
+      await notifier.setFontFamily(AppFontFamily.academic);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt('app_font_scale_index'), equals(AppFontScale.comfort.index));
+      expect(prefs.getInt('app_font_family_index'), equals(AppFontFamily.academic.index));
+
+      // 6. Reset to Defaults
+      await notifier.resetToDefaults();
+      expect(prefs.getInt('app_font_scale_index'), isNull);
+      expect(prefs.getInt('app_font_family_index'), isNull);
     });
   });
 }

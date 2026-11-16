@@ -23,6 +23,8 @@ import 'package:study_library/services/remote_config_service.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
 import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/core/widgets/cozy_settings_tile.dart';
+import 'package:study_library/core/providers/font_settings_provider.dart';
+import 'package:study_library/features/settings/presentation/widgets/typography_settings_sheet.dart';
 
 String _getSafePlatformName() {
   if (kIsWeb) return 'Web Browser';
@@ -511,6 +513,34 @@ class SettingsScreen extends ConsumerWidget {
                       onChanged: (_) => ref.read(themeNotifierProvider.notifier).toggleTheme(),
                     ),
                     onTap: () => ref.read(themeNotifierProvider.notifier).toggleTheme(),
+                  );
+                },
+              ),
+              const CozySettingsDivider(),
+              Consumer(
+                builder: (context, ref, _) {
+                  final fontSettings = ref.watch(fontSettingsProvider);
+                  return CozySettingsTile(
+                    icon: Icons.format_size_rounded,
+                    iconColor: const Color(0xFF8B5CF6),
+                    title: 'Typography & Text Size',
+                    subtitle: '${fontSettings.scale.label} (${fontSettings.scale.percentage}) · ${fontSettings.family.name}',
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        fontSettings.scale.percentage,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF8B5CF6),
+                        ),
+                      ),
+                    ),
+                    onTap: () => TypographySettingsSheet.show(context),
                   );
                 },
               ),

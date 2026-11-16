@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/core/utils/web_reload_helper.dart';
 import 'package:study_library/services/force_update_service.dart';
+import 'package:study_library/services/whats_new_service.dart';
 
 class AppUpdateBanner extends ConsumerWidget {
   const AppUpdateBanner({super.key});
@@ -11,6 +13,8 @@ class AppUpdateBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final updateState = ref.watch(updateServiceProvider);
     final theme = Theme.of(context);
+    final userRole = ref.watch(userRoleProvider);
+    final isStudent = userRole == AppUserRole.student;
 
     if (updateState.status == UpdateStatus.upToDate || updateState.info == null) {
       return const SizedBox.shrink();
@@ -54,16 +58,22 @@ class AppUpdateBanner extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Web Update Available',
+                        isStudent ? '✨ Student Portal Updated' : '✨ Library Admin Portal Updated',
                         style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'A new web app version is ready with fresh improvements.',
+                        'Version ${info.versionName} is ready with fresh updates and improvements.',
                         style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
                 ),
+                TextButton.icon(
+                  onPressed: () => WhatsNewService.showChangelog(context, isStudent: isStudent),
+                  icon: const Icon(Icons.auto_awesome, size: 15),
+                  label: const Text("What's New"),
+                ),
+                const SizedBox(width: 4),
                 TextButton(
                   onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
                   child: const Text('Later'),
@@ -125,7 +135,11 @@ class AppUpdateBanner extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isForce ? '⚠️ Required Update Available' : '✨ New Version Available',
+                        isForce
+                            ? '⚠️ Required Update Available'
+                            : (isStudent
+                                ? '✨ New Student Features Available'
+                                : '✨ New Library Tools Available'),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: isDark ? Colors.white : null,
@@ -421,26 +435,44 @@ class AppUpdateBanner extends ConsumerWidget {
 
             // ── Idle — Action Buttons ─────────────────────────────────
             ] else ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  if (!isForce)
-                    TextButton(
-                      onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDark ? Colors.white70 : theme.colorScheme.onSurfaceVariant,
+                  TextButton.icon(
+                    onPressed: () => WhatsNewService.showChangelog(context, isStudent: isStudent),
+                    icon: const Icon(Icons.auto_awesome, size: 16),
+                    label: const Text("What's New"),
+                    style: TextButton.styleFrom(
+                      foregroundColor: theme.colorScheme.primary,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!isForce) ...[
+                        TextButton(
+                          onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
+                          style: TextButton.styleFrom(
+                            foregroundColor: isDark ? Colors.white70 : theme.colorScheme.onSurfaceVariant,
+                          ),
+                          child: const Text('Later'),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      FilledButton.icon(
+                        onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
+                        icon: const Icon(Icons.download_rounded, size: 18),
+                        label: Text('Download & Update (${info.apkSize})'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: theme.colorScheme.onPrimary,
+                        ),
                       ),
-                      child: const Text('Later'),
-                    ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
-                    icon: const Icon(Icons.download_rounded, size: 18),
-                    label: Text('Download & Update (${info.apkSize})'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                    ),
+                    ],
                   ),
                 ],
               ),

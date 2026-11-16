@@ -8,6 +8,7 @@ import 'dart:async';
 import 'core/router/app_router.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/theme/app_theme.dart' as custom_theme;
+import 'core/providers/font_settings_provider.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/students/presentation/providers/student_providers.dart';
 import 'services/biometric_service.dart';
@@ -136,6 +137,7 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeNotifierProvider);
+    final fontSettings = ref.watch(fontSettingsProvider);
     final router = ref.watch(appRouterProvider);
 
     // --- Dynamic brand color ---
@@ -165,12 +167,17 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
     return MaterialApp.router(
       title: effectiveAppTitle,
       debugShowCheckedModeBanner: false,
-      theme: custom_theme.AppTheme.fromSeed(seedColor),
-      darkTheme: custom_theme.AppTheme.fromSeed(seedColor, brightness: Brightness.dark),
+      theme: custom_theme.AppTheme.fromSeed(seedColor, fontFamily: fontSettings.family),
+      darkTheme: custom_theme.AppTheme.fromSeed(seedColor, brightness: Brightness.dark, fontFamily: fontSettings.family),
       themeMode: themeMode,
       scrollBehavior: const SmoothBouncingScrollBehavior(),
       routerConfig: router,
       builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        final clampedScaler = TextScaler.linear(fontSettings.scale.factor).clamp(
+          minScaleFactor: 0.85,
+          maxScaleFactor: 1.30,
+        );
         Widget content = child ?? const SizedBox.shrink();
         if (kIsWeb) {
           content = LayoutBuilder(
@@ -212,12 +219,15 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
             },
           );
         }
-        return ConnectivityBanner(
-          child: InactivityDetectorWrapper(
-            child: GestureDetector(
-              onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-              behavior: HitTestBehavior.translucent,
-              child: content,
+        return MediaQuery(
+          data: mediaQuery.copyWith(textScaler: clampedScaler),
+          child: ConnectivityBanner(
+            child: InactivityDetectorWrapper(
+              child: GestureDetector(
+                onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                behavior: HitTestBehavior.translucent,
+                child: content,
+              ),
             ),
           ),
         );

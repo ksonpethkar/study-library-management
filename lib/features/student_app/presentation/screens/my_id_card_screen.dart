@@ -898,32 +898,37 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                       title: student.name,
                                     )
                                 : null,
-                            child: Container(
-                              width: 78,
-                              height: 98,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
-                                image: hasPhoto
-                                    ? DecorationImage(
-                                        image: NetworkImage(student.photoUrl),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : null,
-                              ),
-                              child: !hasPhoto
-                                  ? Center(
-                                      child: Text(
-                                        student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
-                                        style: const TextStyle(
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    )
-                                  : null,
+                            child: Builder(
+                              builder: (context) {
+                                final photoProvider = ImageService.getImageProvider(student.photoUrl);
+                                return Container(
+                                  width: 78,
+                                  height: 98,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1E293B),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
+                                    image: photoProvider != null
+                                        ? DecorationImage(
+                                            image: photoProvider,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : null,
+                                  ),
+                                  child: photoProvider == null
+                                      ? Center(
+                                          child: Text(
+                                            student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
+                                            style: const TextStyle(
+                                              fontSize: 32,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        )
+                                      : null,
+                                );
+                              },
                             ),
                           ),
                           Positioned(

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/services/badge_service.dart';
+import 'package:study_library/services/image_service.dart';
 
 class AccessRestrictedScreen extends ConsumerStatefulWidget {
   const AccessRestrictedScreen({super.key});
@@ -108,10 +109,8 @@ class _AccessRestrictedScreenState extends ConsumerState<AccessRestrictedScreen>
                 CircleAvatar(
                   radius: 46,
                   backgroundColor: theme.colorScheme.errorContainer,
-                  backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-                      ? NetworkImage(photoUrl)
-                      : null,
-                  child: (photoUrl == null || photoUrl.isEmpty)
+                  backgroundImage: ImageService.getImageProvider(photoUrl),
+                  child: ImageService.getImageProvider(photoUrl) == null
                       ? Icon(Icons.lock_person_rounded,
                           size: 48, color: theme.colorScheme.error)
                       : null,

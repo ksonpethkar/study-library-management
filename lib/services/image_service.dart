@@ -190,31 +190,49 @@ class ImageService {
 
   static final Map<String, MemoryImage> _base64ImageCache = {};
 
-  /// Returns an ImageProvider supporting both remote URLs and Base64 data URLs.
-  /// P2: Uses CachedNetworkImageProvider for http(s) URLs to reduce data usage and speed up lists.
-  /// Caches MemoryImage instances to prevent rapid rebuilds from decoding repeatedly and blinking.
+  /// Returns an ImageProvider supporting remote URLs, Base64 data URLs, raw Base64 strings, and local file paths.
+  /// Uses CachedNetworkImageProvider for http(s) URLs to reduce data usage and eliminate flickering.
+  /// Caches MemoryImage instances to prevent rapid rebuilds from decoding repeatedly.
   static ImageProvider? getImageProvider(String? url) {
     if (url == null || url.trim().isEmpty) return null;
     final trimmed = url.trim();
-    if (trimmed.startsWith('data:image')) {
+
+    // 1. Data URL or Raw Base64 string
+    if (trimmed.startsWith('data:image') ||
+        (trimmed.length > 100 && !trimmed.startsWith('http') && !trimmed.startsWith('file:') && !trimmed.startsWith('/'))) {
       final cached = _base64ImageCache[trimmed];
       if (cached != null) return cached;
       try {
-        final base64String = trimmed.contains(',') ? trimmed.split(',')[1] : trimmed;
-        final provider = MemoryImage(base64Decode(base64String));
-        if (_base64ImageCache.length > 50) {
+        final base64String = trimmed.contains(',') ? trimmed.split(',')[1].trim() : trimmed;
+        final cleanBase64 = base64String.replaceAll(RegExp(r'\s+'), '');
+        final provider = MemoryImage(base64Decode(cleanBase64));
+        if (_base64ImageCache.length > 60) {
           _base64ImageCache.remove(_base64ImageCache.keys.first);
         }
         _base64ImageCache[trimmed] = provider;
         return provider;
       } catch (e) {
         if (kDebugMode) debugPrint('Error decoding base64 image: $e');
-        return null;
+        // If not valid base64, continue to other checks
       }
-    } else if (trimmed.startsWith('http')) {
-      // Use cached image provider to avoid re-downloading on every scroll/rebuild
+    }
+
+    // 2. Remote HTTP/HTTPS URL
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
       return CachedNetworkImageProvider(trimmed);
     }
+
+    // 3. Local File Path (Mobile/Desktop)
+    if (!kIsWeb) {
+      try {
+        final filePath = trimmed.startsWith('file://') ? Uri.parse(trimmed).toFilePath() : trimmed;
+        final file = File(filePath);
+        if (file.existsSync()) {
+          return FileImage(file);
+        }
+      } catch (_) {}
+    }
+
     return null;
   }
 
