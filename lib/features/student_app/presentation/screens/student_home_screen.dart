@@ -16,6 +16,7 @@ import 'package:study_library/features/students/presentation/providers/student_p
 import 'package:study_library/features/settings/presentation/screens/security_settings_dialog.dart';
 import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/features/announcements/presentation/screens/announcement_list_screen.dart';
+import 'package:study_library/features/student_app/presentation/widgets/student_notice_detail_sheet.dart';
 import 'package:study_library/features/holidays/presentation/screens/holiday_calendar_screen.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
@@ -559,43 +560,69 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                     if (activeAnnouncements.isEmpty) return const SizedBox.shrink();
                     final topAnnouncement = activeAnnouncements.first;
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+                    return Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        onTap: () => StudentNoticeDetailSheet.show(
+                          context,
+                          announcement: topAnnouncement,
+                          studentId: student?.id,
+                          libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
+                        ),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: theme.colorScheme.tertiary.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.campaign_rounded, color: theme.colorScheme.tertiary, size: 28),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  topAnnouncement.title,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    color: theme.colorScheme.onTertiaryContainer,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  topAnnouncement.message,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: theme.colorScheme.onTertiaryContainer.withValues(alpha: 0.85),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: theme.colorScheme.tertiary.withValues(alpha: 0.3)),
                           ),
-                        ],
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.campaign_rounded, color: theme.colorScheme.tertiary, size: 28),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            topAnnouncement.title,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              color: theme.colorScheme.onTertiaryContainer,
+                                            ),
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.arrow_forward_ios_rounded,
+                                          size: 13,
+                                          color: theme.colorScheme.onTertiaryContainer.withValues(alpha: 0.6),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      topAnnouncement.message,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: theme.colorScheme.onTertiaryContainer.withValues(alpha: 0.85),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     );
                   },

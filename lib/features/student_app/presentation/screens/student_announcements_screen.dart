@@ -12,6 +12,7 @@ import 'package:study_library/features/holidays/presentation/screens/holiday_cal
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/features/student_app/presentation/widgets/student_notice_detail_sheet.dart';
 
 class StudentAnnouncementsScreen extends ConsumerStatefulWidget {
   const StudentAnnouncementsScreen({super.key});
@@ -50,118 +51,11 @@ class _StudentAnnouncementsScreenState
 
   void _showNoticeDetailDialog(
       BuildContext context, AnnouncementModel announcement, String studentId, String libraryId) {
-    _markAsRead(announcement, studentId, libraryId);
-    final theme = Theme.of(context);
-
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        actionsPadding: const EdgeInsets.all(16),
-        title: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: announcement.priority.containerColor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(announcement.priority.icon,
-                  color: announcement.priority.color, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: announcement.priority.containerColor,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      announcement.priority.label.toUpperCase(),
-                      style: TextStyle(
-                        color: announcement.priority.onContainerColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    announcement.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 17,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (announcement.createdAt != null) ...[
-                Row(
-                  children: [
-                    Icon(Icons.schedule, size: 13, color: theme.colorScheme.outline),
-                    const SizedBox(width: 4),
-                    Text(
-                      DateFormat('EEE, MMM d, yyyy • h:mm a').format(announcement.createdAt!),
-                      style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Divider(height: 1),
-                const SizedBox(height: 12),
-              ],
-              SelectableText(
-                announcement.message,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  height: 1.5,
-                  fontSize: 14,
-                ),
-              ),
-              if (announcement.expiresAt != null) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.timer_outlined, size: 14, color: theme.colorScheme.outline),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Active until ${DateFormat("MMM d, yyyy • h:mm a").format(announcement.expiresAt!)}',
-                        style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Understood'),
-          ),
-        ],
-      ),
+    StudentNoticeDetailSheet.show(
+      context,
+      announcement: announcement,
+      studentId: studentId,
+      libraryId: libraryId,
     );
   }
 

@@ -540,79 +540,84 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
                   if (index == 0) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8, top: 4),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.receipt_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
-                                const SizedBox(width: 5),
-                                Text(
-                                  '${filtered.length} ${filtered.length == 1 ? 'Receipt' : 'Receipts'}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.primary,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.receipt_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    '${filtered.length} ${filtered.length == 1 ? 'Receipt' : 'Receipts'}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF059669).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.currency_rupee_rounded, size: 14, color: Color(0xFF059669)),
-                                const SizedBox(width: 2),
-                                Text(
-                                  '${totalAmount.toStringAsFixed(0)} Total Collected',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF059669),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF059669).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.currency_rupee_rounded, size: 14, color: Color(0xFF059669)),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '${totalAmount.toStringAsFixed(0)} Total Collected',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF059669),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          const Spacer(),
-                          if (_selectedMethodFilter != 'All' || _selectedStatusFilter != 'All' || _searchQuery.isNotEmpty)
-                            InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _searchQuery = '';
-                                  _searchController.clear();
-                                  _selectedMethodFilter = 'All';
-                                  _selectedStatusFilter = 'All';
-                                  _isSearchOpen = false;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                child: Text(
-                                  'Clear Filters',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Theme.of(context).colorScheme.error,
-                                    fontWeight: FontWeight.w600,
+                            if (_selectedMethodFilter != 'All' || _selectedStatusFilter != 'All' || _searchQuery.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _searchQuery = '';
+                                    _searchController.clear();
+                                    _selectedMethodFilter = 'All';
+                                    _selectedStatusFilter = 'All';
+                                    _isSearchOpen = false;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                  child: Text(
+                                    'Clear Filters',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(context).colorScheme.error,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
+                            ],
+                          ],
+                        ),
                       ),
                     );
                   }
@@ -676,7 +681,10 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 4),
-                              Row(
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(
                                     receiptNum,
@@ -687,7 +695,6 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
                                       letterSpacing: 0.3,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                     decoration: BoxDecoration(
