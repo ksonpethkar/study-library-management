@@ -45,32 +45,41 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
   Widget build(BuildContext context) {
     final libraryId = ref.watch(currentLibraryIdProvider) ?? '';
 
+    void handleBack() {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        final isStudent = widget.isStudent ?? (ref.read(userRoleProvider) == AppUserRole.student);
+        if (isStudent) {
+          context.go(Routes.studentReceipts);
+        } else {
+          context.go(Routes.adminReceipts);
+        }
+      }
+    }
+
     Widget buildBackLeading() {
       return IconButton(
         icon: const Icon(Icons.arrow_back_rounded),
         tooltip: 'Back',
-        onPressed: () {
-          if (context.canPop()) {
-            context.pop();
-          } else {
-            final isStudent = widget.isStudent ?? (ref.read(userRoleProvider) == AppUserRole.student);
-            if (isStudent) {
-              context.go(Routes.studentReceipts);
-            } else {
-              context.go(Routes.adminReceipts);
-            }
-          }
-        },
+        onPressed: handleBack,
       );
     }
 
     if (libraryId.isEmpty || widget.receiptId.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Receipt Preview'),
-          leading: buildBackLeading(),
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          handleBack();
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Receipt Preview'),
+            leading: buildBackLeading(),
+          ),
+          body: const Center(child: Text('Receipt not found')),
         ),
-        body: const Center(child: Text('Receipt not found')),
       );
     }
 
@@ -80,7 +89,13 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
       _dataFuture = _fetchData(libraryId, widget.receiptId);
     }
 
-    return FutureBuilder<Map<String, dynamic>>(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        handleBack();
+      },
+      child: FutureBuilder<Map<String, dynamic>>(
       future: _dataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -157,21 +172,9 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
         return Scaffold(
           appBar: AppBar(
             title: const Text('Receipt Preview'),
+            centerTitle: false,
             leading: buildBackLeading(),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.download_rounded),
-                tooltip: 'Download PDF',
-                onPressed: () => _downloadReceipt(
-                  context: context,
-                  receipt: receipt,
-                  student: student,
-                  plan: plan,
-                  library: library,
-                  template: template,
-                  data: data,
-                ),
-              ),
               IconButton(
                 icon: const Icon(Icons.share_rounded),
                 tooltip: 'Share Receipt',
@@ -185,20 +188,6 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
                   data: data,
                 ),
               ),
-              if (!isStudentUser)
-                IconButton(
-                  icon: const Icon(Icons.print_rounded),
-                  tooltip: 'Print Receipt',
-                  onPressed: () => _printReceipt(
-                    context: context,
-                    receipt: receipt,
-                    student: student,
-                    plan: plan,
-                    library: library,
-                    template: template,
-                    data: data,
-                  ),
-                ),
             ],
           ),
           body: PdfPreview(
@@ -232,8 +221,9 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
           ),
         );
       },
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildBottomBar(
     BuildContext context, {
@@ -274,19 +264,21 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
           children: [
             // 1. Download PDF Button (Filled, Primary)
             Expanded(
-              flex: 3,
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: theme.colorScheme.primary,
                   foregroundColor: theme.colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 1,
                 ),
-                icon: const Icon(Icons.download_rounded, size: 20),
-                label: const Text(
-                  'Download PDF',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                icon: const Icon(Icons.download_rounded, size: 18),
+                label: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Download PDF',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                 ),
                 onPressed: () => _downloadReceipt(
                   context: context,
@@ -303,18 +295,20 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
 
             // 2. WhatsApp Button
             Expanded(
-              flex: 2,
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF25D366),
                   side: const BorderSide(color: Color(0xFF25D366), width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 icon: const Icon(Icons.chat_rounded, size: 18),
-                label: const Text(
-                  'WhatsApp',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                label: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'WhatsApp',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
                 ),
                 onPressed: () => _shareWhatsApp(
                   context: context,
@@ -329,27 +323,17 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
             const SizedBox(width: 8),
 
             // 3. Share Button
-            Expanded(
-              flex: 2,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.share_rounded, size: 18),
-                label: const Text(
-                  'Share',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-                onPressed: () => _shareReceipt(
-                  context: context,
-                  receipt: receipt,
-                  student: student,
-                  plan: plan,
-                  library: library,
-                  template: template,
-                  data: data,
-                ),
+            IconButton.filledTonal(
+              tooltip: 'Share Receipt',
+              icon: const Icon(Icons.share_rounded, size: 20),
+              onPressed: () => _shareReceipt(
+                context: context,
+                receipt: receipt,
+                student: student,
+                plan: plan,
+                library: library,
+                template: template,
+                data: data,
               ),
             ),
 

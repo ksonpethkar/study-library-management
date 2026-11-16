@@ -67,9 +67,14 @@ class ReceiptRepository {
     bool recordMatchingPayment = true,
   }) async {
     final doc = _receiptsRef(libraryId).doc();
+    String rNum = receipt.receiptNumber.trim();
+    if (rNum.isEmpty) {
+      rNum = await getNextReceiptNumber(libraryId);
+    }
     final newReceipt = receipt.copyWith(
       id: doc.id,
       libraryId: libraryId,
+      receiptNumber: rNum,
       createdAt: receipt.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );

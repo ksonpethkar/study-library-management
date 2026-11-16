@@ -964,18 +964,28 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         studentData['requestedSeatLabel'] != null;
     final hasPaymentInfo = amount != null || paymentMethod.isNotEmpty || refNumber.isNotEmpty || paymentProofUrl.isNotEmpty;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Request Details'),
-        leading: buildBackButton(),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Reload',
-            onPressed: _loadRequest,
-          ),
-        ],
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        } else {
+          context.go('/admin/requests');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Request Details'),
+          leading: buildBackButton(),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Reload',
+              onPressed: _loadRequest,
+            ),
+          ],
+        ),
       body: _isProcessing
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -1153,8 +1163,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ),
               ),
             ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildHeaderBanner({
     required ThemeData theme,
@@ -1898,7 +1909,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Requested Study Pass & Desk Collection',
+                        'Requested Study Pass & Fee',
                         style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       Text(
@@ -1906,15 +1917,6 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                         style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                       ),
                     ],
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () => _showChangePlanDialog(data, studentData),
-                  icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-                  label: const Text('Change Plan'),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: theme.colorScheme.primary,
                   ),
                 ),
                 if (proratedFee != null) ...[
@@ -1935,7 +1937,25 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               ],
             ),
             const Divider(height: 24),
-            _buildRow('Selected Plan', planName, isBold: true),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildRow('Selected Plan', planName, isBold: true),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _showChangePlanDialog(data, studentData),
+                  icon: const Icon(Icons.swap_horiz_rounded, size: 15),
+                  label: const Text('Change Plan'),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: theme.colorScheme.primary,
+                    side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.35)),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
             if (fullPlanPrice != null)
               _buildRow('Standard Monthly Rate', '₹${fullPlanPrice.toStringAsFixed(0)} / month'),
             if (cycleStart != null && cycleEnd != null)
@@ -2284,13 +2304,17 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                     ],
                   ),
                 ),
-                TextButton.icon(
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
                   onPressed: () => _showChangeDeskSheet(data, studentData),
-                  icon: const Icon(Icons.edit_location_alt_rounded, size: 16),
+                  icon: const Icon(Icons.edit_location_alt_rounded, size: 14),
                   label: const Text('Change Desk'),
-                  style: TextButton.styleFrom(
+                  style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     foregroundColor: theme.colorScheme.primary,
+                    side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.35)),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
