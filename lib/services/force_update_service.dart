@@ -212,7 +212,7 @@ class ForceUpdateService extends Notifier<UpdateState> {
     if (apkUrl.isEmpty || !apkUrl.startsWith('https://')) return false;
     try {
       final uri = Uri.parse(apkUrl);
-      final response = await http.head(uri).timeout(const Duration(seconds: 5));
+      final response = await http.head(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode >= 200 && response.statusCode < 400) {
         final cl = int.tryParse(response.headers['content-length'] ?? '') ?? 0;
         // If content-length is reported and under 1MB, it's not a valid APK binary
@@ -226,6 +226,11 @@ class ForceUpdateService extends Notifier<UpdateState> {
       return false;
     } catch (e) {
       if (kDebugMode) debugPrint('APK HEAD check error: $e');
+      // On mobile networks (e.g. 4G/LTE), GitHub 302 redirects can sometimes timeout on HEAD.
+      // If the link is an official GitHub release asset URL, don't suppress the update on connection jitter.
+      if (apkUrl.contains('github.com') && apkUrl.contains('/releases/download/')) {
+        return true;
+      }
       return false;
     }
   }

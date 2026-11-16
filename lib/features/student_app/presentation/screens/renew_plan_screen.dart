@@ -228,7 +228,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('QR Code saved to Gallery / Downloads! Open PhonePe -> Scanner -> Gallery icon to pay.'),
+              content: Text('QR Code saved to Gallery / Downloads! Note: PhonePe/GPay limit gallery QR scans to ₹2,000.'),
               backgroundColor: Color(0xFF059669),
               behavior: SnackBarBehavior.floating,
               duration: Duration(seconds: 4),
@@ -1810,9 +1810,32 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                                     const Text(
                                       'If PhonePe blocks direct payment with "cannot be completed through this mode":\n'
                                       '1. Tap "Copy UPI" below ➔ open PhonePe ➔ tap "To UPI ID" ➔ paste & pay.\n'
-                                      '2. OR tap "Save QR" below ➔ open PhonePe Scanner ➔ tap Gallery icon ➔ select QR.',
+                                      '2. OR tap "Save QR" below ➔ open PhonePe Scanner ➔ tap Gallery icon ➔ select QR (Up to ₹2,000 max).',
                                       style: TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.35),
                                     ),
+                                    if (effectivePrice > 2000) ...[
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.amber.shade400),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.info_outline, size: 14, color: Colors.amber.shade900),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                'NPCI & PhonePe cap gallery QR scans at ₹2,000. For ₹${effectivePrice.toStringAsFixed(0)}, use "Copy UPI ID" or pay via mobile number to avoid rejection.',
+                                                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(height: 8),
                                     Row(
                                       children: [

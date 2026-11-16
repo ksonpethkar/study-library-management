@@ -1216,7 +1216,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
         );
       } else {
-        UpdateReminderDialog.checkAndShow(context, ref);
+        UpdateReminderDialog.checkAndShow(context, ref, force: true);
       }
     } else if (updateState.status == UpdateStatus.checkFailed) {
       ScaffoldMessenger.of(context).showSnackBar(

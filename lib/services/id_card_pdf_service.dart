@@ -268,9 +268,11 @@ class IdCardPdfService {
         photoImage = _imageCache[student.photoUrl];
       } else {
         try {
-          if (student.photoUrl.startsWith('data:image')) {
-            final b64 = student.photoUrl.contains(',') ? student.photoUrl.split(',')[1] : student.photoUrl;
-            photoImage = pw.MemoryImage(base64Decode(b64));
+          if (student.photoUrl.startsWith('data:image') ||
+              (student.photoUrl.length > 100 && !student.photoUrl.startsWith('http') && !student.photoUrl.startsWith('/'))) {
+            final b64 = student.photoUrl.contains(',') ? student.photoUrl.split(',')[1].trim() : student.photoUrl.trim();
+            final clean = b64.replaceAll(RegExp(r'\s+'), '');
+            photoImage = pw.MemoryImage(base64Decode(clean));
           } else {
             photoImage = await networkImage(student.photoUrl);
           }
@@ -575,9 +577,11 @@ class IdCardPdfService {
           } else {
             try {
               pw.ImageProvider? pImg;
-              if (s.photoUrl.startsWith('data:image')) {
-                final b64 = s.photoUrl.contains(',') ? s.photoUrl.split(',')[1] : s.photoUrl;
-                pImg = pw.MemoryImage(base64Decode(b64));
+              if (s.photoUrl.startsWith('data:image') ||
+                  (s.photoUrl.length > 100 && !s.photoUrl.startsWith('http') && !s.photoUrl.startsWith('/'))) {
+                final b64 = s.photoUrl.contains(',') ? s.photoUrl.split(',')[1].trim() : s.photoUrl.trim();
+                final clean = b64.replaceAll(RegExp(r'\s+'), '');
+                pImg = pw.MemoryImage(base64Decode(clean));
               } else {
                 pImg = await networkImage(s.photoUrl);
               }

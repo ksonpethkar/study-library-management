@@ -496,11 +496,27 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                           child: CircleAvatar(
                             radius: 30,
                             backgroundColor: theme.colorScheme.primaryContainer,
-                            backgroundImage: studentPhotoProvider,
-                            child: studentPhotoProvider == null
-                                ? Text(studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
-                                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
-                                : null,
+                            child: ClipOval(
+                              child: studentPhotoProvider != null
+                                  ? Image(
+                                      image: studentPhotoProvider,
+                                      width: 60,
+                                      height: 60,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => Center(
+                                        child: Text(
+                                          studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    )
+                                  : Center(
+                                      child: Text(
+                                        studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                            ),
                           ),
                         );
                       },
@@ -896,9 +912,15 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                     children: [
                       Icon(hasSeat ? Icons.lock_open_rounded : Icons.autorenew_rounded, size: 15),
                       const SizedBox(width: 6),
-                      Text(
-                        buttonLabel,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            buttonLabel,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1133,13 +1155,27 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                       return CircleAvatar(
                         radius: 34,
                         backgroundColor: const Color(0xFF312E81),
-                        backgroundImage: cardPhotoProvider,
-                        child: cardPhotoProvider == null
-                            ? Text(
-                                studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
-                                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-                              )
-                            : null,
+                        child: ClipOval(
+                          child: cardPhotoProvider != null
+                              ? Image(
+                                  image: cardPhotoProvider,
+                                  width: 68,
+                                  height: 68,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => Center(
+                                    child: Text(
+                                      studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                                    ),
+                                  ),
+                                )
+                              : Center(
+                                  child: Text(
+                                    studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                ),
+                        ),
                       );
                     },
                   ),

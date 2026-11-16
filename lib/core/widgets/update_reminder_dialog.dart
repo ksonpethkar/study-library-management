@@ -12,7 +12,8 @@ class UpdateReminderDialog {
   static bool _dialogCurrentlyOpen = false;
 
   /// Checks if an update is available and presents a friendly daily reminder modal.
-  static Future<void> checkAndShow(BuildContext context, WidgetRef ref) async {
+  /// Set [force] = true on manual user-initiated checks to bypass the 24-hour cooldown.
+  static Future<void> checkAndShow(BuildContext context, WidgetRef ref, {bool force = false}) async {
     // Web applications update via browser refresh/service worker; never show APK install modal
     if (kIsWeb) return;
 
@@ -31,8 +32,8 @@ class UpdateReminderDialog {
       final info = updateState.info!;
       final isForce = updateState.status == UpdateStatus.forceUpdate;
 
-      // 2. 24-Hour / 1st Login of the Day Cooldown check
-      if (!isForce) {
+      // 2. 24-Hour / 1st Login of the Day Cooldown check (bypassed on manual check)
+      if (!isForce && !force) {
         final prefs = await SharedPreferences.getInstance();
         final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
         final lastDate = prefs.getString(_prefLastPopupDateKey);

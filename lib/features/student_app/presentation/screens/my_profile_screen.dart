@@ -374,7 +374,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           ),
         );
       } else {
-        UpdateReminderDialog.checkAndShow(context, ref);
+        UpdateReminderDialog.checkAndShow(context, ref, force: true);
       }
     } else if (updateState.status == UpdateStatus.checkFailed) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -382,6 +382,14 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           content: Text(updateState.errorMessage ?? 'Could not reach update server. Check your connection.'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } else if (updateState.errorMessage != null && updateState.errorMessage!.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(updateState.errorMessage!),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.amber.shade800,
         ),
       );
     } else {
@@ -669,13 +677,27 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                                 return CircleAvatar(
                                   radius: 46,
                                   backgroundColor: const Color(0xFF312E81),
-                                  backgroundImage: photoProvider,
-                                  child: photoProvider == null
-                                      ? Text(
-                                          student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-                                          style: const TextStyle(fontSize: 36, color: Colors.white, fontWeight: FontWeight.bold),
-                                        )
-                                      : null,
+                                  child: ClipOval(
+                                    child: photoProvider != null
+                                        ? Image(
+                                            image: photoProvider,
+                                            width: 92,
+                                            height: 92,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => Center(
+                                              child: Text(
+                                                student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                                                style: const TextStyle(fontSize: 36, color: Colors.white, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          )
+                                        : Center(
+                                            child: Text(
+                                              student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                                              style: const TextStyle(fontSize: 36, color: Colors.white, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                  ),
                                 );
                               },
                             ),

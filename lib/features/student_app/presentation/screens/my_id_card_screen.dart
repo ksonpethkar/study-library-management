@@ -908,25 +908,37 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                     color: const Color(0xFF1E293B),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
-                                    image: photoProvider != null
-                                        ? DecorationImage(
-                                            image: photoProvider,
-                                            fit: BoxFit.cover,
-                                          )
-                                        : null,
                                   ),
-                                  child: photoProvider == null
-                                      ? Center(
-                                          child: Text(
-                                            student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
-                                            style: const TextStyle(
-                                              fontSize: 32,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: photoProvider != null
+                                        ? Image(
+                                            image: photoProvider,
+                                            width: 78,
+                                            height: 98,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => Center(
+                                              child: Text(
+                                                student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
+                                                style: const TextStyle(
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        : Center(
+                                            child: Text(
+                                              student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
+                                              style: const TextStyle(
+                                                fontSize: 32,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
                                             ),
                                           ),
-                                        )
-                                      : null,
+                                  ),
                                 );
                               },
                             ),
