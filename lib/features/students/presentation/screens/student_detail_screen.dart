@@ -1672,31 +1672,37 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     );
   }
 
-  Future<void> _showPlanUpgradeDialog(
+  Future<void> _showPlanChangeDialog(
     BuildContext context,
     StudentModel s,
     PlanModel targetPlan,
     String libraryId,
+    List<PlanModel> allPlans,
   ) async {
     final now = DateTime.now();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // 1. Resolve current plan model
+    // 1. Resolve student's authentic current plan
+    PlanModel? matchedCurrentPlan;
+    if (s.planId != null && s.planId != 'custom') {
+      matchedCurrentPlan = allPlans.where((p) => p.id == s.planId).firstOrNull;
+    }
+
     final curPlanName = s.customPlanName?.isNotEmpty == true
         ? s.customPlanName!
-        : (planName.isNotEmpty ? planName : 'Current Active Plan');
-    final curPlanPrice = s.customPlanFee ?? (planPrice > 0 ? planPrice : 700.0);
+        : (matchedCurrentPlan?.displayName ?? (planName.isNotEmpty ? planName : 'Current Active Plan'));
+    final curPlanPrice = s.customPlanFee ?? (matchedCurrentPlan?.price ?? (planPrice > 0 ? planPrice : 700.0));
     final curStartDate = s.planStartDate ?? now.subtract(const Duration(days: 15));
     final curEndDate = s.planEndDate ?? now.add(const Duration(days: 15));
 
-    final curPlan = PlanModel(
+    final curPlan = matchedCurrentPlan ?? PlanModel(
       id: s.planId ?? 'current',
       libraryId: libraryId,
       name: curPlanName,
       price: curPlanPrice,
-      duration: 1,
-      durationUnit: DurationUnit.months,
+      duration: curEndDate.difference(curStartDate).inDays > 0 ? curEndDate.difference(curStartDate).inDays + 1 : 30,
+      durationUnit: DurationUnit.days,
       description: '',
       gracePeriodDays: 0,
       isActive: true,
@@ -1713,8 +1719,14 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
       totalPaidForCurrent: curPlanPrice,
     );
 
-    int upgradeMode = 0; // 0 = Mid-Cycle Pro-rata (keep expiry), 1 = Fresh Cycle with Credit
-    String paymentMethod = 'UPI';
+    // Selected validity mode:
+    // 1 = Month-End Aligned according to plan duration (Default for Upgrade & Switch)
+    // 2 = Extended Month-End Bundle (+1 Month Extra days preference)
+    // 3 = Custom Expiry Date (Student custom preference / exam date)
+    // 0 = Schedule on Current Expiry (Default for Downgrade - zero lost days)
+    int selectedMode = settlement.transitionType == PlanTransitionType.downgrade ? 0 : 1;
+    DateTime? customEndDate;
+    String paymentMethod = 'Cash';
     bool recordAsPaid = true;
     final refController = TextEditingController();
     bool isProcessing = false;
@@ -1725,18 +1737,68 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
       builder: (dlgContext) {
         return StatefulBuilder(
           builder: (ctx, setDlgState) {
-            // Mode 0: Keep current expiry, pay mid-cycle pro-rata difference
-            final mode0Amount = settlement.payableByStudent;
-            final mode0EndDate = curEndDate;
+            DateTime effectiveStartDate = settlement.freshStartDate;
+            DateTime effectiveEndDate = settlement.freshEndDate;
+            double effectiveAmount = 0.0;
+            double surplusCredit = 0.0;
+            bool isScheduledDowngrade = false;
 
-            // Mode 1: Fresh full cycle from today, subtract unused credit
-            final targetSmart = PlanCalculatorService.calculateSmartPlan(plan: targetPlan, fromDate: now);
-            final mode1Amount = (targetPlan.price - settlement.unusedCredit).clamp(0.0, double.infinity);
-            final mode1EndDate = targetSmart.endDate;
+            if (settlement.transitionType == PlanTransitionType.downgrade && selectedMode == 0) {
+              // Mode 0: Scheduled Downgrade on Current Expiry (Zero Lost Days)
+              isScheduledDowngrade = true;
+              effectiveStartDate = curStartDate;
+              effectiveEndDate = curEndDate;
+              effectiveAmount = 0.0;
+              surplusCredit = 0.0;
+            } else if (selectedMode == 1) {
+              // Mode 1: Month-End Aligned according to target plan duration
+              effectiveStartDate = settlement.freshStartDate;
+              effectiveEndDate = settlement.freshEndDate;
+              effectiveAmount = settlement.freshNetPayable;
+              surplusCredit = settlement.freshSurplusCredit;
+            } else if (selectedMode == 2) {
+              // Mode 2: Extended Month-End Bundle (Extra Days Option)
+              effectiveStartDate = settlement.freshStartDate;
+              effectiveEndDate = settlement.extendedEndDate;
+              effectiveAmount = settlement.extendedNetPayable;
+              surplusCredit = settlement.extendedSurplusCredit;
+            } else if (selectedMode == 3) {
+              // Mode 3: Custom Date / Exam Date (Student Preference)
+              effectiveStartDate = settlement.freshStartDate;
+              effectiveEndDate = customEndDate ?? settlement.freshEndDate;
+              final customGross = PlanCalculatorService.calculateProratedFeeForRange(
+                plan: targetPlan,
+                startDate: effectiveStartDate,
+                endDate: effectiveEndDate,
+              );
+              effectiveAmount = (customGross - settlement.unusedCredit).clamp(0.0, double.infinity);
+              surplusCredit = (settlement.unusedCredit - customGross).clamp(0.0, double.infinity);
+            }
 
-            final effectiveAmount = upgradeMode == 0 ? mode0Amount : mode1Amount;
-            final effectiveEndDate = upgradeMode == 0 ? mode0EndDate : mode1EndDate;
-            final effectiveStartDate = upgradeMode == 0 ? curStartDate : now;
+            final totalEffectiveDays = effectiveEndDate.difference(effectiveStartDate).inDays + 1;
+
+            // UI styling based on transition
+            IconData headerIcon;
+            Color headerColor;
+            String titleText;
+            String subtitleText;
+
+            if (settlement.transitionType == PlanTransitionType.upgrade) {
+              headerIcon = Icons.arrow_circle_up_rounded;
+              headerColor = const Color(0xFF10B981);
+              titleText = 'Plan Upgrade & Extension';
+              subtitleText = 'Month-End Aligned with Fair Pro-Rata Credit';
+            } else if (settlement.transitionType == PlanTransitionType.downgrade) {
+              headerIcon = Icons.arrow_circle_down_rounded;
+              headerColor = const Color(0xFFF59E0B);
+              titleText = 'Plan Downgrade & Settlement';
+              subtitleText = 'Month-End Protection & Credit Balance Preservation';
+            } else {
+              headerIcon = Icons.swap_horiz_rounded;
+              headerColor = const Color(0xFF3B82F6);
+              titleText = 'Shift / Plan Switch';
+              subtitleText = 'Zero Surcharge Lateral Transition';
+            }
 
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1747,25 +1809,25 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                      color: headerColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.upgrade_rounded, color: theme.colorScheme.primary, size: 24),
+                    child: Icon(headerIcon, color: headerColor, size: 24),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Plan Upgrade & Settlement', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        Text('Fair Pro-Rata Credit Adjustment', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(titleText, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(subtitleText, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
                   ),
                 ],
               ),
               content: SizedBox(
-                width: 480,
+                width: 520,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -1790,25 +1852,27 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                       Text('CURRENT PLAN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.colorScheme.outline)),
                                       Text(curPlanName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
                                       Text('₹${curPlanPrice.toStringAsFixed(0)} • ${settlement.remainingDays}d left', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                      Text('Till: ${DateFormat('dd MMM yyyy').format(curEndDate)}', style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
                                     ],
                                   ),
                                 ),
                                 Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                    color: headerColor.withValues(alpha: 0.15),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: Icon(Icons.arrow_forward_rounded, size: 16, color: theme.colorScheme.primary),
+                                  child: Icon(Icons.arrow_forward_rounded, size: 16, color: headerColor),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      Text('NEW TARGET TIER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
-                                      Text(targetPlan.displayName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.primary), overflow: TextOverflow.ellipsis),
+                                      Text('TARGET TIER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: headerColor)),
+                                      Text(targetPlan.displayName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: headerColor), overflow: TextOverflow.ellipsis),
                                       Text('₹${targetPlan.price.toStringAsFixed(0)} catalog rate', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                      Text('Standard Duration: ${targetPlan.duration} ${targetPlan.durationUnit.name}', style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
                                     ],
                                   ),
                                 ),
@@ -1818,7 +1882,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Unused Credit (${settlement.remainingDays} days):', style: const TextStyle(fontSize: 12)),
+                                Text('Unused Credit (${settlement.remainingDays} days remaining):', style: const TextStyle(fontSize: 12)),
                                 Text('₹${settlement.unusedCredit.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF10B981))),
                               ],
                             ),
@@ -1827,28 +1891,138 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       ),
                       const SizedBox(height: 16),
 
-                      Text('Choose Upgrade Mode:', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+                      Text('Choose Validity & Duration Model:', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
 
-                      // Mode 0: Mid-Cycle Pro-rata
+                      // ── DOWNGRADE OPTION 0: SCHEDULE ON CURRENT EXPIRY ──
+                      if (settlement.transitionType == PlanTransitionType.downgrade) ...[
+                        InkWell(
+                          onTap: () => setDlgState(() => selectedMode = 0),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: selectedMode == 0 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
+                              border: Border.all(
+                                color: selectedMode == 0 ? theme.colorScheme.primary : theme.dividerColor,
+                                width: selectedMode == 0 ? 1.8 : 1.0,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  selectedMode == 0 ? Icons.radio_button_checked : Icons.radio_button_off,
+                                  color: selectedMode == 0 ? theme.colorScheme.primary : Colors.grey,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Text('Schedule on Current Expiry', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                          SizedBox(width: 6),
+                                          Text('(Recommended • No Lost Days)', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                      Text(
+                                        'Keep current $curPlanName until ${DateFormat('dd MMM yyyy').format(curEndDate)} (${settlement.remainingDays}d left). Automatically renews as ${targetPlan.displayName} on next cycle with zero lost days.',
+                                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Text('₹0', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
+                      // ── MODE 1: MONTH-END ALIGNED (STANDARD / RECOMMENDED) ──
                       InkWell(
-                        onTap: () => setDlgState(() => upgradeMode = 0),
+                        onTap: () => setDlgState(() => selectedMode = 1),
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: upgradeMode == 0 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
+                            color: selectedMode == 1 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
                             border: Border.all(
-                              color: upgradeMode == 0 ? theme.colorScheme.primary : theme.dividerColor,
-                              width: upgradeMode == 0 ? 1.8 : 1.0,
+                              color: selectedMode == 1 ? theme.colorScheme.primary : theme.dividerColor,
+                              width: selectedMode == 1 ? 1.8 : 1.0,
                             ),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
                             children: [
                               Icon(
-                                upgradeMode == 0 ? Icons.radio_button_checked : Icons.radio_button_off,
-                                color: upgradeMode == 0 ? theme.colorScheme.primary : Colors.grey,
+                                selectedMode == 1 ? Icons.radio_button_checked : Icons.radio_button_off,
+                                color: selectedMode == 1 ? theme.colorScheme.primary : Colors.grey,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Text('Month-End Aligned', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        const SizedBox(width: 6),
+                                        if (settlement.transitionType != PlanTransitionType.downgrade)
+                                          const Text('(Recommended)', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                    Text(
+                                      'New Validity: ${DateFormat('dd MMM yyyy').format(settlement.freshStartDate)} ➔ ${DateFormat('dd MMM yyyy').format(settlement.freshEndDate)} (${settlement.freshDays} days • Month End)',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+                                    ),
+                                    Text(
+                                      'Prorated rate: ₹${settlement.freshGrossPrice.toStringAsFixed(0)} − ₹${settlement.unusedCredit.toStringAsFixed(0)} credit adjusted.',
+                                      style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                settlement.freshNetPayable > 0
+                                    ? '₹${settlement.freshNetPayable.toStringAsFixed(0)}'
+                                    : (settlement.freshSurplusCredit > 0 ? '+₹${settlement.freshSurplusCredit.toStringAsFixed(0)} Cr' : '₹0'),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: settlement.freshSurplusCredit > 0 ? const Color(0xFF10B981) : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // ── MODE 2: EXTENDED MONTH-END BUNDLE (EXTRA DAYS PREFERENCE) ──
+                      InkWell(
+                        onTap: () => setDlgState(() => selectedMode = 2),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: selectedMode == 2 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
+                            border: Border.all(
+                              color: selectedMode == 2 ? theme.colorScheme.primary : theme.dividerColor,
+                              width: selectedMode == 2 ? 1.8 : 1.0,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                selectedMode == 2 ? Icons.radio_button_checked : Icons.radio_button_off,
+                                color: selectedMode == 2 ? theme.colorScheme.primary : Colors.grey,
                                 size: 18,
                               ),
                               const SizedBox(width: 10),
@@ -1858,72 +2032,135 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                   children: [
                                     const Row(
                                       children: [
-                                        Text('Mid-Cycle Upgrade', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        Text('Extended Month-End Bundle', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                         SizedBox(width: 6),
-                                        Text('(Recommended)', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                                        Text('(Extra Days Option)', style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold)),
                                       ],
                                     ),
                                     Text(
-                                      'Keep current expiry (${DateFormat('dd MMM').format(curEndDate)}). Pay ₹${mode0Amount.toStringAsFixed(0)} difference for remaining ${settlement.remainingDays} days.',
-                                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                      'New Validity: ${DateFormat('dd MMM yyyy').format(settlement.freshStartDate)} ➔ ${DateFormat('dd MMM yyyy').format(settlement.extendedEndDate)} (${settlement.extendedDays} days • Next Month End)',
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                    ),
+                                    Text(
+                                      'Remainder of current month + full subsequent duration bundled till month-end.',
+                                      style: const TextStyle(fontSize: 10.5, color: Colors.grey),
                                     ),
                                   ],
                                 ),
                               ),
-                              Text('₹${mode0Amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              Text(
+                                settlement.extendedNetPayable > 0
+                                    ? '₹${settlement.extendedNetPayable.toStringAsFixed(0)}'
+                                    : (settlement.extendedSurplusCredit > 0 ? '+₹${settlement.extendedSurplusCredit.toStringAsFixed(0)} Cr' : '₹0'),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: settlement.extendedSurplusCredit > 0 ? const Color(0xFF10B981) : null,
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 8),
 
-                      // Mode 1: Fresh Full Cycle with Credit
+                      // ── MODE 3: CUSTOM EXPIRE DATE (STUDENT PREFERENCE / EXAM DATE) ──
                       InkWell(
-                        onTap: () => setDlgState(() => upgradeMode = 1),
+                        onTap: () => setDlgState(() => selectedMode = 3),
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: upgradeMode == 1 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
+                            color: selectedMode == 3 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
                             border: Border.all(
-                              color: upgradeMode == 1 ? theme.colorScheme.primary : theme.dividerColor,
-                              width: upgradeMode == 1 ? 1.8 : 1.0,
+                              color: selectedMode == 3 ? theme.colorScheme.primary : theme.dividerColor,
+                              width: selectedMode == 3 ? 1.8 : 1.0,
                             ),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                upgradeMode == 1 ? Icons.radio_button_checked : Icons.radio_button_off,
-                                color: upgradeMode == 1 ? theme.colorScheme.primary : Colors.grey,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Fresh Cycle (Credit Applied)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                    Text(
-                                      'Valid for full new month (till ${DateFormat('dd MMM').format(mode1EndDate)}). ₹${settlement.unusedCredit.toStringAsFixed(0)} credit deducted.',
-                                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                              Row(
+                                children: [
+                                  Icon(
+                                    selectedMode == 3 ? Icons.radio_button_checked : Icons.radio_button_off,
+                                    color: selectedMode == 3 ? theme.colorScheme.primary : Colors.grey,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Text('Custom Expiry / Exam Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                            SizedBox(width: 6),
+                                            Text('(Student Preference)', style: TextStyle(color: Colors.deepPurple, fontSize: 11, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                        Text(
+                                          'Custom Days: ${DateFormat('dd MMM yyyy').format(effectiveStartDate)} ➔ ${DateFormat('dd MMM yyyy').format(effectiveEndDate)} ($totalEffectiveDays days)',
+                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  Text(
+                                    effectiveAmount > 0
+                                        ? '₹${effectiveAmount.toStringAsFixed(0)}'
+                                        : (surplusCredit > 0 ? '+₹${surplusCredit.toStringAsFixed(0)} Cr' : '₹0'),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: surplusCredit > 0 ? const Color(0xFF10B981) : null,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text('₹${mode1Amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              if (selectedMode == 3) ...[
+                                const SizedBox(height: 10),
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(Icons.calendar_month_rounded, size: 16),
+                                  label: Text(
+                                    customEndDate != null
+                                        ? 'Target Date: ${DateFormat('dd MMM yyyy').format(customEndDate!)}'
+                                        : 'Pick Specific Expiry Date...',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: () async {
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: customEndDate ?? settlement.freshEndDate,
+                                      firstDate: settlement.freshStartDate.add(const Duration(days: 1)),
+                                      lastDate: settlement.freshStartDate.add(const Duration(days: 400)),
+                                      helpText: 'SELECT CUSTOM EXPIRY DATE',
+                                    );
+                                    if (picked != null) {
+                                      setDlgState(() {
+                                        customEndDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59, 999);
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Payment Details
+                      // Payment Details (shown only if money is collected)
                       if (effectiveAmount > 0) ...[
                         Text('Payment & Collection Method:', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         Row(
-                          children: ['UPI', 'Cash', 'Card', 'Bank Transfer'].map((m) {
+                          children: ['Cash', 'UPI', 'Card', 'Bank Transfer'].map((m) {
                             return Padding(
                               padding: const EdgeInsets.only(right: 6),
                               child: ChoiceChip(
@@ -1965,13 +2202,29 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   child: const Text('Cancel'),
                 ),
                 FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: headerColor),
+                  icon: isProcessing
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.check_circle_rounded, size: 18),
+                  label: Text(
+                    isProcessing
+                        ? 'Processing…'
+                        : (isScheduledDowngrade
+                            ? 'Schedule Downgrade (₹0)'
+                            : (effectiveAmount > 0
+                                ? 'Confirm Plan Change (₹${effectiveAmount.toStringAsFixed(0)})'
+                                : (surplusCredit > 0
+                                    ? 'Confirm Plan Change (+₹${surplusCredit.toStringAsFixed(0)} to Wallet)'
+                                    : 'Confirm Plan Change (₹0)'))),
+                  ),
                   onPressed: isProcessing
                       ? null
                       : () async {
                           setDlgState(() => isProcessing = true);
                           try {
-                            // 1. Generate receipt if paid > 0
                             String? receiptNumber;
+
+                            // 1. Generate receipt if money is collected
                             if (effectiveAmount > 0 && recordAsPaid) {
                               final receiptRepo = ReceiptRepository();
                               receiptNumber = await receiptRepo.getNextReceiptNumber(libraryId);
@@ -1990,24 +2243,22 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                   validFrom: effectiveStartDate,
                                   validTo: effectiveEndDate,
                                   customFields: {
-                                    'isPlanUpgrade': true,
+                                    'actionType': settlement.transitionType.name,
                                     'previousPlanName': curPlanName,
                                     'unusedCredit': settlement.unusedCredit,
                                     'proratedDays': settlement.remainingDays,
-                                    'note': 'Plan Upgrade: $curPlanName ➔ ${targetPlan.displayName}',
+                                    'note': '${settlement.transitionType.name.toUpperCase()}: $curPlanName ➔ ${targetPlan.displayName}',
                                   },
                                   status: ReceiptStatus.active,
                                 ),
                               );
 
                               // Record ledger payment
-                              final paymentDoc = FirebaseFirestore.instance
+                              await FirebaseFirestore.instance
                                   .collection('libraries')
                                   .doc(libraryId)
                                   .collection('payments')
-                                  .doc();
-
-                              await paymentDoc.set({
+                                  .add({
                                 'studentId': s.id,
                                 'studentName': s.name,
                                 'planId': targetPlan.id,
@@ -2018,11 +2269,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                 'receiptNumber': receiptNumber,
                                 'reference': refController.text.trim(),
                                 'status': PaymentStatus.paid.name,
-                                'notes': 'Mid-Cycle Plan Upgrade from $curPlanName to ${targetPlan.displayName}',
+                                'notes': 'Plan ${settlement.transitionType.name} from $curPlanName to ${targetPlan.displayName}',
                                 'createdAt': FieldValue.serverTimestamp(),
                               });
 
-                              // Increment library revenue aggregate
+                              // Increment revenue
                               await FirebaseFirestore.instance
                                   .collection('libraries')
                                   .doc(libraryId)
@@ -2034,44 +2285,85 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               }, SetOptions(merge: true));
                             }
 
-                            // 2. Update Student Profile
-                            final double newDueBalance = (!recordAsPaid && effectiveAmount > 0)
-                                ? ((s.pendingDueBalance ?? 0.0) + effectiveAmount)
-                                : (s.pendingDueBalance ?? 0.0);
+                            // 2. Store planHistory snapshot for 1-Click Undo
+                            await FirebaseFirestore.instance
+                                .collection('libraries')
+                                .doc(libraryId)
+                                .collection('students')
+                                .doc(s.id)
+                                .collection('planHistory')
+                                .add({
+                              'actionType': settlement.transitionType.name,
+                              'previousPlanId': s.planId,
+                              'previousPlanName': curPlanName,
+                              'previousPlanPrice': curPlanPrice,
+                              'previousStartDate': Timestamp.fromDate(curStartDate),
+                              'previousEndDate': Timestamp.fromDate(curEndDate),
+                              'targetPlanId': targetPlan.id,
+                              'targetPlanName': targetPlan.displayName,
+                              'targetPlanPrice': targetPlan.price,
+                              'newStartDate': Timestamp.fromDate(effectiveStartDate),
+                              'newEndDate': Timestamp.fromDate(effectiveEndDate),
+                              'unusedCredit': settlement.unusedCredit,
+                              'amountPaid': effectiveAmount,
+                              'surplusCreditedToWallet': surplusCredit,
+                              'paymentMethod': paymentMethod,
+                              'receiptNumber': receiptNumber,
+                              'isReverted': false,
+                              'createdAt': FieldValue.serverTimestamp(),
+                            });
 
-                            final upgradeNote = '[Plan Upgrade] $curPlanName ➔ ${targetPlan.displayName} (${DateFormat('dd MMM yyyy').format(now)}): '
-                                '₹${effectiveAmount.toStringAsFixed(0)} ${recordAsPaid ? 'paid via $paymentMethod' : 'added to pending due'}'
-                                '${receiptNumber != null ? ' • Receipt: $receiptNumber' : ''}';
+                            // 3. Update Student Profile
+                            final auditNote = '[Plan ${settlement.transitionType.name.toUpperCase()}] $curPlanName ➔ ${targetPlan.displayName} (${DateFormat('dd MMM yyyy').format(now)}): '
+                                '${isScheduledDowngrade ? 'Scheduled on next renewal.' : 'Valid till ${DateFormat('dd MMM yyyy').format(effectiveEndDate)}.'} '
+                                '${effectiveAmount > 0 ? '₹${effectiveAmount.toStringAsFixed(0)} paid via $paymentMethod.' : ''} '
+                                '${surplusCredit > 0 ? '₹${surplusCredit.toStringAsFixed(0)} credited to wallet.' : ''} '
+                                '${receiptNumber != null ? 'Receipt: $receiptNumber' : ''}';
 
-                            final updatedNotes = s.notes != null && s.notes!.isNotEmpty
-                                ? '${s.notes}\n$upgradeNote'
-                                : upgradeNote;
+                            final updatedNotes = s.notes != null && s.notes!.isNotEmpty ? '${s.notes}\n$auditNote' : auditNote;
+
+                            final Map<String, dynamic> studentUpdates = {
+                              'notes': updatedNotes,
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            };
+
+                            if (isScheduledDowngrade) {
+                              studentUpdates['scheduledPlanId'] = targetPlan.id;
+                              studentUpdates['scheduledPlanName'] = targetPlan.displayName;
+                            } else {
+                              studentUpdates['planId'] = targetPlan.id;
+                              studentUpdates['customPlanName'] = FieldValue.delete();
+                              studentUpdates['customPlanFee'] = FieldValue.delete();
+                              studentUpdates['planStartDate'] = Timestamp.fromDate(effectiveStartDate);
+                              studentUpdates['planEndDate'] = Timestamp.fromDate(effectiveEndDate);
+                              studentUpdates['membershipStatus'] = MembershipStatus.active.name;
+                              studentUpdates['scheduledPlanId'] = FieldValue.delete();
+                              studentUpdates['scheduledPlanName'] = FieldValue.delete();
+
+                              if (!recordAsPaid && effectiveAmount > 0) {
+                                studentUpdates['pendingDueBalance'] = (s.pendingDueBalance ?? 0.0) + effectiveAmount;
+                              }
+                              if (surplusCredit > 0) {
+                                studentUpdates['walletBalance'] = FieldValue.increment(surplusCredit);
+                              }
+                            }
 
                             await FirebaseFirestore.instance
                                 .collection('libraries')
                                 .doc(libraryId)
                                 .collection('students')
                                 .doc(s.id)
-                                .update({
-                              'planId': targetPlan.id,
-                              'customPlanName': FieldValue.delete(),
-                              'customPlanFee': FieldValue.delete(),
-                              'planStartDate': Timestamp.fromDate(effectiveStartDate),
-                              'planEndDate': Timestamp.fromDate(effectiveEndDate),
-                              'membershipStatus': MembershipStatus.active.name,
-                              'pendingDueBalance': newDueBalance,
-                              'notes': updatedNotes,
-                              'updatedAt': FieldValue.serverTimestamp(),
-                            });
+                                .update(studentUpdates);
 
-                            // 3. Audit Log
+                            // 4. Audit Log
                             AuditLogger().log(
                               action: AuditAction.updated,
                               entityType: AuditEntity.student,
                               libraryId: libraryId,
                               entityId: s.id,
                               details: {
-                                'planUpgrade': true,
+                                'planChange': true,
+                                'transitionType': settlement.transitionType.name,
                                 'previousPlan': curPlanName,
                                 'newPlan': targetPlan.displayName,
                                 'amount': effectiveAmount,
@@ -2079,7 +2371,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               },
                             ).ignore();
 
-                            // 4. Soundbox Counter Announcement (if paid at counter)
+                            // 5. Soundbox announcement (if money collected)
                             if (recordAsPaid && effectiveAmount > 0) {
                               final libModel = ref.read(currentLibraryProvider).value;
                               ref.read(soundboxServiceProvider).announcePayment(
@@ -2090,61 +2382,409 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               );
                             }
 
-                            // 5. WhatsApp confirmation
-                            try {
-                              final libModel = ref.read(currentLibraryProvider).value;
-                              await WhatsAppService().sendPlanUpgradeConfirmation(
-                                phone: s.phone,
-                                studentName: s.name,
-                                libraryName: libModel?.name ?? 'The Cozy Corner Study Centre',
-                                oldPlanName: curPlanName,
-                                newPlanName: targetPlan.displayName,
-                                receiptNumber: receiptNumber ?? 'N/A',
-                                remainingDays: settlement.remainingDays,
-                                unusedCredit: settlement.unusedCredit,
-                                newProratedFee: settlement.newPlanProratedFee,
-                                netPaid: recordAsPaid ? effectiveAmount : 0.0,
-                                paymentMethod: paymentMethod,
-                                newExpiryDate: effectiveEndDate,
-                                referenceNumber: refController.text.trim().isNotEmpty ? refController.text.trim() : null,
-                                libraryHelpline: libModel?.phone,
-                                context: context.mounted ? context : null,
-                              );
-                            } catch (e) {
-                              debugPrint('Could not send WhatsApp upgrade message: $e');
-                            }
-
                             if (context.mounted) {
                               Navigator.pop(ctx);
                               Navigator.pop(context); // Close assign plan sheet
                               _loadStudent();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Plan successfully upgraded to ${targetPlan.displayName} ✓${receiptNumber != null ? ' Receipt #$receiptNumber' : ''}'),
-                                  backgroundColor: const Color(0xFF10B981),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+
+                              // 6. Show Success & WhatsApp Confirmation dialog
+                              _showPlanChangeSuccessDialog(
+                                context: context,
+                                student: s,
+                                transitionType: settlement.transitionType,
+                                previousPlanName: curPlanName,
+                                newPlanName: targetPlan.displayName,
+                                startDate: effectiveStartDate,
+                                endDate: effectiveEndDate,
+                                amountPaid: effectiveAmount,
+                                surplusCredit: surplusCredit,
+                                paymentMethod: paymentMethod,
+                                receiptNumber: receiptNumber,
+                                isScheduled: isScheduledDowngrade,
+                                unusedCredit: settlement.unusedCredit,
                               );
                             }
                           } catch (e) {
                             setDlgState(() => isProcessing = false);
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error upgrading plan: $e'), backgroundColor: Colors.red),
+                                SnackBar(content: Text('Error updating plan: $e'), backgroundColor: Colors.red),
                               );
                             }
                           }
                         },
-                  icon: isProcessing
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.check_circle_rounded, size: 18),
-                  label: Text(isProcessing ? 'Processing…' : 'Confirm Upgrade (₹${effectiveAmount.toStringAsFixed(0)})'),
                 ),
               ],
             );
           },
         );
       },
+    );
+  }
+
+  void _showPlanChangeSuccessDialog({
+    required BuildContext context,
+    required StudentModel student,
+    required PlanTransitionType transitionType,
+    required String previousPlanName,
+    required String newPlanName,
+    required DateTime startDate,
+    required DateTime endDate,
+    required double amountPaid,
+    required double surplusCredit,
+    required String paymentMethod,
+    String? receiptNumber,
+    required bool isScheduled,
+    required double unusedCredit,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final totalDays = endDate.difference(startDate).inDays + 1;
+
+    String actionLabel;
+    IconData actionIcon;
+    Color actionColor;
+
+    if (transitionType == PlanTransitionType.upgrade) {
+      actionLabel = 'Plan Upgrade & Extension';
+      actionIcon = Icons.arrow_circle_up_rounded;
+      actionColor = const Color(0xFF10B981);
+    } else if (transitionType == PlanTransitionType.downgrade) {
+      actionLabel = isScheduled ? 'Scheduled Plan Downgrade' : 'Plan Downgrade';
+      actionIcon = Icons.arrow_circle_down_rounded;
+      actionColor = const Color(0xFFF59E0B);
+    } else {
+      actionLabel = 'Shift / Plan Switch';
+      actionIcon = Icons.swap_horiz_rounded;
+      actionColor = const Color(0xFF3B82F6);
+    }
+
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+        contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: actionColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(actionIcon, color: actionColor, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Plan Updated Successfully!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(actionLabel, style: TextStyle(fontSize: 12, color: actionColor, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.6)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Student:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Plan Transition:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text('$previousPlanName ➔ $newPlanName', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                    const Divider(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('New Validity Period:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(
+                          '${DateFormat('dd MMM yyyy').format(startDate)} ➔ ${DateFormat('dd MMM yyyy').format(endDate)}',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: theme.colorScheme.primary),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total Duration:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text('$totalDays Days (Month End)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                    if (amountPaid > 0) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Amount Paid:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          Text('₹${amountPaid.toStringAsFixed(0)} ($paymentMethod)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF10B981))),
+                        ],
+                      ),
+                    ],
+                    if (surplusCredit > 0) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Wallet Credit Stored:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          Text('₹${surplusCredit.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF10B981))),
+                        ],
+                      ),
+                    ],
+                    if (receiptNumber != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Receipt Voucher:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          Text(receiptNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(Icons.check_circle_outline, size: 16, color: theme.colorScheme.primary),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Digital Student Pass & QR code validity updated immediately in the app.',
+                      style: TextStyle(fontSize: 11.5, color: Colors.grey),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx),
+            child: const Text('Done'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.share_rounded, size: 16),
+            label: const Text('Share on WhatsApp'),
+            onPressed: () async {
+              final libModel = ref.read(currentLibraryProvider).value;
+              await WhatsAppService().sendPlanChangeConfirmation(
+                phone: student.phone,
+                studentName: student.name,
+                libraryName: libModel?.name ?? 'The Cozy Corner Study Centre',
+                transitionType: transitionType,
+                oldPlanName: previousPlanName,
+                newPlanName: newPlanName,
+                receiptNumber: receiptNumber ?? 'N/A',
+                unusedCredit: unusedCredit,
+                netPaid: amountPaid,
+                surplusCredit: surplusCredit,
+                paymentMethod: paymentMethod,
+                newStartDate: startDate,
+                newExpiryDate: endDate,
+                libraryHelpline: libModel?.phone,
+                context: context.mounted ? context : null,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showUndoPlanChangeDialog(
+    BuildContext context,
+    String historyDocId,
+    Map<String, dynamic> historyData,
+    StudentModel s,
+  ) async {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null) return;
+
+    final prevPlanId = historyData['previousPlanId'] as String?;
+    final prevPlanName = historyData['previousPlanName'] as String? ?? 'Previous Plan';
+    final prevStartDate = (historyData['previousStartDate'] as Timestamp?)?.toDate();
+    final prevEndDate = (historyData['previousEndDate'] as Timestamp?)?.toDate();
+    final amountPaid = (historyData['amountPaid'] as num?)?.toDouble() ?? 0.0;
+    final receiptNumber = historyData['receiptNumber'] as String?;
+    final surplusCredited = (historyData['surplusCreditedToWallet'] as num?)?.toDouble() ?? 0.0;
+
+    bool isProcessing = false;
+
+    await showDialog(
+      context: context,
+      builder: (dlgContext) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Row(
+            children: [
+              Icon(Icons.restore_rounded, color: Colors.amber, size: 24),
+              SizedBox(width: 10),
+              Text('Undo Plan Change', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Are you sure you want to revert the plan back to "$prevPlanName"?'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('• Restores Plan: $prevPlanName', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    if (prevStartDate != null && prevEndDate != null)
+                      Text('• Restores Validity: ${DateFormat('dd MMM yyyy').format(prevStartDate)} ➔ ${DateFormat('dd MMM yyyy').format(prevEndDate)}', style: const TextStyle(fontSize: 11)),
+                    if (amountPaid > 0)
+                      Text('• Note: Receipt #$receiptNumber (₹${amountPaid.toStringAsFixed(0)}) will be marked as Voided.', style: const TextStyle(fontSize: 11, color: Colors.red)),
+                    if (surplusCredited > 0)
+                      Text('• Note: ₹${surplusCredited.toStringAsFixed(0)} wallet credit will be retracted.', style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isProcessing ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: Colors.amber.shade800),
+              icon: const Icon(Icons.undo_rounded, size: 16),
+              label: const Text('Confirm Restore'),
+              onPressed: isProcessing
+                  ? null
+                  : () async {
+                      setDlgState(() => isProcessing = true);
+                      try {
+                        // 1. Revert Student Profile
+                        final Map<String, dynamic> revertUpdates = {
+                          'planId': prevPlanId,
+                          'customPlanName': FieldValue.delete(),
+                          'customPlanFee': FieldValue.delete(),
+                          'scheduledPlanId': FieldValue.delete(),
+                          'scheduledPlanName': FieldValue.delete(),
+                          'notes': '${s.notes ?? ''}\n[Plan Restored] Reverted change on ${DateFormat('dd MMM yyyy HH:mm').format(DateTime.now())}. Restored to $prevPlanName.',
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        };
+                        if (prevStartDate != null) {
+                          revertUpdates['planStartDate'] = Timestamp.fromDate(prevStartDate);
+                        }
+                        if (prevEndDate != null) {
+                          revertUpdates['planEndDate'] = Timestamp.fromDate(prevEndDate);
+                        }
+                        if (surplusCredited > 0) {
+                          revertUpdates['walletBalance'] = FieldValue.increment(-surplusCredited);
+                        }
+
+                        await FirebaseFirestore.instance
+                            .collection('libraries')
+                            .doc(libraryId)
+                            .collection('students')
+                            .doc(s.id)
+                            .update(revertUpdates);
+
+                        // 2. Mark planHistory as reverted
+                        await FirebaseFirestore.instance
+                            .collection('libraries')
+                            .doc(libraryId)
+                            .collection('students')
+                            .doc(s.id)
+                            .collection('planHistory')
+                            .doc(historyDocId)
+                            .update({
+                          'isReverted': true,
+                          'revertedAt': FieldValue.serverTimestamp(),
+                        });
+
+                        // 3. Void receipt if any
+                        if (receiptNumber != null) {
+                          final rcSnap = await FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(libraryId)
+                              .collection('receipts')
+                              .where('receiptNumber', isEqualTo: receiptNumber)
+                              .limit(1)
+                              .get();
+                          if (rcSnap.docs.isNotEmpty) {
+                            await rcSnap.docs.first.reference.update({
+                              'status': 'cancelled',
+                              'cancellationReason': 'Plan change undone by admin',
+                              'cancelledAt': FieldValue.serverTimestamp(),
+                            });
+                          }
+                        }
+
+                        // 4. Audit Log
+                        AuditLogger().log(
+                          action: AuditAction.restored,
+                          entityType: AuditEntity.student,
+                          libraryId: libraryId,
+                          entityId: s.id,
+                          details: {'undoneHistoryId': historyDocId, 'restoredPlan': prevPlanName},
+                        ).ignore();
+
+                        if (context.mounted) {
+                          Navigator.pop(ctx);
+                          _loadStudent();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Plan restored back to "$prevPlanName"! ✓'),
+                              backgroundColor: const Color(0xFF10B981),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDlgState(() => isProcessing = false);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to undo plan: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2475,11 +3115,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             final libraryId = ref.read(currentLibraryIdProvider);
                             if (libraryId == null) return;
 
-                            // Mid-Cycle Plan Upgrade Wizard if student already has an active plan
+                            // Mid-Cycle Plan Change Wizard (Upgrade / Downgrade / Switch) if student already has an active plan
                             if (student != null &&
                                 student!.planId != null &&
                                 student!.membershipStatus == MembershipStatus.active) {
-                              await _showPlanUpgradeDialog(context, student!, plan, libraryId);
+                              await _showPlanChangeDialog(context, student!, plan, libraryId, plans);
                               return;
                             }
 
@@ -3560,6 +4200,123 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                 child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
                               );
                             }),
+                            if ((s.walletBalance ?? 0) > 0) ...[
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.account_balance_wallet_rounded, size: 18, color: Color(0xFF059669)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Wallet Credit Balance: ₹${s.walletBalance!.toStringAsFixed(0)}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF047857), fontSize: 13),
+                                      ),
+                                    ),
+                                    const Text('Auto-applied on renewal', style: TextStyle(fontSize: 11, color: Color(0xFF047857), fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            if (s.scheduledPlanName != null && s.scheduledPlanName!.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.amber.shade400),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.schedule_rounded, size: 18, color: Colors.amber),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Scheduled Downgrade: ${s.scheduledPlanName}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFB45309)),
+                                      ),
+                                    ),
+                                    const Text('Takes effect on expiry', style: TextStyle(fontSize: 11, color: Color(0xFFB45309))),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('libraries')
+                                  .doc(ref.watch(currentLibraryIdProvider))
+                                  .collection('students')
+                                  .doc(widget.studentId)
+                                  .collection('planHistory')
+                                  .orderBy('createdAt', descending: true)
+                                  .limit(1)
+                                  .snapshots(),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                final doc = snapshot.data!.docs.first;
+                                final data = doc.data() as Map<String, dynamic>;
+                                final isReverted = data['isReverted'] == true;
+                                if (isReverted) return const SizedBox.shrink();
+
+                                final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+                                if (createdAt != null && DateTime.now().difference(createdAt).inHours > 48) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                final targetPlanName = data['targetPlanName'] as String? ?? 'Plan';
+                                final actionType = (data['actionType'] as String? ?? 'change').toUpperCase();
+                                return Container(
+                                  margin: const EdgeInsets.only(top: 10),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.history_rounded, size: 18, color: Colors.blue),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Recent Plan $actionType: $targetPlanName',
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1D4ED8)),
+                                            ),
+                                            if (createdAt != null)
+                                              Text(
+                                                'Updated ${DateFormat('dd MMM, hh:mm a').format(createdAt)}',
+                                                style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      TextButton.icon(
+                                        style: TextButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          foregroundColor: Colors.amber.shade900,
+                                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                                        ),
+                                        icon: const Icon(Icons.undo_rounded, size: 14),
+                                        label: const Text('Undo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                        onPressed: () => _showUndoPlanChangeDialog(context, doc.id, data, s),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                           ],
                         ],
                       )

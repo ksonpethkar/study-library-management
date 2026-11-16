@@ -154,6 +154,11 @@ class StudentModel {
   final String? freezeReason;
   final bool hasPowerSurcharge;
   final double? powerSurchargeAmount;
+  final double? walletBalance;
+  final String? scheduledPlanId;
+  final String? scheduledPlanName;
+  final DateTime? lastScannedAt;
+  final DateTime? paymentDueSince;
 
   /// Evaluates whether the student is currently on an active study vacation / membership freeze
   bool get isCurrentlyFrozen {
@@ -304,6 +309,11 @@ class StudentModel {
     this.freezeReason,
     this.hasPowerSurcharge = false,
     this.powerSurchargeAmount,
+    this.walletBalance = 0.0,
+    this.scheduledPlanId,
+    this.scheduledPlanName,
+    this.lastScannedAt,
+    this.paymentDueSince,
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
@@ -384,6 +394,11 @@ class StudentModel {
       freezeReason: json['freezeReason'] as String?,
       hasPowerSurcharge: json['hasPowerSurcharge'] == true,
       powerSurchargeAmount: (json['powerSurchargeAmount'] as num?)?.toDouble(),
+      walletBalance: (json['walletBalance'] as num?)?.toDouble() ?? 0.0,
+      scheduledPlanId: json['scheduledPlanId'] as String?,
+      scheduledPlanName: json['scheduledPlanName'] as String?,
+      lastScannedAt: _parseDate(json['lastScannedAt']),
+      paymentDueSince: _parseDate(json['paymentDueSince']),
     );
   }
 
@@ -445,6 +460,11 @@ class StudentModel {
       if (freezeReason != null) 'freezeReason': freezeReason,
       if (hasPowerSurcharge) 'hasPowerSurcharge': true,
       if (powerSurchargeAmount != null) 'powerSurchargeAmount': powerSurchargeAmount,
+      if (walletBalance != null && walletBalance! > 0) 'walletBalance': walletBalance,
+      if (scheduledPlanId != null) 'scheduledPlanId': scheduledPlanId,
+      if (scheduledPlanName != null) 'scheduledPlanName': scheduledPlanName,
+      if (lastScannedAt != null) 'lastScannedAt': lastScannedAt!.toIso8601String(),
+      if (paymentDueSince != null) 'paymentDueSince': paymentDueSince!.toIso8601String(),
     };
   }
 
@@ -507,6 +527,12 @@ class StudentModel {
     bool clearFreeze = false,
     bool? hasPowerSurcharge,
     double? powerSurchargeAmount,
+    double? walletBalance,
+    String? scheduledPlanId,
+    String? scheduledPlanName,
+    bool clearScheduledPlan = false,
+    DateTime? lastScannedAt,
+    DateTime? paymentDueSince,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -565,6 +591,11 @@ class StudentModel {
       freezeReason: clearFreeze ? null : (freezeReason ?? this.freezeReason),
       hasPowerSurcharge: hasPowerSurcharge ?? this.hasPowerSurcharge,
       powerSurchargeAmount: powerSurchargeAmount ?? this.powerSurchargeAmount,
+      walletBalance: walletBalance ?? this.walletBalance,
+      scheduledPlanId: clearScheduledPlan ? null : (scheduledPlanId ?? this.scheduledPlanId),
+      scheduledPlanName: clearScheduledPlan ? null : (scheduledPlanName ?? this.scheduledPlanName),
+      lastScannedAt: lastScannedAt ?? this.lastScannedAt,
+      paymentDueSince: paymentDueSince ?? this.paymentDueSince,
     );
   }
 

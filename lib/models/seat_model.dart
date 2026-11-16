@@ -17,6 +17,7 @@ class SeatModel {
   final String? reservedCandidateId;
   final String? reservedCandidateName;
   final DateTime? reservationExpiresAt;
+  final DateTime? assignedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -34,6 +35,7 @@ class SeatModel {
     this.reservedCandidateId,
     this.reservedCandidateName,
     this.reservationExpiresAt,
+    this.assignedAt,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -81,6 +83,7 @@ class SeatModel {
       reservedCandidateId: json['reservedCandidateId'] as String?,
       reservedCandidateName: json['reservedCandidateName'] as String?,
       reservationExpiresAt: _parseDate(json['reservationExpiresAt']),
+      assignedAt: _parseDate(json['assignedAt']),
       createdAt: _parseDate(json['createdAt']),
       updatedAt: _parseDate(json['updatedAt']),
       deletedAt: _parseDate(json['deletedAt']),
@@ -101,6 +104,7 @@ class SeatModel {
       if (reservedCandidateId != null) 'reservedCandidateId': reservedCandidateId,
       if (reservedCandidateName != null) 'reservedCandidateName': reservedCandidateName,
       if (reservationExpiresAt != null) 'reservationExpiresAt': reservationExpiresAt!.toIso8601String(),
+      if (assignedAt != null) 'assignedAt': assignedAt!.toIso8601String(),
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
@@ -122,6 +126,8 @@ class SeatModel {
     String? reservedCandidateName,
     DateTime? reservationExpiresAt,
     bool clearReservation = false,
+    DateTime? assignedAt,
+    bool clearAssignedAt = false,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -139,6 +145,7 @@ class SeatModel {
       reservedCandidateId: clearReservation ? null : (reservedCandidateId ?? this.reservedCandidateId),
       reservedCandidateName: clearReservation ? null : (reservedCandidateName ?? this.reservedCandidateName),
       reservationExpiresAt: clearReservation ? null : (reservationExpiresAt ?? this.reservationExpiresAt),
+      assignedAt: clearAssignedAt ? (clearStudent ? null : assignedAt) : (assignedAt ?? this.assignedAt),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,

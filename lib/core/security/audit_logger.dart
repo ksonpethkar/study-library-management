@@ -102,11 +102,13 @@ class AuditLogger {
       }
 
       if (startDate != null) {
-        query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        final startInclusive = DateTime(startDate.year, startDate.month, startDate.day, 0, 0, 0, 0);
+        query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startInclusive));
       }
 
       if (endDate != null) {
-        query = query.where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        final endInclusive = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+        query = query.where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endInclusive));
       }
 
       if (startAfter != null) {

@@ -141,10 +141,13 @@ class ExitSettlementCalculation {
   String get formattedFairUsage => '₹${fairUsageFee.toStringAsFixed(0)}';
 }
 
+enum PlanTransitionType { upgrade, downgrade, lateralSwitch }
+
 /// Data class representing the result of a plan upgrade / downgrade mid-cycle settlement
 class PlanChangeSettlement {
   final PlanModel currentPlan;
   final PlanModel targetPlan;
+  final PlanTransitionType transitionType;
   final DateTime changeDate;
   final DateTime currentStartDate;
   final DateTime currentEndDate;
@@ -153,6 +156,28 @@ class PlanChangeSettlement {
   final int remainingDays;
   final double currentDailyRate;
   final double unusedCredit;
+
+  // Fresh cycle parameters (starts from changeDate)
+  final DateTime freshStartDate;
+  final DateTime freshEndDate;
+  final int freshDays;
+  final double freshGrossPrice;
+  final double freshNetPayable; // (freshGrossPrice - unusedCredit).clamp(0, inf)
+  final double freshSurplusCredit; // (unusedCredit - freshGrossPrice).clamp(0, inf)
+
+  // Extended Month-End Bundle (Remainder of current month + full target cycle)
+  final DateTime extendedEndDate;
+  final int extendedDays;
+  final double extendedGrossPrice;
+  final double extendedNetPayable;
+  final double extendedSurplusCredit;
+
+  // Scheduled downgrade parameters (takes effect on currentEndDate + 1)
+  final DateTime scheduledStartDate;
+  final DateTime scheduledEndDate;
+  final int scheduledDays;
+
+  // Prorated / mid-cycle difference
   final double newPlanProratedFee;
   final double netDifference; // Positive = student pays difference; Negative = refund/credit to student
   final bool isUpgrade;
@@ -162,6 +187,7 @@ class PlanChangeSettlement {
   const PlanChangeSettlement({
     required this.currentPlan,
     required this.targetPlan,
+    required this.transitionType,
     required this.changeDate,
     required this.currentStartDate,
     required this.currentEndDate,
@@ -170,6 +196,20 @@ class PlanChangeSettlement {
     required this.remainingDays,
     required this.currentDailyRate,
     required this.unusedCredit,
+    required this.freshStartDate,
+    required this.freshEndDate,
+    required this.freshDays,
+    required this.freshGrossPrice,
+    required this.freshNetPayable,
+    required this.freshSurplusCredit,
+    required this.extendedEndDate,
+    required this.extendedDays,
+    required this.extendedGrossPrice,
+    required this.extendedNetPayable,
+    required this.extendedSurplusCredit,
+    required this.scheduledStartDate,
+    required this.scheduledEndDate,
+    required this.scheduledDays,
     required this.newPlanProratedFee,
     required this.netDifference,
     required this.isUpgrade,
@@ -177,6 +217,8 @@ class PlanChangeSettlement {
     required this.explanation,
   });
 
+  bool get isDowngrade => transitionType == PlanTransitionType.downgrade;
+  bool get isLateralSwitch => transitionType == PlanTransitionType.lateralSwitch;
   double get payableByStudent => netDifference > 0 ? netDifference : 0.0;
   double get refundableToStudent => netDifference < 0 ? (-netDifference) : 0.0;
 }
@@ -254,6 +296,41 @@ class PlanCalculatorService {
         if (duration == 12) return 365; // Standard Annual
         return duration * 30;
     }
+  }
+
+  /// Computes strict calendar-month-end aligned date for a given start date and duration.
+  /// Example:
+  /// - Starting 16 Nov, duration 1 month  -> Ends 30 Nov 23:59:59 (Current month end)
+  /// - Starting 16 Nov, duration 3 months -> Ends 31 Jan 23:59:59 (3rd month end)
+  /// - Starting 16 Nov, duration 6 months -> Ends 30 Apr 23:59:59 (6th month end)
+  /// - Starting 16 Nov, duration 12 months -> Ends 31 Oct 23:59:59 (12th month end)
+  static DateTime calculateMonthEndDate({
+    required DateTime startDate,
+    required int durationMonths,
+    bool extendExtraMonth = false,
+  }) {
+    final cleanStart = DateTime(startDate.year, startDate.month, startDate.day);
+    final effectiveDuration = durationMonths > 0 ? durationMonths : 1;
+    final totalMonthsToAdd = effectiveDuration + (extendExtraMonth ? 1 : 0);
+    return DateTime(cleanStart.year, cleanStart.month + totalMonthsToAdd, 0, 23, 59, 59, 999);
+  }
+
+  /// Computes fair pro-rata fee for any arbitrary date range based on standard plan duration.
+  static double calculateProratedFeeForRange({
+    required PlanModel plan,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    final cleanStart = DateTime(startDate.year, startDate.month, startDate.day);
+    final cleanEnd = DateTime(endDate.year, endDate.month, endDate.day);
+    final totalDays = cleanEnd.difference(cleanStart).inDays + 1;
+    if (totalDays <= 0) return 0.0;
+
+    final standardDays = getStandardCycleDays(plan);
+    final dailyRate = standardDays > 0 ? (plan.price / standardDays) : (plan.price / 30);
+    final rawFee = totalDays * dailyRate;
+    // Round cleanly to 10 for cash/UPI convenience
+    return ((rawFee / 10).round() * 10.0).clamp(50.0, double.infinity);
   }
 
   /// Calculates smart calendar-month-end aligned plan details.
@@ -586,27 +663,77 @@ class PlanCalculatorService {
     final used = (change.difference(start).inDays).clamp(0, totalDays);
     final remaining = (totalDays - used).clamp(0, totalDays);
 
-    final currentDailyRate = totalDays > 0 ? (currentPlan.price / totalDays) : getDailyRate(currentPlan);
+    final currentDailyRate = totalDays > 0 ? (totalPaidForCurrent / totalDays) : getDailyRate(currentPlan);
     final rawCredit = remaining * currentDailyRate;
     final unusedCredit = ((rawCredit / 10).round() * 10.0).clamp(0.0, totalPaidForCurrent);
 
-    // Target plan calculation for remaining days
-    final targetSmart = calculateSmartPlan(plan: targetPlan, fromDate: change);
-    final targetDailyRate = getDailyRate(targetPlan);
+    // Transition type determination
+    final int curMonths = currentPlan.durationUnit == DurationUnit.months
+        ? (currentPlan.duration > 0 ? currentPlan.duration : 1)
+        : (currentPlan.durationUnit == DurationUnit.weeks
+            ? (currentPlan.duration / 4).round().clamp(1, 12)
+            : (currentPlan.duration / 30).round().clamp(1, 12));
 
+    final int targetMonths = targetPlan.durationUnit == DurationUnit.months
+        ? (targetPlan.duration > 0 ? targetPlan.duration : 1)
+        : (targetPlan.durationUnit == DurationUnit.weeks
+            ? (targetPlan.duration / 4).round().clamp(1, 12)
+            : (targetPlan.duration / 30).round().clamp(1, 12));
+
+    PlanTransitionType transitionType;
+    if (targetPlan.price > currentPlan.price || (targetMonths > curMonths && targetPlan.price >= currentPlan.price)) {
+      transitionType = PlanTransitionType.upgrade;
+    } else if (targetPlan.price < currentPlan.price || targetMonths < curMonths) {
+      transitionType = PlanTransitionType.downgrade;
+    } else {
+      transitionType = PlanTransitionType.lateralSwitch;
+    }
+
+    // 1. Month-End Aligned according to target plan duration (Primary / Standard)
+    final freshStartDate = change;
+    final freshEndDate = calculateMonthEndDate(startDate: freshStartDate, durationMonths: targetMonths);
+    final freshDays = freshEndDate.difference(freshStartDate).inDays + 1;
+    final freshGrossPrice = calculateProratedFeeForRange(
+      plan: targetPlan,
+      startDate: freshStartDate,
+      endDate: freshEndDate,
+    );
+    final freshNetPayable = (freshGrossPrice - unusedCredit).clamp(0.0, double.infinity);
+    final freshSurplusCredit = (unusedCredit - freshGrossPrice).clamp(0.0, double.infinity);
+
+    // 2. Extended Month-End Bundle (Extra Days Option: Remainder of current month + full subsequent cycle)
+    final extendedEndDate = calculateMonthEndDate(startDate: freshStartDate, durationMonths: targetMonths, extendExtraMonth: true);
+    final extendedDays = extendedEndDate.difference(freshStartDate).inDays + 1;
+    final extendedGrossPrice = calculateProratedFeeForRange(
+      plan: targetPlan,
+      startDate: freshStartDate,
+      endDate: extendedEndDate,
+    );
+    final extendedNetPayable = (extendedGrossPrice - unusedCredit).clamp(0.0, double.infinity);
+    final extendedSurplusCredit = (unusedCredit - extendedGrossPrice).clamp(0.0, double.infinity);
+
+    // 3. Scheduled downgrade parameters (takes effect on current end date + 1, ending on target month end)
+    final scheduledStartDate = end.add(const Duration(days: 1));
+    final scheduledEndDate = calculateMonthEndDate(startDate: scheduledStartDate, durationMonths: targetMonths);
+    final scheduledDays = scheduledEndDate.difference(scheduledStartDate).inDays + 1;
+
+    // Target plan calculation for remaining days
+    final targetDailyRate = getDailyRate(targetPlan);
     final rawNewFee = remaining * targetDailyRate;
     final newPlanProratedFee = ((rawNewFee / 10).round() * 10.0).clamp(0.0, targetPlan.price);
-
     final netDifference = newPlanProratedFee - unusedCredit;
-    final isUpgrade = netDifference >= 0;
+    final isUpgrade = transitionType == PlanTransitionType.upgrade;
 
     final explanation = isUpgrade
-        ? 'Upgrade to "${targetPlan.displayName}": Unused credit from current plan is ₹${unusedCredit.toStringAsFixed(0)} ($remaining days). New plan fee for $remaining days is ₹${newPlanProratedFee.toStringAsFixed(0)}. Net payable: ₹${netDifference.toStringAsFixed(0)}.'
-        : 'Downgrade to "${targetPlan.displayName}": Unused credit from current plan is ₹${unusedCredit.toStringAsFixed(0)} ($remaining days). New plan fee is ₹${newPlanProratedFee.toStringAsFixed(0)}. Credit/Refund due: ₹${(-netDifference).toStringAsFixed(0)}.';
+        ? 'Upgrade to "${targetPlan.displayName}": Unused credit is ₹${unusedCredit.toStringAsFixed(0)} ($remaining days). New month-end fee is ₹${freshGrossPrice.toStringAsFixed(0)}. Net payable: ₹${freshNetPayable.toStringAsFixed(0)}.'
+        : (transitionType == PlanTransitionType.downgrade
+            ? 'Downgrade to "${targetPlan.displayName}": Unused credit is ₹${unusedCredit.toStringAsFixed(0)} ($remaining days). Surplus credit of ₹${freshSurplusCredit.toStringAsFixed(0)} protected.'
+            : 'Shift Switch to "${targetPlan.displayName}": ₹0 surcharge.');
 
     return PlanChangeSettlement(
       currentPlan: currentPlan,
       targetPlan: targetPlan,
+      transitionType: transitionType,
       changeDate: change,
       currentStartDate: start,
       currentEndDate: end,
@@ -615,10 +742,24 @@ class PlanCalculatorService {
       remainingDays: remaining,
       currentDailyRate: currentDailyRate,
       unusedCredit: unusedCredit,
+      freshStartDate: freshStartDate,
+      freshEndDate: freshEndDate,
+      freshDays: freshDays,
+      freshGrossPrice: freshGrossPrice,
+      freshNetPayable: freshNetPayable,
+      freshSurplusCredit: freshSurplusCredit,
+      extendedEndDate: extendedEndDate,
+      extendedDays: extendedDays,
+      extendedGrossPrice: extendedGrossPrice,
+      extendedNetPayable: extendedNetPayable,
+      extendedSurplusCredit: extendedSurplusCredit,
+      scheduledStartDate: scheduledStartDate,
+      scheduledEndDate: scheduledEndDate,
+      scheduledDays: scheduledDays,
       newPlanProratedFee: newPlanProratedFee,
       netDifference: netDifference,
       isUpgrade: isUpgrade,
-      newEndDate: targetSmart.endDate,
+      newEndDate: freshEndDate,
       explanation: explanation,
     );
   }

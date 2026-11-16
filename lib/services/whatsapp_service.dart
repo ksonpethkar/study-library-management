@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/widgets/whatsapp_preview_sheet.dart';
 import 'package:study_library/services/message_template_service.dart';
+import 'package:study_library/services/plan_calculator_service.dart';
 
 /// WhatsAppService provides methods to communicate with students via WhatsApp.
 /// Uses url_launcher to open the WhatsApp app with a pre-filled message.
@@ -772,6 +773,94 @@ class WhatsAppService {
       context: context,
       recipientName: studentName,
       title: 'Exit Settlement Preview',
+    );
+  }
+
+  /// Sends an official Plan Change (Upgrade, Downgrade, or Switch) confirmation to the student.
+  Future<bool> sendPlanChangeConfirmation({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    required PlanTransitionType transitionType,
+    required String oldPlanName,
+    required String newPlanName,
+    required String receiptNumber,
+    required double unusedCredit,
+    required double netPaid,
+    required double surplusCredit,
+    required String paymentMethod,
+    required DateTime newStartDate,
+    required DateTime newExpiryDate,
+    String? referenceNumber,
+    String? libraryHelpline,
+    BuildContext? context,
+  }) async {
+    final isUpgrade = transitionType == PlanTransitionType.upgrade;
+    final isDowngrade = transitionType == PlanTransitionType.downgrade;
+
+    final String titleHeader = isUpgrade
+        ? '🚀 *Membership Plan Upgrade Confirmation*'
+        : (isDowngrade
+            ? '📋 *Membership Plan Downgrade & Credit Confirmation*'
+            : '🔄 *Membership Plan / Shift Switch Confirmation*');
+
+    final String actionLabel = isUpgrade
+        ? 'Plan Upgrade'
+        : (isDowngrade ? 'Plan Downgrade' : 'Plan Switch');
+
+    final buffer = StringBuffer()
+      ..writeln(titleHeader)
+      ..writeln()
+      ..writeln('Dear *$studentName*,')
+      ..writeln('Your study membership plan at *$libraryName* has been successfully updated!')
+      ..writeln()
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('📦 *PLAN DETAILS*')
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('🔄 *$actionLabel:* $oldPlanName ➔ *$newPlanName*')
+      ..writeln('🧾 *Receipt Voucher:* $receiptNumber')
+      ..writeln('📅 *Validity Period:* ${DateFormat('dd/MM/yyyy').format(newStartDate)} to *${DateFormat('dd/MM/yyyy').format(newExpiryDate)}*');
+
+    if (unusedCredit > 0) {
+      buffer.writeln('💳 *Unused Credit Adjusted:* ₹${unusedCredit.toStringAsFixed(0)}');
+    }
+
+    if (isUpgrade) {
+      if (netPaid > 0) {
+        buffer.writeln('💵 *Net Upgrade Surcharge Paid:* *₹${netPaid.toStringAsFixed(0)}* ($paymentMethod)');
+        if (referenceNumber != null && referenceNumber.isNotEmpty) {
+          buffer.writeln('🔖 *Reference / UTR:* $referenceNumber');
+        }
+      } else {
+        buffer.writeln('💵 *Net Surcharge Paid:* ₹0 (Fully Covered by Unused Credit)');
+      }
+    } else if (isDowngrade) {
+      if (surplusCredit > 0) {
+        buffer.writeln('💰 *Surplus Credit Stored in Student Wallet:* *₹${surplusCredit.toStringAsFixed(0)}* (Applied to future renewals)');
+      }
+    }
+
+    buffer
+      ..writeln()
+      ..writeln('Your digital student pass in the app has been updated with your new validity.')
+      ..writeln('Have a focused and disciplined study journey! 📚✨');
+
+    if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('📞 *Helpline / Admin Desk:* $libraryHelpline');
+    }
+
+    buffer
+      ..writeln()
+      ..writeln('— *Management, $libraryName*');
+
+    return await sendMessage(
+      phone,
+      buffer.toString(),
+      context: context,
+      recipientName: studentName,
+      title: 'Plan Update Confirmation Preview',
     );
   }
 

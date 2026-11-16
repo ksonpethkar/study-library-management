@@ -566,6 +566,8 @@ class SeatRepository {
           tx.update(oldRef, {
             'status': SeatStatus.available.name,
             'studentId': null,
+            'assignedAt': FieldValue.delete(),
+            'vacatedAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }
@@ -574,6 +576,8 @@ class SeatRepository {
         tx.update(targetSeatRef, {
           'status': SeatStatus.occupied.name,
           'studentId': studentId,
+          'assignedAt': FieldValue.serverTimestamp(),
+          'vacatedAt': FieldValue.delete(),
           'reservationType': FieldValue.delete(),
           'reservedCandidateId': FieldValue.delete(),
           'reservedCandidateName': FieldValue.delete(),
@@ -640,6 +644,8 @@ class SeatRepository {
       batch.update(seatRef, {
         'status': SeatStatus.available.name,
         'studentId': null,
+        'assignedAt': FieldValue.delete(),
+        'vacatedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 

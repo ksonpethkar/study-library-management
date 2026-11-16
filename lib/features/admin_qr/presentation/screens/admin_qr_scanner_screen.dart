@@ -239,6 +239,34 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> wit
       }
 
       final student = StudentModel.fromJson({...doc.data()!, 'id': doc.id});
+
+      // ── Temporal Tracking: Record Scan Timestamp & Daily Attendance Log ──
+      final now = DateTime.now();
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
+      // 1. Update student profile with lastScannedAt & lastVisitDate
+      doc.reference.update({
+        'lastScannedAt': FieldValue.serverTimestamp(),
+        'lastVisitDate': todayStr,
+      }).ignore();
+
+      // 2. Append immutable check-in event in attendanceLogs
+      FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('attendanceLogs')
+          .add({
+        'studentId': student.id,
+        'studentName': student.name,
+        'seatId': student.seatId,
+        'planId': student.planId,
+        'membershipStatus': student.effectiveMembershipStatus.name,
+        'timestamp': FieldValue.serverTimestamp(),
+        'date': todayStr,
+        'type': 'scan_checkin',
+        'method': 'admin_qr',
+      }).ignore();
+
       if (mounted) _showVerification(student);
     } catch (e) {
       _showError('Verification failed: $e');
@@ -362,6 +390,18 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> wit
                   icon: Icons.badge_rounded,
                   valueColor: statusColor,
                 ),
+                _InfoRow(
+                  label: 'Attendance',
+                  value: 'Entry Logged (${DateFormat('hh:mm a').format(now)})',
+                  icon: Icons.how_to_reg_rounded,
+                  valueColor: const Color(0xFF059669),
+                ),
+                if (student.lastScannedAt != null)
+                  _InfoRow(
+                    label: 'Previous Scan',
+                    value: DateFormat('dd MMM, hh:mm a').format(student.lastScannedAt!.toLocal()),
+                    icon: Icons.history_rounded,
+                  ),
 
                 const SizedBox(height: 24),
                 if (isExpired || isGrace) ...[
