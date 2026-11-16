@@ -127,7 +127,8 @@ service cloud.firestore {
                          ) &&
                           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                             'fcmToken', 'fcmUpdatedAt', 'photoUrl', 'updatedAt', 'phone', 'email', 'emergencyContact', 'address', 'userId', 'studentUserId',
-                            'pinHash', 'biometricEnabled', 'pinUpdatedAt', 'pinResetByAdmin', 'pinResetMessage'
+                            'pinHash', 'biometricEnabled', 'pinUpdatedAt', 'pinResetByAdmin', 'pinResetMessage',
+                            'targetExamName', 'targetExamDate', 'course'
                           ]) &&
                           // SEC-S2: Ensure student cannot set sensitive membership/financial fields
                           !request.resource.data.diff(resource.data).affectedKeys().hasAny([
