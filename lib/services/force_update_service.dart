@@ -45,28 +45,40 @@ class UpdateInfo {
     required bool isWeb,
   }) {
     if (isWeb) {
-      final webData = (json['web'] as Map<String, dynamic>?) ?? json;
-      final rawNotes = webData['releaseNotes'] ?? json['releaseNotes'];
-      List<String> notes = [];
-      if (rawNotes is List) {
-        notes = rawNotes.map((e) => e.toString()).toList();
-      } else if (rawNotes is String && rawNotes.isNotEmpty) {
-        notes = rawNotes.split(RegExp(r'\.\s+')).where((s) => s.trim().isNotEmpty).toList();
+      final webData = json['web'] as Map<String, dynamic>?;
+      if (webData != null) {
+        final rawNotes = webData['releaseNotes'] ?? json['releaseNotes'];
+        List<String> notes = [];
+        if (rawNotes is List) {
+          notes = rawNotes.map((e) => e.toString()).toList();
+        } else if (rawNotes is String && rawNotes.isNotEmpty) {
+          notes = rawNotes.split(RegExp(r'\.\s+')).where((s) => s.trim().isNotEmpty).toList();
+        }
+
+        final vCode = (webData['buildNumber'] as num?)?.toInt() ?? 0;
+        final vName = (webData['version'] ?? '1.5.53').toString();
+
+        return UpdateInfo(
+          versionCode: vCode,
+          versionName: vName,
+          apkUrl: '',
+          storeUrl: '',
+          isForceUpdate: false,
+          message: 'A fresh web app update is available. Reload to get the latest features.',
+          releaseNotes: notes,
+          isWebUpdate: true,
+        );
       }
 
-      final vCode = (webData['buildNumber'] as num?)?.toInt() ??
-          (json['versionCode'] as num?)?.toInt() ??
-          56;
-      final vName = (webData['version'] ?? json['versionName'] ?? json['latestVersion'] ?? '1.5.48').toString();
-
-      return UpdateInfo(
-        versionCode: vCode,
-        versionName: vName,
+      // If 'web' section is absent from update.json, web is up to date (do not compare Android APK versionCode)
+      return const UpdateInfo(
+        versionCode: 0,
+        versionName: '',
         apkUrl: '',
         storeUrl: '',
         isForceUpdate: false,
-        message: 'A fresh web app update is available. Reload to get the latest features.',
-        releaseNotes: notes,
+        message: '',
+        releaseNotes: [],
         isWebUpdate: true,
       );
     }
@@ -238,8 +250,31 @@ class ForceUpdateService extends Notifier<UpdateState> {
       // ── WEB APP PLATFORM HANDLING ──────────────────────────────────────────
       // Web apps do NOT use APK installers or native package channels.
       if (kIsWeb) {
+        if (updateInfo.versionCode <= 0) {
+          state = state.copyWith(
+            status: UpdateStatus.upToDate,
+            info: updateInfo,
+            errorMessage: manualCheck ? 'Web portal is running the latest version.' : null,
+          );
+          return;
+        }
+
+        // Check if user dismissed recently (24hr cooldown)
+        final prefs = await SharedPreferences.getInstance();
+        final dismissedVersion = prefs.getInt(_prefDismissedVersionKey) ?? 0;
+        final dismissedTimeMs = prefs.getInt(_prefDismissedTimeKey) ?? 0;
+        final now = DateTime.now().millisecondsSinceEpoch;
+
+        final isCooldownActive = (dismissedVersion == updateInfo.versionCode) &&
+            (now - dismissedTimeMs < const Duration(hours: 24).inMilliseconds);
+
+        if (!manualCheck && isCooldownActive) {
+          state = state.copyWith(status: UpdateStatus.upToDate, info: updateInfo);
+          return;
+        }
+
         // On web, compare client version code against the web manifest
-        final currentWebCode = int.tryParse(packageInfo.buildNumber) ?? 56;
+        final currentWebCode = int.tryParse(packageInfo.buildNumber) ?? 0;
         final hasNewerWebVersion = updateInfo.versionCode > currentWebCode;
 
         if (hasNewerWebVersion) {
