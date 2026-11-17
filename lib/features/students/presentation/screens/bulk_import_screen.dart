@@ -610,9 +610,28 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
     final errCount =
         _parsedRows.where((r) => r.status == ImportRowStatus.error).length;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bulk Student Import'),
+    void handleBack() {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/admin/students');
+      }
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        handleBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: handleBack,
+          ),
+          title: const Text('Bulk Student Import'),
         actions: [
           IconButton(
             icon: const Icon(Icons.download_rounded),
@@ -1073,8 +1092,9 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _statCard(String label, int count, Color color) {
     return Expanded(

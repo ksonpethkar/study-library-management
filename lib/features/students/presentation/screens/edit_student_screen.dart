@@ -346,57 +346,45 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
 
     final theme = Theme.of(context);
 
+    void handleBack() {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/admin/students/${widget.studentId}');
+      }
+    }
+
+    Widget content;
     if (_isLoading) {
-      return Scaffold(
+      content = Scaffold(
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/admin/students/${widget.studentId}');
-              }
-            },
+            onPressed: handleBack,
           ),
           title: const Text('Edit Student'),
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
-    }
-
-    if (_originalStudent == null) {
-      return Scaffold(
+    } else if (_originalStudent == null) {
+      content = Scaffold(
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/admin/students/${widget.studentId}');
-              }
-            },
+            onPressed: handleBack,
           ),
           title: const Text('Edit Student'),
         ),
         body: const Center(child: Text('Student profile not found')),
       );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/admin/students/${widget.studentId}');
-            }
-          },
-        ),
-        title: const Text('Edit Student'),
+    } else {
+      content = Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: handleBack,
+          ),
+          title: const Text('Edit Student'),
         actions: [
           TextButton.icon(
             onPressed: _isSaving ? null : _saveStudent,
@@ -880,6 +868,16 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                 ],
               ),
             ),
+      );
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        handleBack();
+      },
+      child: content,
     );
   }
 

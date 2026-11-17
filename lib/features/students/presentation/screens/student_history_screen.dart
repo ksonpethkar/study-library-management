@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 
@@ -13,8 +14,28 @@ class StudentHistoryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final libraryId = ref.watch(currentLibraryIdProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('History')),
+    void handleBack() {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/admin/students/$studentId');
+      }
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        handleBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: handleBack,
+          ),
+          title: const Text('History'),
+        ),
       body: libraryId == null || libraryId.isEmpty
           ? const Center(child: Text('No library selected'))
           : StreamBuilder<QuerySnapshot>(
@@ -87,6 +108,7 @@ class StudentHistoryScreen extends ConsumerWidget {
                 );
               },
             ),
+      ),
     );
   }
 }
