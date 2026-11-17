@@ -443,15 +443,24 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(Icons.swap_horiz_rounded, color: theme.colorScheme.primary, size: 28),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Request Seat Change',
-                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                            ],
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(Icons.swap_horiz_rounded, color: theme.colorScheme.primary, size: 26),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      'Request Seat Change',
+                                      maxLines: 1,
+                                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.close_rounded),

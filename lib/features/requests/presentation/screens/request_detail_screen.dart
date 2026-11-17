@@ -1927,9 +1927,14 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    'Requested Study Pass & Fee',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Requested Study Pass & Fee',
+                      maxLines: 1,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
                 if (proratedFee != null) ...[
@@ -1974,7 +1979,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 OutlinedButton.icon(
                   onPressed: () => _showChangePlanDialog(data, studentData),
                   icon: const Icon(Icons.swap_horiz_rounded, size: 15),
-                  label: const Text('Change Plan'),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Change Plan', maxLines: 1),
+                  ),
                   style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     foregroundColor: theme.colorScheme.primary,
@@ -2317,16 +2325,24 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    'Requested Study Desk',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Requested Study Desk',
+                      maxLines: 1,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
                   onPressed: () => _showChangeDeskSheet(data, studentData),
                   icon: const Icon(Icons.edit_location_alt_rounded, size: 14),
-                  label: const Text('Change Desk'),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Change Desk', maxLines: 1),
+                  ),
                   style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     foregroundColor: theme.colorScheme.primary,
