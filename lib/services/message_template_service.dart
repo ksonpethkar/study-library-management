@@ -42,6 +42,15 @@ class MessageTemplateService {
   static List<String> get availableVariables =>
       variableDefinitions.map((v) => v.tag).toList();
 
+  /// Normalizes any input string to Title Case (e.g. 'shubham dixit' -> 'Shubham Dixit').
+  static String toTitleCase(String s) {
+    if (s.trim().isEmpty) return s;
+    return s
+        .trim()
+        .toLowerCase()
+        .replaceAllMapped(RegExp(r'\b\w'), (m) => m.group(0)!.toUpperCase());
+  }
+
   /// Substitutes all canonical tags and user-friendly aliases with actual values.
   static String substitute(
     String template, {
@@ -70,6 +79,11 @@ class MessageTemplateService {
   }) {
     if (template.isEmpty) return '';
 
+    // Automatically apply clean Title Casing to student name
+    final cleanStudentName = (studentName != null && studentName.trim().isNotEmpty)
+        ? toTitleCase(studentName)
+        : '';
+
     // First normalize friendly short aliases to canonical tags
     var result = template
         .replaceAll('{name}', '{studentName}')
@@ -88,14 +102,19 @@ class MessageTemplateService {
         .replaceAll('{days}', '{daysRemaining}')
         .replaceAll('{holdHours}', '{holdingHours}');
 
+    // Clean fallback for seatLabel
+    final cleanSeat = (seatLabel != null && seatLabel.trim().isNotEmpty)
+        ? seatLabel.trim()
+        : 'फ्लेक्सिबल (General Shift)';
+
     // Substitute canonical tags
-    return result
-        .replaceAll('{studentName}', studentName ?? '')
+    result = result
+        .replaceAll('{studentName}', cleanStudentName)
         .replaceAll('{planName}', planName ?? '')
         .replaceAll('{expiryDate}', expiryDate ?? '')
         .replaceAll('{validFromDate}', validFromDate ?? '')
         .replaceAll('{membershipId}', membershipId ?? '')
-        .replaceAll('{seatLabel}', seatLabel ?? '')
+        .replaceAll('{seatLabel}', cleanSeat)
         .replaceAll('{libraryName}', libraryName ?? '')
         .replaceAll('{amount}', amount ?? '')
         .replaceAll('{paymentMethod}', paymentMethod ?? '')
@@ -103,7 +122,7 @@ class MessageTemplateService {
         .replaceAll('{libraryAddress}', libraryAddress ?? '')
         .replaceAll('{libraryHelpline}', libraryHelpline ?? '')
         .replaceAll('{receiptNumber}', receiptNumber ?? '')
-        .replaceAll('{receiptUrl}', receiptUrl ?? '')
+        .replaceAll('{receiptUrl}', receiptUrl?.trim() ?? '')
         .replaceAll('{dueAmount}', dueAmount ?? '')
         .replaceAll('{dueDate}', dueDate ?? '')
         .replaceAll('{shiftName}', shiftName ?? '')
@@ -112,6 +131,22 @@ class MessageTemplateService {
         .replaceAll('{paymentDate}', paymentDate ?? '')
         .replaceAll('{daysRemaining}', daysRemaining ?? '')
         .replaceAll('{holdingHours}', holdingHours ?? '24');
+
+    // If receiptUrl is empty, cleanly strip empty receipt link lines so no dangling labels appear
+    if (receiptUrl == null || receiptUrl.trim().isEmpty) {
+      result = result
+          .replaceAll(RegExp(r'🔗[^\n]*\n*'), '')
+          .replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    }
+
+    // If libraryHelpline is empty, cleanly strip empty helpline lines
+    if (libraryHelpline == null || libraryHelpline.trim().isEmpty) {
+      result = result
+          .replaceAll(RegExp(r'📞[^\n]*:\s*\n*'), '')
+          .replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    }
+
+    return result.trim();
   }
 
   /// Generates a realistic mock preview of the template
@@ -257,7 +292,8 @@ class MessageTemplateService {
       '📦 *प्लॅन:* {planName}\n'
       '💺 *डेस्क क्रमांक:* {seatLabel}\n'
       '🗓️ *कालावधी:* {validFromDate} ते {expiryDate}\n\n'
-      '🔗 *अधिकृत पावती लिंक:* {receiptUrl}\n\n'
+      '🔗 *अधिकृत डिजिटल पावती लिंक:*\n{receiptUrl}\n\n'
+      '📞 *मदत व हेल्पलाईन:* {libraryHelpline}\n\n'
       '*{libraryName}* ची निवड केल्याबद्दल मनःपूर्वक धन्यवाद! 🙏';
 
   // ──────────────────────────────────────────────────────────────────────────

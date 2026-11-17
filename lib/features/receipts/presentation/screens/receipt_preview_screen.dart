@@ -15,6 +15,7 @@ import 'package:study_library/core/utils/file_download_helper.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 class ReceiptPreviewScreen extends ConsumerStatefulWidget {
@@ -43,7 +44,10 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
 
   @override
   Widget build(BuildContext context) {
-    final libraryId = ref.watch(currentLibraryIdProvider) ?? '';
+    final rawLibId = ref.watch(currentLibraryIdProvider);
+    final libraryId = (rawLibId != null && rawLibId.isNotEmpty)
+        ? rawLibId
+        : CurrentLibraryNotifier.defaultLibraryId;
 
     void handleBack() {
       if (context.canPop()) {
@@ -171,8 +175,18 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Receipt Preview'),
+            title: const FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Receipt Preview',
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
             centerTitle: false,
+            titleSpacing: 0,
             leading: buildBackLeading(),
             actions: [
               IconButton(
@@ -268,16 +282,19 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
                 style: FilledButton.styleFrom(
                   backgroundColor: theme.colorScheme.primary,
                   foregroundColor: theme.colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 1,
+                  visualDensity: VisualDensity.compact,
                 ),
-                icon: const Icon(Icons.download_rounded, size: 18),
+                icon: const Icon(Icons.download_rounded, size: 16),
                 label: const FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
                     'Download PDF',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                 ),
                 onPressed: () => _downloadReceipt(
@@ -299,14 +316,17 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF25D366),
                   side: const BorderSide(color: Color(0xFF25D366), width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  visualDensity: VisualDensity.compact,
                 ),
-                icon: const Icon(Icons.chat_rounded, size: 18),
+                icon: const Icon(Icons.chat_rounded, size: 16),
                 label: const FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
                     'WhatsApp',
+                    maxLines: 1,
+                    softWrap: false,
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                 ),
@@ -325,7 +345,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
             // 3. Share Button
             IconButton.filledTonal(
               tooltip: 'Share Receipt',
-              icon: const Icon(Icons.share_rounded, size: 20),
+              icon: const Icon(Icons.share_rounded, size: 18),
               onPressed: () => _shareReceipt(
                 context: context,
                 receipt: receipt,
@@ -342,7 +362,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
               const SizedBox(width: 8),
               IconButton.filledTonal(
                 tooltip: 'Print Receipt',
-                icon: const Icon(Icons.print_rounded, size: 20),
+                icon: const Icon(Icons.print_rounded, size: 18),
                 onPressed: () => _printReceipt(
                   context: context,
                   receipt: receipt,
@@ -462,6 +482,12 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
     required LibraryModel library,
     required Map<String, dynamic> data,
   }) async {
+    final seat = (data['seatLabel'] as String?) ??
+        (student.seatId != null && student.seatId!.isNotEmpty ? SeatHelper.formatSeatLabel(seatId: student.seatId) : null) ??
+        'फ्लेक्सिबल (General Shift)';
+    final receiptUrl = receipt.id.isNotEmpty
+        ? 'https://study-lib-mgmt-2026.web.app/app/admin/receipts/${receipt.id}'
+        : '';
     await WhatsAppService().sendPaymentConfirmation(
       student.phone,
       student.name,
@@ -469,11 +495,12 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
       receipt.amount,
       receipt.receiptNumber,
       planName: plan.name,
-      seatLabel: data['seatLabel'] as String?,
+      seatLabel: seat,
       validFromDate: DateFormat('dd MMM yyyy').format(receipt.validFrom),
       expiryDate: DateFormat('dd MMM yyyy').format(receipt.validTo),
       paymentMethod: receipt.paymentMethod,
       remainingDue: receipt.remainingDue,
+      receiptUrl: receiptUrl,
       libraryHelpline: library.phone,
       adminTemplate: library.effectiveReceiptTemplate,
       context: context,

@@ -4735,9 +4735,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     }
 
     return PopScope(
-      canPop: context.canPop(),
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
           context.go('/admin/students');
         }
       },
@@ -5459,6 +5462,14 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   final libName = libDoc.data()?['name'] as String? ?? 'Cozy Corner Library';
                   final rNum = payment.receiptNumber ?? (payment.receiptId != null && payment.receiptId!.startsWith('REC-') ? payment.receiptId! : '#${payment.id.substring(0, payment.id.length >= 6 ? 6 : payment.id.length).toUpperCase()}');
                   final libModel = ref.read(currentLibraryProvider).value;
+                  final seat = (s.seatId != null && s.seatId!.isNotEmpty)
+                      ? SeatHelper.formatSeatLabel(seatId: s.seatId)
+                      : 'फ्लेक्सिबल (General Shift)';
+                  final rUrl = (payment.receiptId != null && payment.receiptId!.isNotEmpty)
+                      ? 'https://study-lib-mgmt-2026.web.app/app/admin/receipts/${payment.receiptId}'
+                      : '';
+                  final fromStr = s.planStartDate != null ? DateFormat('dd MMM yyyy').format(s.planStartDate!) : null;
+                  final toStr = s.planEndDate != null ? DateFormat('dd MMM yyyy').format(s.planEndDate!) : null;
                   if (context.mounted) {
                     await WhatsAppService().sendPaymentConfirmation(
                       phone,
@@ -5466,6 +5477,13 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       libName,
                       payment.amount,
                       rNum,
+                      seatLabel: seat,
+                      validFromDate: fromStr,
+                      expiryDate: toStr,
+                      paymentMethod: payment.method,
+                      planName: s.planId,
+                      remainingDue: payment.remainingDue,
+                      receiptUrl: rUrl,
                       adminTemplate: libModel?.effectiveReceiptTemplate,
                       libraryHelpline: libModel?.phone,
                       context: context,

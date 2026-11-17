@@ -898,8 +898,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         icon: const Icon(Icons.arrow_back),
         tooltip: 'Back',
         onPressed: () {
-          if (Navigator.of(context).canPop()) {
-            Navigator.of(context).pop();
+          if (context.canPop()) {
+            context.pop();
           } else {
             context.go('/admin/requests');
           }
@@ -908,22 +908,44 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     }
 
     if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(
-          leading: buildBackButton(),
-          title: const Text('Request Details'),
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/admin/requests');
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            leading: buildBackButton(),
+            title: const Text('Request Details'),
+          ),
+          body: const Center(child: CircularProgressIndicator()),
         ),
-        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_requestData == null) {
-      return Scaffold(
-        appBar: AppBar(
-          leading: buildBackButton(),
-          title: const Text('Request Details'),
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/admin/requests');
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            leading: buildBackButton(),
+            title: const Text('Request Details'),
+          ),
+          body: const Center(child: Text('Request not found or has been deleted.')),
         ),
-        body: const Center(child: Text('Request not found or has been deleted.')),
       );
     }
 
@@ -968,8 +990,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
+        if (context.canPop()) {
+          context.pop();
         } else {
           context.go('/admin/requests');
         }
@@ -1905,18 +1927,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Requested Study Pass & Fee',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Prorated calendar cycle fee payable upon student arrival',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                    ],
+                  child: Text(
+                    'Requested Study Pass & Fee',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
                 if (proratedFee != null) ...[
@@ -1936,11 +1949,27 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ],
               ],
             ),
+            const SizedBox(height: 6),
+            Text(
+              'Prorated calendar cycle fee payable upon student arrival',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
             const Divider(height: 24),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: _buildRow('Selected Plan', planName, isBold: true),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Selected Plan', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      const SizedBox(height: 2),
+                      Text(
+                        planName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                    ],
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _showChangePlanDialog(data, studentData),
@@ -2288,20 +2317,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Requested Study Desk',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        isAuto
-                            ? 'Student opted for auto-assignment by library staff'
-                            : 'Desk preference selected on interactive map',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                    ],
+                  child: Text(
+                    'Requested Study Desk',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2318,6 +2336,13 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isAuto
+                  ? 'Student opted for auto-assignment by library staff'
+                  : 'Desk preference selected on interactive map',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             const Divider(height: 24),
             if (isAuto) ...[
@@ -3993,9 +4018,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 140,
+            width: 130,
             child: Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
           ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               value,

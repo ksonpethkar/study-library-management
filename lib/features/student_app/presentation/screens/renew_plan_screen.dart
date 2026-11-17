@@ -466,7 +466,17 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
     final libraryId = ref.watch(currentLibraryIdProvider);
     final dateFormat = DateFormat('dd MMM yyyy');
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.studentHome);
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -2179,8 +2189,9 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPaymentProofAttachmentWidget(ThemeData theme) {
     return Column(

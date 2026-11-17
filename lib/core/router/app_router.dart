@@ -566,6 +566,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state: state, child: ReceiptPreviewScreen(receiptId: state.pathParameters['id'] ?? ''),
         ),
       ),
+      GoRoute(
+        path: '/receipts/:id',
+        redirect: (context, state) => '/admin/receipts/${state.pathParameters['id']}',
+      ),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminRequests, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const RequestListScreen(),
       )),

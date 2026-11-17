@@ -972,17 +972,40 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           if (shouldShare == true && mounted) {
             final fromStr = DateFormat('dd MMM yyyy').format(validFrom);
             final toStr = DateFormat('dd MMM yyyy').format(validTo);
+
+            // 1. Resolve readable seat label (assigned or general)
+            final effectiveSeatId = _studentSeatId ?? _studentPreviousSeatId;
+            final resolvedSeatLabel = (effectiveSeatId != null && effectiveSeatId.isNotEmpty)
+                ? SeatHelper.formatSeatLabel(seatId: effectiveSeatId)
+                : 'फ्लेक्सिबल (General Shift)';
+
+            // 2. Resolve informative plan name (clarifying advance cycle / prorated days)
+            String displayPlanName = _selectedPlanName ?? 'Library Membership';
+            if (isAdvance) {
+              final cycleDays = validTo.difference(validFrom).inDays + 1;
+              displayPlanName = '$displayPlanName (अ‍ॅडव्हान्स सायकल • $cycleDays दिवस)';
+            } else if (activeSmartCalc != null && activeSmartCalc.isProrated) {
+              displayPlanName = '$displayPlanName (प्रो-राटा • ${activeSmartCalc.daysRemaining} दिवस)';
+            }
+
+            // 3. Resolve direct official receipt link
+            final receiptUrl = (createdReceiptId != null && createdReceiptId.isNotEmpty)
+                ? 'https://study-lib-mgmt-2026.web.app/app/admin/receipts/$createdReceiptId'
+                : '';
+
             ref.read(whatsappServiceProvider).sendPaymentConfirmation(
               widget.studentPhone,
               widget.studentName,
               libraryName,
               amount,
               receiptNumber,
-              planName: _selectedPlanName ?? 'Library Membership',
+              planName: displayPlanName,
+              seatLabel: resolvedSeatLabel,
               validFromDate: fromStr,
               expiryDate: toStr,
               paymentMethod: _paymentMethod,
               remainingDue: remainingDue,
+              receiptUrl: receiptUrl,
               libraryHelpline: library?.phone,
               adminTemplate: library?.effectiveReceiptTemplate,
               context: context,
