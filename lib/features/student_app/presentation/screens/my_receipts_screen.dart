@@ -486,7 +486,15 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                                         Expanded(
                                           child: FilledButton.icon(
                                             icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
-                                            label: const Text('View & Download PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                            label: const FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              child: Text(
+                                                'View & Download PDF',
+                                                maxLines: 1,
+                                                softWrap: false,
+                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
                                             style: FilledButton.styleFrom(
                                               padding: const EdgeInsets.symmetric(vertical: 10),
                                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
