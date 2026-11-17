@@ -281,9 +281,9 @@ class ForceUpdateService extends Notifier<UpdateState> {
         // On web, compare client version code against the web manifest.
         // Fallback: On web, PackageInfo.fromPlatform() can fail on subroutes (e.g. /app/admin/home)
         // because version.json is requested relative to the subroute path, hitting index.html rewrites.
-        // If packageInfo.buildNumber is empty or 0, fallback to current release build number (2070).
+        // If packageInfo.buildNumber is empty or 0, fallback to current release build number (2072).
         final parsedWebCode = int.tryParse(packageInfo.buildNumber) ?? 0;
-        final currentWebCode = parsedWebCode > 0 ? parsedWebCode : 2070;
+        final currentWebCode = parsedWebCode > 0 ? parsedWebCode : 2072;
         final hasNewerWebVersion = updateInfo.versionCode > currentWebCode;
 
         if (hasNewerWebVersion) {

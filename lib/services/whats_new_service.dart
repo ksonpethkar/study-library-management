@@ -126,7 +126,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.54+2070';
+  static const String currentVersionIdentifier = '1.5.55+2072';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -135,7 +135,7 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.54 Build 2070)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.55 Build 2072)
   static final List<ReleaseChange> adminChanges = [
     const ReleaseChange(
       icon: Icons.calendar_month_rounded,
@@ -331,7 +331,7 @@ class WhatsNewService {
     ),
   ];
 
-  /// Student-Friendly Highlights (v1.5.54 Build 2070)
+  /// Student-Friendly Highlights (v1.5.55 Build 2072)
   static final List<ReleaseChange> studentChanges = [
     const ReleaseChange(
       icon: Icons.calendar_month_rounded,
