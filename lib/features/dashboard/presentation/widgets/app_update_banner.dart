@@ -367,6 +367,15 @@ class AppUpdateBanner extends ConsumerWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Note: If Android shows "App not installed", please uninstall any previous test/debug build first.',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontStyle: FontStyle.italic,
+                        color: isDark ? Colors.white38 : Colors.grey.shade600,
+                      ),
+                    ),
                   ],
                 ),
               ),

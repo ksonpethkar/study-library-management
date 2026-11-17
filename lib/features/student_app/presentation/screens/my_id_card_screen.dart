@@ -266,6 +266,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                       child: _buildCardBack(
                                         student: student,
                                         library: library,
+                                        gradientColors: gradientColors,
                                         dynamicId: dynamicId,
                                         seatText: '$seatText$secText',
                                         dateFormat: dateFormat,
@@ -1263,6 +1264,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
   Widget _buildCardBack({
     required StudentModel student,
     required LibraryModel? library,
+    required List<Color> gradientColors,
     required String dynamicId,
     required String seatText,
     required DateFormat dateFormat,
@@ -1289,15 +1291,19 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
       width: double.infinity,
       constraints: const BoxConstraints(maxWidth: 440),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A), // Dark slate
         borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         boxShadow: [
           BoxShadow(
             color: (isExpired || isBlocked
                     ? const Color(0xFFEF4444)
                     : isGrace
                         ? const Color(0xFFF59E0B)
-                        : Colors.black)
+                        : gradientColors.first)
                 .withValues(alpha: isFlipping ? 0.25 : 0.45),
             blurRadius: isFlipping ? 6 : 24,
             offset: isFlipping ? const Offset(0, 4) : const Offset(0, 10),
@@ -1308,7 +1314,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
               ? const Color(0xFFEF4444).withValues(alpha: 0.75)
               : isGrace
                   ? const Color(0xFFF59E0B).withValues(alpha: 0.75)
-                  : const Color(0xFF334155),
+                  : gradientColors.first.withValues(alpha: 0.5),
           width: (isExpired || isBlocked || isGrace) ? 1.6 : 1.2,
         ),
       ),
@@ -1358,11 +1364,11 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                 // Magnetic Stripe Bar
                 Container(
                   height: 32,
-                  color: const Color(0xFF020617),
+                  color: Colors.black.withValues(alpha: 0.55),
                   alignment: Alignment.center,
                   child: Container(
                     height: 8,
-                    color: const Color(0xFF1E293B),
+                    color: Colors.black.withValues(alpha: 0.35),
                   ),
                 ),
 
@@ -1408,9 +1414,9 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B).withValues(alpha: 0.7),
+                                    color: Colors.black.withValues(alpha: 0.35),
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFF334155)),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                                   ),
                                   child: Row(
                                     children: [

@@ -449,6 +449,7 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                                         child: _buildCardBack(
                                           student: widget.student,
                                           library: library,
+                                          gradientColors: _getThemeGradient(activeTheme, Color(library.accentColor)),
                                           dynamicId: dynamicId,
                                           seatText: seatText,
                                           dateFormat: dateFormat,
@@ -1073,6 +1074,7 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
   Widget _buildCardBack({
     required StudentModel student,
     required LibraryModel library,
+    required List<Color> gradientColors,
     required String dynamicId,
     required String seatText,
     required DateFormat dateFormat,
@@ -1090,16 +1092,20 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
       width: double.infinity,
       constraints: const BoxConstraints(maxWidth: 440),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A), // Dark slate
         borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isFlipping ? 0.25 : 0.45),
+            color: gradientColors.first.withValues(alpha: isFlipping ? 0.25 : 0.45),
             blurRadius: isFlipping ? 6 : 24,
             offset: isFlipping ? const Offset(0, 4) : const Offset(0, 10),
           ),
         ],
-        border: Border.all(color: const Color(0xFF334155), width: 1.2),
+        border: Border.all(color: gradientColors.first.withValues(alpha: 0.5), width: 1.2),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -1147,11 +1153,11 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                 // Magnetic Stripe Bar
                 Container(
                   height: 32,
-                  color: const Color(0xFF020617),
+                  color: Colors.black.withValues(alpha: 0.55),
                   alignment: Alignment.center,
                   child: Container(
                     height: 8,
-                    color: const Color(0xFF1E293B),
+                    color: Colors.black.withValues(alpha: 0.35),
                   ),
                 ),
 
@@ -1197,9 +1203,9 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B).withValues(alpha: 0.7),
+                                    color: Colors.black.withValues(alpha: 0.35),
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFF334155)),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                                   ),
                                   child: Row(
                                     children: [

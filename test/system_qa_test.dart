@@ -1779,8 +1779,8 @@ void main() {
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.54'));
-      expect(AppConstants.buildNumber, equals(2070));
+      expect(AppConstants.appVersion, equals('1.5.55'));
+      expect(AppConstants.buildNumber, equals(2072));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -5133,8 +5133,8 @@ void main() {
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.54'));
-      expect(AppConstants.buildNumber, equals(2070));
+      expect(AppConstants.appVersion, equals('1.5.55'));
+      expect(AppConstants.buildNumber, equals(2072));
 
       // 2. Student-facing release changes include all 4 automation features
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
@@ -5155,7 +5155,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.54+2070'));
+      expect(formattedVersion, equals('v1.5.55+2072'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -6205,8 +6205,8 @@ void main() {
     test('126. MOBILE PERSPECTIVE INVARIANTS: BOTTOM SCROLL CLEARANCE, TABBAR SCROLLABILITY & ZERO-TEXT-SQUISHING', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.54'));
-      expect(AppConstants.buildNumber, equals(2070));
+      expect(AppConstants.appVersion, equals('1.5.55'));
+      expect(AppConstants.buildNumber, equals(2072));
 
       // 2. Minimum bottom clearance for mobile navigation bar & FAB visibility (>= 100dp)
       const standardShellBottomClearance = 110.0;

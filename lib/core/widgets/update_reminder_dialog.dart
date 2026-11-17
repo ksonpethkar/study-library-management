@@ -32,6 +32,13 @@ class UpdateReminderDialog {
       final info = updateState.info!;
       final isForce = updateState.status == UpdateStatus.forceUpdate;
 
+      // If this is an automatic check (not user-initiated via Settings or force update),
+      // the home dashboard already displays the persistent, non-intrusive AppUpdateBanner.
+      // Suppress the redundant blocking modal dialog to avoid double update prompts.
+      if (!isForce && !force) {
+        return;
+      }
+
       // 2. 24-Hour / 1st Login of the Day Cooldown check (bypassed on manual check)
       if (!isForce && !force) {
         final prefs = await SharedPreferences.getInstance();
@@ -189,8 +196,11 @@ class UpdateReminderDialog {
                       const SizedBox(height: 20),
 
                       // Actions
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           if (!isForce)
                             TextButton(
@@ -198,14 +208,14 @@ class UpdateReminderDialog {
                                 Navigator.of(dlgContext).pop();
                                 consumerRef.read(updateServiceProvider.notifier).dismissLater();
                               },
-                              child: const Text('Later (Tomorrow)'),
+                              child: const Text('Later'),
                             ),
-                          const SizedBox(width: 8),
                           if (liveDownloaded)
                             FilledButton.icon(
                               style: FilledButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               ),
                               onPressed: () {
                                 Navigator.of(dlgContext).pop();
@@ -219,13 +229,14 @@ class UpdateReminderDialog {
                               style: FilledButton.styleFrom(
                                 backgroundColor: theme.colorScheme.primary,
                                 foregroundColor: theme.colorScheme.onPrimary,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               ),
                               onPressed: () {
                                 Navigator.of(dlgContext).pop();
                                 consumerRef.read(updateServiceProvider.notifier).startUpdate();
                               },
                               icon: const Icon(Icons.download_rounded, size: 18),
-                              label: Text('Download & Update (${info.apkSize})'),
+                              label: Text('Download (${info.apkSize})'),
                             ),
                         ],
                       ),
