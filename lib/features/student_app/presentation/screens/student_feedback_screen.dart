@@ -208,7 +208,17 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
     final student = ref.watch(currentStudentProvider).value;
     final libraryId = ref.watch(currentLibraryIdProvider);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.studentHome);
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -429,8 +439,9 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
           _buildFeedbackHistory(context, theme, libraryId, student),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFeedbackHistory(
     BuildContext context,

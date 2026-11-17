@@ -60,7 +60,17 @@ class SettingsScreen extends ConsumerWidget {
     final build = pkgInfo?.buildNumber ?? '6';
     final requestCounts = ref.watch(requestModuleCountsProvider);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.adminHome);
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -635,8 +645,9 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 32),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCountBadge(int count, {Color? color, String? suffix}) {
     if (count <= 0) return const SizedBox.shrink();

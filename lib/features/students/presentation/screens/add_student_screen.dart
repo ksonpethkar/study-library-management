@@ -540,7 +540,13 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
     final formConfigAsync = ref.watch(formConfigStreamProvider);
     final formFields = formConfigAsync.value ?? [];
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _confirmDiscardAndExit();
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -1434,8 +1440,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                 ],
               ),
             ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildOcrBanner(BuildContext context) {
     final theme = Theme.of(context);

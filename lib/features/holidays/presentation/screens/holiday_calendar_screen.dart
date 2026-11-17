@@ -257,7 +257,17 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.adminHome);
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -485,8 +495,9 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add Holiday'),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSectionHeader(
     BuildContext context,

@@ -48,7 +48,17 @@ class FeedbackListScreen extends ConsumerWidget {
     final libraryId = ref.watch(currentLibraryIdProvider);
     final feedbackAsync = ref.watch(feedbackStreamProvider);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.adminHome);
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -170,8 +180,9 @@ class FeedbackListScreen extends ConsumerWidget {
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _showReplyDialog(
     BuildContext context,

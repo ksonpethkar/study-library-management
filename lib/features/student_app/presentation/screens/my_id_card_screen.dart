@@ -144,7 +144,17 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     final savedSettings = templateAsync.value ?? const IdCardTemplateSettings();
     final activeTheme = savedSettings.customColorHex ?? savedSettings.cardTheme;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.studentHome);
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -332,8 +342,9 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   /// Dynamic status-driven Pass Confirmation Banner & Contextual Action Buttons
   Widget _buildPassStatusBannerAndActions({

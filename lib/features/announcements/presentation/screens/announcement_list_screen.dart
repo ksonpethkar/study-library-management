@@ -130,23 +130,44 @@ class _AnnouncementListScreenState extends ConsumerState<AnnouncementListScreen>
     final libraryId = ref.watch(currentLibraryIdProvider);
     final theme = Theme.of(context);
 
+    void handleBack() {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(Routes.adminHome);
+      }
+    }
+
     if (libraryId == null || libraryId.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Back',
-            onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          handleBack();
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Back',
+              onPressed: handleBack,
+            ),
+            title: const Text('Announcements'),
           ),
-          title: const Text('Announcements'),
+          body: const Center(child: CircularProgressIndicator()),
         ),
-        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     final announcementsAsync = ref.watch(announcementsStreamProvider);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        handleBack();
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -544,8 +565,9 @@ class _AnnouncementListScreenState extends ConsumerState<AnnouncementListScreen>
         ),
         child: const Icon(Icons.add),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 /// Function to show add/edit announcement dialog.
