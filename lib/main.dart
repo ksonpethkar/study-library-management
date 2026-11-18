@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +13,7 @@ import 'package:study_library/services/expiry_scheduler_service.dart';
 import 'package:study_library/services/remote_config_service.dart';
 import 'package:study_library/core/security/legacy_key_migration_service.dart';
 import 'package:study_library/core/security/encryption_service.dart';
+import 'package:study_library/services/telemetry_service.dart';
 import 'firebase_options.dart';
 import 'package:study_library/core/utils/url_strategy_helper.dart';
 import 'app.dart';
@@ -35,20 +35,20 @@ void main() async {
       await FirebaseAppCheck.instance.activate(
         providerWeb: ReCaptchaV3Provider(recaptchaV3SiteKey),
       );
+    } else if (kDebugMode) {
+      debugPrint('[Security Notice] App Check Web is inactive. Pass --dart-define=RECAPTCHA_V3_KEY=... for production protection.');
     }
   } else {
     await FirebaseAppCheck.instance.activate(
       providerAndroid: const AndroidPlayIntegrityProvider(),
     );
-
-    // Crashlytics: catch all Flutter framework errors
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-    // Crashlytics: catch async errors not caught by Flutter framework
-    PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      return true;
-    };
   }
+
+  // Initialize Crashlytics telemetry and error hooks
+  await TelemetryService.initialize(
+    appVersion: '1.5.55',
+    buildNumber: '2072',
+  );
 
   // Initialize Remote Config
   await RemoteConfigService.initialize();
@@ -57,11 +57,13 @@ void main() async {
   await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
 
   // Enable Firestore offline persistence
-  if (!kIsWeb) {
+  try {
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
+  } catch (e) {
+    if (kDebugMode) debugPrint('[Firestore] Persistence config note: $e');
   }
 
   // Initialize push notifications & local schedulers on mobile

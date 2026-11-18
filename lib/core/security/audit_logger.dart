@@ -53,12 +53,14 @@ class AuditLogger {
 
   /// Logs an audit event to the library-scoped Firestore audit log.
   /// [libraryId] must be provided so logs are scoped correctly per library.
+  /// [correlationId] allows tying together multiple related operations across services.
   Future<void> log({
     required AuditAction action,
     required AuditEntity entityType,
     String? libraryId,
     String? entityId,
     String? entityName,
+    String? correlationId,
     Map<String, dynamic>? details,
     Map<String, dynamic>? previousData,
   }) async {
@@ -74,6 +76,7 @@ class AuditLogger {
         'entityName': entityName,
         'userId': userId,
         'userEmail': userEmail,
+        'correlationId': correlationId,
         'timestamp': FieldValue.serverTimestamp(),
         'details': details,
         'previousData': previousData,

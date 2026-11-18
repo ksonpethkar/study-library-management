@@ -1,8 +1,9 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/utils/structured_logger.dart';
+import 'package:study_library/services/telemetry_service.dart';
 import 'app_exception.dart';
 
 class ErrorHandler {
@@ -58,13 +59,21 @@ class ErrorHandler {
       userMessage = AppErrorFormatter.toUserFriendly(error);
     }
 
-    // Log the error
+    // Log the error with structured correlation tracking
+    final cid = StructuredLogger.currentCorrelationId;
     if (kDebugMode) {
-      debugPrint('ErrorHandler caught: $error');
-      if (stack != null) debugPrint('Stack: $stack');
-    } else {
+      debugPrint('[ErrorHandler] [CID:$cid] caught: $error');
+      if (stack != null) debugPrint('[ErrorHandler] [CID:$cid] Stack: $stack');
+    }
+
+    if (!kIsWeb) {
       try {
-        FirebaseCrashlytics.instance.recordError(error, stack, reason: 'ErrorHandler handled exception', fatal: false);
+        TelemetryService.recordNonFatal(
+          error,
+          stack,
+          reason: 'ErrorHandler handled exception',
+          correlationId: cid,
+        );
       } catch (_) {}
     }
 

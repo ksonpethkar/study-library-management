@@ -13,6 +13,7 @@ import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/students/presentation/providers/student_providers.dart';
 import 'services/biometric_service.dart';
 import 'services/inactivity_lock_service.dart';
+import 'services/telemetry_service.dart';
 import 'core/widgets/connectivity_banner.dart';
 
 class StudyLibraryApp extends ConsumerStatefulWidget {
@@ -136,6 +137,25 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
 
   @override
   Widget build(BuildContext context) {
+    // Keep Crashlytics telemetry metadata in sync with active user session
+    ref.listen(currentUserProvider, (previous, next) {
+      if (next != null) {
+        TelemetryService.setUser(
+          uid: next.uid,
+          email: next.email,
+          libraryId: ref.read(currentLibraryIdProvider),
+        );
+      } else {
+        TelemetryService.clearUser();
+      }
+    });
+
+    ref.listen(currentLibraryIdProvider, (previous, next) {
+      if (next != null) {
+        TelemetryService.setLibrary(next);
+      }
+    });
+
     final themeMode = ref.watch(themeNotifierProvider);
     final fontSettings = ref.watch(fontSettingsProvider);
     final router = ref.watch(appRouterProvider);

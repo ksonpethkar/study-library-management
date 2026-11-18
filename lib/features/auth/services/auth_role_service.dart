@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -80,7 +81,9 @@ class AuthRoleService {
           }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AuthRoleService] userDoc phone lookup note: $e');
+    }
 
     // 1. Direct search by userId in default library
     try {
@@ -92,7 +95,9 @@ class AuthRoleService {
           .limit(1)
           .get();
       if (byUid.docs.isNotEmpty) return byUid.docs.first;
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AuthRoleService] findStudent byUid note: $e');
+    }
 
     // 2. Search by email in default library
     if (email.isNotEmpty) {
@@ -105,7 +110,9 @@ class AuthRoleService {
             .limit(1)
             .get();
         if (byEmail.docs.isNotEmpty) return byEmail.docs.first;
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('[AuthRoleService] findStudent byEmail note: $e');
+      }
 
       if (rawEmail.isNotEmpty && rawEmail != email) {
         try {
@@ -117,7 +124,9 @@ class AuthRoleService {
               .limit(1)
               .get();
           if (byRawEmail.docs.isNotEmpty) return byRawEmail.docs.first;
-        } catch (_) {}
+        } catch (e) {
+          if (kDebugMode) debugPrint('[AuthRoleService] findStudent byRawEmail note: $e');
+        }
       }
     }
 
@@ -132,7 +141,9 @@ class AuthRoleService {
             .limit(1)
             .get();
         if (byPhone.docs.isNotEmpty) return byPhone.docs.first;
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('[AuthRoleService] findStudent byPhone note: $e');
+      }
     }
 
     // 3.5 Check admission requests for this user that already provisioned a student
@@ -168,7 +179,9 @@ class AuthRoleService {
           if (sDoc.exists) return sDoc;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AuthRoleService] findStudent reqByUid note: $e');
+    }
 
     // 4. Fallback search across collectionGroup('students')
     try {
@@ -196,7 +209,9 @@ class AuthRoleService {
             .get();
         if (groupPhone.docs.isNotEmpty) return groupPhone.docs.first;
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AuthRoleService] findStudent group search note: $e');
+    }
 
     return null;
   }
