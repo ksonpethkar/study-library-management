@@ -887,8 +887,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             .limit(1).get();
         if (q.docs.isNotEmpty) {
           targetStudentId = q.docs.first.id;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('cached_student_doc_id_${effectiveLibId}_${user.uid}', targetStudentId);
           if (token != null) {
             q.docs.first.reference.update({'fcmToken': token, 'fcmUpdatedAt': FieldValue.serverTimestamp()}).ignore();
+          }
+        } else if (user.email != null && (user.email as String).trim().isNotEmpty) {
+          final cleanEmail = (user.email as String).trim().toLowerCase();
+          final qEmail = await FirebaseFirestore.instance
+              .collection('libraries').doc(effectiveLibId)
+              .collection('students')
+              .where('email', isEqualTo: cleanEmail)
+              .limit(1).get();
+          if (qEmail.docs.isNotEmpty) {
+            targetStudentId = qEmail.docs.first.id;
+            final updateData = <String, dynamic>{'userId': user.uid};
+            if (token != null) {
+              updateData['fcmToken'] = token;
+              updateData['fcmUpdatedAt'] = FieldValue.serverTimestamp();
+            }
+            qEmail.docs.first.reference.update(updateData).ignore();
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('cached_student_doc_id_${effectiveLibId}_${user.uid}', targetStudentId);
           }
         }
       }

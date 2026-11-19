@@ -122,6 +122,8 @@
       "collectionGroup": "students",
       "fieldPath": "userId",
       "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
         { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" },
         { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION_GROUP" }
@@ -131,6 +133,8 @@
       "collectionGroup": "students",
       "fieldPath": "email",
       "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
         { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" },
         { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION_GROUP" }
@@ -140,6 +144,8 @@
       "collectionGroup": "students",
       "fieldPath": "phone",
       "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
         { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" },
         { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION_GROUP" }
@@ -149,6 +155,8 @@
       "collectionGroup": "staff",
       "fieldPath": "userId",
       "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
         { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" },
         { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION_GROUP" }
@@ -158,6 +166,8 @@
       "collectionGroup": "staff",
       "fieldPath": "email",
       "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
         { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" },
         { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION_GROUP" }

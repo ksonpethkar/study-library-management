@@ -51,44 +51,119 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
   }
 
   final uid = user.uid;
-  final email = user.email ?? '';
+  final email = user.email?.trim().toLowerCase() ?? '';
   final cacheKey = 'offline_cached_student_${libraryId}_$uid';
+  final docIdKey = 'cached_student_doc_id_${libraryId}_$uid';
+  final prefs = ref.read(sharedPreferencesProvider);
+
+  StudentModel? lastKnownModel;
 
   // 1. Instantly yield cached student for offline & instant launch (<5ms)
   try {
-    final prefs = ref.read(sharedPreferencesProvider);
     final cachedJson = prefs.getString(cacheKey);
     if (cachedJson != null && cachedJson.isNotEmpty) {
       final Map<String, dynamic> data = jsonDecode(cachedJson);
-      yield StudentModel.fromJson(data);
+      lastKnownModel = StudentModel.fromJson(data);
+      yield lastKnownModel;
     }
   } catch (_) { /* intentionally silent */ }
 
-  // 2. Stream real-time updates from Firestore
-  final stream = FirebaseFirestore.instance
-      .collection('libraries')
-      .doc(libraryId)
-      .collection('students')
-      .where('userId', isEqualTo: uid)
-      .limit(1)
-      .snapshots();
+  // 2. Direct Document Snapshot Stream (0 indexes required, maximum speed & resilience)
+  // If the student docId is known, stream it directly!
+  final knownDocId = prefs.getString(docIdKey);
+  if (knownDocId != null && knownDocId.isNotEmpty) {
+    try {
+      final docStream = FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .doc(knownDocId)
+          .snapshots();
 
-  await for (final snap in stream) {
-    if (snap.docs.isNotEmpty) {
-      final doc = snap.docs.first;
-      final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
-      // Backfill missing studentUserId on legacy receipts and payments for real-time visibility
-      if (model.userId != null && model.userId!.isNotEmpty) {
-        ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, model.userId!).ignore();
+      await for (final docSnap in docStream) {
+        if (docSnap.exists && docSnap.data() != null) {
+          final model = StudentModel.fromJson({...docSnap.data()!, 'id': docSnap.id});
+          lastKnownModel = model;
+          if (model.userId != uid) {
+            docSnap.reference.update({'userId': uid}).ignore();
+          }
+          try {
+            await prefs.setString(cacheKey, jsonEncode(model.toJson()));
+          } catch (_) {}
+          yield model;
+        } else {
+          // Document was migrated or not found at this key; break to query fallback
+          break;
+        }
       }
-      // Update cache for next offline launch
-      try {
-        final prefs = ref.read(sharedPreferencesProvider);
-        await prefs.setString(cacheKey, jsonEncode(model.toJson()));
-      } catch (_) { /* intentionally silent */ }
-      yield model;
-    } else if (email.isNotEmpty) {
-      // Fallback: match by email for admin-added students
+    } catch (e) {
+      debugPrint('currentStudentProvider direct docStream fallback: $e');
+    }
+  }
+
+  // 3. Query stream by userId with automatic index & offline fallback
+  try {
+    final stream = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('students')
+        .where('userId', isEqualTo: uid)
+        .limit(1)
+        .snapshots();
+
+    await for (final snap in stream) {
+      if (snap.docs.isNotEmpty) {
+        final doc = snap.docs.first;
+        final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
+        lastKnownModel = model;
+        prefs.setString(docIdKey, doc.id).ignore();
+        // Backfill missing studentUserId on legacy receipts and payments for real-time visibility
+        if (model.userId != null && model.userId!.isNotEmpty) {
+          ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, model.userId!).ignore();
+        }
+        // Update cache for next offline launch
+        try {
+          await prefs.setString(cacheKey, jsonEncode(model.toJson()));
+        } catch (_) { /* intentionally silent */ }
+        yield model;
+      } else if (email.isNotEmpty) {
+        // Fallback: match by email for admin-added students
+        try {
+          final emailSnap = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('students')
+              .where('email', isEqualTo: email)
+              .limit(1)
+              .get();
+          if (emailSnap.docs.isNotEmpty) {
+            final doc = emailSnap.docs.first;
+            // Backfill userId for future speed
+            doc.reference.update({'userId': uid}).ignore();
+            prefs.setString(docIdKey, doc.id).ignore();
+            final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
+            lastKnownModel = model;
+            if (uid.isNotEmpty) {
+              ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, uid).ignore();
+            }
+            try {
+              await prefs.setString(cacheKey, jsonEncode(model.toJson()));
+            } catch (_) { /* intentionally silent */ }
+            yield model;
+          } else {
+            yield lastKnownModel;
+          }
+        } catch (_) {
+          yield lastKnownModel;
+        }
+      } else {
+        yield lastKnownModel;
+      }
+    }
+  } catch (err) {
+    debugPrint('currentStudentProvider query error: $err');
+    // If query stream threw (e.g. index building), attempt direct email get fallback
+    if (email.isNotEmpty) {
       try {
         final emailSnap = await FirebaseFirestore.instance
             .collection('libraries')
@@ -99,23 +174,19 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
             .get();
         if (emailSnap.docs.isNotEmpty) {
           final doc = emailSnap.docs.first;
-          // Backfill userId for future speed
           doc.reference.update({'userId': uid}).ignore();
+          prefs.setString(docIdKey, doc.id).ignore();
           final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
-          if (uid.isNotEmpty) {
-            ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, uid).ignore();
-          }
           try {
-            final prefs = ref.read(sharedPreferencesProvider);
             await prefs.setString(cacheKey, jsonEncode(model.toJson()));
-          } catch (_) { /* intentionally silent */ }
+          } catch (_) {}
           yield model;
-        } else {
-          yield null;
+          return;
         }
-      } catch (_) {
-        // In case of offline/network failure, keep serving the cached model
-      }
+      } catch (_) {}
+    }
+    if (lastKnownModel != null) {
+      yield lastKnownModel;
     } else {
       yield null;
     }

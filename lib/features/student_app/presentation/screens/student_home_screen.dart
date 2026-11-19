@@ -38,7 +38,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/services/quick_actions_service.dart';
 import 'package:study_library/core/widgets/update_reminder_dialog.dart';
 import 'package:study_library/core/widgets/facility_tour_sheet.dart';
-import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/models/id_card_template_model.dart';
 import 'package:study_library/features/settings/presentation/screens/id_card_customizer_screen.dart';
 import 'package:study_library/features/student_app/presentation/widgets/silent_reception_help_sheet.dart';
@@ -402,19 +401,56 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   // This view auto-disappears when admin approves (stream emits null)
                   return _buildRealTimePendingView(context, theme, request);
                 }
-                // No request and no student profile — safely route back to login screen.
-                WidgetsBinding.instance.addPostFrameCallback((_) async {
-                  if (context.mounted) {
-                    ref.read(userRoleProvider.notifier).clear();
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.remove('cached_current_user_role');
-                    await prefs.remove('persisted_role');
-                    await prefs.remove('persisted_uid');
-                    await FirebaseAuth.instance.signOut();
-                    if (context.mounted) context.go(Routes.login);
-                  }
-                });
-                return const Center(child: CircularProgressIndicator());
+                // No request and no student profile yet — show friendly sync screen
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(28.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.school_rounded, size: 48, color: theme.colorScheme.primary),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Setting up your student dashboard…',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Connecting to $libraryName. If this takes more than a moment, tap Retry.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          onPressed: _refreshAll,
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('Retry Connection'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: () async {
+                            ref.read(userRoleProvider.notifier).clear();
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.remove('cached_current_user_role');
+                            await prefs.remove('persisted_role');
+                            await prefs.remove('persisted_uid');
+                            await FirebaseAuth.instance.signOut();
+                            if (context.mounted) context.go(Routes.login);
+                          },
+                          child: const Text('Sign Out / Switch Account'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Scaffold(
@@ -761,10 +797,35 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
         error: (err, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(
-              ErrorHandler.handleError(err),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.sync_problem_rounded, size: 48, color: Colors.amber),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Profile Syncing in Progress',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Your student profile is updating from the cloud. Please tap retry to refresh.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: _refreshAll,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry Connection'),
+                ),
+              ],
             ),
           ),
         ),
