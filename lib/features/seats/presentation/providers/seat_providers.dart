@@ -13,8 +13,8 @@ final seatRepositoryProvider = Provider<SeatRepository>((ref) {
 
 final sectionsProvider = StreamProvider<List<SectionModel>>((ref) {
   final repository = ref.watch(seatRepositoryProvider);
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null) return Stream.value([]);
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty) return Stream.value([]);
   return repository.getSections(libraryId);
 });
 
@@ -23,21 +23,21 @@ final seatsProvider = StreamProvider.family<List<SeatModel>, String>((
   sectionId,
 ) {
   final repository = ref.watch(seatRepositoryProvider);
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null) return Stream.value([]);
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty) return Stream.value([]);
   return repository.getSeats(libraryId, sectionId);
 });
 
 final availableSeatsProvider = StreamProvider<List<SeatModel>>((ref) {
   final repository = ref.watch(seatRepositoryProvider);
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null) return Stream.value([]);
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty) return Stream.value([]);
   return repository.getAvailableSeats(libraryId);
 });
 
 final occupancyProvider = StreamProvider<Map<String, int>>((ref) async* {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null || libraryId.isEmpty) {
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty) {
     yield {'total': 0, 'occupied': 0, 'available': 0};
     return;
   }

@@ -434,15 +434,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       } catch (_) {}
 
-      // ── Step 4: No admission record found — Show dialog immediately! (NO ghost student write!) ──
-      // Clean up session and cached roles so no unauthenticated student state exists
-      await FirebaseAuth.instance.signOut();
-      ref.read(userRoleProvider.notifier).clear();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('cached_current_user_role');
-      await prefs.remove('persisted_role');
-      await prefs.remove('persisted_uid');
-
+      // ── Step 4: No admission record found — Show dialog (NO ghost student write!) ──
       if (!mounted) return;
       await _showAccountNotFoundDialog(user);
     } catch (e) {
@@ -477,7 +469,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'If you are a new student looking to enroll, please submit a new admission registration application.',
+              'If you are already enrolled at the library under your mobile number, link your account below to access your pass instantly.\n\nNew students can submit an admission application.',
               style: TextStyle(height: 1.4, fontSize: 13, color: Colors.black87),
             ),
           ],
@@ -489,7 +481,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               await FirebaseAuth.instance.signOut();
               ref.read(userRoleProvider.notifier).clear();
             },
-            child: const Text('Sign in with Another Email'),
+            child: const Text('Other Email'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showLinkPhoneDialog(user);
+            },
+            icon: const Icon(Icons.phone_android_rounded, size: 18),
+            label: const Text('Link Mobile Number'),
           ),
           FilledButton.icon(
             onPressed: () {
@@ -497,9 +497,198 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               _startNewRegistration(user);
             },
             icon: const Icon(Icons.assignment_ind_rounded),
-            label: const Text('Register New Admission'),
+            label: const Text('Register New'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showLinkPhoneDialog(User user) async {
+    final phoneController = TextEditingController();
+    bool isSearching = false;
+    String? errorMessage;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dlgContext) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.link_rounded, color: Colors.brown, size: 28),
+              SizedBox(width: 10),
+              Expanded(child: Text('Link Enrolled Mobile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter the 10-digit mobile number registered with your library admission.',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.3),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Mobile Number',
+                  prefixText: '+91 ',
+                  prefixIcon: const Icon(Icons.phone),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  errorText: errorMessage,
+                ),
+                onChanged: (_) {
+                  if (errorMessage != null) {
+                    setDlgState(() => errorMessage = null);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSearching
+                  ? null
+                  : () async {
+                      Navigator.pop(dlgContext);
+                      await FirebaseAuth.instance.signOut();
+                      ref.read(userRoleProvider.notifier).clear();
+                    },
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: isSearching
+                  ? null
+                  : () async {
+                      final input = phoneController.text.replaceAll(RegExp(r'\D'), '');
+                      if (input.length < 10) {
+                        setDlgState(() => errorMessage = 'Please enter a valid 10-digit number');
+                        return;
+                      }
+                      setDlgState(() {
+                        isSearching = true;
+                        errorMessage = null;
+                      });
+
+                      try {
+                        final defaultLibId = CurrentLibraryNotifier.defaultLibraryId;
+                        final variants = [
+                          input,
+                          '+91$input',
+                          '+91 $input',
+                          if (input.length >= 10) input.substring(input.length - 10),
+                        ];
+
+                        QuerySnapshot? match;
+                        for (final variant in variants) {
+                          final snap = await FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(defaultLibId)
+                              .collection('students')
+                              .where('phone', isEqualTo: variant)
+                              .limit(1)
+                              .get();
+                          if (snap.docs.isNotEmpty) {
+                            match = snap;
+                            break;
+                          }
+                        }
+
+                        // Also check requests by phone
+                        if (match == null || match.docs.isEmpty) {
+                          for (final variant in variants) {
+                            final snap = await FirebaseFirestore.instance
+                                .collection('libraries')
+                                .doc(defaultLibId)
+                                .collection('requests')
+                                .where('phone', isEqualTo: variant)
+                                .limit(1)
+                                .get();
+                            if (snap.docs.isNotEmpty) {
+                              match = snap;
+                              break;
+                            }
+                          }
+                        }
+
+                        if (match != null && match.docs.isNotEmpty) {
+                          final matchedDoc = match.docs.first;
+                          final data = matchedDoc.data() as Map<String, dynamic>;
+                          final studentName = data['name'] ?? data['studentName'] ?? 'Student';
+                          final isStudentDoc = matchedDoc.reference.parent.id == 'students';
+
+                          if (!context.mounted) return;
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (confirmCtx) => AlertDialog(
+                              title: const Text('Confirm Identity'),
+                              content: Text(
+                                'Found enrollment for "$studentName".\n\nLink your Google account (${user.email}) to this student record?',
+                                style: const TextStyle(fontSize: 14, height: 1.4),
+                              ),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(confirmCtx, false), child: const Text('No')),
+                                FilledButton(onPressed: () => Navigator.pop(confirmCtx, true), child: const Text('Yes, Link & Login')),
+                              ],
+                            ),
+                          );
+
+                          if (confirmed == true) {
+                            if (isStudentDoc) {
+                              await matchedDoc.reference.update({
+                                'userId': user.uid,
+                                if (user.email != null && user.email!.isNotEmpty) 'email': user.email,
+                              });
+                            } else {
+                              await matchedDoc.reference.update({
+                                'studentId': user.uid,
+                                if (user.email != null && user.email!.isNotEmpty) 'email': user.email,
+                              });
+                            }
+
+                            await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                              'role': 'student',
+                              'libraryId': defaultLibId,
+                              'studentId': isStudentDoc ? matchedDoc.id : (data['createdStudentId'] ?? matchedDoc.id),
+                              'email': user.email ?? '',
+                              'phone': input,
+                              'displayName': user.displayName ?? studentName,
+                              'linkedAt': FieldValue.serverTimestamp(),
+                            }, SetOptions(merge: true));
+
+                            if (dlgContext.mounted) Navigator.pop(dlgContext);
+                            await _goStudent(user: user, libId: defaultLibId);
+                            return;
+                          } else {
+                            setDlgState(() => isSearching = false);
+                            return;
+                          }
+                        } else {
+                          setDlgState(() {
+                            isSearching = false;
+                            errorMessage = 'No student found with mobile $input. Please check or register new.';
+                          });
+                        }
+                      } catch (e) {
+                        setDlgState(() {
+                          isSearching = false;
+                          errorMessage = 'Verification error: ${e.toString()}';
+                        });
+                      }
+                    },
+              icon: isSearching
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.check_rounded),
+              label: const Text('Find & Link'),
+            ),
+          ],
+        ),
       ),
     );
   }

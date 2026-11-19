@@ -12,6 +12,7 @@ import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/core/utils/file_download_helper.dart';
+import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
@@ -563,10 +564,22 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
     final studentDataPreloaded = widget.preloadedStudent?.toJson() ?? {};
     final planPreloaded = widget.preloadedPlan;
 
+    // In-memory live stream check for instant student resolution
+    Map<String, dynamic> resolvedStudentData = Map<String, dynamic>.from(studentDataPreloaded);
+    if (resolvedStudentData.isEmpty && receipt.studentId.isNotEmpty) {
+      final streamStudents = ref.read(studentsStreamProvider).value;
+      if (streamStudents != null) {
+        try {
+          final sMatch = streamStudents.firstWhere((s) => s.id == receipt.studentId);
+          resolvedStudentData = sMatch.toJson();
+        } catch (_) {}
+      }
+    }
+
     // Concurrently fetch library, student, plan, and receipt template
     final libDocFuture = firestore.collection('libraries').doc(effectiveLibId).get();
 
-    final studentDocFuture = (studentDataPreloaded.isEmpty && receipt.studentId.isNotEmpty)
+    final studentDocFuture = (resolvedStudentData.isEmpty && receipt.studentId.isNotEmpty)
         ? firestore.collection('libraries').doc(effectiveLibId).collection('students').doc(receipt.studentId).get()
         : null;
 
@@ -594,8 +607,8 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
     final templateDoc = results[3];
 
     final libData = libDoc?.data() ?? {};
-    final studentData = studentDataPreloaded.isNotEmpty
-        ? studentDataPreloaded
+    final studentData = resolvedStudentData.isNotEmpty
+        ? resolvedStudentData
         : (sDoc?.data() ?? <String, dynamic>{});
     PlanModel? resolvedPlan = planPreloaded;
     if (resolvedPlan == null && pDoc?.exists == true) {

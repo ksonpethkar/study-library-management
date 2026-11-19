@@ -396,7 +396,14 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
             );
           }
 
-          final searchResults = _searchResults ?? _filteredStudents(students);
+          List<StudentModel> searchResults;
+          if (_searchResults != null) {
+            // Live sync: merge search matches with latest streamed student objects so status, dues & seat changes reflect live
+            final streamMap = {for (final s in students) s.id: s};
+            searchResults = _searchResults!.map((s) => streamMap[s.id] ?? s).toList();
+          } else {
+            searchResults = _filteredStudents(students);
+          }
           var filtered = searchResults.where((s) => _matchesFilter(s, _selectedFilter)).toList();
           _applySort(filtered);
 

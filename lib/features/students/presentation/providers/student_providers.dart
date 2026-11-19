@@ -17,8 +17,8 @@ final studentRepositoryProvider = Provider<StudentRepository>((ref) {
 /// Stream all students for the current library
 final studentsStreamProvider = StreamProvider<List<StudentModel>>((ref) {
   final repository = ref.watch(studentRepositoryProvider);
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null) return Stream.value([]);
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty) return Stream.value([]);
   return repository.getStudents(libraryId);
 });
 
@@ -43,9 +43,9 @@ final expiringStudentsProvider = FutureProvider.family<List<StudentModel>, Map<S
 /// Stream of the current logged-in student (matched by Auth UID first, then email fallback)
 /// Yields cached StudentModel instantly (<5ms) for offline access in basements / low connectivity.
 final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
-  final libraryId = ref.watch(currentLibraryIdProvider);
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
   final user = FirebaseAuth.instance.currentUser;
-  if (libraryId == null || libraryId.isEmpty || user == null) {
+  if (libraryId.isEmpty || user == null) {
     yield null;
     return;
   }
@@ -124,8 +124,8 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
 
 /// Stream of a specific student by studentId
 final studentDetailProvider = StreamProvider.family<StudentModel?, String>((ref, studentId) {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null || libraryId.isEmpty || studentId.isEmpty) return Stream.value(null);
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty || studentId.isEmpty) return Stream.value(null);
 
   return FirebaseFirestore.instance
       .collection('libraries')
@@ -143,8 +143,8 @@ final studentDetailProvider = StreamProvider.family<StudentModel?, String>((ref,
 
 /// Real-time stream of the current student's active pending seat change request (if any)
 final studentPendingSeatChangeProvider = StreamProvider<Map<String, dynamic>?>((ref) async* {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null || libraryId.isEmpty) {
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty) {
     yield null;
     return;
   }
@@ -225,8 +225,8 @@ final studentPendingSeatChangeProvider = StreamProvider<Map<String, dynamic>?>((
 /// Real-time stream of the current student's pending plan renewal request.
 /// Returns the renewal request doc if status is 'pending' or 'desk_payment_pending', null otherwise.
 final studentPendingRenewalProvider = StreamProvider<Map<String, dynamic>?>((ref) async* {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null || libraryId.isEmpty) {
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty) {
     yield null;
     return;
   }
@@ -305,8 +305,8 @@ final studentPendingRenewalProvider = StreamProvider<Map<String, dynamic>?>((ref
 
 /// Real-time stream of the current student's most recently rejected plan renewal request (within the last 7 days).
 final studentRecentRejectedRenewalProvider = StreamProvider<Map<String, dynamic>?>((ref) async* {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null || libraryId.isEmpty) {
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty) {
     yield null;
     return;
   }
@@ -390,8 +390,8 @@ final studentRecentRejectedRenewalProvider = StreamProvider<Map<String, dynamic>
 const _pageSize = 20;
 
 final studentPageProvider = StateNotifierProvider.autoDispose<StudentPageNotifier, StudentPageState>((ref) {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  return StudentPageNotifier(libraryId ?? '');
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  return StudentPageNotifier(libraryId);
 });
 
 class StudentPageState {

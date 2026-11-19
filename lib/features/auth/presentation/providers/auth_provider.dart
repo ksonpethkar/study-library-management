@@ -153,8 +153,8 @@ final currentLibraryIdProvider =
 
 /// Streams the current library data and automatically caches branding for instant splash loading
 final currentLibraryProvider = StreamProvider<LibraryModel?>((ref) {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null) return Stream.value(null);
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty) return Stream.value(null);
   return ref.watch(libraryRepositoryProvider).streamLibrary(libraryId).map((lib) {
     if (lib != null) {
       try {

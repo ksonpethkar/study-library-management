@@ -97,7 +97,7 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
       isAdmin: !widget.isStudent,
     );
     final timeout = await BiometricService.getAutoLockTimeoutMinutes();
-    final screenshotProtection = await isScreenshotProtectionEnabled();
+    final screenshotProtection = await isScreenshotProtectionEnabled(libraryId: libraryId);
 
     if (mounted) {
       setState(() {
@@ -113,11 +113,8 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
 
   Future<void> _toggleScreenshotProtection(bool value) async {
     setState(() => _screenshotProtectionEnabled = value);
-    await setScreenshotProtectionEnabled(value);
     final libraryId = widget.libraryId ?? ref.read(currentLibraryIdProvider);
-    if (libraryId != null && libraryId.isNotEmpty) {
-      syncScreenshotProtectionToFirestore(libraryId, value).catchError((_) {});
-    }
+    await setScreenshotProtectionEnabled(value, libraryId: libraryId);
   }
 
   Future<void> _toggleBiometric(bool value) async {

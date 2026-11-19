@@ -6,8 +6,8 @@ import 'package:study_library/models/id_card_template_model.dart';
 import 'package:study_library/core/widgets/brand_color_picker_dialog.dart';
 
 final idCardTemplateProvider = StreamProvider<IdCardTemplateSettings>((ref) {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null || libraryId.isEmpty) {
+  final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+  if (libraryId.isEmpty) {
     return Stream.value(const IdCardTemplateSettings());
   }
 

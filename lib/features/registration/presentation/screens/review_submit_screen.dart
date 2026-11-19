@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -230,62 +228,18 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
 
     try {
       final regData = ref.read(registrationNotifierProvider);
-      String photoUrl = (regData['photoDataUrl'] as String?) ??
+      String rawPhotoUrl = (regData['photoDataUrl'] as String?) ??
           (regData['photoUrl'] as String?) ?? '';
-
       final photoPath = regData['photoPath'] as String?;
-      if (photoUrl.isEmpty && photoPath != null && photoPath.isNotEmpty) {
-        if (photoPath.startsWith('data:image') || photoPath.startsWith('http')) {
-          photoUrl = photoPath;
-        } else if (!kIsWeb) {
-          try {
-            final photoFile = File(photoPath);
-            if (photoFile.existsSync()) {
-              final timestamp = DateTime.now().millisecondsSinceEpoch;
-              try {
-                photoUrl = await ImageService.uploadToStorage(
-                  file: photoFile,
-                  path: 'libraries/$libraryId/requests/photos/req_$timestamp.jpg',
-                );
-              } catch (e) {
-                if (kDebugMode) debugPrint('Error uploading request photo: $e');
-              }
-            }
-          } catch (_) { /* intentionally silent */ }
-        }
-      }
+      String photoUrl = await ImageService.ensureSafeImagePayload(rawPhotoUrl, filePath: photoPath);
 
-      String govIdImageUrl = (regData['govIdImageUrl'] ?? regData['govIdDataUrl'] ?? regData['govIdFrontUrl'] ?? '') as String;
+      String rawGovIdImageUrl = (regData['govIdImageUrl'] ?? regData['govIdDataUrl'] ?? regData['govIdFrontUrl'] ?? '') as String;
       final govIdPath = regData['govIdImagePath'] as String?;
-      if (govIdImageUrl.isEmpty && govIdPath != null && govIdPath.isNotEmpty) {
-        if (govIdPath.startsWith('data:image') || govIdPath.startsWith('http')) {
-          govIdImageUrl = govIdPath;
-        } else if (!kIsWeb) {
-          try {
-            final govIdFile = File(govIdPath);
-            if (govIdFile.existsSync()) {
-              final b = await govIdFile.readAsBytes();
-              govIdImageUrl = 'data:image/jpeg;base64,${base64Encode(b)}';
-            }
-          } catch (_) { /* intentionally silent */ }
-        }
-      }
+      String govIdImageUrl = await ImageService.ensureSafeImagePayload(rawGovIdImageUrl, filePath: govIdPath);
 
-      String govIdBackImageUrl = (regData['govIdBackImageUrl'] ?? regData['govIdBackDataUrl'] ?? regData['govIdBackUrl'] ?? '') as String;
+      String rawGovIdBackImageUrl = (regData['govIdBackImageUrl'] ?? regData['govIdBackDataUrl'] ?? regData['govIdBackUrl'] ?? '') as String;
       final govIdBackPath = regData['govIdBackImagePath'] as String?;
-      if (govIdBackImageUrl.isEmpty && govIdBackPath != null && govIdBackPath.isNotEmpty) {
-        if (govIdBackPath.startsWith('data:image') || govIdBackPath.startsWith('http')) {
-          govIdBackImageUrl = govIdBackPath;
-        } else if (!kIsWeb) {
-          try {
-            final govIdBackFile = File(govIdBackPath);
-            if (govIdBackFile.existsSync()) {
-              final b = await govIdBackFile.readAsBytes();
-              govIdBackImageUrl = 'data:image/jpeg;base64,${base64Encode(b)}';
-            }
-          } catch (_) { /* intentionally silent */ }
-        }
-      }
+      String govIdBackImageUrl = await ImageService.ensureSafeImagePayload(rawGovIdBackImageUrl, filePath: govIdBackPath);
 
       setState(() => _statusMessage = 'Validating request status...');
 

@@ -448,6 +448,16 @@ class BiometricService {
       if (data['autoLockMinutes'] is int) {
         await prefs.setInt(_keyAutoLockMinutes, data['autoLockMinutes'] as int);
       }
+
+      // Restore screenshot protection setting explicitly chosen by admin
+      if (data.containsKey('screenshotProtectionEnabled') &&
+          data['screenshotProtectionEnabled'] is bool) {
+        final screenshotEnabled = data['screenshotProtectionEnabled'] as bool;
+        final adminDisabled = data['screenshotProtectionAdminDisabled'] == true || !screenshotEnabled;
+        await prefs.setBool('screenshot_protection_global', screenshotEnabled);
+        await prefs.setBool('screenshot_protection_configured', true);
+        await prefs.setBool('screenshot_protection_admin_disabled', adminDisabled);
+      }
     } catch (_) { /* intentionally silent */ }
   }
 

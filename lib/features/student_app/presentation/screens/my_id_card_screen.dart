@@ -122,11 +122,43 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
         return const [Color(0xFF1E293B), Color(0xFF0F172A)];
       case 'amberClassic':
         return const [Color(0xFF78350F), Color(0xFF451A03)];
+      case 'amethystPurple':
+        return const [Color(0xFF4C1D95), Color(0xFF1E1B4B)];
       case 'customBrand':
         return [libraryAccent, Color.lerp(libraryAccent, Colors.black, 0.45) ?? Colors.black];
       case 'crimsonExecutive':
       default:
         return const [Color(0xFF881337), Color(0xFF4C0519)];
+    }
+  }
+
+  Color _getThemeAccent(String themeId, Color libraryAccent, List<Color> gradientColors) {
+    switch (themeId) {
+      case 'royalNavy':
+        return const Color(0xFF38BDF8);
+      case 'emeraldAcademic':
+        return const Color(0xFF34D399);
+      case 'darkSlate':
+        return const Color(0xFF94A3B8);
+      case 'amberClassic':
+        return const Color(0xFFFBBF24);
+      case 'amethystPurple':
+        return const Color(0xFFA78BFA);
+      case 'crimsonExecutive':
+        return const Color(0xFFFB7185);
+      case 'customBrand':
+        return Color.lerp(libraryAccent, Colors.white, 0.4) ?? libraryAccent;
+      default:
+        if (themeId.startsWith('#')) {
+          try {
+            final c = Color(int.parse('FF${themeId.replaceAll('#', '')}', radix: 16));
+            return Color.lerp(c, Colors.white, 0.4) ?? c;
+          } catch (_) {}
+        }
+        if (gradientColors.isNotEmpty) {
+          return Color.lerp(gradientColors.first, Colors.white, 0.4) ?? gradientColors.first;
+        }
+        return const Color(0xFF38BDF8);
     }
   }
 
@@ -267,6 +299,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                         student: student,
                                         library: library,
                                         gradientColors: gradientColors,
+                                        activeTheme: activeTheme,
                                         dynamicId: dynamicId,
                                         seatText: '$seatText$secText',
                                         dateFormat: dateFormat,
@@ -1265,6 +1298,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     required StudentModel student,
     required LibraryModel? library,
     required List<Color> gradientColors,
+    required String activeTheme,
     required String dynamicId,
     required String seatText,
     required DateFormat dateFormat,
@@ -1274,6 +1308,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     final isExpired = effectiveStatus == MembershipStatus.expired;
     final isGrace = effectiveStatus == MembershipStatus.grace;
     final isBlocked = effectiveStatus == MembershipStatus.blocked;
+    final accentColor = _getThemeAccent(activeTheme, Color(library?.accentColor ?? 0xFF1E3A8A), gradientColors);
 
     final effectiveHelpline = library?.effectiveHelpline.isNotEmpty == true
         ? library!.effectiveHelpline
@@ -1472,14 +1507,14 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                       ? const Color(0x33EF4444)
                                       : isGrace
                                           ? const Color(0x33F59E0B)
-                                          : const Color(0x3338BDF8),
+                                          : accentColor.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(5),
                                   border: Border.all(
                                     color: isExpired || isBlocked
                                         ? const Color(0x66EF4444)
                                         : isGrace
                                             ? const Color(0x66F59E0B)
-                                            : const Color(0x6638BDF8),
+                                            : accentColor.withValues(alpha: 0.5),
                                   ),
                                 ),
                                 child: Text(
@@ -1497,7 +1532,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                         ? const Color(0xFFF87171)
                                         : isGrace
                                             ? const Color(0xFFFDE68A)
-                                            : const Color(0xFF38BDF8),
+                                            : accentColor,
                                     letterSpacing: 0.8,
                                   ),
                                 ),
@@ -1540,18 +1575,18 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                           }),
                                           version: QrVersions.auto,
                                           size: 78,
-                                          eyeStyle: const QrEyeStyle(
+                                          eyeStyle: QrEyeStyle(
                                             eyeShape: QrEyeShape.square,
-                                            color: Color(0xFF0F172A),
+                                            color: gradientColors.last,
                                           ),
                                         ),
                                       ),
                                       const SizedBox(height: 2),
-                                      const Text(
+                                      Text(
                                         '🔍 Tap to Zoom',
                                         style: TextStyle(
                                           fontSize: 7,
-                                          color: Color(0xFF38BDF8),
+                                          color: accentColor,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -1616,8 +1651,8 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                       // Bottom Contact Bar
                       Container(
                         padding: const EdgeInsets.only(top: 6),
-                        decoration: const BoxDecoration(
-                          border: Border(top: BorderSide(color: Color(0xFF334155))),
+                        decoration: BoxDecoration(
+                          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.15))),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,

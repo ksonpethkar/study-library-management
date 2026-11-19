@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +31,9 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
   int _totalReceiptsCount = 0;
   final Map<String, String> _studentNames = {};
   final Map<String, String> _planNames = {};
+  StreamSubscription? _receiptsSub;
+  StreamSubscription? _paymentsSub;
+  StreamSubscription? _expensesSub;
 
   @override
   void initState() {
@@ -37,10 +41,21 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    _receiptsSub?.cancel();
+    _paymentsSub?.cancel();
+    _expensesSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadData({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
-    if (libraryId.isEmpty) { setState(() => _isLoading = false); return; }
+    if (libraryId.isEmpty) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
     try {
       // Fetch plan names
       try {
@@ -201,22 +216,57 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
       final netProfit = rangeTotal - rangeExpenses;
       final margin = rangeTotal > 0 ? (netProfit / rangeTotal) * 100 : 0.0;
       
-      setState(() {
-        _totalRevenue = total;
-        _rangeRevenue = rangeTotal;
-        _rangeExpenses = rangeExpenses;
-        _netProfit = netProfit;
-        _operatingMargin = margin;
-        _activeStudents = stuSnap.count ?? 0;
-        _totalReceiptsCount = receipts.length;
-        _byPlan = byPlan;
-        _byMethod = byMethod;
-        _recentReceipts = receipts.take(10).toList();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _totalRevenue = total;
+          _rangeRevenue = rangeTotal;
+          _rangeExpenses = rangeExpenses;
+          _netProfit = netProfit;
+          _operatingMargin = margin;
+          _activeStudents = stuSnap.count ?? 0;
+          _totalReceiptsCount = receipts.length;
+          _byPlan = byPlan;
+          _byMethod = byMethod;
+          _recentReceipts = receipts.take(10).toList();
+          _isLoading = false;
+        });
+
+        _startLiveSubscriptions(libraryId);
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _startLiveSubscriptions(String libraryId) {
+    if (_receiptsSub != null) return;
+
+    _receiptsSub = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('receipts')
+        .snapshots()
+        .listen((_) {
+      if (mounted) _loadData(silent: true);
+    });
+
+    _paymentsSub = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('payments')
+        .snapshots()
+        .listen((_) {
+      if (mounted) _loadData(silent: true);
+    });
+
+    _expensesSub = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('expenses')
+        .snapshots()
+        .listen((_) {
+      if (mounted) _loadData(silent: true);
+    });
   }
 
   @override

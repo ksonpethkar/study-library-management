@@ -30,13 +30,9 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
     final sectionGender = (section.genderRestriction ?? 'any').toLowerCase().trim();
     final seatGender = seat.genderRestriction;
 
-    // Numerical index fallback matching Cozy Corner layout (1-50 Male, 51-60 Female)
-    final labelNum = int.tryParse(seat.label.replaceAll(RegExp(r'\D'), ''));
-
     if (gender == 'male' || gender == 'boy') {
       if (sectionGender == 'female' || sectionGender == 'girls') return false;
       if (seatGender == GenderRestriction.female) return false;
-      if (labelNum != null && labelNum >= 51 && labelNum <= 60) return false;
       return true;
     } else if (gender == 'female' || gender == 'girl') {
       if (sectionGender == 'male' || sectionGender == 'boys') return false;
@@ -54,10 +50,11 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
     required SectionModel section,
   }) {
     HapticFeedback.lightImpact();
-    final isMale = studentGenderStr.toLowerCase().trim() == 'male';
-    final reservedFor = isMale ? 'Female / Girls' : 'Male / Boys';
-    final allowedFor = isMale ? 'Desks 1 to 50' : 'Desks 51 to 60 or general desks';
-    final accentColor = isMale ? Colors.pink.shade700 : Colors.blue.shade700;
+    final isGirlOnly = seat.genderRestriction == GenderRestriction.female ||
+        (section.genderRestriction ?? '').toLowerCase().contains('female') ||
+        (section.genderRestriction ?? '').toLowerCase().contains('girls');
+    final reservedFor = isGirlOnly ? 'Female / Girls' : 'Male / Boys';
+    final accentColor = isGirlOnly ? Colors.pink.shade700 : Colors.blue.shade700;
 
     showModalBottomSheet(
       context: context,
@@ -103,7 +100,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
               const SizedBox(height: 8),
               Text(
                 'Desk #${seat.label} in ${section.name} is reserved for $reservedFor students only.\n\n'
-                'Please select from $allowedFor.',
+                'Please select an available desk designated for your group.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, height: 1.4, color: Colors.grey.shade700),
               ),
@@ -335,6 +332,27 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
             (s) => s.id == _selectedSectionId,
             orElse: () => sections.first,
           );
+          final currentSeats = ref.watch(seatsProvider(currentSection.id)).value ?? [];
+          final hasBoySeats = currentSection.genderRestriction?.toLowerCase() == 'male' ||
+              currentSeats.any((s) => s.genderRestriction == GenderRestriction.male);
+          final hasGirlSeats = currentSection.genderRestriction?.toLowerCase() == 'female' ||
+              currentSeats.any((s) => s.genderRestriction == GenderRestriction.female);
+
+          final selectedSeat = currentSeats
+              .where((s) => s.id == seatDetails.seatId || s.label == seatDetails.seatLabel)
+              .firstOrNull;
+          String deskCategoryText;
+          if (selectedSeat != null) {
+            if (selectedSeat.genderRestriction == GenderRestriction.female) {
+              deskCategoryText = 'Girls Reserved Desk';
+            } else if (selectedSeat.genderRestriction == GenderRestriction.male) {
+              deskCategoryText = 'Boys Reserved Desk';
+            } else {
+              deskCategoryText = 'General Desk';
+            }
+          } else {
+            deskCategoryText = 'General Desk';
+          }
 
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -591,8 +609,10 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                                 _buildLegendItem(color: const Color(0xFFEF4444), label: 'Occupied'),
                                 _buildLegendItem(color: const Color(0xFFF59E0B), label: 'Maintenance'),
                                 _buildLegendItem(color: const Color(0xFF8B5CF6), label: 'Selected'),
-                                _buildLegendItem(color: const Color(0xFF3B82F6), label: '♂ Boys (1-50)', isIcon: true, icon: Icons.male_rounded),
-                                _buildLegendItem(color: const Color(0xFFEC4899), label: '♀ Girls (51-60)', isIcon: true, icon: Icons.female_rounded),
+                                if (hasBoySeats)
+                                  _buildLegendItem(color: const Color(0xFF3B82F6), label: '♂ Boys Reserved', isIcon: true, icon: Icons.male_rounded),
+                                if (hasGirlSeats)
+                                  _buildLegendItem(color: const Color(0xFFEC4899), label: '♀ Girls Reserved', isIcon: true, icon: Icons.female_rounded),
                               ],
                             ),
                             const Divider(height: 24),
@@ -649,7 +669,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${currentSection.name} • ${(int.tryParse(seatDetails.seatLabel ?? '') ?? 0) > 50 ? "Girls Reserved Zone (51-60)" : "Boys Reserved Zone (1-50)"}',
+                                    '${currentSection.name} • $deskCategoryText',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
@@ -866,10 +886,10 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
               seat: seat,
             );
 
-            // Gender categorization matching Cozy Corner (1-50 Boys, 51-60 Girls)
-            final labelNum = int.tryParse(seat.label.replaceAll(RegExp(r'\D'), ''));
             final isGirlSeat = seat.genderRestriction == GenderRestriction.female ||
-                (labelNum != null && labelNum >= 51 && labelNum <= 60);
+                (section.genderRestriction?.toLowerCase() == 'female');
+            final isBoySeat = seat.genderRestriction == GenderRestriction.male ||
+                (section.genderRestriction?.toLowerCase() == 'male');
 
             // Visual Colors
             Color bgColor;
@@ -913,8 +933,14 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
               borderColor = const Color(0xFFF472B6);
               textColor = isDark ? const Color(0xFFF472B6) : const Color(0xFFBE185D);
               borderWidth = 1.4;
+            } else if (isBoySeat) {
+              // Available & Eligible Boys Desk
+              bgColor = isDark ? const Color(0xFF1E3A8A) : const Color(0xFFEFF6FF);
+              borderColor = const Color(0xFF3B82F6);
+              textColor = isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8);
+              borderWidth = 1.4;
             } else {
-              // Available & Eligible Boys / General Desk
+              // Available & Eligible General Desk
               bgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5);
               borderColor = const Color(0xFF10B981);
               textColor = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF065F46);
@@ -1022,6 +1048,16 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                           size: 9,
                           color: const Color(0xFFEC4899).withValues(alpha: 0.8),
                         ),
+                      )
+                    else if (isBoySeat)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Icon(
+                          Icons.male_rounded,
+                          size: 9,
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.8),
+                        ),
                       ),
                   ],
                 ),
@@ -1050,7 +1086,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Pinch or swipe horizontally to inspect all 60 desks',
+                      'Pinch or swipe horizontally to inspect all ${sortedSeats.length} desks',
                       style: TextStyle(
                         fontSize: 11,
                         color: theme.colorScheme.primary,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -61,12 +62,19 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
   String sectionName = '';
   String planName = '';
   double planPrice = 0;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _studentSub;
 
   @override
   void initState() {
     super.initState();
     final initialLibId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
     _loadStudent(overrideLibId: initialLibId);
+  }
+
+  @override
+  void dispose() {
+    _studentSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadStudent({String? overrideLibId}) async {
@@ -169,6 +177,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             planPrice = loadedPlanPrice;
             isLoading = false;
           });
+
+          _startLiveStudentSubscription(libraryId);
         }
       } else {
         if (mounted) setState(() => isLoading = false);
@@ -177,6 +187,32 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
       debugPrint('Error loading student: $e');
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  void _startLiveStudentSubscription(String libraryId) {
+    if (_studentSub != null) return;
+    _studentSub = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('students')
+        .doc(widget.studentId)
+        .snapshots()
+        .listen((snap) {
+      if (!snap.exists || snap.data() == null || !mounted) return;
+      final data = snap.data()!;
+      final rawGovId = data['govIdNumber']?.toString() ?? '';
+      final decryptedGovId = EncryptionService.safeDecryptGovId(rawGovId, libraryId);
+      final s = StudentModel.fromJson({
+        ...data,
+        'id': snap.id,
+        'govIdNumber': decryptedGovId,
+      });
+      if (mounted) {
+        setState(() {
+          student = s;
+        });
+      }
+    });
   }
 
   Color _getStatusColor(MembershipStatus status) {

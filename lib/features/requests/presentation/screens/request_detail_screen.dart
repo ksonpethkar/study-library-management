@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,11 +47,21 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   bool _isRequestedSeatOccupied = false;
   String? _occupyingStudentName;
   String? _occupyingStudentId;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _requestSub;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _seatSub;
+  String? _watchedSeatKey;
 
   @override
   void initState() {
     super.initState();
     _loadRequest();
+  }
+
+  @override
+  void dispose() {
+    _requestSub?.cancel();
+    _seatSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadRequest() async {
@@ -222,12 +233,107 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           _occupyingStudentId = occupantId;
           _isLoading = false;
         });
+
+        // Start live real-time listeners for continuous collision & status detection
+        _startLiveListeners(libraryId);
       } else {
         if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _startLiveListeners(String libraryId) {
+    _requestSub?.cancel();
+    _requestSub = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('requests')
+        .doc(widget.requestId)
+        .snapshots()
+        .listen((snap) {
+      if (!snap.exists || !mounted) return;
+      final reqData = snap.data();
+      if (reqData == null) return;
+      _requestData = reqData;
+      _bindLiveSeatWatch(libraryId, reqData);
+    });
+  }
+
+  void _bindLiveSeatWatch(String libraryId, Map<String, dynamic> reqData) {
+    final studentDataMap = (reqData['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
+    final reqSeatId = (reqData['requestedSeatId'] ?? studentDataMap['requestedSeatId'] ?? studentDataMap['seatId'] ?? reqData['seatId'])?.toString();
+    final reqSecId = (reqData['requestedSectionId'] ?? studentDataMap['requestedSectionId'] ?? studentDataMap['sectionId'] ?? reqData['sectionId'])?.toString();
+    final applicantUid = (reqData['userId'] ?? studentDataMap['userId'] ?? '').toString();
+    final studentId = (reqData['studentId'] ?? '').toString();
+
+    if (reqSeatId == null || reqSeatId.isEmpty || reqSecId == null || reqSecId.isEmpty || reqSeatId.toLowerCase().contains('auto')) {
+      _seatSub?.cancel();
+      _watchedSeatKey = null;
+      if (_isRequestedSeatOccupied && mounted) {
+        setState(() {
+          _isRequestedSeatOccupied = false;
+          _occupyingStudentId = null;
+          _occupyingStudentName = null;
+        });
+      }
+      return;
+    }
+
+    final key = '$reqSecId/$reqSeatId';
+    if (_watchedSeatKey == key) return;
+    _watchedSeatKey = key;
+    _seatSub?.cancel();
+
+    _seatSub = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('sections')
+        .doc(reqSecId)
+        .collection('seats')
+        .doc(reqSeatId)
+        .snapshots()
+        .listen((seatSnap) async {
+      if (!seatSnap.exists || !mounted) return;
+      final seatMap = seatSnap.data() ?? {};
+      final seatStatus = (seatMap['status'] ?? '').toString().toLowerCase();
+      final currentOccupant = (seatMap['studentId'] ?? '').toString();
+
+      if (seatStatus == 'occupied' &&
+          currentOccupant.isNotEmpty &&
+          currentOccupant != applicantUid &&
+          currentOccupant != studentId) {
+        String occupantName = 'Enrolled Student';
+        try {
+          final occDoc = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('students')
+              .doc(currentOccupant)
+              .get();
+          if (occDoc.exists) {
+            occupantName = occDoc.data()?['name']?.toString() ?? 'Enrolled Student';
+          }
+        } catch (_) {}
+
+        if (mounted) {
+          setState(() {
+            _isRequestedSeatOccupied = true;
+            _occupyingStudentId = currentOccupant;
+            _occupyingStudentName = occupantName;
+          });
+        }
+      } else {
+        if (mounted && _isRequestedSeatOccupied) {
+          setState(() {
+            _isRequestedSeatOccupied = false;
+            _occupyingStudentId = null;
+            _occupyingStudentName = null;
+          });
+        }
+      }
+    });
   }
 
   Future<void> _approveRequest({
@@ -244,6 +350,45 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       final data = _requestData!;
       final type = (data['type'] as String? ?? 'registration').toLowerCase();
       final studentData = (data['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
+
+      // ── Live Atomic Seat Verification right before approval ─────────────────
+      final liveSeatId = (data['requestedSeatId'] ?? studentData['requestedSeatId'] ?? studentData['seatId'] ?? data['seatId'])?.toString();
+      final liveSecId = (data['requestedSectionId'] ?? studentData['requestedSectionId'] ?? studentData['sectionId'] ?? data['sectionId'])?.toString();
+      final liveApplicantUid = (data['userId'] ?? studentData['userId'] ?? '').toString();
+      final liveStudentId = (data['studentId'] ?? '').toString();
+
+      if (liveSeatId != null && liveSeatId.isNotEmpty && liveSecId != null && liveSecId.isNotEmpty && !liveSeatId.toLowerCase().contains('auto')) {
+        try {
+          final seatSnap = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('sections')
+              .doc(liveSecId)
+              .collection('seats')
+              .doc(liveSeatId)
+              .get();
+          if (seatSnap.exists) {
+            final sData = seatSnap.data() ?? {};
+            final sStatus = (sData['status'] ?? '').toString().toLowerCase();
+            final occ = (sData['studentId'] ?? '').toString();
+            if (sStatus == 'occupied' && occ.isNotEmpty && occ != liveApplicantUid && occ != liveStudentId) {
+              _isRequestedSeatOccupied = true;
+              _occupyingStudentId = occ;
+              try {
+                final occDoc = await FirebaseFirestore.instance
+                    .collection('libraries')
+                    .doc(libraryId)
+                    .collection('students')
+                    .doc(occ)
+                    .get();
+                if (occDoc.exists) {
+                  _occupyingStudentName = occDoc.data()?['name']?.toString() ?? 'Enrolled Student';
+                }
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      }
 
       // ── Phase 2: Desk Collision Guard on Approval ───────────────────────────
       if (_isRequestedSeatOccupied &&

@@ -188,6 +188,48 @@ class ImageService {
     }
   }
 
+  /// Ensures any image payload (whether an uncompressed data URL, raw file, or picked image)
+  /// is aggressively compressed to a safe compact JPEG (< 35 KB) so multiple images in one document
+  /// NEVER exceed Firestore's 1 MiB hard document limit.
+  static Future<String> ensureSafeImagePayload(String? input, {String? filePath}) async {
+    if (input != null && input.trim().isNotEmpty) {
+      final trimmed = input.trim();
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return trimmed;
+      }
+      if (trimmed.startsWith('data:image')) {
+        try {
+          final commaIdx = trimmed.indexOf(',');
+          if (commaIdx != -1) {
+            final b64 = trimmed.substring(commaIdx + 1);
+            // If already compact (< 45 KB), it is safe to keep
+            if (b64.length < 60000) return trimmed;
+            final decoded = base64Decode(b64);
+            final safe = compressBytesToSafeJpeg(decoded, maxDimension: 400, initialQuality: 55);
+            return 'data:image/jpeg;base64,${base64Encode(safe)}';
+          }
+        } catch (e) {
+          if (kDebugMode) debugPrint('[ImageService] Error recompressing base64 payload: $e');
+        }
+      }
+    }
+
+    if (filePath != null && filePath.isNotEmpty && !kIsWeb) {
+      try {
+        final f = File(filePath);
+        if (f.existsSync()) {
+          final b = await f.readAsBytes();
+          final safe = compressBytesToSafeJpeg(b, maxDimension: 400, initialQuality: 55);
+          return 'data:image/jpeg;base64,${base64Encode(safe)}';
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[ImageService] Error compressing file payload: $e');
+      }
+    }
+
+    return input ?? '';
+  }
+
   static final Map<String, MemoryImage> _base64ImageCache = {};
 
   /// Returns an ImageProvider supporting remote URLs, Base64 data URLs, raw Base64 strings, and local file paths.

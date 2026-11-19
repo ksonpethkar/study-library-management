@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -78,6 +79,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
   bool _isSendingMorningBriefing = false;
   bool _isSendingNightlySettlement = false;
   bool _isTestingCascade = false;
+  StreamSubscription? _commSettingsSub;
 
   @override
   void initState() {
@@ -85,7 +87,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
     _loadSettings();
   }
 
-  Future<void> _loadSettings() async {
+  Future<void> _loadSettings({bool silent = false}) async {
+    if (!silent && mounted) setState(() => _isLoading = true);
     var libraryId = ref.read(currentLibraryIdProvider);
     if (libraryId == null || libraryId.isEmpty) {
       libraryId = ref.read(currentLibraryProvider).value?.id;
@@ -187,6 +190,17 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
           _waitlistCascade = cRules['waitlistCascade'] as bool? ?? true;
 
           _isLoading = false;
+        });
+
+        // Attach live real-time settings subscription
+        _commSettingsSub ??= FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('settings')
+            .doc('communications')
+            .snapshots()
+            .listen((_) {
+          if (mounted) _loadSettings(silent: true);
         });
       }
     } catch (e) {
@@ -541,6 +555,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
 
   @override
   void dispose() {
+    _commSettingsSub?.cancel();
     _telegramTokenController.dispose();
     _telegramChatIdController.dispose();
     _localBridgeUrlController.dispose();

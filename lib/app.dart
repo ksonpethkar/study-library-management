@@ -10,10 +10,12 @@ import 'core/providers/theme_provider.dart';
 import 'core/theme/app_theme.dart' as custom_theme;
 import 'core/providers/font_settings_provider.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
+import 'package:study_library/features/auth/services/auth_role_service.dart';
 import 'features/students/presentation/providers/student_providers.dart';
 import 'services/biometric_service.dart';
 import 'services/inactivity_lock_service.dart';
 import 'services/telemetry_service.dart';
+import 'core/utils/secure_screen_mixin.dart';
 import 'core/widgets/connectivity_banner.dart';
 
 class StudyLibraryApp extends ConsumerStatefulWidget {
@@ -74,8 +76,18 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
       if (!snap.exists) return;
       final role = snap.data()?['role'] as String? ?? '';
       final currentRole = ref.read(userRoleProvider);
-      // If server says role is 'none' but client still thinks they're admin/student → force sign-out
+      // If server says role is 'none' but client still thinks they're admin/student → verify or force sign-out
       if (role == 'none' && currentRole != AppUserRole.none) {
+        if (currentRole == AppUserRole.student) {
+          try {
+            final defaultLibId = CurrentLibraryNotifier.defaultLibraryId;
+            final studentDoc = await AuthRoleService.findStudentDocumentForUser(user, defaultLibId);
+            if (studentDoc != null && studentDoc.exists) {
+              await snap.reference.set({'role': 'student'}, SetOptions(merge: true)).catchError((_) {});
+              return;
+            }
+          } catch (_) {}
+        }
         await FirebaseAuth.instance.signOut();
         ref.read(userRoleProvider.notifier).clear();
         ref.read(currentLibraryIdProvider.notifier).clear();
@@ -153,6 +165,7 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
     ref.listen(currentLibraryIdProvider, (previous, next) {
       if (next != null) {
         TelemetryService.setLibrary(next);
+        loadScreenshotProtectionFromFirestore(next);
       }
     });
 

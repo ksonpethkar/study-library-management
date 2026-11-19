@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:study_library/services/image_service.dart';
 
 /// Represents a document or image picked from camera, gallery, or file system.
 class PickedDocument {
@@ -169,12 +170,18 @@ class DocumentPickerService {
     bool? isPdf,
   }) {
     final pdfFlag = isPdf ?? mimeType.contains('pdf');
-    final base64Content = base64Encode(bytes);
+    Uint8List processedBytes = bytes;
+    if (!pdfFlag && bytes.lengthInBytes > 60 * 1024) {
+      try {
+        processedBytes = ImageService.compressBytesToSafeJpeg(bytes, maxDimension: 600, initialQuality: 65);
+      } catch (_) {}
+    }
+    final base64Content = base64Encode(processedBytes);
     final dataUrl = 'data:$mimeType;base64,$base64Content';
-    final sizeKB = bytes.lengthInBytes / 1024.0;
+    final sizeKB = processedBytes.lengthInBytes / 1024.0;
 
     return PickedDocument(
-      bytes: bytes,
+      bytes: processedBytes,
       fileName: fileName,
       mimeType: mimeType,
       isPdf: pdfFlag,

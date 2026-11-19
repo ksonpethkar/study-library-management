@@ -39,6 +39,8 @@ import 'package:study_library/services/quick_actions_service.dart';
 import 'package:study_library/core/widgets/update_reminder_dialog.dart';
 import 'package:study_library/core/widgets/facility_tour_sheet.dart';
 import 'package:study_library/core/error/error_handler.dart';
+import 'package:study_library/models/id_card_template_model.dart';
+import 'package:study_library/features/settings/presentation/screens/id_card_customizer_screen.dart';
 import 'package:study_library/features/student_app/presentation/widgets/silent_reception_help_sheet.dart';
 
 /// Real-time stream of the current student's pending registration request.
@@ -933,6 +935,32 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     );
   }
 
+  List<Color> _getThemeGradient(String themeId, Color libraryAccent) {
+    if (themeId.startsWith('#')) {
+      try {
+        final c = Color(int.parse('FF${themeId.replaceAll('#', '')}', radix: 16));
+        return [c, Color.lerp(c, Colors.black, 0.45) ?? Colors.black];
+      } catch (_) {}
+    }
+    switch (themeId) {
+      case 'royalNavy':
+        return const [Color(0xFF1E3A8A), Color(0xFF0F172A)];
+      case 'emeraldAcademic':
+        return const [Color(0xFF065F46), Color(0xFF022C22)];
+      case 'darkSlate':
+        return const [Color(0xFF1E293B), Color(0xFF0F172A)];
+      case 'amberClassic':
+        return const [Color(0xFF78350F), Color(0xFF451A03)];
+      case 'amethystPurple':
+        return const [Color(0xFF4C1D95), Color(0xFF1E1B4B)];
+      case 'customBrand':
+        return [libraryAccent, Color.lerp(libraryAccent, Colors.black, 0.45) ?? Colors.black];
+      case 'crimsonExecutive':
+      default:
+        return const [Color(0xFF881337), Color(0xFF4C0519)];
+    }
+  }
+
   Widget _buildDigitalSmartPass({
     required BuildContext context,
     required ThemeData theme,
@@ -943,6 +971,14 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     required dynamic library,
     required String libraryName,
   }) {
+    final templateAsync = ref.watch(idCardTemplateProvider);
+    final savedSettings = templateAsync.value ?? const IdCardTemplateSettings();
+    final activeTheme = savedSettings.customColorHex ?? savedSettings.cardTheme;
+    final gradientColors = _getThemeGradient(
+      activeTheme,
+      Color((library?.accentColor as int?) ?? 0xFF1E3A8A),
+    );
+
     return RepaintBoundary(
       child: GestureDetector(
         onTap: _toggleCardFlip,
@@ -957,11 +993,27 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 ..setEntry(3, 2, 0.001)
                 ..rotateY(angle),
               child: isFront
-                  ? _buildPassFront(student, plan, seatLabel, sectionName, library, libraryName, theme)
+                  ? _buildPassFront(
+                      student,
+                      plan,
+                      seatLabel,
+                      sectionName,
+                      library,
+                      libraryName,
+                      theme,
+                      gradientColors: gradientColors,
+                    )
                   : Transform(
                       alignment: Alignment.center,
                       transform: Matrix4.identity()..rotateY(pi),
-                      child: _buildPassBack(student, library, libraryName, theme, seatLabel: seatLabel),
+                      child: _buildPassBack(
+                        student,
+                        library,
+                        libraryName,
+                        theme,
+                        seatLabel: seatLabel,
+                        gradientColors: gradientColors,
+                      ),
                     ),
             );
           },
@@ -977,8 +1029,9 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     String sectionName,
     dynamic library,
     String libraryName,
-    ThemeData theme,
-  ) {
+    ThemeData theme, {
+    required List<Color> gradientColors,
+  }) {
     final photoUrl = student.photoUrl;
     final studentName = student.name;
     final membershipId = student.membershipNumber?.isNotEmpty == true
@@ -1016,10 +1069,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
       children: [
         Container(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
+              colors: gradientColors,
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: statusColor.withValues(alpha: 0.75), width: 1.5),
@@ -1457,6 +1510,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     String libraryName,
     ThemeData theme, {
     String seatLabel = '',
+    required List<Color> gradientColors,
   }) {
     final membershipId = student.membershipNumber?.isNotEmpty == true
         ? student.membershipNumber!
@@ -1479,10 +1533,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
       children: [
         Container(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
+              colors: gradientColors,
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: statusColor.withValues(alpha: 0.75), width: 1.5),
