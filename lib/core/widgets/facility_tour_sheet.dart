@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/models/library_model.dart';
 
 /// Interactive, illustrated 5-step facility onboarding tour for students.
 /// Covers:
@@ -9,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// 3. High-Speed 5G Wi-Fi & Amenities
 /// 4. Silent Study Code & Community Ethics
 /// 5. Fee Receipts & 1-Tap UPI Renewal
-class FacilityTourSheet extends StatefulWidget {
+class FacilityTourSheet extends ConsumerStatefulWidget {
   final VoidCallback? onComplete;
 
   const FacilityTourSheet({super.key, this.onComplete});
@@ -66,94 +69,103 @@ class FacilityTourSheet extends StatefulWidget {
   }
 
   @override
-  State<FacilityTourSheet> createState() => _FacilityTourSheetState();
+  ConsumerState<FacilityTourSheet> createState() => _FacilityTourSheetState();
 }
 
-class _FacilityTourSheetState extends State<FacilityTourSheet> {
+class _FacilityTourSheetState extends ConsumerState<FacilityTourSheet> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   static const int _totalPages = 3;
 
-  final List<_TourStepData> _steps = const [
-    _TourStepData(
-      stepNumber: 1,
-      badge: 'RESERVED WORKSPACE',
-      badgeColor: Color(0xFF2563EB),
-      icon: Icons.chair_rounded,
-      iconColor: Color(0xFF2563EB),
-      title: 'Dedicated Desk & Shift',
-      subtitle: 'Your personal, quiet study zone reserved exclusively for you',
-      items: [
-        _TourFeatureItem(
-          icon: Icons.event_seat_rounded,
-          title: 'Fixed Reserved Desk',
-          description: 'Your assigned cabin is yours during your shift. Leave reference books safely without worry of seat loss.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.access_time_filled_rounded,
-          title: 'Guaranteed Study Shifts',
-          description: 'Morning, Evening, or 24×7 Full Day. Peace of mind with your seat reserved during your designated hours.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.swap_horiz_rounded,
-          title: 'Easy Desk Transfers',
-          description: 'Need a window desk or a quieter corner? Request a seat change directly in the app once every 30 days.',
-        ),
-      ],
-    ),
-    _TourStepData(
-      stepNumber: 2,
-      badge: 'TOUCHLESS ENTRY',
-      badgeColor: Color(0xFF059669),
-      icon: Icons.qr_code_2_rounded,
-      iconColor: Color(0xFF059669),
-      title: 'Digital Membership Pass',
-      subtitle: 'Instant reading hall admission and desk verification',
-      items: [
-        _TourFeatureItem(
-          icon: Icons.verified_user_rounded,
-          title: 'Verified Digital Pass',
-          description: 'Flash your personal student QR pass at reception for instant membership and allocated desk verification.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.wifi_off_rounded,
-          title: '100% Offline Ready',
-          description: 'Pass is saved locally on your phone. It opens reliably even in basement reading halls without active internet.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.security_rounded,
-          title: 'Tamper-Proof Credential',
-          description: 'Cryptographically verified membership pass protects your reserved desk and prevents unauthorized access.',
-        ),
-      ],
-    ),
-    _TourStepData(
-      stepNumber: 3,
-      badge: 'AMENITIES & PAYMENTS',
-      badgeColor: Color(0xFF7C3AED),
-      icon: Icons.bolt_rounded,
-      iconColor: Color(0xFF7C3AED),
-      title: '5G Wi-Fi, Silence & 1-Tap Pay',
-      subtitle: 'Premium facilities and hassle-free fee renewals',
-      items: [
-        _TourFeatureItem(
-          icon: Icons.wifi_rounded,
-          title: 'High-Speed 5G Optical Fiber',
-          description: 'Dual-band Wi-Fi optimized for lecture streaming, test series & PDFs, with power charging sockets at every desk.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.volume_mute_rounded,
-          title: 'Strict Silent Study Ethics',
-          description: 'Silent study halls for deep focus, with a designated calling area in reception for urgent phone calls.',
-        ),
-        _TourFeatureItem(
-          icon: Icons.receipt_long_rounded,
-          title: '1-Tap UPI Renewals & Receipts',
-          description: 'Pay via GPay, PhonePe, or Paytm with automatic grace day buffers and instant stamped fee receipt downloads.',
-        ),
-      ],
-    ),
-  ];
+  List<_TourStepData> _buildSteps(LibraryModel? library) {
+    final facilityList = (library != null && library.facilities.isNotEmpty)
+        ? library.facilities.join(' • ')
+        : 'High-speed 5G Wi-Fi, Personal Charging Sockets, RO Purified Water, Air Conditioning & CCTV';
+    final rulesSummary = (library != null && library.rulesText.trim().isNotEmpty)
+        ? library.rulesText.trim().split(RegExp(r'\r?\n')).take(2).join('. ')
+        : 'Silent study halls for deep focus, with a designated calling area in reception for urgent phone calls.';
+
+    return [
+      const _TourStepData(
+        stepNumber: 1,
+        badge: 'RESERVED WORKSPACE',
+        badgeColor: Color(0xFF2563EB),
+        icon: Icons.chair_rounded,
+        iconColor: Color(0xFF2563EB),
+        title: 'Dedicated Desk & Shift',
+        subtitle: 'Your personal, quiet study zone reserved exclusively for you',
+        items: [
+          _TourFeatureItem(
+            icon: Icons.event_seat_rounded,
+            title: 'Fixed Reserved Desk',
+            description: 'Your assigned cabin is yours during your shift. Leave reference books safely without worry of seat loss.',
+          ),
+          _TourFeatureItem(
+            icon: Icons.access_time_filled_rounded,
+            title: 'Guaranteed Study Shifts',
+            description: 'Morning, Evening, or 24×7 Full Day. Peace of mind with your seat reserved during your designated hours.',
+          ),
+          _TourFeatureItem(
+            icon: Icons.swap_horiz_rounded,
+            title: 'Easy Desk Transfers',
+            description: 'Need a window desk or a quieter corner? Request a seat change directly in the app once every 30 days.',
+          ),
+        ],
+      ),
+      const _TourStepData(
+        stepNumber: 2,
+        badge: 'TOUCHLESS ENTRY',
+        badgeColor: Color(0xFF059669),
+        icon: Icons.qr_code_2_rounded,
+        iconColor: Color(0xFF059669),
+        title: 'Digital Membership Pass',
+        subtitle: 'Instant reading hall admission and desk verification',
+        items: [
+          _TourFeatureItem(
+            icon: Icons.verified_user_rounded,
+            title: 'Verified Digital Pass',
+            description: 'Flash your personal student QR pass at reception for instant membership and allocated desk verification.',
+          ),
+          _TourFeatureItem(
+            icon: Icons.wifi_off_rounded,
+            title: '100% Offline Ready',
+            description: 'Pass is saved locally on your phone. It opens reliably even in basement reading halls without active internet.',
+          ),
+          _TourFeatureItem(
+            icon: Icons.security_rounded,
+            title: 'Tamper-Proof Credential',
+            description: 'Cryptographically verified membership pass protects your reserved desk and prevents unauthorized access.',
+          ),
+        ],
+      ),
+      _TourStepData(
+        stepNumber: 3,
+        badge: 'AMENITIES & PAYMENTS',
+        badgeColor: const Color(0xFF7C3AED),
+        icon: Icons.bolt_rounded,
+        iconColor: const Color(0xFF7C3AED),
+        title: 'Amenities, Silence & 1-Tap Pay',
+        subtitle: 'Premium facilities and hassle-free fee renewals',
+        items: [
+          _TourFeatureItem(
+            icon: Icons.wifi_rounded,
+            title: 'Featured Amenities',
+            description: facilityList,
+          ),
+          _TourFeatureItem(
+            icon: Icons.volume_mute_rounded,
+            title: 'Strict Silent Study Ethics',
+            description: rulesSummary,
+          ),
+          const _TourFeatureItem(
+            icon: Icons.receipt_long_rounded,
+            title: '1-Tap UPI Renewals & Receipts',
+            description: 'Pay via GPay, PhonePe, or Paytm with automatic grace day buffers and instant stamped fee receipt downloads.',
+          ),
+        ],
+      ),
+    ];
+  }
 
   void _nextPage() {
     HapticFeedback.lightImpact();
@@ -191,6 +203,8 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final library = ref.watch(currentLibraryProvider).value;
+    final steps = _buildSteps(library);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final media = MediaQuery.of(context);
@@ -228,16 +242,16 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _steps[_currentPage].badgeColor.withValues(alpha: 0.12),
+                        color: steps[_currentPage].badgeColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _steps[_currentPage].badgeColor.withValues(alpha: 0.25),
+                          color: steps[_currentPage].badgeColor.withValues(alpha: 0.25),
                         ),
                       ),
                       child: Text(
                         'STEP ${_currentPage + 1} OF $_totalPages',
                         style: TextStyle(
-                          color: _steps[_currentPage].badgeColor,
+                          color: steps[_currentPage].badgeColor,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.8,
@@ -281,7 +295,7 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
                   itemCount: _totalPages,
                   onPageChanged: (page) => setState(() => _currentPage = page),
                   itemBuilder: (context, index) {
-                    final step = _steps[index];
+                    final step = steps[index];
                     return _buildStepContent(step, theme, isDark);
                   },
                 ),
@@ -325,7 +339,7 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
                             height: 7,
                             decoration: BoxDecoration(
                               color: isActive
-                                  ? _steps[_currentPage].badgeColor
+                                  ? steps[_currentPage].badgeColor
                                   : (isDark ? Colors.white24 : Colors.grey.shade300),
                               borderRadius: BorderRadius.circular(4),
                             ),
@@ -338,7 +352,7 @@ class _FacilityTourSheetState extends State<FacilityTourSheet> {
                       // Next / Finish Button
                       FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: _steps[_currentPage].badgeColor,
+                          backgroundColor: steps[_currentPage].badgeColor,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                           shape: RoundedRectangleBorder(

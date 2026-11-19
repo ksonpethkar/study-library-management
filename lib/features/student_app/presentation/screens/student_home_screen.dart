@@ -715,6 +715,9 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 _buildWifiCard(context, theme, library),
                 const SizedBox(height: 16),
 
+                // Dynamic Reading Hall Operating Hours & Directions Banner
+                _buildOperatingHoursBanner(context, theme, library),
+
                 // 4. Ergonomic Quick Services Dock (4-column primary + 2-item secondary)
                 _buildQuickServicesDock(
                   context,
@@ -3467,6 +3470,93 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildOperatingHoursBanner(BuildContext context, ThemeData theme, dynamic library) {
+    if (library is! LibraryModel || library.operatingHours.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final isDark = theme.brightness == Brightness.dark;
+    final hours = library.operatingHours.trim();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF0D9488).withValues(alpha: 0.25)),
+        boxShadow: AppDecorations.softShadows(context, elevation: 0.8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0D9488).withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.schedule_rounded, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Reading Hall Hours',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0D9488), letterSpacing: 0.4),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  hours,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : theme.colorScheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (library.googleMapsUrl.trim().isNotEmpty) ...[
+            const SizedBox(width: 6),
+            FilledButton.tonalIcon(
+              style: FilledButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                backgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.12),
+                foregroundColor: const Color(0xFF0D9488),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final uri = Uri.tryParse(library.googleMapsUrl);
+                if (uri != null && await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.directions_rounded, size: 14),
+              label: const Text('Map', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ],
       ),
     );
   }

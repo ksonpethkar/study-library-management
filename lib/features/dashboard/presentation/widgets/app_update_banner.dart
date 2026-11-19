@@ -475,7 +475,7 @@ class AppUpdateBanner extends ConsumerWidget {
                       FilledButton.icon(
                         onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
                         icon: const Icon(Icons.download_rounded, size: 18),
-                        label: Text('Download & Update (${info.apkSize})'),
+                        label: Text('Download (${info.apkSize})'),
                         style: FilledButton.styleFrom(
                           backgroundColor: theme.colorScheme.primary,
                           foregroundColor: theme.colorScheme.onPrimary,
