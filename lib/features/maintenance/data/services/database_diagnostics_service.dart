@@ -234,7 +234,7 @@ class DatabaseDiagnosticsService {
 
     // Daily read estimation formula: Active students * 25 reads/day + Admin sessions * 120 reads/day
     final estimatedReads = (activeStudents * 28) + (students * 4) + 650;
-    // Daily write estimation: New admissions + renewals + attendance scans + expenses
+    // Daily write estimation: New admissions + renewals + pass verifications + expenses
     final estimatedWrites = (activeStudents * 3) + 40;
 
     return DatabaseMetrics(

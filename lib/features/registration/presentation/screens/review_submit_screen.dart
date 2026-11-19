@@ -118,7 +118,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
               '   (पाण्याव्यतिरिक्त बाहेरील खाद्यपदार्थ अभ्यास कक्षात आणण्यास मनाई आहे.)\n\n'
               '5. Keep study cabins clean, tidy, and avoid damaging library property.\n'
               '   (अभ्यास केबिन स्वच्छ ठेवा आणि मालमत्तेचे नुकसान टाळा.)\n\n'
-              '6. Carry your digital student ID card or attendance QR at all times.\n'
+              '6. Carry your digital student ID pass at all times.\n'
               '   (आपले डिजिटल ओळखपत्र किंवा उपस्थिती QR नेहमी सोबत ठेवा.)';
 
           if (snapshot.hasData && snapshot.data!.exists) {
@@ -145,7 +145,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
               ],
             ),
             content: SizedBox(
-              width: 500,
+              width: math.min(MediaQuery.of(context).size.width - 32, 500),
               child: SingleChildScrollView(
                 child: Text(
                   rules,

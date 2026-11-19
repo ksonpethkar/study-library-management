@@ -1394,8 +1394,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundImage: ImageService.getImageProvider(student.photoUrl),
-                    child: ImageService.getImageProvider(student.photoUrl) == null
+                    backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
+                    child: ImageService.getAvatarProvider(student.photoUrl) == null
                         ? Text(student.name.isNotEmpty ? student.name[0].toUpperCase() : '?')
                         : null,
                   ),
@@ -1497,8 +1497,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundImage: ImageService.getImageProvider(student.photoUrl),
-                    child: ImageService.getImageProvider(student.photoUrl) == null
+                    backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
+                    child: ImageService.getAvatarProvider(student.photoUrl) == null
                         ? Text(student.name.isNotEmpty ? student.name[0].toUpperCase() : '?')
                         : null,
                   ),
@@ -1604,8 +1604,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                             CircleAvatar(
                               radius: 22,
                               backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                              backgroundImage: ImageService.getImageProvider(student.photoUrl),
-                              child: ImageService.getImageProvider(student.photoUrl) == null
+                              backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
+                              child: ImageService.getAvatarProvider(student.photoUrl) == null
                                   ? Text(
                                       student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
                                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -2474,8 +2474,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           CircleAvatar(
                             radius: 18,
                             backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                            backgroundImage: ImageService.getImageProvider(student.photoUrl),
-                            child: ImageService.getImageProvider(student.photoUrl) == null
+                            backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
+                            child: ImageService.getAvatarProvider(student.photoUrl) == null
                                 ? Text(
                                     student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),

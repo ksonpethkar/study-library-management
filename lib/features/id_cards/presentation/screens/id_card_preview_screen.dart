@@ -264,7 +264,7 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
               final whatsapp = ref.read(whatsappServiceProvider);
               final message = isStudentMode
                   ? 'Hello, here is my official Digital Student Pass for ${library.name} (Seat: $seatText, ID: $dynamicId).'
-                  : 'Hello ${widget.student.name}, here is your official Digital Student Pass for ${library.name} (Seat: $seatText, ID: $dynamicId). Please keep this pass accessible for daily library check-in.';
+                  : 'Hello ${widget.student.name}, here is your official Digital Student Pass for ${library.name} (Seat: $seatText, ID: $dynamicId). Please keep this pass accessible for library entry and seat verification.';
               await whatsapp.sendMessage(widget.student.phone, message);
             },
           ),
@@ -532,7 +532,7 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Official contactless digital credential with live verification QR. Valid for daily library entry, desk check-in, and member identity authentication.',
+                                    'Official digital credential with live verification QR. Valid for library entry, desk verification, and member identity authentication.',
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       height: 1.35,
@@ -552,7 +552,7 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                           final whatsapp = ref.read(whatsappServiceProvider);
                           final message = isStudentMode
                               ? 'Hello, here is my official Digital Student Pass for ${library.name} (Seat: $seatText, ID: $dynamicId).'
-                              : 'Hello ${widget.student.name}, here is your official Digital Student Pass for ${library.name} (Seat: $seatText, ID: $dynamicId). Please keep this pass saved for library entrance and desk check-in.';
+                              : 'Hello ${widget.student.name}, here is your official Digital Student Pass for ${library.name} (Seat: $seatText, ID: $dynamicId). Please keep this pass saved for library entrance and desk verification.';
                           await whatsapp.sendMessage(
                             isStudentMode ? (library.contact.isNotEmpty ? library.contact : library.effectiveHelpline) : widget.student.phone,
                             message,
@@ -1194,7 +1194,7 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildRuleBullet('Mandatory for biometric check-in & reading hall admission.'),
+                                _buildRuleBullet('Mandatory for reading hall admission & desk verification.'),
                                 _buildRuleBullet('Strict pin-drop silence must be observed inside study zones.'),
                                 _buildRuleBullet('Loss of ID card must be reported immediately to reception.'),
                                 const SizedBox(height: 6),

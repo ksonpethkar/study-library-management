@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -2736,7 +2737,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           ],
         ),
         content: SizedBox(
-          width: 480,
+          width: math.min(MediaQuery.of(context).size.width - 32, 480),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -3203,11 +3204,13 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               ],
             ),
             content: SizedBox(
-              width: 580,
+              width: math.min(MediaQuery.of(context).size.width - 32, 580),
               height: 540,
               child: Column(
                 children: [
                   TabBar(
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
                     labelColor: theme.colorScheme.primary,
                     unselectedLabelColor: Colors.grey.shade600,
                     indicatorColor: theme.colorScheme.primary,

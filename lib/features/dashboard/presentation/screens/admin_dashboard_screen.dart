@@ -967,8 +967,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                                             CircleAvatar(
                                               radius: 20,
                                               backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                                              backgroundImage: ImageService.getImageProvider(student.photoUrl),
-                                              child: ImageService.getImageProvider(student.photoUrl) == null
+                                              backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
+                                              child: ImageService.getAvatarProvider(student.photoUrl) == null
                                                   ? Text(
                                                       student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
                                                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -1485,21 +1485,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.hourglass_top_rounded, size: 15, color: Color(0xFF6366F1)),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$waitingCount ${waitingCount == 1 ? "student" : "students"} in Waiting Queue',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? const Color(0xFFC7D2FE) : const Color(0xFF3730A3),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.hourglass_top_rounded, size: 15, color: Color(0xFF6366F1)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '$waitingCount ${waitingCount == 1 ? "student" : "students"} in Waiting Queue',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? const Color(0xFFC7D2FE) : const Color(0xFF3730A3),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           'View Queue',
@@ -1747,55 +1754,67 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'NET FACILITY PROFIT',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white.withValues(alpha: 0.8),
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '₹${fmt.format(np.netProfit)}',
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                        Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${np.profitMargin.toStringAsFixed(1)}% Margin',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                '₹${fmt.format(np.grossRevenue)} Collected',
+                                'NET FACILITY PROFIT',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  letterSpacing: 0.8,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  '₹${fmt.format(np.netProfit)}',
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: -0.5,
+                                  ),
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '${np.profitMargin.toStringAsFixed(1)}% Margin',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '₹${fmt.format(np.grossRevenue)} Collected',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],

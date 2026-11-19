@@ -164,24 +164,37 @@ class GovIdValidator {
   }
 
   /// Strictly validates whether an extracted person name is genuine
-  /// (filters out hallucinated government headers, labels, or noise).
+  /// (filters out hallucinated government headers, labels, address tokens, or noise).
   static bool isValidName(String? name) {
     if (name == null) return false;
     final clean = name.trim();
-    if (clean.length < 2 || clean.length > 50) return false;
+    if (clean.length < 3 || clean.length > 50) return false;
 
-    // Disallow numbers and special symbols (except dot, apostrophe, space)
-    if (!RegExp(r"^[A-Za-z\s.']+$").hasMatch(clean)) return false;
+    // Disallow numbers and special symbols (except dot, apostrophe, space, hyphen)
+    if (!RegExp(r"^[A-Za-z\s.'\-]+$").hasMatch(clean)) return false;
+
+    // Must contain at least one vowel (a, e, i, o, u)
+    if (!RegExp(r'[aeiouAEIOU]').hasMatch(clean)) return false;
+
+    final words = clean.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) return false;
+
+    // Reject if any word is a single consonant
+    for (final w in words) {
+      if (w.length == 1 && !RegExp(r'^[A-Za-z]$').hasMatch(w)) return false;
+    }
 
     final upper = clean.toUpperCase();
     final blacklist = [
       'GOVERNMENT',
+      'GOVT',
       'INDIA',
       'AUTHORITY',
       'UIDAI',
       'BHARAT',
       'SARKAR',
       'INCOME TAX',
+      'INCOMETAX',
       'DEPARTMENT',
       'DIRECTORATE',
       'PERMANENT',
@@ -191,7 +204,14 @@ class GovIdValidator {
       'FATHER',
       'MOTHER',
       'HUSBAND',
+      'WIFE',
       'SIGNATURE',
+      'BEARER',
+      'HOLDER',
+      'SIGN',
+      'THUMB',
+      'IMPRESSION',
+      'PHOTO',
       'MALE',
       'FEMALE',
       'TRANSGENDER',
@@ -200,21 +220,89 @@ class GovIdValidator {
       'YEAR OF BIRTH',
       'ADDRESS',
       'ENROLMENT',
+      'ENROLLMENT',
       'HELP@UIDAI',
       'WWW.UIDAI',
       'POST BOX',
+      'PO BOX',
       'ELECTION COMMISSION',
       'ELECTOR',
       'IDENTITY',
       'DRIVING LICENCE',
+      'DRIVING LICENSE',
       'LICENSE',
       'UNION OF INDIA',
       'REPUBLIC OF INDIA',
       'PASSPORT',
+      'COLLEGE',
+      'INSTITUTE',
+      'UNIVERSITY',
+      'SCHOOL',
+      'POLYTECHNIC',
+      'EXAMINATION',
+      'EXAM',
+      'HALL',
+      'STUDENT',
+      'STUDENT CARD',
+      'ROLL NO',
+      'ENROLL',
+      'LIBRARY',
+      'STUDY',
+      'CENTRE',
+      'CENTER',
+      'CORNER',
+      'COZY',
+      'ACADEMY',
+      'ROAD',
+      'NATH ROAD',
+      'STREET',
+      'LANE',
+      'MARG',
+      'BEHIND',
+      'OPPOSITE',
+      'NEAR',
+      'PARLI',
+      'VAIJNATH',
+      'BEED',
+      'MAHARASHTRA',
+      'DISTRICT',
+      'TALUKA',
+      'VILLAGE',
+      'PIN',
+      'PINCODE',
+      'POST',
+      'AT POST',
+      'STATE',
+      'CITY',
+      'TOWN',
+      'VALID',
+      'VALIDITY',
+      'EXPIRE',
+      'EXPIRY',
+      'ISSUE',
+      'ISSUED',
+      'DATE',
+      'NAME',
+      'SON OF',
+      'DAUGHTER OF',
+      'WIFE OF',
+      'CARE OF',
+      'C/O',
+      'S/O',
+      'D/O',
+      'W/O',
+      'MERA AADHAAR',
+      'MERI PEHCHAN',
+      'AADHAAR',
+      'UNIQUE IDENTIFICATION',
     ];
 
     for (final word in blacklist) {
-      if (upper == word || upper.contains('$word ') || upper.contains(' $word')) {
+      if (upper == word ||
+          upper.startsWith('$word ') ||
+          upper.endsWith(' $word') ||
+          upper.contains(' $word ') ||
+          upper.contains('$word:')) {
         return false;
       }
     }

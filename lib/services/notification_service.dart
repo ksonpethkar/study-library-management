@@ -21,7 +21,7 @@ class NotificationService {
   // Channels
   static const String channelFeeAlerts = 'fee_alerts';
   static const String channelAnnouncements = 'announcements';
-  static const String channelAttendance = 'attendance_shifts';
+  static const String channelDeskAlerts = 'desk_alerts';
   static const String channelGeneral = 'study_library_channel';
 
   /// Call once from main.dart after Firebase.initializeApp()
@@ -81,12 +81,12 @@ class NotificationService {
           ),
         );
 
-        // Channel 3: Attendance & Shifts
+        // Channel 3: Membership & Desk Alerts
         await androidImplementation.createNotificationChannel(
           const AndroidNotificationChannel(
-            channelAttendance,
-            'Attendance & Shift Timings',
-            description: 'Check-in confirmations, shift start/end reminders',
+            channelDeskAlerts,
+            'Membership & Desk Alerts',
+            description: 'Seat allocation confirmations and operational notices',
             importance: Importance.high,
             enableVibration: true,
             showBadge: true,

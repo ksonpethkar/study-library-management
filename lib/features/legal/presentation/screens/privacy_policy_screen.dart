@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,7 +49,7 @@ $libraryName विद्यार्थ्यांचा वैयक्ति
 When you register and use the facilities at $libraryName, we collect the following categories of information:
 • Identity & Contact Details: Full name, mobile number, email address, address, and emergency contact details.
 • Academic & Profile Information: Target examinations/courses, government ID proof (where mandated), and profile photo for desk access cards.
-• Attendance & Access Logs: Daily check-in and check-out timestamps, shift allocations, and desk occupancy data.
+• Membership & Access Records: Registration details, desk allocations, and membership validity data.
 • Payment Records: Subscription receipts, dues history, payment mode references, and transaction IDs (we do not store raw debit/credit card numbers or banking passwords).
 
 2. Purpose & Legal Basis for Processing
@@ -120,7 +121,7 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
             ],
           ),
           content: SizedBox(
-            width: 600,
+            width: math.min(MediaQuery.of(context).size.width - 32, 600),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,

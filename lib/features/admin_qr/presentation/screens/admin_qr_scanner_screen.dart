@@ -240,31 +240,9 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> wit
 
       final student = StudentModel.fromJson({...doc.data()!, 'id': doc.id});
 
-      // ── Temporal Tracking: Record Scan Timestamp & Daily Attendance Log ──
-      final now = DateTime.now();
-      final todayStr = DateFormat('yyyy-MM-dd').format(now);
-
-      // 1. Update student profile with lastScannedAt & lastVisitDate
+      // 1. Update student profile verification timestamp
       doc.reference.update({
         'lastScannedAt': FieldValue.serverTimestamp(),
-        'lastVisitDate': todayStr,
-      }).ignore();
-
-      // 2. Append immutable check-in event in attendanceLogs
-      FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('attendanceLogs')
-          .add({
-        'studentId': student.id,
-        'studentName': student.name,
-        'seatId': student.seatId,
-        'planId': student.planId,
-        'membershipStatus': student.effectiveMembershipStatus.name,
-        'timestamp': FieldValue.serverTimestamp(),
-        'date': todayStr,
-        'type': 'scan_checkin',
-        'method': 'admin_qr',
       }).ignore();
 
       if (mounted) _showVerification(student);
@@ -354,7 +332,7 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> wit
                 CircleAvatar(
                   radius: 44,
                   backgroundColor: theme.colorScheme.primaryContainer,
-                  backgroundImage: student.photoUrl.isNotEmpty ? ImageService.getImageProvider(student.photoUrl) : null,
+                  backgroundImage: student.photoUrl.isNotEmpty ? ImageService.getAvatarProvider(student.photoUrl) : null,
                   child: student.photoUrl.isEmpty
                       ? Text(student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
                           style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold))
@@ -389,12 +367,6 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> wit
                   value: effectiveStatus.name.toUpperCase(),
                   icon: Icons.badge_rounded,
                   valueColor: statusColor,
-                ),
-                _InfoRow(
-                  label: 'Attendance',
-                  value: 'Entry Logged (${DateFormat('hh:mm a').format(now)})',
-                  icon: Icons.how_to_reg_rounded,
-                  valueColor: const Color(0xFF059669),
                 ),
                 if (student.lastScannedAt != null)
                   _InfoRow(
@@ -537,7 +509,7 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> wit
                                 final s = filtered[idx];
                                 return ListTile(
                                   leading: CircleAvatar(
-                                    backgroundImage: s.photoUrl.isNotEmpty ? ImageService.getImageProvider(s.photoUrl) : null,
+                                    backgroundImage: s.photoUrl.isNotEmpty ? ImageService.getAvatarProvider(s.photoUrl) : null,
                                     child: s.photoUrl.isEmpty ? Text(s.name.isNotEmpty ? s.name[0] : 'S') : null,
                                   ),
                                   title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),

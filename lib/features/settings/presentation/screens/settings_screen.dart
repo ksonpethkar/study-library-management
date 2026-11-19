@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1308,7 +1309,7 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
         content: SizedBox(
-          width: 480,
+          width: math.min(MediaQuery.of(context).size.width - 32, 480),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2051,7 +2052,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             content: SingleChildScrollView(
               child: SizedBox(
-                width: 440,
+                width: math.min(MediaQuery.of(context).size.width - 32, 440),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,

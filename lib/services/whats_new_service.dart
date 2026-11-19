@@ -160,10 +160,10 @@ class WhatsNewService {
     const ReleaseChange(
       icon: Icons.qr_code_scanner_rounded,
       rawIconName: 'qr_code',
-      badge: 'Live Attendance',
-      title: 'Automatic QR Attendance & Seat Occupancy Dwell Times',
+      badge: 'QR Scanner',
+      title: 'Fast Pass Verification & Desk Allocation Status',
       description:
-          'Scanning student passes now automatically logs attendance in real time (lastScannedAt & attendanceLogs) and records desk occupancy timestamps (assignedAt & vacatedAt) for dwell analytics.',
+          'Scanning student passes instantly verifies membership validity, desk allocation, and fee status with 1-tap renewal action directly at the front desk.',
       actionRoute: Routes.adminQrScanner,
       actionLabel: 'Open Scanner',
     ),

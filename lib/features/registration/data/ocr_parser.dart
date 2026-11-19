@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'package:study_library/core/validators/aadhaar_validator.dart';
+import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/models/student_model.dart';
 export 'package:study_library/models/student_model.dart' show GovIdType, GovIdTypeExtension;
 
@@ -29,6 +30,7 @@ class OcrResult {
   final int confidence; // 0–100
   final String? rawText; // for debugging
   final String? qrData;
+  final bool isQrVerified;
 
   const OcrResult({
     this.name,
@@ -52,6 +54,7 @@ class OcrResult {
     this.confidence = 0,
     this.rawText,
     this.qrData,
+    this.isQrVerified = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -75,6 +78,7 @@ class OcrResult {
         'issuedDate': issuedDate,
         'confidence': confidence,
         'qrData': qrData,
+        'isQrVerified': isQrVerified ? 'true' : 'false',
       };
 
   /// Returns only non-null fields for auto-fill display
@@ -93,6 +97,7 @@ class OcrResult {
     if (college != null) map['college'] = college!;
     if (course != null) map['course'] = course!;
     if (rollNumber != null) map['rollNumber'] = rollNumber!;
+    if (isQrVerified) map['isQrVerified'] = 'true';
     return map;
   }
 
@@ -119,6 +124,7 @@ class OcrResult {
       confidence: confidence > other.confidence ? confidence : other.confidence,
       rawText: rawText ?? other.rawText,
       qrData: qrData ?? other.qrData,
+      isQrVerified: isQrVerified || other.isQrVerified,
     );
   }
 }
@@ -167,6 +173,7 @@ class QrIdResult {
       vehicleClass: vehicleClass,
       confidence: 100, // QR Codes have 100% accuracy
       qrData: rawQr,
+      isQrVerified: true,
     );
   }
 }
@@ -1354,22 +1361,9 @@ class OcrParser {
 
   static bool _isValidEnglishName(String s) {
     final trimmed = s.trim();
-    if (trimmed.length < 3 || trimmed.length > 50) return false;
-    if (!RegExp(r'^[A-Za-z\s.\-]+$').hasMatch(trimmed)) return false;
+    if (!GovIdValidator.isValidName(trimmed)) return false;
     if (_isKeyword(trimmed) || _isAadhaarBoilerplate(trimmed)) return false;
-    if (RegExp(r'\d').hasMatch(trimmed)) return false;
-    final lower = trimmed.toLowerCase();
-    const banned = [
-      'enrolment', 'enrollment', 'government', 'india', 'authority',
-      'identity', 'resident', 'help', 'card', 'male', 'female',
-      'birth', 'download', 'unique', 'identification', 'po box',
-      'income', 'tax', 'department', 'permanent', 'account', 'number',
-      'signature', 'photo', 'republic', 'passport', 'driving', 'licence',
-      'license', 'transport', 'college', 'institute', 'university',
-      'student', 'roll no', 'elector', 'election', 'commission', 'epic'
-    ];
-    if (banned.any((b) => lower.contains(b))) return false;
-    return trimmed.split(RegExp(r'\s+')).every((word) => word.length >= 2);
+    return true;
   }
 
   static bool _isValidPersonName(String s) => _isValidEnglishName(s);

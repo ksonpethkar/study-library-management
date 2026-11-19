@@ -636,10 +636,16 @@ class PlanSelectionScreen extends ConsumerWidget {
                             style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
                             child: const Text('Back'),
                           ),
-                          FilledButton(
-                            onPressed: () => ref.read(registrationStepProvider.notifier).goTo(5),
-                            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14)),
-                            child: const Text('Next: Choose Desk ➔'),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () => ref.read(registrationStepProvider.notifier).goTo(5),
+                              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
+                              child: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text('Next: Choose Desk ➔'),
+                              ),
+                            ),
                           ),
                         ],
                       ),

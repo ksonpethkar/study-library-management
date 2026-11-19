@@ -270,7 +270,7 @@ class AppNotificationService {
       final channelId = switch (type) {
         'payment' || 'expiry' => NotificationService.channelFeeAlerts,
         'announcement' => NotificationService.channelAnnouncements,
-        'seat' => NotificationService.channelAttendance,
+        'seat' => NotificationService.channelDeskAlerts,
         _ => NotificationService.channelGeneral,
       };
 

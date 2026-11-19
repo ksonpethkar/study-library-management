@@ -188,14 +188,20 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
                         style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
                         child: const Text('Back'),
                       ),
-                      ElevatedButton(
-                        onPressed: _onNext,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _onNext,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(hasPhoto ? 'Next: Plan Selection ➔' : 'Skip & Continue ➔'),
+                          ),
                         ),
-                        child: Text(hasPhoto ? 'Next: Plan Selection ➔' : 'Skip & Continue ➔'),
                       ),
                     ],
                   ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -479,7 +480,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             ),
             content: SingleChildScrollView(
               child: SizedBox(
-                width: 440,
+                width: math.min(MediaQuery.of(context).size.width - 32, 440),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -792,7 +793,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             ),
             content: SingleChildScrollView(
               child: SizedBox(
-                width: 440,
+                width: math.min(MediaQuery.of(context).size.width - 32, 440),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1036,7 +1037,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             ),
             content: SingleChildScrollView(
               child: SizedBox(
-                width: 480,
+                width: math.min(MediaQuery.of(context).size.width - 32, 480),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1548,7 +1549,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             ),
             content: SingleChildScrollView(
               child: SizedBox(
-                width: 440,
+                width: math.min(MediaQuery.of(context).size.width - 32, 440),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1863,7 +1864,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 ],
               ),
               content: SizedBox(
-                width: 520,
+                width: math.min(MediaQuery.of(context).size.width - 32, 520),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -2524,7 +2525,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           ],
         ),
         content: SizedBox(
-          width: 440,
+          width: math.min(MediaQuery.of(context).size.width - 32, 440),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

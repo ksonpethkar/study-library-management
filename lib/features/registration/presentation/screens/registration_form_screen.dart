@@ -54,6 +54,7 @@ class _RegistrationFormScreenState
 
   // Tracks which fields were auto-filled from OCR
   final Set<String> _autoFilledKeys = {};
+  bool _isQrVerified = false;
 
   List<Map<String, dynamic>> _customFieldsConfig = [];
   final Map<String, TextEditingController> _customControllers = {};
@@ -64,6 +65,7 @@ class _RegistrationFormScreenState
     final reg = ref.read(registrationNotifierProvider);
     final ocr = ref.read(ocrResultProvider);
     final currentUser = FirebaseAuth.instance.currentUser;
+    _isQrVerified = ocr['isQrVerified'] == 'true' || reg['isQrVerified'] == 'true';
     final hasGenuineOcr = ocr.isNotEmpty &&
         ocr.entries.any((e) => e.key != 'confidence' && e.value != null && e.value!.trim().isNotEmpty);
 
@@ -775,62 +777,86 @@ class _RegistrationFormScreenState
     if (text.trim().isEmpty) return null;
 
     final isAutoFilled = _autoFilledKeys.contains(trackKey);
-    bool isValid = false;
-    String tooltip = '';
 
-    switch (trackKey) {
-      case 'govIdNumber':
-        isValid = GovIdValidator.isValid(_selectedGovIdType, text);
-        tooltip = isValid
-            ? '${_selectedGovIdType.displayName} Verified (Checksum Valid) ✓'
-            : '${_selectedGovIdType.displayName} Checksum Mismatch (Please Check Digits)';
-        break;
-
-      case 'name':
-        isValid = GovIdValidator.isValidName(text);
-        tooltip = isValid ? 'Name Verified ✓' : 'Extracted name needs manual review';
-        break;
-
-      case 'dob':
-        isValid = GovIdValidator.isValidDob(text);
-        tooltip = isValid ? 'Date of Birth Verified ✓' : 'Invalid Date format (DD/MM/YYYY expected)';
-        break;
-
-      case 'pinCode':
-        isValid = GovIdValidator.isValidPinCode(text);
-        tooltip = isValid ? 'PIN Code Verified ✓' : 'Invalid 6-digit PIN code';
-        break;
-
-      case 'address':
-        isValid = GovIdValidator.isValidAddress(text);
-        tooltip = isValid ? 'Address Captured ✓' : 'Address needs manual review';
-        break;
-
-      default:
-        if (isAutoFilled) {
-          isValid = true;
-          tooltip = 'Auto-filled from ID';
-        } else {
-          return null;
-        }
-    }
-
-    if (isValid) {
-      return Tooltip(
-        message: tooltip,
-        child: Icon(Icons.verified_rounded, color: Colors.green.shade600, size: 20),
-      );
-    } else if (isAutoFilled) {
-      // Extracted by OCR but failed validation -> AMBER WARNING! Never false green tick!
-      return Tooltip(
-        message: tooltip,
-        child: Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 20),
+    // 1. If entire document was verified via official QR Code:
+    if (_isQrVerified && isAutoFilled) {
+      return const Tooltip(
+        message: 'Official ID QR Verified (100% Cryptographic Match) ✓',
+        child: Icon(Icons.verified_rounded, color: Color(0xFF16A34A), size: 20),
       );
     }
+
+    // 2. Government ID Number Checksum validation
+    if (trackKey == 'govIdNumber') {
+      final isValidId = GovIdValidator.isValid(_selectedGovIdType, text);
+      if (isValidId) {
+        return Tooltip(
+          message: '${_selectedGovIdType.displayName} Verified (Checksum Valid) ✓',
+          child: const Icon(Icons.verified_rounded, color: Color(0xFF16A34A), size: 20),
+        );
+      } else if (isAutoFilled) {
+        return Tooltip(
+          message: '${_selectedGovIdType.displayName} Checksum Mismatch (Please Check Digits)',
+          child: Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 20),
+        );
+      }
+      return null;
+    }
+
+    // 3. For OCR auto-filled fields: Honest UI — NEVER show deceptive green checkmark!
+    // Show gentle Blue magic-wand badge if plausible, or Amber warning if suspicious.
+    if (isAutoFilled) {
+      bool isPlausible = false;
+      String reviewMessage = 'Auto-filled from ID — please review';
+
+      switch (trackKey) {
+        case 'name':
+        case 'fatherName':
+          isPlausible = GovIdValidator.isValidName(text);
+          reviewMessage = isPlausible
+              ? 'Auto-filled name (Please verify spelling)'
+              : 'Suspicious name extracted — please check & correct';
+          break;
+        case 'dob':
+          isPlausible = GovIdValidator.isValidDob(text);
+          reviewMessage = isPlausible
+              ? 'Auto-filled Date of Birth (Please review)'
+              : 'Invalid Date format (DD/MM/YYYY expected)';
+          break;
+        case 'pinCode':
+          isPlausible = GovIdValidator.isValidPinCode(text);
+          reviewMessage = isPlausible
+              ? 'Auto-filled PIN Code (Please review)'
+              : 'Invalid 6-digit PIN code';
+          break;
+        case 'address':
+          isPlausible = GovIdValidator.isValidAddress(text);
+          reviewMessage = isPlausible
+              ? 'Auto-filled address (Please review)'
+              : 'Address text needs review';
+          break;
+        default:
+          isPlausible = text.trim().isNotEmpty;
+          reviewMessage = 'Auto-filled from ID (Please review)';
+      }
+
+      if (isPlausible) {
+        return Tooltip(
+          message: reviewMessage,
+          child: const Icon(Icons.auto_fix_high_rounded, color: Color(0xFF2563EB), size: 19),
+        );
+      } else {
+        return Tooltip(
+          message: reviewMessage,
+          child: Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 20),
+        );
+      }
+    }
+
     return null;
   }
 
-  // Builds a field with strict validation status (Green tick if verified, Amber warning if failed)
+  // Builds a field with strict validation status (Green tick if verified, Blue wand if auto-filled, Amber warning if failed)
   Widget _field({
     required TextEditingController controller,
     required String label,
@@ -845,15 +871,29 @@ class _RegistrationFormScreenState
     String? hintText,
   }) {
     final isAutoFilled = _autoFilledKeys.contains(trackKey);
-    final isValid = trackKey == 'govIdNumber'
-        ? GovIdValidator.isValid(_selectedGovIdType, controller.text)
-        : (trackKey == 'name'
-            ? GovIdValidator.isValidName(controller.text)
+    final text = controller.text;
+    final isPlausible = trackKey == 'govIdNumber'
+        ? GovIdValidator.isValid(_selectedGovIdType, text)
+        : (trackKey == 'name' || trackKey == 'fatherName'
+            ? GovIdValidator.isValidName(text)
             : (trackKey == 'pinCode'
-                ? GovIdValidator.isValidPinCode(controller.text)
+                ? GovIdValidator.isValidPinCode(text)
                 : (trackKey == 'dob'
-                    ? GovIdValidator.isValidDob(controller.text)
-                    : true)));
+                    ? GovIdValidator.isValidDob(text)
+                    : (trackKey == 'address'
+                        ? GovIdValidator.isValidAddress(text)
+                        : text.trim().isNotEmpty))));
+
+    Color? borderColor;
+    if (isAutoFilled) {
+      if (_isQrVerified || (trackKey == 'govIdNumber' && isPlausible)) {
+        borderColor = Colors.green.shade500;
+      } else if (isPlausible) {
+        borderColor = const Color(0xFF60A5FA); // Gentle Blue for OCR auto-filled
+      } else {
+        borderColor = Colors.amber.shade600; // Amber warning for suspicious OCR
+      }
+    }
 
     return TextFormField(
       controller: controller,
@@ -868,10 +908,10 @@ class _RegistrationFormScreenState
         prefixIcon: icon != null ? Icon(icon) : null,
         border: const OutlineInputBorder(),
         suffixIcon: _buildValidationSuffix(trackKey, controller.text),
-        enabledBorder: isAutoFilled
+        enabledBorder: borderColor != null
             ? OutlineInputBorder(
                 borderSide: BorderSide(
-                  color: isValid ? Colors.green.shade400 : Colors.amber.shade600,
+                  color: borderColor,
                   width: 1.5,
                 ),
               )
@@ -915,29 +955,35 @@ class _RegistrationFormScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Auto-fill banner
+                    // Auto-fill banner (Honest UI: green strictly for QR, informative blue for OCR)
                     if (hasOcr) ...[
                       Container(
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFECFDF5),
+                          color: _isQrVerified ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF10B981)),
+                          border: Border.all(
+                            color: _isQrVerified ? const Color(0xFF10B981) : const Color(0xFF93C5FD),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.check_circle_rounded,
-                                color: Color(0xFF10B981)),
-                            const SizedBox(width: 8),
+                            Icon(
+                              _isQrVerified ? Icons.verified_rounded : Icons.auto_fix_high_rounded,
+                              color: _isQrVerified ? const Color(0xFF10B981) : const Color(0xFF2563EB),
+                            ),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                '$autoCount field${autoCount == 1 ? '' : 's'} auto-filled from your ID scan (shown with ✓). '
-                                'Please verify and fill any missing fields below.',
-                                style: const TextStyle(
-                                    color: Color(0xFF065F46),
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13),
+                                _isQrVerified
+                                    ? '✨ Official ID QR Verified: $autoCount field${autoCount == 1 ? '' : 's'} imported with 100% cryptographic accuracy. Please verify details below.'
+                                    : '$autoCount field${autoCount == 1 ? '' : 's'} auto-filled from ID scan (marked with 🪄). Please review each field carefully before continuing.',
+                                style: TextStyle(
+                                  color: _isQrVerified ? const Color(0xFF065F46) : const Color(0xFF1E40AF),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ],
@@ -1037,9 +1083,11 @@ class _RegistrationFormScreenState
                                   enabledBorder: _autoFilledKeys.contains('dob')
                                       ? OutlineInputBorder(
                                           borderSide: BorderSide(
-                                            color: GovIdValidator.isValidDob(_dobController.text)
-                                                ? Colors.green.shade400
-                                                : Colors.amber.shade600,
+                                            color: _isQrVerified
+                                                ? Colors.green.shade500
+                                                : (GovIdValidator.isValidDob(_dobController.text)
+                                                    ? const Color(0xFF60A5FA)
+                                                    : Colors.amber.shade600),
                                             width: 1.5,
                                           ),
                                         )
@@ -1101,9 +1149,11 @@ class _RegistrationFormScreenState
                                         enabledBorder: _autoFilledKeys.contains('dob')
                                             ? OutlineInputBorder(
                                                 borderSide: BorderSide(
-                                                  color: GovIdValidator.isValidDob(_dobController.text)
-                                                      ? Colors.green.shade400
-                                                      : Colors.amber.shade600,
+                                                  color: _isQrVerified
+                                                      ? Colors.green.shade500
+                                                      : (GovIdValidator.isValidDob(_dobController.text)
+                                                          ? const Color(0xFF60A5FA)
+                                                          : Colors.amber.shade600),
                                                   width: 1.5,
                                                 ),
                                               )

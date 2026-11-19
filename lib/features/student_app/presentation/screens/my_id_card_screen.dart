@@ -303,6 +303,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                         dynamicId: dynamicId,
                                         seatText: '$seatText$secText',
                                         dateFormat: dateFormat,
+                                        settings: savedSettings,
                                         isFlipping: isFlipping,
                                       ),
                                     ),
@@ -318,6 +319,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                       planName: planName,
                                       hasPhoto: hasPhoto,
                                       dateFormat: dateFormat,
+                                      settings: savedSettings,
                                       isFlipping: isFlipping,
                                     ),
                                   ),
@@ -436,7 +438,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Your study plan expired on $validTillText. Library admission, biometric check-in, and seat reservation are currently inactive until renewed.',
+                        'Your study plan expired on $validTillText. Library admission and seat reservation are currently inactive until renewed.',
                         style: TextStyle(
                           color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
                           fontSize: 12,
@@ -664,7 +666,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'This verified virtual pass with security QR code is your official membership credential for daily desk check-in, attendance, and identity authentication.',
+                      'This verified virtual pass with security QR code is your official membership credential for reading hall access, desk verification, and identity authentication.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         height: 1.35,
@@ -720,6 +722,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     String? planName,
     required bool hasPhoto,
     required DateFormat dateFormat,
+    required IdCardTemplateSettings settings,
     bool isFlipping = false,
   }) {
     final effectiveStatus = student.effectiveMembershipStatus;
@@ -931,38 +934,63 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Photo Container with Verified Badge
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          GestureDetector(
-                            onTap: hasPhoto
-                                ? () => ImageService.showImageViewer(
-                                      context,
-                                      imageUrl: student.photoUrl,
-                                      title: student.name,
-                                    )
-                                : null,
-                            child: Builder(
-                              builder: (context) {
-                                final photoProvider = ImageService.getImageProvider(student.photoUrl);
-                                return Container(
-                                  width: 78,
-                                  height: 98,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: photoProvider != null
-                                        ? Image(
-                                            image: photoProvider,
-                                            width: 78,
-                                            height: 98,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => Center(
+                      // Photo Container with Verified Badge (Dynamic per admin settings)
+                      if (settings.showPhoto) ...[
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            GestureDetector(
+                              onTap: hasPhoto
+                                  ? () => ImageService.showImageViewer(
+                                        context,
+                                        imageUrl: student.photoUrl,
+                                        title: student.name,
+                                      )
+                                  : null,
+                              child: Builder(
+                                builder: (context) {
+                                  final photoProvider = ImageService.getImageProvider(student.photoUrl);
+                                  return Container(
+                                    width: 78,
+                                    height: 98,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1E293B),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: photoProvider != null
+                                          ? Image(
+                                              image: photoProvider,
+                                              width: 78,
+                                              height: 98,
+                                              fit: BoxFit.cover,
+                                              loadingBuilder: (context, child, loadingProgress) {
+                                                if (loadingProgress == null) return child;
+                                                return Center(
+                                                  child: SizedBox(
+                                                    width: 22,
+                                                    height: 22,
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Colors.white.withValues(alpha: 0.6),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              errorBuilder: (context, error, stackTrace) => Center(
+                                                child: Text(
+                                                  student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
+                                                  style: const TextStyle(
+                                                    fontSize: 32,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : Center(
                                               child: Text(
                                                 student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
                                                 style: const TextStyle(
@@ -972,53 +1000,43 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                                 ),
                                               ),
                                             ),
-                                          )
-                                        : Center(
-                                            child: Text(
-                                              student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
-                                              style: const TextStyle(
-                                                fontSize: 32,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          Positioned(
-                            bottom: -3,
-                            right: -3,
-                            child: Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color: isExpired || isBlocked
-                                    ? const Color(0xFFEF4444)
-                                    : isGrace
-                                        ? const Color(0xFFF59E0B)
-                                        : const Color(0xFF10B981),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
-                              ),
-                              child: Icon(
-                                isBlocked
-                                    ? Icons.block_rounded
-                                    : isExpired
-                                        ? Icons.close_rounded
-                                        : isGrace
-                                            ? Icons.access_time_rounded
-                                            : Icons.check_rounded,
-                                color: Colors.white,
-                                size: 12,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 12),
+                            Positioned(
+                              bottom: -3,
+                              right: -3,
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: isExpired || isBlocked
+                                      ? const Color(0xFFEF4444)
+                                      : isGrace
+                                          ? const Color(0xFFF59E0B)
+                                          : const Color(0xFF10B981),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                ),
+                                child: Icon(
+                                  isBlocked
+                                      ? Icons.block_rounded
+                                      : isExpired
+                                          ? Icons.close_rounded
+                                          : isGrace
+                                              ? Icons.access_time_rounded
+                                              : Icons.check_rounded,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+                      ],
 
                       // Fulfilled Student Details
                       Expanded(
@@ -1077,7 +1095,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                     ),
                                   ),
                                 ),
-                                if (planName != null && planName.isNotEmpty) ...[
+                                if (settings.showPlan && planName != null && planName.isNotEmpty) ...[
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
@@ -1097,70 +1115,74 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                             const SizedBox(height: 6),
 
                             // Seat & Validity
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text.rich(
-                                    TextSpan(
-                                      text: 'Seat: ',
-                                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10.5),
-                                      children: [
+                            if (settings.showSeat || settings.showValidTill) ...[
+                              Row(
+                                children: [
+                                  if (settings.showSeat)
+                                    Expanded(
+                                      child: Text.rich(
                                         TextSpan(
-                                          text: isExpired
-                                              ? '$seatText (Expired)'
-                                              : isGrace
-                                                  ? '$seatText (Grace)'
-                                                  : seatText,
-                                          style: TextStyle(
-                                            color: isExpired
-                                                ? const Color(0xFFFCA5A5)
-                                                : isGrace
-                                                    ? const Color(0xFFFDE68A)
-                                                    : Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                          text: 'Seat: ',
+                                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10.5),
+                                          children: [
+                                            TextSpan(
+                                              text: isExpired
+                                                  ? '$seatText (Expired)'
+                                                  : isGrace
+                                                      ? '$seatText (Grace)'
+                                                      : seatText,
+                                              style: TextStyle(
+                                                color: isExpired
+                                                    ? const Color(0xFFFCA5A5)
+                                                    : isGrace
+                                                        ? const Color(0xFFFDE68A)
+                                                        : Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text.rich(
-                                    TextSpan(
-                                      text: isExpired ? 'Expired: ' : (isGrace ? 'Grace: ' : 'Valid: '),
-                                      style: TextStyle(
-                                        color: isExpired
-                                            ? const Color(0xFFFCA5A5)
-                                            : isGrace
-                                                ? const Color(0xFFFDE68A)
-                                                : Colors.white.withValues(alpha: 0.7),
-                                        fontSize: 10.5,
-                                        fontWeight: isExpired || isGrace ? FontWeight.bold : FontWeight.normal,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      children: [
+                                    ),
+                                  if (settings.showSeat && settings.showValidTill) const SizedBox(width: 4),
+                                  if (settings.showValidTill)
+                                    Expanded(
+                                      child: Text.rich(
                                         TextSpan(
-                                          text: validTillText,
+                                          text: isExpired ? 'Expired: ' : (isGrace ? 'Grace: ' : 'Valid: '),
                                           style: TextStyle(
                                             color: isExpired
                                                 ? const Color(0xFFFCA5A5)
                                                 : isGrace
                                                     ? const Color(0xFFFDE68A)
-                                                    : Colors.white,
-                                            fontWeight: FontWeight.bold,
+                                                    : Colors.white.withValues(alpha: 0.7),
+                                            fontSize: 10.5,
+                                            fontWeight: isExpired || isGrace ? FontWeight.bold : FontWeight.normal,
                                           ),
+                                          children: [
+                                            TextSpan(
+                                              text: validTillText,
+                                              style: TextStyle(
+                                                color: isExpired
+                                                    ? const Color(0xFFFCA5A5)
+                                                    : isGrace
+                                                        ? const Color(0xFFFDE68A)
+                                                        : Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                            ],
 
                             // Student Phone
                             if (student.phone.isNotEmpty)
@@ -1175,7 +1197,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                               ),
 
                             // College / Course / Blood Group
-                            if (student.college.isNotEmpty || student.course.isNotEmpty || student.bloodGroup != null) ...[
+                            if (student.college.isNotEmpty || student.course.isNotEmpty || (settings.showBloodGroup && student.bloodGroup != null && student.bloodGroup!.isNotEmpty)) ...[
                               const SizedBox(height: 4),
                               Row(
                                 children: [
@@ -1188,7 +1210,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                         style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 9.5),
                                       ),
                                     ),
-                                  if (student.bloodGroup != null && student.bloodGroup!.isNotEmpty) ...[
+                                  if (settings.showBloodGroup && student.bloodGroup != null && student.bloodGroup!.isNotEmpty) ...[
                                     const SizedBox(width: 4),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -1293,6 +1315,28 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     );
   }
 
+  /// Resolves up to 3 concise rules from template, library settings, or defaults
+  List<String> _resolveRules(IdCardTemplateSettings settings, LibraryModel? library) {
+    if (!settings.showRules) return [];
+    String raw = settings.customRulesText.trim();
+    if (raw.isEmpty && library != null && library.rulesText.trim().isNotEmpty) {
+      raw = library.rulesText.trim();
+    }
+    if (raw.isEmpty) {
+      return const [
+        'Mandatory for reading hall admission & desk verification.',
+        'Strict pin-drop silence must be observed inside study zones.',
+        'Loss of ID card must be reported immediately to reception.',
+      ];
+    }
+    return raw
+        .split(RegExp(r'\r?\n'))
+        .map((line) => line.replaceFirst(RegExp(r'^[•\-\*\d+\.]\s*'), '').trim())
+        .where((line) => line.isNotEmpty)
+        .take(3)
+        .toList();
+  }
+
   /// Back face of the ultra-modern ID card with Magnetic stripe, rules, QR, & official seal
   Widget _buildCardBack({
     required StudentModel student,
@@ -1302,6 +1346,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     required String dynamicId,
     required String seatText,
     required DateFormat dateFormat,
+    IdCardTemplateSettings settings = const IdCardTemplateSettings(),
     bool isFlipping = false,
   }) {
     final effectiveStatus = student.effectiveMembershipStatus;
@@ -1440,7 +1485,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildRuleBullet('Mandatory for biometric check-in & reading hall admission.'),
+                                _buildRuleBullet('Mandatory for reading hall admission & desk verification.'),
                                 _buildRuleBullet('Strict pin-drop silence must be observed inside study zones.'),
                                 _buildRuleBullet('Loss of ID card must be reported immediately to reception.'),
                                 const SizedBox(height: 6),

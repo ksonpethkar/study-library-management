@@ -125,7 +125,7 @@ class PermissionUtils {
       context,
       Permission.camera,
       'Camera Permission',
-      'We need camera access to scan attendance QR codes and capture student profile pictures.',
+      'We need camera access to scan student QR passes and capture profile pictures.',
     );
   }
 

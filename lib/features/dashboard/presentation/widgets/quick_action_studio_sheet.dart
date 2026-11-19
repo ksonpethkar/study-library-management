@@ -188,7 +188,7 @@ class _QuickActionStudioContent extends ConsumerWidget {
                       icon: Icons.qr_code_scanner_rounded,
                       color: const Color(0xFF4F46E5),
                       title: 'Scan Student QR Pass',
-                      subtitle: 'Fast gate check-in, desk verification & digital pass status',
+                      subtitle: 'Instant desk verification & digital pass status',
                       onTap: () {
                         Navigator.pop(ctx);
                         parentContext.push(Routes.adminQrScanner);

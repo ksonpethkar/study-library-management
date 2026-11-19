@@ -249,7 +249,9 @@ class PdfService {
     final primaryColorHex = (template?['primaryColor'] as String?) ?? '';
     final primaryColor = primaryColorHex.isNotEmpty
         ? PdfColor.fromHex('#$primaryColorHex')
-        : PdfColor.fromHex('#881337');
+        : (library.accentColor != 0
+            ? PdfColor.fromInt(library.accentColor)
+            : PdfColor.fromHex('#1E3A8A'));
     final currencyFmt = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
     final depositAmount = (receipt.securityDeposit != null && receipt.securityDeposit! > 0)

@@ -34,13 +34,13 @@ class _PressableScaleState extends State<PressableScale> with SingleTickerProvid
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: widget.duration,
-      reverseDuration: const Duration(milliseconds: 220),
+      duration: const Duration(milliseconds: 70),
+      reverseDuration: const Duration(milliseconds: 100),
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: widget.scaleFactor).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: Curves.easeInOutCubic,
+        curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeOutBack,
       ),
     );
@@ -60,9 +60,9 @@ class _PressableScaleState extends State<PressableScale> with SingleTickerProvid
   }
 
   void _onTapUp(TapUpDetails _) {
-    _controller.reverse().then((_) {
-      if (mounted) widget.onTap?.call();
-    });
+    // Zero-lag execution: fire action immediately on touch release
+    if (mounted) widget.onTap?.call();
+    _controller.reverse();
   }
 
   void _onTapCancel() {

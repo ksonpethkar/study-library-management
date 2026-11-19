@@ -6499,5 +6499,71 @@ void main() {
       expect(prefs.getInt('app_font_scale_index'), isNull);
       expect(prefs.getInt('app_font_family_index'), isNull);
     });
+
+    test('Test 134: HONEST UI & STRICT PERSON NAME VALIDATION PROTOCOL & LIVE AADHAAR QR PARSING', () {
+      // 1. Strict Name Validation: Real Indian personal names must pass
+      expect(GovIdValidator.isValidName('Rahul Sharma'), isTrue);
+      expect(GovIdValidator.isValidName('Srikrishnadatta Sonpethkar'), isTrue);
+      expect(GovIdValidator.isValidName('Priya Anant Deshmukh'), isTrue);
+      expect(GovIdValidator.isValidName('Dr. Vijay Kulkarni'), isTrue);
+
+      // 2. Strict Name Validation: Hallucinated address/location/institutions must be strictly REJECTED
+      expect(GovIdValidator.isValidName('Nath Road Parli'), isFalse);
+      expect(GovIdValidator.isValidName('Universal College'), isFalse);
+      expect(GovIdValidator.isValidName('Near Bus Stand Parli'), isFalse);
+      expect(GovIdValidator.isValidName('Opposite Railway Station'), isFalse);
+      expect(GovIdValidator.isValidName('Dist Beed Maharashtra'), isFalse);
+      expect(GovIdValidator.isValidName('Government of India'), isFalse);
+      expect(GovIdValidator.isValidName('Income Tax Department'), isFalse);
+      expect(GovIdValidator.isValidName('The Cozy Corner Library'), isFalse);
+      expect(GovIdValidator.isValidName('Taluka Parli Vaijnath'), isFalse);
+      expect(GovIdValidator.isValidName('Signature of Bearer'), isFalse);
+      expect(GovIdValidator.isValidName('Permanent Account Number'), isFalse);
+      expect(GovIdValidator.isValidName('Unique Identification Authority'), isFalse);
+      expect(GovIdValidator.isValidName('Examination Hall'), isFalse);
+
+      // 3. Strict Name Validation: Length, vowels and digits
+      expect(GovIdValidator.isValidName('Bcdfg'), isFalse); // No vowel
+      expect(GovIdValidator.isValidName('K'), isFalse);     // Too short
+      expect(GovIdValidator.isValidName('Rahul123'), isFalse); // Contains digits
+
+      // 4. Honest UI & Checksum Guarantees
+      // Aadhaar Verhoeff Checksum Check
+      const aadhaarPrefix = '36759834857';
+      final validAadhaarCheckDigit = AppValidators.generateVerhoeffCheckDigit(aadhaarPrefix);
+      final validAadhaar = '3675 9834 857$validAadhaarCheckDigit';
+      expect(GovIdValidator.isValid(GovIdType.aadhaar, validAadhaar), isTrue);
+      expect(GovIdValidator.isValid(GovIdType.aadhaar, '1234 5678 9012'), isFalse);
+
+      // PAN Format Check
+      expect(GovIdValidator.isValid(GovIdType.pan, 'ABCDE1234F'), isTrue);
+      expect(GovIdValidator.isValid(GovIdType.pan, 'ABCD12345F'), isFalse);
+
+      // 5. Live Aadhaar QR Code Parsing with isQrVerified flag
+      final mockAadhaarXml = '<PrintLetterBarcodeData uid="36759834857$validAadhaarCheckDigit" name="Rahul Sharma" gender="M" dob="15/08/1998" co="Suresh Sharma" house="12" street="Station Road" lm="Near Temple" vtc="Parli Vaijnath" dist="Beed" state="Maharashtra" pc="431515"/>';
+      final qrResult = QrIdParser.parseQrString(mockAadhaarXml);
+      expect(qrResult, isNotNull);
+      expect(qrResult!.name, equals('Rahul Sharma'));
+      expect(qrResult.dob, equals('15/08/1998'));
+      expect(qrResult.gender, equals('male'));
+      expect(qrResult.fatherName, equals('Suresh Sharma'));
+      expect(qrResult.pinCode, equals('431515'));
+
+      final ocrResult = qrResult.toOcrResult();
+      expect(ocrResult.isQrVerified, isTrue);
+      expect(ocrResult.confidence, equals(100));
+      expect(ocrResult.toMap()['isQrVerified'], equals('true'));
+      expect(ocrResult.filledFields()['isQrVerified'], equals('true'));
+
+      // 6. Standard OCR Extractions must have isQrVerified = false
+      const standardOcr = OcrResult(
+        name: 'Rahul Sharma',
+        dob: '15/08/1998',
+        confidence: 85,
+      );
+      expect(standardOcr.isQrVerified, isFalse);
+      expect(standardOcr.toMap()['isQrVerified'], equals('false'));
+      expect(standardOcr.filledFields().containsKey('isQrVerified'), isFalse);
+    });
   });
 }

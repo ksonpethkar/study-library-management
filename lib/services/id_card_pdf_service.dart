@@ -200,8 +200,10 @@ class IdCardPdfService {
         final c = libraryAccent != 0 ? PdfColor.fromInt(libraryAccent) : const PdfColor.fromInt(0xFF1E3A8A);
         return [c, const PdfColor.fromInt(0xFF0F172A)];
       case 'crimsonExecutive':
-      default:
         return [const PdfColor.fromInt(0xFF881337), const PdfColor.fromInt(0xFF4C0519)];
+      default:
+        final c = libraryAccent != 0 ? PdfColor.fromInt(libraryAccent) : const PdfColor.fromInt(0xFF1E3A8A);
+        return [c, const PdfColor.fromInt(0xFF0F172A)];
     }
   }
 

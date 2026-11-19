@@ -235,47 +235,63 @@ class ImageService {
   /// Returns an ImageProvider supporting remote URLs, Base64 data URLs, raw Base64 strings, and local file paths.
   /// Uses CachedNetworkImageProvider for http(s) URLs to reduce data usage and eliminate flickering.
   /// Caches MemoryImage instances to prevent rapid rebuilds from decoding repeatedly.
-  static ImageProvider? getImageProvider(String? url) {
+  /// Optionally downsamples decoded resolution via [maxWidth] and [maxHeight] using [ResizeImage.resizeIfNeeded].
+  static ImageProvider? getImageProvider(String? url, {int? maxWidth, int? maxHeight}) {
     if (url == null || url.trim().isEmpty) return null;
     final trimmed = url.trim();
+
+    ImageProvider? resolved;
 
     // 1. Data URL or Raw Base64 string
     if (trimmed.startsWith('data:image') ||
         (trimmed.length > 100 && !trimmed.startsWith('http') && !trimmed.startsWith('file:') && !trimmed.startsWith('/'))) {
       final cached = _base64ImageCache[trimmed];
-      if (cached != null) return cached;
-      try {
-        final base64String = trimmed.contains(',') ? trimmed.split(',')[1].trim() : trimmed;
-        final cleanBase64 = base64String.replaceAll(RegExp(r'\s+'), '');
-        final provider = MemoryImage(base64Decode(cleanBase64));
-        if (_base64ImageCache.length > 60) {
-          _base64ImageCache.remove(_base64ImageCache.keys.first);
+      if (cached != null) {
+        resolved = cached;
+      } else {
+        try {
+          final base64String = trimmed.contains(',') ? trimmed.split(',')[1].trim() : trimmed;
+          final cleanBase64 = base64String.replaceAll(RegExp(r'\s+'), '');
+          final provider = MemoryImage(base64Decode(cleanBase64));
+          if (_base64ImageCache.length > 60) {
+            _base64ImageCache.remove(_base64ImageCache.keys.first);
+          }
+          _base64ImageCache[trimmed] = provider;
+          resolved = provider;
+        } catch (e) {
+          if (kDebugMode) debugPrint('Error decoding base64 image: $e');
         }
-        _base64ImageCache[trimmed] = provider;
-        return provider;
-      } catch (e) {
-        if (kDebugMode) debugPrint('Error decoding base64 image: $e');
-        // If not valid base64, continue to other checks
       }
     }
 
     // 2. Remote HTTP/HTTPS URL
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return CachedNetworkImageProvider(trimmed);
+    if (resolved == null && (trimmed.startsWith('http://') || trimmed.startsWith('https://'))) {
+      resolved = CachedNetworkImageProvider(trimmed);
     }
 
     // 3. Local File Path (Mobile/Desktop)
-    if (!kIsWeb) {
+    if (resolved == null && !kIsWeb) {
       try {
         final filePath = trimmed.startsWith('file://') ? Uri.parse(trimmed).toFilePath() : trimmed;
         final file = File(filePath);
         if (file.existsSync()) {
-          return FileImage(file);
+          resolved = FileImage(file);
         }
       } catch (_) {}
     }
 
-    return null;
+    if (resolved == null) return null;
+
+    if (maxWidth != null || maxHeight != null) {
+      return ResizeImage.resizeIfNeeded(maxWidth, maxHeight, resolved);
+    }
+    return resolved;
+  }
+
+  /// Returns a downsampled, lightweight ImageProvider specifically tuned for avatars (default: 160x160 px).
+  /// Prevents full-resolution bitmap memory spikes when scrolling through student/member lists.
+  static ImageProvider? getAvatarProvider(String? url, {int size = 160}) {
+    return getImageProvider(url, maxWidth: size, maxHeight: size);
   }
 
   /// Convenience method: prompts for source, compresses, and uploads to Firebase Storage or Base64.

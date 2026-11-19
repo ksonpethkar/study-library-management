@@ -635,6 +635,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
               ),
             ],
           bottom: const TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
               Tab(icon: Icon(Icons.bolt_rounded), text: 'Queue'),
               Tab(icon: Icon(Icons.hub_rounded), text: 'Channels'),
