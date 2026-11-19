@@ -42,6 +42,7 @@ import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/models/id_card_template_model.dart';
 import 'package:study_library/features/settings/presentation/screens/id_card_customizer_screen.dart';
 import 'package:study_library/features/student_app/presentation/widgets/silent_reception_help_sheet.dart';
+import 'package:study_library/features/legal/presentation/widgets/policy_agreement_dialog.dart';
 
 /// Real-time stream of the current student's pending registration request.
 /// Returns the request document if status == 'pending', null otherwise.
@@ -113,6 +114,12 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
   }
 
   Future<void> _runStartupDialogChecks() async {
+    if (!mounted) return;
+    final student = ref.read(currentStudentProvider).value;
+    final library = ref.read(currentLibraryProvider).value;
+    if (student != null && library != null) {
+      await PolicyAgreementDialog.checkAndShow(context, student: student, library: library);
+    }
     if (!mounted) return;
     await WhatsNewService.checkAndShow(context, isStudent: true);
     if (!mounted) return;
@@ -229,7 +236,21 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
 
     ref.listen<AsyncValue<StudentModel?>>(currentStudentProvider, (_, next) {
       next.whenData((student) {
-        if (student != null) _scheduleRemindersIfNeeded(student, libraryName: libraryName, renewalDays: library?.renewalReminderDays ?? 7);
+        if (student != null) {
+          _scheduleRemindersIfNeeded(student, libraryName: libraryName, renewalDays: library?.renewalReminderDays ?? 7);
+          if (library != null) {
+            PolicyAgreementDialog.checkAndShow(context, student: student, library: library);
+          }
+        }
+      });
+    });
+
+    ref.listen<AsyncValue<LibraryModel?>>(currentLibraryProvider, (_, next) {
+      next.whenData((lib) {
+        final currentStudent = ref.read(currentStudentProvider).value;
+        if (lib != null && currentStudent != null) {
+          PolicyAgreementDialog.checkAndShow(context, student: currentStudent, library: lib);
+        }
       });
     });
 

@@ -159,6 +159,8 @@ class StudentModel {
   final String? scheduledPlanName;
   final DateTime? lastScannedAt;
   final DateTime? paymentDueSince;
+  final DateTime? lastAcceptedPolicyAt;
+  final String? acceptedPolicyVersion;
 
   /// Evaluates whether the student is currently on an active study vacation / membership freeze
   bool get isCurrentlyFrozen {
@@ -314,6 +316,8 @@ class StudentModel {
     this.scheduledPlanName,
     this.lastScannedAt,
     this.paymentDueSince,
+    this.lastAcceptedPolicyAt,
+    this.acceptedPolicyVersion,
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
@@ -399,6 +403,8 @@ class StudentModel {
       scheduledPlanName: json['scheduledPlanName'] as String?,
       lastScannedAt: _parseDate(json['lastScannedAt']),
       paymentDueSince: _parseDate(json['paymentDueSince']),
+      lastAcceptedPolicyAt: _parseDate(json['lastAcceptedPolicyAt'] ?? (json['customFields'] as Map?)?['lastAcceptedPolicyAt']),
+      acceptedPolicyVersion: json['acceptedPolicyVersion'] as String? ?? (json['customFields'] as Map?)?['acceptedPolicyVersion'] as String?,
     );
   }
 
@@ -465,6 +471,8 @@ class StudentModel {
       if (scheduledPlanName != null) 'scheduledPlanName': scheduledPlanName,
       if (lastScannedAt != null) 'lastScannedAt': lastScannedAt!.toIso8601String(),
       if (paymentDueSince != null) 'paymentDueSince': paymentDueSince!.toIso8601String(),
+      if (lastAcceptedPolicyAt != null) 'lastAcceptedPolicyAt': lastAcceptedPolicyAt!.toIso8601String(),
+      if (acceptedPolicyVersion != null) 'acceptedPolicyVersion': acceptedPolicyVersion,
     };
   }
 
@@ -533,6 +541,9 @@ class StudentModel {
     bool clearScheduledPlan = false,
     DateTime? lastScannedAt,
     DateTime? paymentDueSince,
+    DateTime? lastAcceptedPolicyAt,
+    String? acceptedPolicyVersion,
+    bool clearPolicyAccepted = false,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -596,6 +607,8 @@ class StudentModel {
       scheduledPlanName: clearScheduledPlan ? null : (scheduledPlanName ?? this.scheduledPlanName),
       lastScannedAt: lastScannedAt ?? this.lastScannedAt,
       paymentDueSince: paymentDueSince ?? this.paymentDueSince,
+      lastAcceptedPolicyAt: clearPolicyAccepted ? null : (lastAcceptedPolicyAt ?? this.lastAcceptedPolicyAt),
+      acceptedPolicyVersion: clearPolicyAccepted ? null : (acceptedPolicyVersion ?? this.acceptedPolicyVersion),
     );
   }
 

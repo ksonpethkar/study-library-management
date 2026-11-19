@@ -258,16 +258,24 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
 
                                 try {
                                   final fieldKey = isMr ? 'termsOfService_mr' : 'termsOfService';
-                                  await FirebaseFirestore.instance
-                                      .collection('libraries')
-                                      .doc(libraryId)
-                                      .collection('settings')
-                                      .doc('legal')
-                                      .set({
+                                  final batch = FirebaseFirestore.instance.batch();
+                                  final libRef = FirebaseFirestore.instance.collection('libraries').doc(libraryId);
+                                  final legalRef = libRef.collection('settings').doc('legal');
+
+                                  batch.update(libRef, {
+                                    'policyUpdatedAt': FieldValue.serverTimestamp(),
+                                  });
+
+                                  batch.set(legalRef, {
                                     fieldKey: controller.text.trim(),
                                     'termsUpdatedAt': FieldValue.serverTimestamp(),
+                                    'policyUpdatedAt': FieldValue.serverTimestamp(),
+                                    'policyVersion': FieldValue.increment(1),
+                                    'lastUpdatedDocument': 'terms',
                                     'termsUpdatedBy': FirebaseAuth.instance.currentUser?.email ?? 'Admin',
                                   }, SetOptions(merge: true));
+
+                                  await batch.commit();
 
                                   if (context.mounted) {
                                     Navigator.pop(dialogCtx);

@@ -57,11 +57,26 @@ class _RulesEditorScreenState extends ConsumerState<RulesEditorScreen> {
 
     try {
       final text = _rulesController.text.trim();
-      await FirebaseFirestore.instance.collection('libraries').doc(libraryId).update({
+      final batch = FirebaseFirestore.instance.batch();
+      final libRef = FirebaseFirestore.instance.collection('libraries').doc(libraryId);
+      final legalRef = libRef.collection('settings').doc('legal');
+
+      batch.update(libRef, {
         'rulesText': text,
         'rules': text,
         'updatedAt': DateTime.now().toIso8601String(),
+        'policyUpdatedAt': FieldValue.serverTimestamp(),
       });
+
+      batch.set(legalRef, {
+        'rulesText': text,
+        'rulesUpdatedAt': FieldValue.serverTimestamp(),
+        'policyUpdatedAt': FieldValue.serverTimestamp(),
+        'policyVersion': FieldValue.increment(1),
+        'lastUpdatedDocument': 'rules',
+      }, SetOptions(merge: true));
+
+      await batch.commit();
 
       ref.invalidate(currentLibraryProvider);
 

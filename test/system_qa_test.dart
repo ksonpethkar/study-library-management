@@ -6565,5 +6565,105 @@ void main() {
       expect(standardOcr.toMap()['isQrVerified'], equals('false'));
       expect(standardOcr.filledFields().containsKey('isQrVerified'), isFalse);
     });
+
+    test('Test 135: POLICY, TERMS & RULES REAL-TIME ACCEPTANCE GATEWAY', () {
+      final now = DateTime(2026, 11, 19, 17, 30);
+      final adminUpdateTimestamp = now;
+      final studentAcceptedPrior = now.subtract(const Duration(days: 2));
+      final studentAcceptedAfter = now.add(const Duration(minutes: 5));
+
+      // 1. LibraryModel Serialization with policyUpdatedAt
+      final lib = LibraryModel(
+        id: 'lib_test_1',
+        name: 'Cozy Corner Library',
+        address: 'Nath Road, Parli Vaijnath',
+        logoUrl: '',
+        contact: '9403243830',
+        ownerId: 'owner_123',
+        accentColor: 0xFF5D4037,
+        welcomeMessage: 'Welcome to Cozy Corner',
+        operatingHours: '6 AM - 11 PM',
+        socialLinks: {},
+        rulesText: '1. Maintain complete silence in all study areas.',
+        adminPhotoUrl: '',
+        helplineNumber: '9403243830',
+        waitingListMode: WaitingListMode.contactAdmin,
+        createdAt: now,
+        updatedAt: now,
+        policyUpdatedAt: adminUpdateTimestamp,
+      );
+      final libJson = lib.toJson();
+      expect(libJson['policyUpdatedAt'], equals(adminUpdateTimestamp.toIso8601String()));
+      final restoredLib = LibraryModel.fromJson(libJson);
+      expect(restoredLib.policyUpdatedAt, equals(adminUpdateTimestamp));
+
+      // 2. StudentModel Serialization with lastAcceptedPolicyAt & acceptedPolicyVersion
+      final student = StudentModel(
+        id: 'std_test_1',
+        name: 'Prathamesh Sonpethkar',
+        fatherName: 'Ram Sonpethkar',
+        phone: '9876543210',
+        email: 'prathamesh@example.com',
+        gender: Gender.male,
+        address: 'Parli Vaijnath',
+        pincode: '431515',
+        govIdType: GovIdType.pan,
+        govIdNumber: 'ABCDE1234F',
+        govIdImageUrl: '',
+        photoUrl: '',
+        college: 'Engg',
+        course: 'B.Tech',
+        year: '4th',
+        emergencyContact: '9876543211',
+        membershipStatus: MembershipStatus.active,
+        customFields: {},
+        lastAcceptedPolicyAt: studentAcceptedPrior,
+        acceptedPolicyVersion: studentAcceptedPrior.toIso8601String(),
+      );
+      final studentJson = student.toJson();
+      expect(studentJson['lastAcceptedPolicyAt'], equals(studentAcceptedPrior.toIso8601String()));
+      expect(studentJson['acceptedPolicyVersion'], equals(studentAcceptedPrior.toIso8601String()));
+      final restoredStudent = StudentModel.fromJson(studentJson);
+      expect(restoredStudent.lastAcceptedPolicyAt, equals(studentAcceptedPrior));
+      expect(restoredStudent.acceptedPolicyVersion, equals(studentAcceptedPrior.toIso8601String()));
+
+      // 3. Version Comparison Gate Logic
+      bool isPolicyPopupRequired(StudentModel s, LibraryModel l) {
+        if (l.policyUpdatedAt == null) return false;
+        if (s.lastAcceptedPolicyAt == null) return true;
+        return l.policyUpdatedAt!.isAfter(s.lastAcceptedPolicyAt!);
+      }
+
+      // Scenario A: Admin updated policies after student's last acceptance -> POPUP MANDATORY
+      expect(isPolicyPopupRequired(student, lib), isTrue);
+
+      // Scenario B: Student has accepted the latest policies -> POPUP BYPASSED
+      final updatedStudent = student.copyWith(
+        lastAcceptedPolicyAt: studentAcceptedAfter,
+        acceptedPolicyVersion: adminUpdateTimestamp.toIso8601String(),
+      );
+      expect(isPolicyPopupRequired(updatedStudent, lib), isFalse);
+
+      // Scenario C: First time student enrollment (null acceptance) -> POPUP MANDATORY
+      final newStudent = student.copyWith(
+        clearPolicyAccepted: true,
+      );
+      expect(isPolicyPopupRequired(newStudent, lib), isTrue);
+
+      // Scenario D: Library has no policy update timestamp -> POPUP BYPASSED
+      final legacyLib = lib.copyWith(clearPolicyUpdatedAt: true);
+      expect(isPolicyPopupRequired(student, legacyLib), isFalse);
+
+      // 4. Multi-language terms & fallback integrity
+      final termsEn = TermsScreen.defaultTerms(lib.name);
+      final termsMr = TermsScreen.defaultTermsMarathi(lib.name);
+      expect(termsEn, contains('Silent Zone'));
+      expect(termsMr, contains('शांतता क्षेत्र'));
+
+      final privacyEn = PrivacyPolicyScreen.defaultPrivacyPolicy(lib.name);
+      final privacyMr = PrivacyPolicyScreen.defaultPrivacyPolicyMarathi(lib.name);
+      expect(privacyEn, contains('Security'));
+      expect(privacyMr, contains('गोपनीयता'));
+    });
   });
 }

@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:study_library/services/biometric_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
@@ -3379,7 +3381,6 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     }
 
     final s = student!;
-    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
 
     final scaffoldContent = Scaffold(
       appBar: AppBar(
@@ -3445,6 +3446,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             },
             tooltip: 'Print / Share ID Card',
           ),
+          IconButton(
+            icon: const Icon(Icons.lock_reset_rounded, color: Color(0xFFEA580C)),
+            tooltip: 'Reset Student PIN',
+            onPressed: () => _showResetPinDialog(context, s),
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded),
             tooltip: 'More Actions',
@@ -3454,6 +3460,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 _loadStudent();
               } else if (value == 'delete') {
                 _deleteStudent();
+              } else if (value == 'reset_pin') {
+                _showResetPinDialog(context, s);
               }
             },
             itemBuilder: (context) => [
@@ -3464,6 +3472,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     Icon(Icons.edit_rounded, size: 18),
                     SizedBox(width: 8),
                     Text('Edit Student'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'reset_pin',
+                child: Row(
+                  children: [
+                    Icon(Icons.lock_reset_rounded, color: Color(0xFFEA580C), size: 18),
+                    SizedBox(width: 8),
+                    Text('Reset Security PIN'),
                   ],
                 ),
               ),
@@ -3482,13 +3500,81 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header
-            Row(
+      body: DefaultTabController(
+        length: 4,
+        child: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildStudentHeader(context, s),
+                    const SizedBox(height: 14),
+                    _buildHeroActionRow(context, s),
+                    const SizedBox(height: 12),
+                    _buildQuickActionBar(context, s),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _SliverTabBarDelegate(
+                TabBar(
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: Theme.of(context).colorScheme.primary,
+                  unselectedLabelColor: Colors.grey.shade600,
+                  indicatorColor: Theme.of(context).colorScheme.primary,
+                  tabs: const [
+                    Tab(icon: Icon(Icons.deck_rounded, size: 16), text: 'Desk & Plan'),
+                    Tab(icon: Icon(Icons.receipt_long_rounded, size: 16), text: 'Payments & Dues'),
+                    Tab(icon: Icon(Icons.badge_rounded, size: 16), text: 'Profile & KYC'),
+                    Tab(icon: Icon(Icons.security_rounded, size: 16), text: 'Activity & PIN'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          body: TabBarView(
+            children: [
+              _buildDeskAndPlanTab(context, s),
+              _buildPaymentsTab(context, s),
+              _buildProfileKycTab(context, s),
+              _buildActivityTab(context, s),
+            ],
+          ),
+        ),
+      ),
+    ); // close Scaffold
+
+    if (widget.isEmbeddedInSplitView) {
+      return scaffoldContent;
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/admin/students');
+        }
+      },
+      child: scaffoldContent,
+    );
+  }
+  // =========================================================================
+  // MODERN STUDENT DETAILS HIERARCHY & RECOVERY WORKFLOWS
+  // =========================================================================
+
+  Widget _buildStudentHeader(BuildContext context, StudentModel s) {
+    return             Row(
               children: [
                 GestureDetector(
                   onTap: () {
@@ -3674,171 +3760,597 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                if (s.membershipStatus != MembershipStatus.blocked) ...[
-                  Expanded(
-                    flex: 3,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF059669),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      icon: const Icon(Icons.autorenew_rounded, size: 18),
-                      label: Text(
-                        s.planId != null ? 'Renew Membership' : 'Assign Plan',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onPressed: () {
-                        if (s.planId != null) {
-                          _openRenewalFlow(context, s, planPrice);
-                        } else {
-                          _showAssignPlanSheet();
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  flex: s.membershipStatus == MembershipStatus.blocked ? 1 : 2,
-                  child: s.membershipStatus == MembershipStatus.blocked
-                      ? FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          icon: const Icon(Icons.lock_open_rounded),
-                          label: const Text('Unblock Student'),
-                          onPressed: () async {
-                            final repo = ref.read(studentRepositoryProvider);
-                            await repo.unblockStudent(libraryId, s.id);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Student unblocked ✓'), backgroundColor: Colors.green),
-                              );
-                              _loadStudent();
-                            }
-                          },
-                        )
-                      : OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: BorderSide(color: Colors.red.shade300),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          icon: const Icon(Icons.block_rounded, size: 16),
-                          label: const Text('Block Student', maxLines: 1, overflow: TextOverflow.ellipsis),
-                          onPressed: () async {
-                            String reason = '';
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (ctx) {
-                                final ctrl = TextEditingController();
-                                return AlertDialog(
-                                  title: const Text('Block Student'),
-                                  content: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Text('Student will be locked out of the app. Seat stays assigned.'),
-                                      const SizedBox(height: 12),
-                                      TextField(
-                                        controller: ctrl,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Reason for blocking *',
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        maxLines: 2,
-                                        onChanged: (v) => reason = v,
-                                      ),
-                                    ],
-                                  ),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                    FilledButton(
-                                      style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                                      onPressed: () {
-                                        if (reason.trim().isEmpty) return;
-                                        Navigator.pop(ctx, true);
-                                      },
-                                      child: const Text('Block'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                            if (confirmed != true || !context.mounted) return;
-                            final repo = ref.read(studentRepositoryProvider);
-                            await repo.blockStudent(libraryId, s.id, reason: reason.trim());
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Student blocked'), backgroundColor: Colors.orange),
-                              );
-                              _loadStudent();
-                            }
-                          },
-                        ),
-                ),
-              ],
-            ),
-            if (s.planId != null && s.membershipStatus != MembershipStatus.blocked) ...[
-              const SizedBox(height: 10),
-              Row(
+            );
+  }
+
+  Widget _buildHeroActionRow(BuildContext context, StudentModel s) {
+    final hasPlan = s.planId != null && s.planId!.isNotEmpty;
+    final isBlocked = s.membershipStatus == MembershipStatus.blocked;
+    final dueBalance = s.pendingDueBalance ?? 0.0;
+
+    if (isBlocked) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.block_rounded, color: Colors.red, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: s.isCurrentlyFrozen
-                        ? OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFD97706),
-                              side: const BorderSide(color: Color(0xFFFDE68A)),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            icon: const Icon(Icons.wb_sunny_rounded, size: 16),
-                            label: const Text('Unfreeze Pass', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                            onPressed: () => _showUnfreezeMembershipDialog(context, s),
-                          )
-                        : OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF2563EB),
-                              side: const BorderSide(color: Color(0xFF93C5FD)),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            icon: const Icon(Icons.ac_unit_rounded, size: 16),
-                            label: const Text('Freeze (10+ Days)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                            onPressed: () => _showFreezeMembershipDialog(context, s),
-                          ),
+                  const Text('Student Access is Blocked', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                  if (s.blockedReason != null && s.blockedReason!.isNotEmpty)
+                    Text('Reason: ${s.blockedReason}', style: const TextStyle(fontSize: 12, color: Colors.redAccent)),
+                ],
+              ),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: Colors.green),
+              icon: const Icon(Icons.lock_open_rounded, size: 16),
+              label: const Text('Unblock'),
+              onPressed: () async {
+                final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+                final repo = ref.read(studentRepositoryProvider);
+                await repo.unblockStudent(libraryId, s.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Student unblocked ✓'), backgroundColor: Colors.green),
+                  );
+                  _loadStudent();
+                }
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        // Primary Action: Renew Membership (or Assign Plan)
+        Expanded(
+          flex: 3,
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF059669),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 1,
+            ),
+            icon: Icon(hasPlan ? Icons.autorenew_rounded : Icons.assignment_turned_in_rounded, size: 18),
+            label: Text(
+              hasPlan ? 'Renew Membership' : 'Assign Plan',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            onPressed: () {
+              if (hasPlan) {
+                _openRenewalFlow(context, s, planPrice);
+              } else {
+                _showAssignPlanSheet();
+              }
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Secondary Action: Record Fee or Clear Outstanding Due
+        Expanded(
+          flex: 2,
+          child: dueBalance > 0
+              ? FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFD97706),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  const SizedBox(width: 8),
+                  icon: const Icon(Icons.payment_rounded, size: 18),
+                  label: Text(
+                    'Pay Due ₹${dueBalance.toStringAsFixed(0)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () => _openRecordPaymentFlow(context, s),
+                )
+              : OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF059669),
+                    side: const BorderSide(color: Color(0xFF10B981)),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.add_circle_outline_rounded, size: 17),
+                  label: const Text(
+                    'Record Fee',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () => _openRecordPaymentFlow(context, s),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionBar(BuildContext context, StudentModel s) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          if (s.phone.isNotEmpty) ...[
+            _buildQuickActionPill(
+              context: context,
+              icon: Icons.phone_rounded,
+              label: 'Call',
+              color: const Color(0xFF0284C7),
+              onTap: () async {
+                final uri = Uri.parse('tel:${s.phone}');
+                if (await canLaunchUrl(uri)) await launchUrl(uri);
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildQuickActionPill(
+              context: context,
+              icon: Icons.chat_rounded,
+              label: 'WhatsApp',
+              color: const Color(0xFF25D366),
+              onTap: () => _showWhatsAppSheet(context, s),
+            ),
+            const SizedBox(width: 8),
+          ],
+          _buildQuickActionPill(
+            context: context,
+            icon: Icons.event_seat_rounded,
+            label: s.seatId != null && s.seatId!.isNotEmpty ? 'Change Desk' : 'Assign Desk',
+            color: const Color(0xFF8B5CF6),
+            onTap: _showAssignSeatSheet,
+          ),
+          const SizedBox(width: 8),
+          _buildQuickActionPill(
+            context: context,
+            icon: Icons.badge_outlined,
+            label: 'ID Card',
+            color: const Color(0xFF0D9488),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => IdCardPreviewScreen(
+                    student: s,
+                    seatLabel: seatLabel,
+                    sectionName: sectionName,
+                    planName: planName,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+          _buildQuickActionPill(
+            context: context,
+            icon: Icons.lock_reset_rounded,
+            label: 'Reset PIN',
+            color: const Color(0xFFEA580C),
+            onTap: () => _showResetPinDialog(context, s),
+          ),
+          const SizedBox(width: 8),
+          _buildQuickActionPill(
+            context: context,
+            icon: Icons.more_horiz_rounded,
+            label: 'More',
+            color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+            onTap: () => _showMoreActionsSheet(context, s),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionPill({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isDark ? 0.18 : 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: isDark ? 0.35 : 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openRecordPaymentFlow(BuildContext context, StudentModel s) {
+    final due = s.pendingDueBalance ?? 0.0;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RecordPaymentScreen(
+          studentId: widget.studentId,
+          studentName: s.name,
+          studentPhone: s.phone,
+          planPrice: due > 0 ? due : planPrice,
+          pendingDue: due,
+        ),
+      ),
+    ).then((_) {
+      if (mounted) _loadStudent();
+    });
+  }
+
+  Future<void> _showResetPinDialog(BuildContext context, StudentModel s) async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_reset_rounded, color: Color(0xFFEA580C), size: 28),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Reset Student Security PIN',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: Colors.orange, size: 20),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.deepOrange.shade800,
-                        side: BorderSide(color: Colors.deepOrange.shade200),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      icon: const Icon(Icons.exit_to_app_rounded, size: 16),
-                      label: const Text('Early Exit / Refund', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                      onPressed: () => _showEarlyExitDialog(context, s),
+                    child: Text(
+                      'Student: ${s.name} (${s.phone})',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                     ),
                   ),
                 ],
               ),
-            ],
-            const SizedBox(height: 24),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'This will administratively reset the student\'s 4-digit security PIN and clear any active lockout timer.',
+              style: TextStyle(fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              '⚡ Live Instant Unlock: The student\'s device will unlock in real time via Cloud Firestore sync without requiring an app reload.',
+              style: TextStyle(fontSize: 12, height: 1.35, color: Colors.green),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEA580C)),
+            icon: const Icon(Icons.check_rounded, size: 16),
+            label: const Text('Reset & Unlock Now'),
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
 
-            // Personal & Academic Details Card
-            Card(
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await BiometricService.adminResetStudentPin(
+        libraryId: libraryId,
+        studentId: s.id,
+        authUid: s.userId,
+      );
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('PIN reset for ${s.name}. Student pass unlocked in real-time ✓'),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF059669),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _loadStudent();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error resetting PIN: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showMoreActionsSheet(BuildContext context, StudentModel s) {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    final isBlocked = s.membershipStatus == MembershipStatus.blocked;
+    final isFrozen = s.isCurrentlyFrozen;
+    final hasPlan = s.planId != null && s.planId!.isNotEmpty;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Membership & Safety Controls',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                if (hasPlan && !isBlocked) ...[
+                  ListTile(
+                    leading: Icon(
+                      isFrozen ? Icons.wb_sunny_rounded : Icons.ac_unit_rounded,
+                      color: isFrozen ? const Color(0xFFD97706) : const Color(0xFF2563EB),
+                    ),
+                    title: Text(isFrozen ? 'Unfreeze Membership' : 'Freeze Membership (Study Leave)'),
+                    subtitle: Text(
+                      isFrozen
+                          ? 'Restore active attendance and seat privileges'
+                          : 'Pause membership for 10+ days without losing days',
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      if (isFrozen) {
+                        _showUnfreezeMembershipDialog(context, s);
+                      } else {
+                        _showFreezeMembershipDialog(context, s);
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.exit_to_app_rounded, color: Colors.deepOrange),
+                    title: const Text('Early Exit / Refund'),
+                    subtitle: const Text('End membership early and process security deposit/dues refund'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showEarlyExitDialog(context, s);
+                    },
+                  ),
+                ],
+                ListTile(
+                  leading: Icon(
+                    isBlocked ? Icons.lock_open_rounded : Icons.block_rounded,
+                    color: isBlocked ? Colors.green : Colors.red,
+                  ),
+                  title: Text(
+                    isBlocked ? 'Unblock Student' : 'Block Student',
+                    style: TextStyle(color: isBlocked ? Colors.green : Colors.red, fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    isBlocked
+                        ? 'Lift access restriction and allow student back into app'
+                        : 'Temporarily suspend student access (Seat stays assigned)',
+                  ),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    if (isBlocked) {
+                      final repo = ref.read(studentRepositoryProvider);
+                      await repo.unblockStudent(libraryId, s.id);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Student unblocked ✓'), backgroundColor: Colors.green),
+                        );
+                        _loadStudent();
+                      }
+                    } else {
+                      _showBlockStudentDialog(context, s);
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.edit_rounded, color: Colors.blueGrey),
+                  title: const Text('Edit Student Profile'),
+                  subtitle: const Text('Update contact details, educational info, or ID proofs'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await context.push('/admin/students/${widget.studentId}/edit');
+                    _loadStudent();
+                  },
+                ),
+                if (ref.watch(canDeleteStudentsProvider)) ...[
+                  ListTile(
+                    leading: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+                    title: const Text('Delete Student Record', style: TextStyle(color: Colors.red)),
+                    subtitle: const Text('Permanently remove student and all historical data'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _deleteStudent();
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showBlockStudentDialog(BuildContext context, StudentModel s) async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    String reason = '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final ctrl = TextEditingController();
+        return AlertDialog(
+          title: const Text('Block Student'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Student will be locked out of the app. Seat stays assigned.'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                decoration: const InputDecoration(
+                  labelText: 'Reason for blocking *',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+                onChanged: (v) => reason = v,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                if (reason.trim().isEmpty) return;
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('Block'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !context.mounted) return;
+    final repo = ref.read(studentRepositoryProvider);
+    await repo.blockStudent(libraryId, s.id, reason: reason.trim());
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Student blocked'), backgroundColor: Colors.orange),
+      );
+      _loadStudent();
+    }
+  }
+
+  Widget _buildDeskAndPlanTab(BuildContext context, StudentModel s) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSeatInfoCard(context, s),
+          const SizedBox(height: 16),
+          _buildPlanInfoCard(context, s),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentsTab(BuildContext context, StudentModel s) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildPaymentHistoryCard(context, s),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileKycTab(BuildContext context, StudentModel s) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildProfileDetailsCard(context, s),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivityTab(BuildContext context, StudentModel s) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildActivityAndPinCard(context, s),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileDetailsCard(BuildContext context, StudentModel s) {
+    return             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -4000,11 +4512,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
+            );
+  }
 
-            // Seat Info Card
-            Card(
+  Widget _buildSeatInfoCard(BuildContext context, StudentModel s) {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    return             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -4115,11 +4628,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
+            );
+  }
 
-            // Plan Info Card
-            Card(
+  Widget _buildPlanInfoCard(BuildContext context, StudentModel s) {
+    return             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -4373,11 +4886,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
+            );
+  }
 
-            // Payment History Card
-            Card(
+  Widget _buildPaymentHistoryCard(BuildContext context, StudentModel s) {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    return             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -4761,29 +5275,129 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   ],
                 ),
               ),
+            );
+  }
+
+  Widget _buildActivityAndPinCard(BuildContext context, StudentModel s) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Security & Device Lock Pass Card
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.security_rounded, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text('Security & Pass Access', style: Theme.of(context).textTheme.titleLarge),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        s.pinResetByAdmin ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                        color: s.pinResetByAdmin ? Colors.amber.shade700 : Colors.green,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              s.pinResetByAdmin
+                                  ? '4-Digit Security PIN: Reset by Admin'
+                                  : '4-Digit Security PIN: Active & Guarded',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              s.pinResetByAdmin
+                                  ? 'Student device pass was cleared. Student can enter app and set a new PIN.'
+                                  : 'Protected by client hardware biometric & salted PIN hash.',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: isDark ? Colors.white60 : Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFEA580C),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.lock_reset_rounded, size: 18),
+                    label: const Text(
+                      'Reset Security PIN & Clear Lockout',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    onPressed: () => _showResetPinDialog(context, s),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    ); // close Scaffold
-
-    if (widget.isEmbeddedInSplitView) {
-      return scaffoldContent;
-    }
-
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/admin/students');
-        }
-      },
-      child: scaffoldContent,
+        const SizedBox(height: 16),
+        // Membership History Card
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.history_edu_rounded, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text('Membership Timeline', style: Theme.of(context).textTheme.titleLarge),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildDetailRow(context, 'Admission Date', DateFormat('dd MMM yyyy').format(s.effectiveAdmissionDate), Icons.event_available_rounded),
+                if (s.createdAt != null)
+                  _buildDetailRow(context, 'Record Registered', DateFormat('dd MMM yyyy, hh:mm a').format(s.createdAt!), Icons.app_registration_rounded),
+                if (s.membershipNumber != null && s.membershipNumber!.isNotEmpty)
+                  _buildDetailRow(context, 'Sequential Membership ID', s.membershipNumber!, Icons.badge_outlined),
+                if (s.blockedReason != null && s.blockedReason!.isNotEmpty)
+                  _buildDetailRow(context, 'Block Reason', s.blockedReason!, Icons.warning_amber_rounded),
+                if (s.isCurrentlyFrozen)
+                  _buildDetailRow(
+                    context,
+                    'Study Leave (Frozen)',
+                    'Pass paused until ${s.freezeEndDate != null ? DateFormat('dd MMM yyyy').format(s.freezeEndDate!) : "further notice"}',
+                    Icons.ac_unit_rounded,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
+
 
 
   Widget _buildGovIdRow(BuildContext context, String type, String number) {
@@ -5866,3 +6480,38 @@ class _SectionItem extends ConsumerWidget {
     );
   }
 }
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverTabBarDelegate(this._tabBar);
+
+  final TabBar _tabBar;
+
+  @override
+  double get minExtent => _tabBar.preferredSize.height + 1;
+  @override
+  double get maxExtent => _tabBar.preferredSize.height + 1;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    return Container(
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            width: 1,
+          ),
+        ),
+      ),
+      child: _tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+    return _tabBar != oldDelegate._tabBar;
+  }
+}
+

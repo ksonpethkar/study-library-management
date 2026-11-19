@@ -59,6 +59,7 @@ class LibraryModel {
   final String gstLegalName;
   final double gstRate;
   final String sacCode;
+  final DateTime? policyUpdatedAt;
 
   String get effectiveGstin => gstin.trim().toUpperCase();
   double get effectiveGstRate => gstRate > 0 ? gstRate : 18.0;
@@ -155,6 +156,7 @@ class LibraryModel {
     this.gstLegalName = '',
     this.gstRate = 18.0,
     this.sacCode = '999293',
+    this.policyUpdatedAt,
   });
 
   factory LibraryModel.fromJson(Map<String, dynamic> json) {
@@ -225,6 +227,7 @@ class LibraryModel {
       gstLegalName: (json['gstLegalName'] ?? json['legalName'] ?? '').toString().trim(),
       gstRate: (json['gstRate'] as num?)?.toDouble() ?? 18.0,
       sacCode: (json['sacCode'] ?? '999293').toString().trim(),
+      policyUpdatedAt: _parseNullableDate(json['policyUpdatedAt']),
     );
   }
 
@@ -280,6 +283,7 @@ class LibraryModel {
       'gstLegalName': gstLegalName,
       'gstRate': gstRate,
       'sacCode': sacCode,
+      if (policyUpdatedAt != null) 'policyUpdatedAt': policyUpdatedAt!.toIso8601String(),
     };
   }
 
@@ -333,6 +337,8 @@ class LibraryModel {
     String? gstLegalName,
     double? gstRate,
     String? sacCode,
+    DateTime? policyUpdatedAt,
+    bool clearPolicyUpdatedAt = false,
   }) {
     return LibraryModel(
       id: id ?? this.id,
@@ -384,6 +390,7 @@ class LibraryModel {
       gstLegalName: gstLegalName ?? this.gstLegalName,
       gstRate: gstRate ?? this.gstRate,
       sacCode: sacCode ?? this.sacCode,
+      policyUpdatedAt: clearPolicyUpdatedAt ? null : (policyUpdatedAt ?? this.policyUpdatedAt),
     );
   }
 
@@ -450,6 +457,18 @@ class LibraryModel {
       default:
         return WaitingListMode.contactAdmin;
     }
+  }
+
+  static DateTime? _parseNullableDate(dynamic date) {
+    if (date == null) return null;
+    if (date is DateTime) return date;
+    if (date is Timestamp) return date.toDate();
+    if (date is int) return DateTime.fromMillisecondsSinceEpoch(date);
+    if (date is String) return DateTime.tryParse(date);
+    try {
+      return (date as dynamic).toDate();
+    } catch (_) { /* intentionally silent */ }
+    return null;
   }
 
   static DateTime _parseDate(dynamic date) {
