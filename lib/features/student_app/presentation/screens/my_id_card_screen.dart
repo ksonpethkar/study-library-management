@@ -1485,57 +1485,58 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildRuleBullet('Mandatory for reading hall admission & desk verification.'),
-                                _buildRuleBullet('Strict pin-drop silence must be observed inside study zones.'),
-                                _buildRuleBullet('Loss of ID card must be reported immediately to reception.'),
-                                const SizedBox(height: 6),
+                                if (settings.showRules) ...[
+                                  ..._resolveRules(settings, library).map(_buildRuleBullet),
+                                  const SizedBox(height: 6),
+                                ],
 
                                 // Guardian & Emergency Contact Combined Box
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.35),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.emergency_rounded, size: 14, color: Color(0xFFF87171)),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              student.fatherName.isNotEmpty
-                                                  ? 'GUARDIAN & EMERGENCY CONTACT'
-                                                  : 'EMERGENCY CONTACT',
-                                              style: const TextStyle(
-                                                color: Color(0xFF94A3B8),
-                                                fontSize: 7.5,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: 0.5,
+                                if (settings.showEmergencyContact)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.35),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.emergency_rounded, size: 14, color: Color(0xFFF87171)),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                settings.showFatherName && student.fatherName.isNotEmpty
+                                                    ? 'GUARDIAN & EMERGENCY CONTACT'
+                                                    : 'EMERGENCY CONTACT',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF94A3B8),
+                                                  fontSize: 7.5,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 0.5,
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              student.fatherName.isNotEmpty
-                                                  ? '${student.fatherName} (Guardian) • ${student.emergencyContact.isNotEmpty ? student.emergencyContact : (student.phone.isNotEmpty ? student.phone : effectiveReception)}'
-                                                  : 'Emergency: ${student.emergencyContact.isNotEmpty ? student.emergencyContact : (student.phone.isNotEmpty ? student.phone : effectiveReception)}',
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                color: Color(0xFFE2E8F0),
-                                                fontSize: 9.5,
-                                                fontWeight: FontWeight.bold,
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                settings.showFatherName && student.fatherName.isNotEmpty
+                                                    ? '${student.fatherName} (Guardian) • ${student.emergencyContact.isNotEmpty ? student.emergencyContact : (student.phone.isNotEmpty ? student.phone : effectiveReception)}'
+                                                    : 'Emergency: ${student.emergencyContact.isNotEmpty ? student.emergencyContact : (student.phone.isNotEmpty ? student.phone : effectiveReception)}',
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Color(0xFFE2E8F0),
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
                               ],
                             ),
                           ),
@@ -1693,31 +1694,32 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                       ),
                       const SizedBox(height: 8),
 
-                      // Bottom Contact Bar
-                      Container(
-                        padding: const EdgeInsets.only(top: 6),
-                        decoration: BoxDecoration(
-                          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.15))),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.support_agent_rounded, size: 13, color: Color(0xFFFB7185)),
-                            const SizedBox(width: 6),
-                            Text(
-                              effectiveHelpline == effectiveReception || effectiveReception.isEmpty
-                                  ? 'Helpline & Reception: $effectiveHelpline'
-                                  : 'Helpline: $effectiveHelpline  •  Reception: $effectiveReception',
-                              style: const TextStyle(
-                                color: Color(0xFFE2E8F0),
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.3,
+                      // Bottom Contact Bar (Gated by admin settings)
+                      if (settings.showHelpline)
+                        Container(
+                          padding: const EdgeInsets.only(top: 6),
+                          decoration: BoxDecoration(
+                            border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.15))),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.support_agent_rounded, size: 13, color: Color(0xFFFB7185)),
+                              const SizedBox(width: 6),
+                              Text(
+                                effectiveHelpline == effectiveReception || effectiveReception.isEmpty
+                                    ? 'Helpline & Reception: $effectiveHelpline'
+                                    : 'Helpline: $effectiveHelpline  •  Reception: $effectiveReception',
+                                style: const TextStyle(
+                                  color: Color(0xFFE2E8F0),
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.3,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
