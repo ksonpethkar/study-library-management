@@ -6665,5 +6665,54 @@ void main() {
       expect(privacyEn, contains('Security'));
       expect(privacyMr, contains('गोपनीयता'));
     });
+
+    test('Test 136: TYPOGRAPHY, FONT SCALING & STUDENT PORTAL ACCESSIBILITY', () {
+      // 1. Font scale factors & boundary compliance
+      expect(AppFontScale.compact.factor, equals(0.88));
+      expect(AppFontScale.compact.percentage, equals('88%'));
+      expect(AppFontScale.standard.factor, equals(1.00));
+      expect(AppFontScale.standard.percentage, equals('100%'));
+      expect(AppFontScale.comfort.factor, equals(1.12));
+      expect(AppFontScale.comfort.percentage, equals('112%'));
+      expect(AppFontScale.large.factor, equals(1.25));
+      expect(AppFontScale.large.percentage, equals('125%'));
+
+      // Clamping limits from app.dart (0.85 min, 1.30 max)
+      for (final scale in AppFontScale.values) {
+        expect(scale.factor, greaterThanOrEqualTo(0.85));
+        expect(scale.factor, lessThanOrEqualTo(1.30));
+        expect(scale.label.isNotEmpty, isTrue);
+        expect(scale.description.isNotEmpty, isTrue);
+      }
+
+      // 2. Font family definitions & typography pairings
+      expect(AppFontFamily.modern.id, equals('modern'));
+      expect(AppFontFamily.modern.name, equals('Modern Clean'));
+      expect(AppFontFamily.modern.headingFamily, equals('Poppins'));
+      expect(AppFontFamily.modern.bodyFamily, equals('Inter'));
+
+      expect(AppFontFamily.academic.id, equals('academic'));
+      expect(AppFontFamily.academic.name, equals('Academic Elite'));
+      expect(AppFontFamily.academic.headingFamily, equals('Outfit'));
+      expect(AppFontFamily.academic.bodyFamily, equals('Plus Jakarta Sans'));
+
+      expect(AppFontFamily.warm.id, equals('warm'));
+      expect(AppFontFamily.warm.name, equals('Warm Scholar'));
+      expect(AppFontFamily.warm.headingFamily, equals('Lexend'));
+      expect(AppFontFamily.warm.bodyFamily, equals('Nunito Sans'));
+
+      // 3. State integrity and copyWith transformations
+      const defaultState = FontSettingsState();
+      expect(defaultState.scale, equals(AppFontScale.standard));
+      expect(defaultState.family, equals(AppFontFamily.modern));
+
+      final compactState = defaultState.copyWith(scale: AppFontScale.compact);
+      expect(compactState.scale, equals(AppFontScale.compact));
+      expect(compactState.family, equals(AppFontFamily.modern));
+
+      final scholasticState = compactState.copyWith(family: AppFontFamily.academic);
+      expect(scholasticState.scale, equals(AppFontScale.compact));
+      expect(scholasticState.family, equals(AppFontFamily.academic));
+    });
   });
 }
