@@ -1050,6 +1050,154 @@ class WhatsAppService {
       title: 'Pass Reactivation Preview',
     );
   }
+
+  /// Sends immediate application acknowledgement when student registers.
+  Future<bool> sendRegistrationReceived({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    String? planName,
+    String? seatLabel,
+    String? libraryHelpline,
+    String? libraryAddress,
+    String? language,
+    BuildContext? context,
+  }) async {
+    final template = MessageTemplateService.getTemplate(
+      type: 'registration_received',
+      language: language ?? 'en',
+    );
+
+    final finalMessage = MessageTemplateService.substitute(
+      template,
+      studentName: studentName,
+      libraryName: libraryName,
+      planName: planName ?? 'Requested Plan',
+      seatLabel: seatLabel ?? 'Auto-Assign',
+      libraryHelpline: libraryHelpline ?? '',
+      libraryAddress: libraryAddress ?? '',
+    );
+
+    return await sendMessage(
+      phone,
+      finalMessage,
+      context: context,
+      recipientName: studentName,
+      title: 'Registration Acknowledgement',
+    );
+  }
+
+  /// Sends an official Seat Reassignment notice to student.
+  Future<bool> sendSeatReassigned({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    required String newSeatLabel,
+    required String membershipId,
+    String? planName,
+    String? libraryHelpline,
+    String? language,
+    BuildContext? context,
+  }) async {
+    final template = MessageTemplateService.getTemplate(
+      type: 'seat_reassignment',
+      language: language ?? 'en',
+    );
+
+    final finalMessage = MessageTemplateService.substitute(
+      template,
+      studentName: studentName,
+      libraryName: libraryName,
+      seatLabel: newSeatLabel,
+      membershipId: membershipId,
+      planName: planName ?? '',
+      libraryHelpline: libraryHelpline ?? '',
+    );
+
+    return await sendMessage(
+      phone,
+      finalMessage,
+      context: context,
+      recipientName: studentName,
+      title: 'Seat Reassignment Notice',
+    );
+  }
+
+  /// Sends a proactive 7-day expiry warning to protect the student's seat reservation.
+  Future<bool> send7DayExpiryWarning({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    required String expiryDate,
+    required int daysRemaining,
+    String? seatLabel,
+    String? planName,
+    String? libraryUpiId,
+    String? libraryHelpline,
+    String? language,
+    BuildContext? context,
+  }) async {
+    final template = MessageTemplateService.getTemplate(
+      type: 'expiry_warning_7days',
+      language: language ?? 'en',
+    );
+
+    final finalMessage = MessageTemplateService.substitute(
+      template,
+      studentName: studentName,
+      libraryName: libraryName,
+      expiryDate: expiryDate,
+      daysRemaining: daysRemaining.toString(),
+      seatLabel: seatLabel ?? '',
+      planName: planName ?? '',
+      libraryUpiId: libraryUpiId ?? '',
+      libraryHelpline: libraryHelpline ?? '',
+    );
+
+    return await sendMessage(
+      phone,
+      finalMessage,
+      context: context,
+      recipientName: studentName,
+      title: '7-Day Expiry Alert Preview',
+    );
+  }
+
+  /// Sends a digital ID card ready alert to the student.
+  Future<bool> sendIdCardReady({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    required String membershipId,
+    String? seatLabel,
+    String? expiryDate,
+    String? libraryHelpline,
+    String? language,
+    BuildContext? context,
+  }) async {
+    final template = MessageTemplateService.getTemplate(
+      type: 'id_card_ready',
+      language: language ?? 'en',
+    );
+
+    final finalMessage = MessageTemplateService.substitute(
+      template,
+      studentName: studentName,
+      libraryName: libraryName,
+      membershipId: membershipId,
+      seatLabel: seatLabel ?? '',
+      expiryDate: expiryDate ?? '',
+      libraryHelpline: libraryHelpline ?? '',
+    );
+
+    return await sendMessage(
+      phone,
+      finalMessage,
+      context: context,
+      recipientName: studentName,
+      title: 'Digital ID Card Ready',
+    );
+  }
 }
 
 /// Provider for WhatsAppService

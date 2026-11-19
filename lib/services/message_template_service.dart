@@ -414,6 +414,178 @@ class MessageTemplateService {
       '📞 *हेल्पलाईन:* {libraryHelpline}\n\n'
       '— *{libraryName} व्यवस्थापन*';
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // 6. REGISTRATION RECEIVED PRESETS (Immediate Acknowledgement)
+  // ──────────────────────────────────────────────────────────────────────────
+  static const defaultRegistrationReceivedTemplate =
+      '📋 *Application Received — {libraryName}*\n\n'
+      'Dear *{studentName}*,\n'
+      'Thank you for submitting your admission application! We have safely received your request and our desk management is reviewing your documents.\n\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '📌 *APPLICATION SUMMARY*\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '👤 *Applicant Name:* {studentName}\n'
+      '📦 *Selected Plan:* {planName}\n'
+      '💺 *Preferred Desk:* {seatLabel}\n'
+      '⏱️ *Review Window:* Usually approved within 24 hours\n\n'
+      'We will notify you immediately once your admission is approved. 🎓✨\n\n'
+      '📞 *Helpline:* {libraryHelpline}\n'
+      '📍 *Address:* {libraryAddress}\n\n'
+      '— *Team {libraryName}*';
+
+  static const registrationReceivedHindi =
+      '📋 *प्रवेश आवेदन प्राप्त हुआ — {libraryName}*\n\n'
+      'नमस्ते *{studentName}*,\n'
+      'आपका प्रवेश आवेदन सफलतापूर्वक प्राप्त हो गया है। हमारा प्रबंधन दल आपके दस्तावेजों की समीक्षा कर रहा है।\n\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '📌 *आवेदन विवरण*\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '👤 *विद्यार्थी का नाम:* {studentName}\n'
+      '📦 *चुना गया प्लान:* {planName}\n'
+      '💺 *डेस्क:* {seatLabel}\n'
+      '⏱️ *अनुमोदन समय:* सामान्यतः २४ घंटों के भीतर\n\n'
+      'प्रवेश स्वीकृत होते ही आपको सूचित किया जाएगा। 📚\n\n'
+      '📞 *हेल्पलाइन:* {libraryHelpline}\n'
+      '— *{libraryName} प्रबंधन*';
+
+  static const registrationReceivedMarathi =
+      '📋 *प्रवेश अर्ज प्राप्त झाला — {libraryName}*\n\n'
+      'सस्नेह नमस्कार *{studentName}*,\n'
+      'आपला लायब्ररी प्रवेश अर्ज यशस्वीरीत्या प्राप्त झाला आहे. आपले कागदपत्रे पडताळणी प्रक्रियेत आहेत.\n\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '📌 *अर्जाचा संक्षिप्त तपशील*\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '👤 *विद्यार्थ्याचे नाव:* {studentName}\n'
+      '📦 *निवडलेला प्लॅन:* {planName}\n'
+      '💺 *आरक्षित डेस्क:* {seatLabel}\n'
+      '⏱️ *मंजुरी कालावधी:* साधारण २४ तासांच्या आत\n\n'
+      'प्रवेश मंजूर होताच आपणास त्वरित संदेश पाठविला जाईल. 📚✨\n\n'
+      '📞 *हेल्पलाईन:* {libraryHelpline}\n'
+      '— *{libraryName} व्यवस्थापन*';
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 7. SEAT REASSIGNMENT PRESETS
+  // ──────────────────────────────────────────────────────────────────────────
+  static const defaultSeatReassignmentTemplate =
+      '🔄 *Seat Reassignment Notice — {libraryName}*\n\n'
+      'Dear *{studentName}*,\n'
+      'Please note that your study desk allocation has been updated by the library administration.\n\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '💺 *NEW DESK DETAILS*\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '🆔 *Member ID:* {membershipId}\n'
+      '💺 *New Allocated Desk:* {seatLabel}\n'
+      '📦 *Enrolled Plan:* {planName}\n\n'
+      'Please report to your newly allocated study desk on your next visit.\n\n'
+      '📞 *Helpline:* {libraryHelpline}\n'
+      '— *Management, {libraryName}*';
+
+  static const seatReassignmentHindi =
+      '🔄 *सीट परिवर्तन सूचना — {libraryName}*\n\n'
+      'नमस्ते *{studentName}*,\n'
+      'कृपया ध्यान दें कि लाइब्रेरी प्रबंधन द्वारा आपकी अध्ययन सीट बदल दी गई है।\n\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '💺 *नई सीट विवरण*\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '🆔 *सदस्यता क्रमांक:* {membershipId}\n'
+      '💺 *नई आवंटित सीट:* {seatLabel}\n\n'
+      'कृपया अगली बार से अपनी नई सीट पर ही अध्ययन करें।\n\n'
+      '📞 *हेल्पलाइन:* {libraryHelpline}\n'
+      '— *{libraryName} प्रबंधन*';
+
+  static const seatReassignmentMarathi =
+      '🔄 *डेस्क बदल / पुनर्नियोजन सूचना — {libraryName}*\n\n'
+      'सस्नेह नमस्कार *{studentName}*,\n'
+      'लायब्ररी व्यवस्थापनाकडून आपल्या अभ्यासाची डेस्क बदलण्यात आली आहे याची नोंद घ्यावी.\n\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '💺 *नवीन डेस्क तपशील*\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '🆔 *नोंदणी क्रमांक:* {membershipId}\n'
+      '💺 *नवीन नेमून दिलेली डेस्क:* {seatLabel}\n\n'
+      'कृपया आपल्या पुढील अभ्यासाच्या वेळेस नवीन डेस्कवर बसावे.\n\n'
+      '📞 *हेल्पलाईन:* {libraryHelpline}\n'
+      '— *{libraryName} व्यवस्थापन*';
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 8. 7-DAY EXPIRY WARNING PRESETS (Proactive Protection)
+  // ──────────────────────────────────────────────────────────────────────────
+  static const defaultExpiryWarning7DaysTemplate =
+      '⏳ *Membership Renewal Reminder — {libraryName}*\n\n'
+      'Dear *{studentName}*,\n'
+      'This is a friendly reminder that your library membership plan will expire in *{daysRemaining} days* on *{expiryDate}*.\n\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '🔒 *DESK PROTECTION SUMMARY*\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '💺 *Allocated Desk:* {seatLabel}\n'
+      '📦 *Current Plan:* {planName}\n'
+      '📅 *Expiry Date:* {expiryDate}\n\n'
+      'To guarantee continuous study access and prevent your desk from being reallocated, please renew early.\n\n'
+      '📲 *Instant UPI Renewal:* `{libraryUpiId}`\n'
+      '📞 *Helpline:* {libraryHelpline}\n\n'
+      'Wishing you uninterrupted focus & success in your studies! 📚🎯\n'
+      '— *Team {libraryName}*';
+
+  static const expiryWarning7DaysHindi =
+      '⏳ *सदस्यता नवीनीकरण अग्रिम सूचना — {libraryName}*\n\n'
+      'नमस्ते *{studentName}*,\n'
+      'आपकी लाइब्रेरी सदस्यता अगले *{daysRemaining} दिनों* में (*{expiryDate}*) समाप्त हो रही है।\n\n'
+      '💺 *आपकी सीट:* {seatLabel}\n'
+      '📅 *अंतिम तिथि:* {expiryDate}\n\n'
+      'अपनी सीट सुरक्षित रखने और निर्बाध अध्ययन के लिए कृपया समय पर नवीनीकरण कराएं।\n\n'
+      '📲 *UPI भुगतान:* `{libraryUpiId}`\n'
+      '📞 *हेल्पलाइन:* {libraryHelpline}\n'
+      '— *{libraryName}*';
+
+  static const expiryWarning7DaysMarathi =
+      '⏳ *सदस्यता नूतनीकरण पूर्वसूचना — {libraryName}*\n\n'
+      'सस्नेह नमस्कार *{studentName}*,\n'
+      'आपल्या लायब्ररी सदस्यतेची मुदत पुढील *{daysRemaining} दिवसांत* म्हणजेच *{expiryDate}* रोजी संपत आहे.\n\n'
+      '💺 *आपली आरक्षित डेस्क:* {seatLabel}\n'
+      '📅 *मुदत संपण्याची तारीख:* {expiryDate}\n\n'
+      'अभ्यासात खंड पडू नये व आपली डेस्क सुरक्षित राहावी यासाठी मुदतीपूर्वी नूतनीकरण करावे.\n\n'
+      '📲 *UPI नूतनीकरण:* `{libraryUpiId}`\n'
+      '📞 *हेल्पलाईन:* {libraryHelpline}\n'
+      '— *{libraryName} व्यवस्थापन*';
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 9. DIGITAL ID CARD READY PRESETS
+  // ──────────────────────────────────────────────────────────────────────────
+  static const defaultIdCardReadyTemplate =
+      '🪪 *Your Digital ID Card is Ready — {libraryName}*\n\n'
+      'Dear *{studentName}*,\n'
+      'Your official Digital Library Membership Card has been generated and is now active!\n\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '🆔 *ID CARD DETAILS*\n'
+      '━━━━━━━━━━━━━━━━━━━━\n'
+      '👤 *Name:* {studentName}\n'
+      '🆔 *Member ID:* {membershipId}\n'
+      '💺 *Allocated Desk:* {seatLabel}\n'
+      '📅 *Valid Till:* {expiryDate}\n\n'
+      '📱 *How to access:* Open the Cozy Corner App ➔ Tap **My ID Card** to view, download, or show at reception.\n\n'
+      '📞 *Helpline:* {libraryHelpline}\n'
+      '— *Team {libraryName}*';
+
+  static const idCardReadyHindi =
+      '🪪 *डिजिटल आईडी कार्ड तैयार है — {libraryName}*\n\n'
+      'नमस्ते *{studentName}*,\n'
+      'आपका डिजिटल लाइब्रेरी पहचान पत्र (ID Card) तैयार हो चुका है!\n\n'
+      '🆔 *सदस्यता आईडी:* {membershipId}\n'
+      '💺 *सीट:* {seatLabel}\n\n'
+      '📱 ऐप में जाकर "My ID Card" विकल्प पर अपना कार्ड देखें और डाउनलोड करें।\n\n'
+      '📞 *हेल्पलाइन:* {libraryHelpline}\n'
+      '— *{libraryName}*';
+
+  static const idCardReadyMarathi =
+      '🪪 *आपले डिजिटल ओळखपत्र तयार आहे — {libraryName}*\n\n'
+      'सस्नेह नमस्कार *{studentName}*,\n'
+      'आपले अधिकृत डिजिटल लायब्ररी ओळखपत्र (Smart ID Card) आता तयार झाले आहे!\n\n'
+      '🆔 *नोंदणी क्रमांक (ID):* {membershipId}\n'
+      '💺 *नेमून दिलेली डेस्क:* {seatLabel}\n'
+      '📅 *वैधता:* {expiryDate}\n\n'
+      '📱 Cozy Corner अ‍ॅप उघडून **My ID Card** पर्यायावर क्लिक करून आपले कार्ड डाऊनलोड करा.\n\n'
+      '📞 *हेल्पलाईन:* {libraryHelpline}\n'
+      '— *{libraryName} व्यवस्थापन*';
+
   /// Default receipt footer template
   static const defaultReceiptFooter =
       'Thank you for choosing {libraryName}. We wish you great success!';
@@ -457,6 +629,33 @@ class MessageTemplateService {
         if (lang == 'hi') return waitlistOfferHindi;
         if (lang == 'mr') return waitlistOfferMarathi;
         return defaultWaitlistOfferTemplate;
+
+      case 'registration_received':
+      case 'registrationReceived':
+      case 'application_received':
+        if (lang == 'hi') return registrationReceivedHindi;
+        if (lang == 'mr') return registrationReceivedMarathi;
+        return defaultRegistrationReceivedTemplate;
+
+      case 'seat_reassignment':
+      case 'seatReassignment':
+      case 'seat_changed':
+        if (lang == 'hi') return seatReassignmentHindi;
+        if (lang == 'mr') return seatReassignmentMarathi;
+        return defaultSeatReassignmentTemplate;
+
+      case 'expiry_warning_7days':
+      case 'expiryWarning7Days':
+      case 'expiry_7d':
+        if (lang == 'hi') return expiryWarning7DaysHindi;
+        if (lang == 'mr') return expiryWarning7DaysMarathi;
+        return defaultExpiryWarning7DaysTemplate;
+
+      case 'id_card_ready':
+      case 'idCardReady':
+        if (lang == 'hi') return idCardReadyHindi;
+        if (lang == 'mr') return idCardReadyMarathi;
+        return defaultIdCardReadyTemplate;
 
       default:
         return defaultWelcomeTemplate;

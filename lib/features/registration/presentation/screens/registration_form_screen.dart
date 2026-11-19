@@ -945,6 +945,7 @@ class _RegistrationFormScreenState
           LinearProgressIndicator(value: progressValue),
           Expanded(
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.symmetric(
                 horizontal: MediaQuery.of(context).size.width < 380 ? 16.0 : 24.0,
                 vertical: 20.0,
@@ -1140,6 +1141,17 @@ class _RegistrationFormScreenState
                                   child: AbsorbPointer(
                                     child: TextFormField(
                                       controller: _dobController,
+                                      validator: (v) {
+                                        if (_isFieldRequired('dob') && (v == null || v.trim().isEmpty)) {
+                                          return 'Date of birth is required';
+                                        }
+                                        if (v != null && v.trim().isNotEmpty) {
+                                          if (!GovIdValidator.isValidDob(v.trim())) {
+                                            return 'Enter valid date (Age 10-100)';
+                                          }
+                                        }
+                                        return null;
+                                      },
                                       decoration: InputDecoration(
                                         labelText: 'Date of Birth',
                                         prefixIcon: const Icon(Icons.cake_rounded),

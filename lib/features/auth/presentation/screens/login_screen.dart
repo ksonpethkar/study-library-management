@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -747,10 +748,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () => Navigator.pop(ctx, true),
-                  icon: Image.network(
-                    'https://www.google.com/favicon.ico',
-                    width: 18, height: 18,
-                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.login, size: 18),
+                  icon: CachedNetworkImage(
+                    imageUrl: 'https://www.google.com/favicon.ico',
+                    width: 18,
+                    height: 18,
+                    placeholder: (context, url) => const SizedBox(width: 18, height: 18),
+                    errorWidget: (context, url, error) => const Icon(Icons.login, size: 18),
                   ),
                   label: const Text('Continue with Google'),
                   style: FilledButton.styleFrom(
@@ -991,11 +994,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: _handleSignIn,
-                      icon: Image.network(
-                        'https://www.google.com/favicon.ico',
+                      icon: CachedNetworkImage(
+                        imageUrl: 'https://www.google.com/favicon.ico',
                         width: 20,
                         height: 20,
-                        errorBuilder: (context, error, stackTrace) =>
+                        placeholder: (context, url) => const SizedBox(width: 20, height: 20),
+                        errorWidget: (context, url, error) =>
                             const Icon(Icons.login_rounded, size: 20),
                       ),
                       label: const Text(

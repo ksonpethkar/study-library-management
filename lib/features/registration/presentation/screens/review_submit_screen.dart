@@ -20,6 +20,7 @@ import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
+import 'package:study_library/services/whatsapp_service.dart';
 
 class ReviewSubmitScreen extends ConsumerStatefulWidget {
   const ReviewSubmitScreen({super.key});
@@ -34,6 +35,10 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
   String _statusMessage = 'Submitting request...';
   bool _submitted = false;
   String? _requestId;
+  String? _submittedStudentName;
+  String? _submittedPhone;
+  String? _submittedPlanName;
+  String? _submittedSeatLabel;
   
   int _submitAttempts = 0;
   static const _maxAttempts = 3;
@@ -279,22 +284,57 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         throw Exception('You already have a pending registration request for this library. Please wait for admin approval.');
       }
 
-      // 3. Check if phone number is already registered to an active student (L6 Fix)
+      // 3. Multi-format phone duplicate check (RF-3 Fix)
       if (studentPhone.isNotEmpty) {
-        QuerySnapshot? existingPhone;
+        final cleanDigits = studentPhone.replaceAll(RegExp(r'\D'), '');
+        final standard10 = cleanDigits.length >= 10
+            ? cleanDigits.substring(cleanDigits.length - 10)
+            : cleanDigits;
+        final phoneVariants = <String>{
+          studentPhone,
+          standard10,
+          '+91$standard10',
+          '91$standard10',
+        }.toList();
+
+        // 3a. Check if phone is already registered to an active student in this library
         try {
-          existingPhone = await FirebaseFirestore.instance
+          final existingPhone = await FirebaseFirestore.instance
               .collection('libraries')
               .doc(libraryId)
               .collection('students')
-              .where('phone', isEqualTo: studentPhone)
+              .where('phone', whereIn: phoneVariants)
               .limit(1)
               .get();
+
+          if (existingPhone.docs.isNotEmpty) {
+            throw Exception('A student with mobile number $standard10 is already registered in this library. If this is you, please log in.');
+          }
         } catch (e) {
-          if (kDebugMode) debugPrint('Phone duplicate pre-check skipped: $e');
+          if (e.toString().contains('already registered')) rethrow;
+          if (kDebugMode) debugPrint('Phone duplicate pre-check fallback: $e');
         }
-        if (existingPhone != null && existingPhone.docs.isNotEmpty) {
-          throw Exception('A student with mobile number $studentPhone is already registered in this library. If this is you, please log in.');
+
+        // 3b. Check if another student has a pending request with this phone number
+        try {
+          final pendingPhone = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('requests')
+              .where('studentPhone', whereIn: phoneVariants)
+              .where('status', isEqualTo: 'pending')
+              .limit(1)
+              .get();
+
+          if (pendingPhone.docs.isNotEmpty) {
+            final doc = pendingPhone.docs.first.data();
+            if (doc['studentId'] != currentUser.uid) {
+              throw Exception('An admission application with mobile number $standard10 is already under review. Please visit library reception.');
+            }
+          }
+        } catch (e) {
+          if (e.toString().contains('already under review')) rethrow;
+          if (kDebugMode) debugPrint('Pending phone pre-check fallback: $e');
         }
       }
 
@@ -438,7 +478,28 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
           'isRead': false,
           'requestId': requestRef.id,
         });
+
+        // NF-1: Dispatch immediate in-app confirmation notification to applicant
+        await AppNotificationService.sendNotification(
+          libraryId: libraryId,
+          title: '📋 Application Submitted Successfully',
+          body: 'Dear $sName, your admission application has been received! Our desk manager will review and confirm your seat within 24 hours.',
+          type: 'admission',
+          targetRole: 'student',
+          targetUserId: currentUser.uid,
+          actionRoute: Routes.studentHome,
+          metadata: {
+            'requestId': requestRef.id,
+            'planName': resolvedPlanName,
+            'seatLabel': seatDetails.isAutoAssign ? 'Auto-Assign' : seatDetails.seatLabel,
+          },
+        );
       } catch (_) { /* intentionally silent */ }
+
+      final savedStudentName = (regData['name'] as String?)?.trim() ?? 'Student';
+      final savedPhone = studentPhone;
+      final savedPlanName = resolvedPlanName;
+      final savedSeatLabel = seatDetails.isAutoAssign ? 'Auto-Assign' : seatDetails.seatLabel;
 
       // Clear registration state
       ref.read(registrationNotifierProvider.notifier).clear();
@@ -457,6 +518,10 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
           _isSubmitting = false;
           _submitted = true;
           _requestId = requestRef.id;
+          _submittedStudentName = savedStudentName;
+          _submittedPhone = savedPhone;
+          _submittedPlanName = savedPlanName;
+          _submittedSeatLabel = savedSeatLabel;
         });
       }
     } catch (e, stack) {
@@ -509,10 +574,17 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
     final selectedPlan = plansAsync.value?.where((p) => p.id == selectedPlanId).firstOrNull;
 
     if (_submitted) {
+      final libraryVal = ref.watch(currentLibraryProvider).value;
       return Scaffold(
         body: SafeArea(
           child: _SubmissionSuccessView(
             requestId: _requestId,
+            studentName: _submittedStudentName,
+            studentPhone: _submittedPhone,
+            planName: _submittedPlanName,
+            seatLabel: _submittedSeatLabel,
+            libraryName: libraryVal?.name,
+            libraryHelpline: libraryVal?.phone,
             onDone: () async {
               final user = FirebaseAuth.instance.currentUser;
               if (user != null) {
@@ -1318,10 +1390,22 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
 class _SubmissionSuccessView extends StatefulWidget {
   final String? requestId;
   final VoidCallback onDone;
+  final String? studentName;
+  final String? studentPhone;
+  final String? planName;
+  final String? seatLabel;
+  final String? libraryName;
+  final String? libraryHelpline;
 
   const _SubmissionSuccessView({
     required this.requestId,
     required this.onDone,
+    this.studentName,
+    this.studentPhone,
+    this.planName,
+    this.seatLabel,
+    this.libraryName,
+    this.libraryHelpline,
   });
 
   @override
@@ -1487,6 +1571,7 @@ class _SubmissionSuccessViewState extends State<_SubmissionSuccessView>
         // Main Celebratory Content
         Center(
           child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1700,9 +1785,46 @@ class _SubmissionSuccessViewState extends State<_SubmissionSuccessView>
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
-                // 4. Primary Done Action Button
+                // 4. Optional WhatsApp Updates Button (NF-1)
+                if (widget.studentPhone != null && widget.studentPhone!.isNotEmpty) ...[
+                  _buildStaggeredItem(
+                    startInterval: 0.5,
+                    endInterval: 0.9,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          WhatsAppService().sendRegistrationReceived(
+                            phone: widget.studentPhone!,
+                            studentName: widget.studentName ?? 'Student',
+                            libraryName: widget.libraryName ?? 'The Cozy Corner',
+                            planName: widget.planName,
+                            seatLabel: widget.seatLabel,
+                            libraryHelpline: widget.libraryHelpline,
+                            context: context,
+                          );
+                        },
+                        icon: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF25D366)),
+                        label: const Text(
+                          'Receive Updates on WhatsApp',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+                          side: const BorderSide(color: Color(0xFF25D366), width: 1.2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // 5. Primary Done Action Button
                 _buildStaggeredItem(
                   startInterval: 0.6,
                   endInterval: 1.0,

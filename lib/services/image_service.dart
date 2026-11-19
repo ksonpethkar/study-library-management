@@ -357,15 +357,13 @@ class ImageService {
                           ),
                           fit: BoxFit.contain,
                         )
-                      : Image.network(
-                          imageUrl,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Center(
-                              child: CircularProgressIndicator(color: Colors.white),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) => const Column(
+                      : CachedNetworkImage(
+                          imageUrl: imageUrl,
+                          fit: BoxFit.contain,
+                          placeholder: (context, url) => const Center(
+                            child: CircularProgressIndicator(color: Colors.white),
+                          ),
+                          errorWidget: (context, url, error) => const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
@@ -441,12 +439,23 @@ class ImageService {
       } catch (_) { /* intentionally silent */ }
     }
     if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
-      return Image.network(
-        pathOrUrl,
+      return CachedNetworkImage(
+        imageUrl: pathOrUrl,
         fit: fit,
         width: width,
         height: height,
-        errorBuilder: (context, error, stackTrace) => const Center(
+        placeholder: (context, url) => SizedBox(
+          width: width,
+          height: height,
+          child: const Center(
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+        errorWidget: (context, url, error) => const Center(
           child: Icon(Icons.broken_image, color: Colors.grey),
         ),
       );

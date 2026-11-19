@@ -1,90 +1,101 @@
-﻿{
-    "web":  {
-                "version":  "1.5.56",
-                "buildNumber":  2073,
-                "buildDate":  "2026-11-19"
-            },
-    "versionCode":  2073,
-    "latestVersionCode":  2073,
-    "latestBuild":  2073,
-    "latestVersion":  "1.5.56",
-    "versionName":  "1.5.56+2073",
-    "apkSize":  "138.1 MB",
-    "apkType":  "Universal Compatible (Installs on all Android phones)",
-    "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.56/StudyLibrary-arm64-v8a.apk",
-    "arm64ApkSize":  "54.2 MB",
-    "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.56/StudyLibrary-Universal.apk",
-    "legacy32DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.56/StudyLibrary-armeabi-v7a.apk",
-    "aabDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.56/StudyLibrary.aab",
-    "aabSize":  "105.2 MB",
-    "releaseNotes":  "v1.5.56 (Build 2073): Production release resolving Firestore document size quota with safe JPEG compression, seamless Google Sign-In with mobile enrollment link, dynamic seat maps with live gender restrictions, and synchronized ID card themes.",
-    "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.56/StudyLibrary.apk",
-    "mandatory":  false,
-    "organization":  {
-                         "name":  "The Cozy Corner Study Centre",
-                         "address":  "Front Of Reliance Fashion Factory, Nath Road, Parli-431515",
-                         "contact":  "+91 94032 43830",
-                         "email":  "thecozycornersc@gmail.com",
-                         "operatingHours":  "6:00 AM - 11:00 PM",
-                         "accentColor":  "#5D4037",
-                         "logoUrl":  "/app/favicon.png"
-                     },
-    "studentFeatures":  [
-                            {
-                                "icon":  "document_scanner",
-                                "badge":  "Form Builder",
-                                "title":  "Smart Admission Form \u0026 Custom Categories",
-                                "description":  "Category-grouped custom fields, native calendar date selection, numeric formatting, and dynamic dropdown options during registration."
-                            },
-                            {
-                                "icon":  "event_seat",
-                                "badge":  "Study Freeze",
-                                "title":  "Membership Pause \u0026 Study Freeze Requests",
-                                "description":  "Request a temporary pause on your active study membership directly from your account during exam breaks or travel."
-                            },
-                            {
-                                "icon":  "badge",
-                                "badge":  "Smart Pass",
-                                "title":  "Real-Time Pass Validity \u0026 Dynamic Status",
-                                "description":  "Your digital student pass automatically updates to Active, Grace Period, or Expired with live anti-fraud verification."
-                            },
-                            {
-                                "icon":  "campaign",
-                                "badge":  "Notice Board",
-                                "title":  "Multi-Notice Carousel \u0026 Dedicated Notice Board",
-                                "description":  "Browse library announcements in a swipeable dashboard carousel and view full circulars in the circulars hub."
-                            },
-                            {
-                                "icon":  "navigation",
-                                "badge":  "Seamless Nav",
-                                "title":  "Smart Back Navigation \u0026 Double-Tap Exit Guard",
-                                "description":  "Smooth page transitions with dedicated back buttons and double-tap exit prevention across all student screens."
-                            }
-                        ],
-    "adminFeatures":  [
-                          {
-                              "icon":  "lock",
-                              "badge":  "Security Hardening",
-                              "title":  "Staff RBAC \u0026 Zero Superadmin Escalation",
-                              "description":  "Strict granular staff role permissions (canDeleteStudents, canViewRevenue, etc.) without granting unintended master privileges."
-                          },
-                          {
-                              "icon":  "sync",
-                              "badge":  "Full Backup",
-                              "title":  "Recursive Section Seats Backup \u0026 Restore",
-                              "description":  "Complete JSON database exports now recursively preserve all hall section desks and seat allocations."
-                          },
-                          {
-                              "icon":  "approval",
-                              "badge":  "Freeze Manager",
-                              "title":  "Study Freeze Review \u0026 Auto-Extension Engine",
-                              "description":  "Review and approve student freeze requests with automated plan recalculations and seat holding adjustments."
-                          },
-                          {
-                              "icon":  "system_update",
-                              "badge":  "Auto-Lock",
-                              "title":  "Background App Auto-Lock \u0026 Session Revocation",
-                              "description":  "App automatically locks with PIN/Biometrics upon backgrounding, paired with real remote session revocation."
-                          }
-                      ]
+{
+  "web": {
+    "version": "1.5.57",
+    "buildNumber": 2074,
+    "buildDate": "2026-11-19"
+  },
+  "versionCode": 2074,
+  "latestVersionCode": 2074,
+  "latestBuild": 2074,
+  "latestVersion": "1.5.57",
+  "versionName": "1.5.57+2074",
+  "apkSize": "139.1 MB",
+  "apkType": "Universal Compatible (Installs on all Android phones)",
+  "arm64DownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary-arm64-v8a.apk",
+  "arm64ApkSize": "54.5 MB",
+  "universalDownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary.apk",
+  "legacy32DownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary-armeabi-v7a.apk",
+  "aabDownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.56/StudyLibrary.aab",
+  "aabSize": "105.2 MB",
+  "releaseNotes": "v1.5.57 (Build 2074): Production E2E QA release featuring hardened storage security rules, date-of-birth validation and duplicate applicant prevention, 4 new production WhatsApp templates (registration received, seat reassignment, 7-day expiry, ID card ready), FCM token rotation listener, network image caching, active membership query optimization, and resilient web base routing.",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary.apk",
+  "mandatory": false,
+  "organization": {
+    "name": "The Cozy Corner Study Centre",
+    "address": "Front Of Reliance Fashion Factory, Nath Road, Parli-431515",
+    "contact": "+91 94032 43830",
+    "email": "thecozycornersc@gmail.com",
+    "operatingHours": "6:00 AM - 11:00 PM",
+    "accentColor": "#5D4037",
+    "logoUrl": "/app/favicon.png"
+  },
+  "studentFeatures": [
+    {
+      "icon": "document_scanner",
+      "badge": "Form Builder",
+      "title": "Smart Admission Form & Custom Categories",
+      "description": "Category-grouped custom fields, native calendar date selection, numeric formatting, and dynamic dropdown options during registration."
+    },
+    {
+      "icon": "event_seat",
+      "badge": "Study Freeze",
+      "title": "Membership Pause & Study Freeze Requests",
+      "description": "Request a temporary pause on your active study membership directly from your account during exam breaks or travel."
+    },
+    {
+      "icon": "badge",
+      "badge": "Smart Pass",
+      "title": "Real-Time Pass Validity & Dynamic Status",
+      "description": "Your digital student pass automatically updates to Active, Grace Period, or Expired with live anti-fraud verification."
+    },
+    {
+      "icon": "campaign",
+      "badge": "Notice Board",
+      "title": "Multi-Notice Carousel & Dedicated Notice Board",
+      "description": "Browse library announcements in a swipeable dashboard carousel and view full circulars in the circulars hub."
+    },
+    {
+      "icon": "navigation",
+      "badge": "Seamless Nav",
+      "title": "Smart Back Navigation & Double-Tap Exit Guard",
+      "description": "Smooth page transitions with dedicated back buttons and double-tap exit prevention across all student screens."
+    }
+  ],
+  "adminFeatures": [
+    {
+      "icon": "lock",
+      "badge": "Security Hardening",
+      "title": "Staff RBAC & Zero Superadmin Escalation",
+      "description": "Strict granular staff role permissions (canDeleteStudents, canViewRevenue, etc.) without granting unintended master privileges."
+    },
+    {
+      "icon": "sync",
+      "badge": "Full Backup",
+      "title": "Recursive Section Seats Backup & Restore",
+      "description": "Complete JSON database exports now recursively preserve all hall section desks and seat allocations."
+    },
+    {
+      "icon": "approval",
+      "badge": "Freeze Manager",
+      "title": "Study Freeze Review & Auto-Extension Engine",
+      "description": "Review and approve student freeze requests with automated plan recalculations and seat holding adjustments."
+    },
+    {
+      "icon": "system_update",
+      "badge": "Auto-Lock",
+      "title": "Background App Auto-Lock & Session Revocation",
+      "description": "App automatically locks with PIN/Biometrics upon backgrounding, paired with real remote session revocation."
+    }
+  ],
+  "android": {
+    "versionCode": 2074,
+    "versionName": "1.5.57+2074",
+    "apkSize": "139.1 MB",
+    "arm64ApkSize": "54.5 MB",
+    "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary.apk",
+    "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary.apk",
+    "arm64DownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary-arm64-v8a.apk",
+    "releasedAt": "2026-11-19T13:56:33.192Z",
+    "releaseNotes": "v1.5.57 (Build 2074): Production E2E QA release featuring hardened storage security rules, date-of-birth validation and duplicate applicant prevention, 4 new production WhatsApp templates (registration received, seat reassignment, 7-day expiry, ID card ready), FCM token rotation listener, network image caching, active membership query optimization, and resilient web base routing."
+  }
 }

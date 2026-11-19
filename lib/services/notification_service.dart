@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:study_library/core/utils/permission_utils.dart';
 
@@ -117,6 +119,25 @@ class NotificationService {
           payload: message.data.toString(),
           channelId: channelId,
         );
+      }
+    });
+
+    // NF-3: Listen for token rotation and keep Firestore user doc in sync
+    // ignore: deprecated_member_use
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+      if (kDebugMode) debugPrint('[NotificationService] FCM token refreshed: $newToken');
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set({
+              'fcmToken': newToken,
+              'tokenUpdatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true))
+            .catchError((e) {
+              if (kDebugMode) debugPrint('[NotificationService] Failed to sync refreshed FCM token: $e');
+            });
       }
     });
   }

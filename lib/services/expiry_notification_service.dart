@@ -27,6 +27,7 @@ class ExpiryNotificationService {
           .collection('libraries')
           .doc(libraryId)
           .collection('students')
+          .where('membershipStatus', isEqualTo: 'active')
           .get();
 
       int notifId = 100;
