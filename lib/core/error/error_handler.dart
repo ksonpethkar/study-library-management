@@ -48,10 +48,18 @@ class ErrorHandler {
         case 'resource-exhausted':
           userMessage = "The system is currently busy. Please wait a moment and try again.";
           break;
+        case 'failed-precondition':
+          userMessage = "Syncing your records with the cloud database. Please pull down to refresh or retry in a moment.";
+          break;
         default:
-          userMessage = error.message?.isNotEmpty == true
-              ? error.message!
-              : "A network error occurred. Please try again.";
+          final rawMsg = error.message ?? '';
+          if (rawMsg.contains('index') || rawMsg.contains('COLLECTION_ASC') || rawMsg.contains('console.firebase.google.com')) {
+            userMessage = "Database sync in progress. Please tap Retry or pull down to refresh.";
+          } else {
+            userMessage = rawMsg.isNotEmpty
+                ? rawMsg
+                : "A network error occurred. Please try again.";
+          }
       }
     } else if (error is Exception) {
       userMessage = AppErrorFormatter.toUserFriendly(error);

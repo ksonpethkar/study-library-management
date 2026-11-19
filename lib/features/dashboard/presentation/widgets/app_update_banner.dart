@@ -42,53 +42,89 @@ class AppUpdateBanner extends ConsumerWidget {
               : theme.colorScheme.primaryContainer.withValues(alpha: 0.25),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Icons.cloud_sync_rounded, color: theme.colorScheme.primary, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 620;
+
+                final textSection = Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.cloud_sync_rounded, color: theme.colorScheme.primary, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            isStudent ? '✨ Student Portal Updated' : '✨ Library Admin Portal Updated',
+                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Version ${info.versionName} is ready with fresh updates and improvements.',
+                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+
+                final actionButtons = Row(
+                  mainAxisSize: isCompact ? MainAxisSize.max : MainAxisSize.min,
+                  mainAxisAlignment: isCompact ? MainAxisAlignment.end : MainAxisAlignment.start,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => WhatsNewService.showChangelog(context, isStudent: isStudent),
+                      icon: const Icon(Icons.auto_awesome, size: 15),
+                      label: const Text("What's New"),
+                    ),
+                    const SizedBox(width: 4),
+                    TextButton(
+                      onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
+                      child: const Text('Later'),
+                    ),
+                    const SizedBox(width: 6),
+                    FilledButton.icon(
+                      onPressed: () => reloadAppWeb(),
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: const Text('Reload'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      ),
+                    ),
+                  ],
+                );
+
+                if (isCompact) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        isStudent ? '✨ Student Portal Updated' : '✨ Library Admin Portal Updated',
-                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Version ${info.versionName} is ready with fresh updates and improvements.',
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                      ),
+                      textSection,
+                      const SizedBox(height: 8),
+                      actionButtons,
                     ],
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () => WhatsNewService.showChangelog(context, isStudent: isStudent),
-                  icon: const Icon(Icons.auto_awesome, size: 15),
-                  label: const Text("What's New"),
-                ),
-                const SizedBox(width: 4),
-                TextButton(
-                  onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
-                  child: const Text('Later'),
-                ),
-                const SizedBox(width: 4),
-                FilledButton.icon(
-                  onPressed: () => reloadAppWeb(),
-                  icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: const Text('Reload'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: theme.colorScheme.onPrimary,
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: textSection),
+                    const SizedBox(width: 12),
+                    actionButtons,
+                  ],
+                );
+              },
             ),
           ),
         );

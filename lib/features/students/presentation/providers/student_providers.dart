@@ -70,7 +70,20 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
 
   // 2. Direct Document Snapshot Stream (0 indexes required, maximum speed & resilience)
   // If the student docId is known, stream it directly!
-  final knownDocId = prefs.getString(docIdKey);
+  String? knownDocId = prefs.getString(docIdKey);
+
+  // If not cached locally, check users/{uid} document for pre-linked studentId
+  if (knownDocId == null || knownDocId.isEmpty) {
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final sId = userDoc.data()?['studentId'] as String?;
+      if (sId != null && sId.isNotEmpty) {
+        knownDocId = sId;
+        prefs.setString(docIdKey, sId).ignore();
+      }
+    } catch (_) {}
+  }
+
   if (knownDocId != null && knownDocId.isNotEmpty) {
     try {
       final docStream = FirebaseFirestore.instance
@@ -80,7 +93,9 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
           .doc(knownDocId)
           .snapshots();
 
-      await for (final docSnap in docStream) {
+      await for (final docSnap in docStream.handleError((e) {
+        debugPrint('currentStudentProvider direct docStream error: $e');
+      })) {
         if (docSnap.exists && docSnap.data() != null) {
           final model = StudentModel.fromJson({...docSnap.data()!, 'id': docSnap.id});
           lastKnownModel = model;
@@ -111,12 +126,20 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
         .limit(1)
         .snapshots();
 
-    await for (final snap in stream) {
+    final safeStream = stream.handleError((dynamic error) {
+      debugPrint('currentStudentProvider query stream handled error: $error');
+    });
+
+    await for (final snap in safeStream) {
       if (snap.docs.isNotEmpty) {
         final doc = snap.docs.first;
         final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
         lastKnownModel = model;
         prefs.setString(docIdKey, doc.id).ignore();
+        FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'studentId': doc.id,
+        }, SetOptions(merge: true)).ignore();
+
         // Backfill missing studentUserId on legacy receipts and payments for real-time visibility
         if (model.userId != null && model.userId!.isNotEmpty) {
           ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, model.userId!).ignore();

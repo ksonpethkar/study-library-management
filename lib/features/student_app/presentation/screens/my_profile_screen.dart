@@ -1386,10 +1386,30 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         error: (err, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(
-              ErrorHandler.handleError(err),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.sync_problem_rounded, size: 54, color: theme.colorScheme.primary),
+                const SizedBox(height: 14),
+                Text(
+                  'Profile Syncing',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  ErrorHandler.handleError(err),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                  onPressed: () {
+                    ref.invalidate(currentStudentProvider);
+                  },
+                ),
+              ],
             ),
           ),
         ),

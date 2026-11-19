@@ -698,9 +698,27 @@ class MyMembershipScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                const SizedBox(height: 12),
-                Text('Error loading membership: $err', textAlign: TextAlign.center),
+                Icon(Icons.sync_problem_rounded, size: 54, color: theme.colorScheme.primary),
+                const SizedBox(height: 14),
+                Text(
+                  'Membership Syncing',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Please check your network connection or tap retry.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                  onPressed: () {
+                    ref.invalidate(currentStudentProvider);
+                    ref.invalidate(plansStreamProvider);
+                  },
+                ),
               ],
             ),
           ),

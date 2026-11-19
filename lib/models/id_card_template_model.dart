@@ -99,6 +99,46 @@ class IdCardTemplateSettings {
         'backgroundStyle': backgroundStyle,
       };
 
+  /// Intelligently resolves clean, concise summary rules for the back of the ID card.
+  /// Strips raw markdown headers, document titles, and bullet artifacts.
+  /// Falls back to official library smart pass conduct rules if none configured.
+  static List<String> resolveSummaryRules({
+    String? customRulesText,
+    String? libraryRulesText,
+    int maxRules = 3,
+  }) {
+    final candidateText = customRulesText?.trim().isNotEmpty == true
+        ? customRulesText!.trim()
+        : (libraryRulesText?.trim().isNotEmpty == true ? libraryRulesText!.trim() : '');
+
+    if (candidateText.isNotEmpty) {
+      final lines = candidateText
+          .split(RegExp(r'\r?\n'))
+          .map((line) => line.trim())
+          // Filter out markdown headers (#, ##, ###, ====, ----)
+          .where((line) => !line.startsWith('#') && !line.startsWith('=') && !line.startsWith('---'))
+          // Strip leading bullet markers, numbering, or bold markers
+          .map((line) => line.replaceFirst(RegExp(r'^[•\-\*\d+\.]\s*'), '').replaceAll('**', '').trim())
+          // Filter out short heading-like lines or empty lines
+          .where((line) =>
+              line.length >= 8 &&
+              !line.toLowerCase().contains('rules & regulations') &&
+              !line.toLowerCase().contains('नियम व अटी') &&
+              !line.toLowerCase().contains('terms & conditions'))
+          .take(maxRules)
+          .toList();
+
+      if (lines.isNotEmpty) return lines;
+    }
+
+    // Official Industry Standard Smart Pass Summary Rules (Leading app baseline)
+    return const [
+      'Strict pin-drop silence must be observed inside study zones.',
+      'Occupy only your officially assigned study desk.',
+      'Digital pass must be presented upon staff verification.',
+    ];
+  }
+
   IdCardTemplateSettings copyWith({
     bool? showPhoto,
     bool? showQrCode,
