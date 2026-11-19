@@ -1005,6 +1005,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                       libraryName,
                       theme,
                       gradientColors: gradientColors,
+                      savedSettings: savedSettings,
                     )
                   : Transform(
                       alignment: Alignment.center,
@@ -1016,6 +1017,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                         theme,
                         seatLabel: seatLabel,
                         gradientColors: gradientColors,
+                        savedSettings: savedSettings,
                       ),
                     ),
             );
@@ -1034,6 +1036,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     String libraryName,
     ThemeData theme, {
     required List<Color> gradientColors,
+    IdCardTemplateSettings savedSettings = const IdCardTemplateSettings(),
   }) {
     final photoUrl = student.photoUrl;
     final studentName = student.name;
@@ -1203,59 +1206,61 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                children: [
-                  Builder(
-                    builder: (context) {
-                      final cardPhotoProvider = ImageService.getImageProvider(photoUrl);
-                      return CircleAvatar(
-                        radius: 34,
-                        backgroundColor: const Color(0xFF312E81),
-                        child: ClipOval(
-                          child: cardPhotoProvider != null
-                              ? Image(
-                                  image: cardPhotoProvider,
-                                  width: 68,
-                                  height: 68,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => Center(
+              if (savedSettings.showPhoto) ...[
+                Column(
+                  children: [
+                    Builder(
+                      builder: (context) {
+                        final cardPhotoProvider = ImageService.getImageProvider(photoUrl);
+                        return CircleAvatar(
+                          radius: 34,
+                          backgroundColor: const Color(0xFF312E81),
+                          child: ClipOval(
+                            child: cardPhotoProvider != null
+                                ? Image(
+                                    image: cardPhotoProvider,
+                                    width: 68,
+                                    height: 68,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => Center(
+                                      child: Text(
+                                        studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
+                                    ),
+                                  )
+                                : Center(
                                     child: Text(
                                       studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
                                       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
                                     ),
                                   ),
-                                )
-                              : Center(
-                                  child: Text(
-                                    studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
-                                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-                                  ),
-                                ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                          ),
+                        );
+                      },
                     ),
-                    child: const Text(
-                      'VERIFIED',
-                      style: TextStyle(
-                        color: Color(0xFF34D399),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                      ),
+                      child: const Text(
+                        'VERIFIED',
+                        style: TextStyle(
+                          color: Color(0xFF34D399),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 14),
+                  ],
+                ),
+                const SizedBox(width: 14),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1311,22 +1316,23 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                       spacing: 6,
                       runSpacing: 4,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0284C7).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
-                          ),
-                          child: Text(
-                            'SEAT: $seatLabel',
-                            style: const TextStyle(
-                              color: Color(0xFF38BDF8),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                        if (savedSettings.showSeat)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              'SEAT: $seatLabel',
+                              style: const TextStyle(
+                                color: Color(0xFF38BDF8),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
                         if (student.isCurrentlyFrozen)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1353,7 +1359,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                               ],
                             ),
                           )
-                        else if (student.planEndDate != null)
+                        else if (savedSettings.showValidTill && student.planEndDate != null)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -1514,6 +1520,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     ThemeData theme, {
     String seatLabel = '',
     required List<Color> gradientColors,
+    IdCardTemplateSettings savedSettings = const IdCardTemplateSettings(),
   }) {
     final membershipId = student.membershipNumber?.isNotEmpty == true
         ? student.membershipNumber!
@@ -1581,44 +1588,62 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             ],
           ),
           const SizedBox(height: 10),
-          const Text('• Card is non-transferable; must be produced upon entry.',
-              style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 10.5, height: 1.3)),
-          const Text('• Maintain complete silence inside study zones at all times.',
-              style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 10.5, height: 1.3)),
-          Text('• Guardian: ${student.fatherName.isNotEmpty ? student.fatherName : "On Record"}',
-              style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10.5, height: 1.3)),
-          Text('• Blood Group: ${student.bloodGroup?.isNotEmpty == true ? student.bloodGroup : "O+"}',
-              style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10.5, height: 1.3)),
-          const SizedBox(height: 10),
-          // Emergency Red Strip
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
+          // Dynamic Rules from Settings or Library
+          if (savedSettings.showRules) ...[
+            ...((savedSettings.customRulesText.trim().isNotEmpty
+                    ? savedSettings.customRulesText.trim()
+                    : (library is LibraryModel && library.rulesText.trim().isNotEmpty
+                        ? library.rulesText.trim()
+                        : ''))
+                .split(RegExp(r'\r?\n'))
+                .map((line) => line.replaceFirst(RegExp(r'^[•\-\*\d+\.]\s*'), '').trim())
+                .where((line) => line.isNotEmpty)
+                .take(2)
+                .map((rule) => Text(
+                      '• $rule',
+                      style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10.5, height: 1.3),
+                    ))),
+          ],
+          if (savedSettings.showEmergencyContact && savedSettings.showFatherName && student.fatherName.isNotEmpty)
+            Text('• Guardian: ${student.fatherName}',
+                style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10.5, height: 1.3)),
+          if (savedSettings.showBloodGroup && student.bloodGroup != null && student.bloodGroup!.isNotEmpty)
+            Text('• Blood Group: ${student.bloodGroup}',
+                style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10.5, height: 1.3)),
+          if (savedSettings.showEmergencyContact || savedSettings.showHelpline) ...[
+            const SizedBox(height: 10),
+            // Emergency Red Strip
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (savedSettings.showEmergencyContact)
+                    Text(
+                      'EMERGENCY: ${student.emergencyContact.isNotEmpty ? student.emergencyContact : student.phone}',
+                      style: const TextStyle(
+                        color: Color(0xFFFCA5A5),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  if (savedSettings.showHelpline)
+                    Text(
+                      'Reception: ${library?.helplineNumber.isNotEmpty == true ? library.helplineNumber : (library?.contact ?? "Desk")}',
+                      style: const TextStyle(
+                        color: Color(0xFFCBD5E1),
+                        fontSize: 10,
+                      ),
+                    ),
+                ],
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'EMERGENCY: ${student.emergencyContact.isNotEmpty ? student.emergencyContact : student.phone}',
-                  style: const TextStyle(
-                    color: Color(0xFFFCA5A5),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Reception: ${library?.helplineNumber.isNotEmpty == true ? library.helplineNumber : (library?.contact ?? "Desk")}',
-                  style: const TextStyle(
-                    color: Color(0xFFCBD5E1),
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
           const SizedBox(height: 12),
           // QR Barcode & Seal Row
           Row(

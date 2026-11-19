@@ -179,7 +179,7 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
       final serverResetAtMs = serverResetAtTs?.millisecondsSinceEpoch ?? 0;
 
       // Only handle reset if explicitly flagged by admin AND newer than local PIN set timestamp
-      if (pinResetByAdmin && _hasPin) {
+      if (pinResetByAdmin && (_hasPin || _lockoutUntil != null || _failedAttempts > 0)) {
         SharedPreferences.getInstance().then((prefs) {
           int localSetAt = 0;
           for (final cid in _candidateStudentIds) {
@@ -861,6 +861,146 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
     }
   }
 
+  Future<void> _handleStudentGoogleReAuth() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final currentEmail = user?.email ?? '';
+
+    setState(() => _isVerifying = true);
+    try {
+      final cred = await ref.read(authRepositoryProvider).signInWithGoogle();
+      final verifiedUser = cred.user;
+
+      if (verifiedUser == null) {
+        throw Exception('Google verification was not completed.');
+      }
+
+      // Security Check: verify re-authenticated Google account matches active user session
+      if (user != null && verifiedUser.uid != user.uid && verifiedUser.email != user.email) {
+        throw Exception('The Google account (${verifiedUser.email}) does not match your active student profile ($currentEmail).');
+      }
+
+      await _clearLockout();
+
+      final sId = _resolvedStudentDocId ?? _studentId;
+      final candidates = _candidateStudentIds;
+      final authUid = verifiedUser.uid;
+
+      // Clear old PIN and reset failure counters
+      await BiometricService.clearPin(
+        userId: sId,
+        authUid: authUid,
+        candidateIds: candidates,
+      );
+      await BiometricService.resetFailedAttempts(
+        userId: sId,
+        authUid: authUid,
+        candidateIds: candidates,
+        isAdmin: false,
+      );
+
+      if (mounted) {
+        setState(() {
+          _hasPin = false;
+          _failedAttempts = 0;
+          _lockoutUntil = null;
+          _errorMessage = null;
+        });
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.verified_user_rounded, color: Colors.green, size: 28),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Identity Verified!',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          verifiedUser.email ?? currentEmail,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Your Google identity has been successfully verified. Your previous security lock has been cleared. Set a new 4-digit PIN now or proceed directly to your student dashboard.',
+                  style: TextStyle(fontSize: 13, height: 1.4),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _unlockApp();
+                },
+                child: const Text('Proceed to Dashboard'),
+              ),
+              FilledButton.icon(
+                icon: const Icon(Icons.pin_rounded, size: 16),
+                label: const Text('Set New PIN Now'),
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFF059669)),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _unlockApp();
+                  if (sId != null && sId.isNotEmpty && mounted) {
+                    SecuritySettingsDialog.show(
+                      context,
+                      isStudent: true,
+                      studentId: sId,
+                      authUid: authUid,
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isVerifying = false);
+      }
+    }
+  }
+
   void _unlockApp() async {
     _countdownTimer?.cancel();
     BiometricService.markUnlocked();
@@ -1228,6 +1368,21 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                                   ),
                                   onPressed: _handleAdminGoogleReAuth,
                                 ),
+                              ] else ...[
+                                const SizedBox(height: 14),
+                                FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: theme.colorScheme.error,
+                                    foregroundColor: theme.colorScheme.onError,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  ),
+                                  icon: const Icon(Icons.security_rounded, size: 16),
+                                  label: const Text(
+                                    'Unlock with Google Account',
+                                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: _handleStudentGoogleReAuth,
+                                ),
                               ],
                             ],
                           ),
@@ -1301,8 +1456,18 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                       if (!_isAdminLock) ...[
                         const SizedBox(height: 8),
                         TextButton.icon(
-                          icon: const Icon(Icons.help_outline_rounded, size: 16),
-                          label: const Text('Forgot PIN? Ask Admin to Reset', style: TextStyle(fontSize: 12)),
+                          icon: _isVerifying
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.verified_user_outlined, size: 16),
+                          label: Text(
+                            _isVerifying ? 'Verifying with Google...' : 'Forgot PIN? Verify via Google Account',
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: _isVerifying ? null : _handleStudentGoogleReAuth,
+                        ),
+                        TextButton.icon(
+                          icon: const Icon(Icons.support_agent_rounded, size: 15),
+                          label: const Text('Or Ask Reception / Admin to Reset', style: TextStyle(fontSize: 11.5)),
                           onPressed: () => _showForgotPinDialog(context),
                         ),
                       ] else ...[

@@ -24,6 +24,8 @@ class ReceiptPdfService {
     double? securityDeposit,
     String? notes,
     String? gstin,
+    int? accentColor,
+    LibraryModel? existingLibrary,
   }) async {
     final effectiveValidFrom = validFrom ?? paymentDate;
     final effectiveValidTo = validTo ?? DateTime(paymentDate.year, paymentDate.month + 1, 0, 23, 59, 59);
@@ -84,24 +86,25 @@ class ReceiptPdfService {
       displayOrder: 0,
     );
 
-    final library = LibraryModel(
-      id: 'lib_default',
-      name: libraryName,
-      address: libraryAddress,
-      logoUrl: logoUrl ?? '',
-      contact: libraryPhone,
-      ownerId: 'owner_default',
-      accentColor: 0xFF881337,
-      welcomeMessage: 'Your Peaceful Study Haven',
-      operatingHours: '6 AM - 11 PM',
-      socialLinks: const {},
-      rulesText: 'Strict silence must be maintained.',
-      helplineNumber: libraryPhone,
-      adminPhotoUrl: '',
-      waitingListMode: WaitingListMode.waitingList,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
+    final library = existingLibrary ??
+        LibraryModel(
+          id: 'lib_default',
+          name: libraryName,
+          address: libraryAddress,
+          logoUrl: logoUrl ?? '',
+          contact: libraryPhone,
+          ownerId: 'owner_default',
+          accentColor: accentColor ?? 0xFF1E3A8A,
+          welcomeMessage: 'Your Peaceful Study Haven',
+          operatingHours: '6 AM - 11 PM',
+          socialLinks: const {},
+          rulesText: 'Strict silence must be maintained.',
+          helplineNumber: libraryPhone,
+          adminPhotoUrl: '',
+          waitingListMode: WaitingListMode.waitingList,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
 
     return PdfService().generateReceiptPdf(
       receipt,
