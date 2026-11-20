@@ -9,6 +9,7 @@ import 'package:study_library/services/whatsapp_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 
 /// Stream provider for library student feedback, sorted in Dart (newest first).
 final feedbackStreamProvider = StreamProvider.autoDispose<List<FeedbackModel>>((ref) {
@@ -65,7 +66,11 @@ class FeedbackListScreen extends ConsumerWidget {
           tooltip: 'Back',
           onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
         ),
-        title: const Text('Student Feedback & Suggestions'),
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text('Student Feedback & Suggestions'),
+        ),
       ),
       body: feedbackAsync.when(
         loading: () => const Center(
@@ -712,19 +717,24 @@ class _FeedbackCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      // Full-width Student Name (prevents severe 2-letter truncation)
+                      Text(
+                        displayName,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+
+                      // Responsive Wrap for Seat, Category Badges & Date
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Flexible(
-                            child: Text(
-                              displayName,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (feedback.seatNumber != null && feedback.seatNumber!.trim().isNotEmpty) ...[
-                            const SizedBox(width: 8),
+                          if (feedback.seatNumber != null && feedback.seatNumber!.trim().isNotEmpty)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
@@ -737,7 +747,7 @@ class _FeedbackCard extends StatelessWidget {
                                   Icon(Icons.chair_outlined, size: 12, color: theme.colorScheme.onSecondaryContainer),
                                   const SizedBox(width: 3),
                                   Text(
-                                    'Seat ${feedback.seatNumber}',
+                                    SeatHelper.formatSeatLabel(seatId: feedback.seatNumber, rawLabel: feedback.seatNumber),
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -747,16 +757,9 @@ class _FeedbackCard extends StatelessWidget {
                                 ],
                               ),
                             ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          if (feedback.feedbackType == 'silent_alert') ...[
+                          if (feedback.feedbackType == 'silent_alert')
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              margin: const EdgeInsets.only(right: 6),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFEF2F2),
                                 borderRadius: BorderRadius.circular(4),
@@ -773,53 +776,49 @@ class _FeedbackCard extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                            ),
-                          ] else if (feedback.feedbackType == 'issue' || (feedback.rating != null && feedback.rating! <= 2)) ...[
+                            )
+                          else if (feedback.feedbackType == 'issue' || (feedback.rating != null && feedback.rating! <= 2))
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              margin: const EdgeInsets.only(right: 6),
                               decoration: BoxDecoration(
                                 color: Colors.red.shade100,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text('ISSUE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.red.shade900)),
-                            ),
-                          ] else if (feedback.feedbackType == 'suggestion' || (feedback.category != null && feedback.category!.contains('Suggestion'))) ...[
+                            )
+                          else if (feedback.feedbackType == 'suggestion' || (feedback.category != null && feedback.category!.contains('Suggestion')))
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              margin: const EdgeInsets.only(right: 6),
                               decoration: BoxDecoration(
                                 color: Colors.amber.shade100,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text('SUGGESTION', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.amber.shade900)),
-                            ),
-                          ] else ...[
+                            )
+                          else
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              margin: const EdgeInsets.only(right: 6),
                               decoration: BoxDecoration(
                                 color: Colors.green.shade100,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text('FEEDBACK', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
                             ),
-                          ],
                           Text(
                             _formatDate(feedback.createdAt),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 11,
                             ),
                           ),
                           if (feedback.category != null && feedback.category!.isNotEmpty) ...[
-                            const SizedBox(width: 6),
-                            Text('•', style: TextStyle(color: theme.colorScheme.outline, fontSize: 12)),
-                            const SizedBox(width: 6),
+                            Text('•', style: TextStyle(color: theme.colorScheme.outline, fontSize: 11)),
                             Text(
                               feedback.category!,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.primary,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 11,
                               ),
                             ),
                           ],
@@ -925,39 +924,42 @@ class _FeedbackCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                if (feedback.feedbackType == 'silent_alert' && feedback.status != 'resolved') ...[
+                if (feedback.feedbackType == 'silent_alert' && feedback.status != 'resolved')
                   FilledButton.tonalIcon(
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.15),
                       foregroundColor: const Color(0xFF0F766E),
                       visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     ),
                     icon: const Icon(Icons.check_circle_outline_rounded, size: 15),
                     label: const Text('Resolve'),
                     onPressed: onResolve,
                   ),
-                  const SizedBox(width: 8),
-                ],
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF25D366),
                     side: const BorderSide(color: Color(0xFF25D366)),
                     visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   ),
                   icon: const Icon(Icons.chat_rounded, size: 15),
                   label: const Text('WhatsApp'),
                   onPressed: onWhatsApp,
                 ),
-                const SizedBox(width: 8),
                 FilledButton.tonalIcon(
                   onPressed: onReply,
-                  icon: Icon(hasReply ? Icons.edit_rounded : Icons.reply_rounded, size: 16),
+                  icon: Icon(hasReply ? Icons.edit_rounded : Icons.reply_rounded, size: 15),
                   label: Text(hasReply ? 'Edit Reply' : 'Reply'),
                   style: FilledButton.styleFrom(
                     visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   ),
                 ),
               ],

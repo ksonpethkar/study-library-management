@@ -378,108 +378,130 @@ class MyMembershipScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // Amenities & Shift Details Grid
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B).withValues(alpha: 0.6),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFF334155)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Assigned Desk', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
-                                  const SizedBox(height: 2),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.chair_rounded, size: 12, color: Color(0xFF10B981)),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          (student.seatId != null && student.seatId!.isNotEmpty)
-                                              ? SeatHelper.formatSeatLabel(seatId: student.seatId)
-                                              : 'Auto Allocated',
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                      // Amenities & Shift Details Grid (Responsive Layout)
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isCompact = constraints.maxWidth < 420;
+
+                          final deskCard = Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B).withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF334155)),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B).withValues(alpha: 0.6),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFF334155)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Study Shift', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
-                                  SizedBox(height: 2),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF818CF8)),
-                                      SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          'Full Day Access',
-                                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Assigned Desk', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.chair_rounded, size: 12, color: Color(0xFF10B981)),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        (student.seatId != null && student.seatId!.isNotEmpty)
+                                            ? SeatHelper.formatSeatLabel(seatId: student.seatId)
+                                            : 'Auto Allocated',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B).withValues(alpha: 0.6),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFF334155)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Environment', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
-                                  SizedBox(height: 2),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        (library?.hasAirConditioning == true) ? Icons.ac_unit_rounded : Icons.wifi_rounded,
-                                        size: 12,
-                                        color: const Color(0xFF38BDF8),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          (library?.hasAirConditioning == true) ? 'AC • 5G WiFi' : 'Comfortable • 5G WiFi',
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                          );
+
+                          final shiftCard = Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B).withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF334155)),
                             ),
-                          ),
-                        ],
+                            child: const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Study Shift', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                                SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF818CF8)),
+                                    SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        'Full Day Access',
+                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+
+                          final envCard = Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B).withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF334155)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Environment', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      (library?.hasAirConditioning == true) ? Icons.ac_unit_rounded : Icons.wifi_rounded,
+                                      size: 12,
+                                      color: const Color(0xFF38BDF8),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        (library?.hasAirConditioning == true) ? 'AC Hall • 5G Mesh Wi-Fi' : 'Comfortable • 5G Mesh Wi-Fi',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (isCompact) {
+                            return Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(child: deskCard),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: shiftCard),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                envCard,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              Expanded(child: deskCard),
+                              const SizedBox(width: 8),
+                              Expanded(child: shiftCard),
+                              const SizedBox(width: 8),
+                              Expanded(child: envCard),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 14),
 
@@ -521,13 +543,17 @@ class MyMembershipScreen extends ConsumerWidget {
                             child: ElevatedButton.icon(
                               onPressed: () => context.push(Routes.studentRenew),
                               icon: const Icon(Icons.autorenew_rounded, size: 16),
-                              label: Text(
-                                ((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired) &&
-                                        student.seatId != null &&
-                                        student.seatId!.isNotEmpty
-                                    ? '🔒 Keep ${SeatHelper.formatSeatLabel(seatId: student.seatId)}'
-                                    : 'Extend / Renew',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              label: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  ((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired) &&
+                                          student.seatId != null &&
+                                          student.seatId!.isNotEmpty
+                                      ? '🔒 Keep ${SeatHelper.formatSeatLabel(seatId: student.seatId)}'
+                                      : 'Extend / Renew',
+                                  maxLines: 1,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: ((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired)
@@ -545,7 +571,10 @@ class MyMembershipScreen extends ConsumerWidget {
                             child: OutlinedButton.icon(
                               onPressed: () => context.push(Routes.studentIdCard),
                               icon: const Icon(Icons.badge_rounded, size: 16, color: Color(0xFF818CF8)),
-                              label: const Text('Digital ID Card', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white)),
+                              label: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text('Digital ID Card', maxLines: 1, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white)),
+                              ),
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: Color(0xFF4338CA)),
                                 padding: const EdgeInsets.symmetric(vertical: 12),

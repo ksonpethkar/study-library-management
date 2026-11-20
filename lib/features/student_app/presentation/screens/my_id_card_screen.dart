@@ -750,7 +750,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(maxWidth: 440),
+      constraints: const BoxConstraints(maxWidth: 440, minHeight: 236),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
@@ -1315,26 +1315,14 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     );
   }
 
-  /// Resolves up to 3 concise rules from template, library settings, or defaults
+  /// Resolves up to 3 concise summary rules from template, library settings, or defaults
   List<String> _resolveRules(IdCardTemplateSettings settings, LibraryModel? library) {
     if (!settings.showRules) return [];
-    String raw = settings.customRulesText.trim();
-    if (raw.isEmpty && library != null && library.rulesText.trim().isNotEmpty) {
-      raw = library.rulesText.trim();
-    }
-    if (raw.isEmpty) {
-      return const [
-        'Mandatory for reading hall admission & desk verification.',
-        'Strict pin-drop silence must be observed inside study zones.',
-        'Loss of ID card must be reported immediately to reception.',
-      ];
-    }
-    return raw
-        .split(RegExp(r'\r?\n'))
-        .map((line) => line.replaceFirst(RegExp(r'^[•\-\*\d+\.]\s*'), '').trim())
-        .where((line) => line.isNotEmpty)
-        .take(3)
-        .toList();
+    return IdCardTemplateSettings.resolveSummaryRules(
+      customRulesText: settings.customRulesText,
+      libraryRulesText: library?.rulesText,
+      maxRules: 3,
+    );
   }
 
   /// Back face of the ultra-modern ID card with Magnetic stripe, rules, QR, & official seal
@@ -1369,7 +1357,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(maxWidth: 440),
+      constraints: const BoxConstraints(maxWidth: 440, minHeight: 236),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
@@ -1441,40 +1429,44 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Magnetic Stripe Bar
+                // Magnetic Stripe Bar (Ultra-sleek 18px profile)
                 Container(
-                  height: 32,
+                  height: 18,
                   color: Colors.black.withValues(alpha: 0.55),
                   alignment: Alignment.center,
                   child: Container(
-                    height: 8,
-                    color: Colors.black.withValues(alpha: 0.35),
+                    height: 4,
+                    color: Colors.amber.withValues(alpha: 0.25),
                   ),
                 ),
 
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Back Header: Title
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.gavel_rounded, size: 14, color: Color(0xFFFDE68A)),
-                          SizedBox(width: 6),
-                          Text(
-                            'TERMS OF ACCESS & CONDUCT',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                              letterSpacing: 0.8,
+                          const Icon(Icons.gavel_rounded, size: 13, color: Color(0xFFFDE68A)),
+                          const SizedBox(width: 5),
+                          const Expanded(
+                            child: Text(
+                              'TERMS OF ACCESS & CONDUCT',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 9.5,
+                                letterSpacing: 0.7,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
 
                       // Middle Section: Rules & Emergency Contact + QR Code & Seal
                       Row(
@@ -1487,13 +1479,13 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                               children: [
                                 if (settings.showRules) ...[
                                   ..._resolveRules(settings, library).map(_buildRuleBullet),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 4),
                                 ],
 
                                 // Guardian & Emergency Contact Combined Box
                                 if (settings.showEmergencyContact)
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
                                     decoration: BoxDecoration(
                                       color: Colors.black.withValues(alpha: 0.35),
                                       borderRadius: BorderRadius.circular(6),
@@ -1501,8 +1493,8 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.emergency_rounded, size: 14, color: Color(0xFFF87171)),
-                                        const SizedBox(width: 6),
+                                        const Icon(Icons.emergency_rounded, size: 13, color: Color(0xFFF87171)),
+                                        const SizedBox(width: 5),
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1513,21 +1505,21 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                                     : 'EMERGENCY CONTACT',
                                                 style: const TextStyle(
                                                   color: Color(0xFF94A3B8),
-                                                  fontSize: 7.5,
+                                                  fontSize: 7.0,
                                                   fontWeight: FontWeight.bold,
-                                                  letterSpacing: 0.5,
+                                                  letterSpacing: 0.4,
                                                 ),
                                               ),
-                                              const SizedBox(height: 2),
+                                              const SizedBox(height: 1),
                                               Text(
                                                 settings.showFatherName && student.fatherName.isNotEmpty
                                                     ? '${student.fatherName} (Guardian) • ${student.emergencyContact.isNotEmpty ? student.emergencyContact : (student.phone.isNotEmpty ? student.phone : effectiveReception)}'
                                                     : 'Emergency: ${student.emergencyContact.isNotEmpty ? student.emergencyContact : (student.phone.isNotEmpty ? student.phone : effectiveReception)}',
-                                                maxLines: 2,
+                                                maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
                                                   color: Color(0xFFE2E8F0),
-                                                  fontSize: 9.5,
+                                                  fontSize: 9.0,
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
@@ -1540,7 +1532,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                               ],
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
 
                           // Verification QR Code Column
                           Column(
@@ -1583,7 +1575,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 3),
                               GestureDetector(
                                 onTap: () => _showEnlargedQrDialog(
                                   context,
@@ -1599,7 +1591,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.all(5),
+                                        padding: const EdgeInsets.all(4),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
                                           borderRadius: BorderRadius.circular(8),
@@ -1620,7 +1612,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                             'expiry': student.planEndDate != null ? DateFormat('dd/MM/yyyy').format(student.planEndDate!) : 'Active',
                                           }),
                                           version: QrVersions.auto,
-                                          size: 78,
+                                          size: 68,
                                           eyeStyle: QrEyeStyle(
                                             eyeShape: QrEyeShape.square,
                                             color: gradientColors.last,
@@ -1640,7 +1632,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 2),
                               const Text(
                                 'SCAN TO VERIFY',
                                 style: TextStyle(
@@ -1650,10 +1642,10 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                   letterSpacing: 0.8,
                                 ),
                               ),
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 2),
                               // Official Seal Stamp graphic
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
                                   color: isExpired || isBlocked
                                       ? const Color(0x26EF4444)
@@ -1692,29 +1684,33 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
 
                       // Bottom Contact Bar (Gated by admin settings)
                       if (settings.showHelpline)
                         Container(
-                          padding: const EdgeInsets.only(top: 6),
+                          padding: const EdgeInsets.only(top: 4),
                           decoration: BoxDecoration(
                             border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.15))),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.support_agent_rounded, size: 13, color: Color(0xFFFB7185)),
-                              const SizedBox(width: 6),
-                              Text(
-                                effectiveHelpline == effectiveReception || effectiveReception.isEmpty
-                                    ? 'Helpline & Reception: $effectiveHelpline'
-                                    : 'Helpline: $effectiveHelpline  •  Reception: $effectiveReception',
-                                style: const TextStyle(
-                                  color: Color(0xFFE2E8F0),
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.3,
+                              const Icon(Icons.support_agent_rounded, size: 12, color: Color(0xFFFB7185)),
+                              const SizedBox(width: 5),
+                              Flexible(
+                                child: Text(
+                                  effectiveHelpline == effectiveReception || effectiveReception.isEmpty
+                                      ? 'Helpline & Reception: $effectiveHelpline'
+                                      : 'Helpline: $effectiveHelpline  •  Reception: $effectiveReception',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFFE2E8F0),
+                                    fontSize: 9.0,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.2,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1741,6 +1737,8 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
           Expanded(
             child: Text(
               rule,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 8.5, height: 1.2),
             ),
           ),

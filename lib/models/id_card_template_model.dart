@@ -100,7 +100,7 @@ class IdCardTemplateSettings {
       };
 
   /// Intelligently resolves clean, concise summary rules for the back of the ID card.
-  /// Strips raw markdown headers, document titles, and bullet artifacts.
+  /// Strips raw markdown headers, document titles, numbers, and bullet artifacts.
   /// Falls back to official library smart pass conduct rules if none configured.
   static List<String> resolveSummaryRules({
     String? customRulesText,
@@ -115,16 +115,35 @@ class IdCardTemplateSettings {
       final lines = candidateText
           .split(RegExp(r'\r?\n'))
           .map((line) => line.trim())
-          // Filter out markdown headers (#, ##, ###, ====, ----)
-          .where((line) => !line.startsWith('#') && !line.startsWith('=') && !line.startsWith('---'))
-          // Strip leading bullet markers, numbering, or bold markers
-          .map((line) => line.replaceFirst(RegExp(r'^[•\-\*\d+\.]\s*'), '').replaceAll('**', '').trim())
-          // Filter out short heading-like lines or empty lines
+          // Filter out markdown headers, divider lines, and section banners
           .where((line) =>
-              line.length >= 8 &&
-              !line.toLowerCase().contains('rules & regulations') &&
-              !line.toLowerCase().contains('नियम व अटी') &&
-              !line.toLowerCase().contains('terms & conditions'))
+              !line.startsWith('#') &&
+              !line.startsWith('=') &&
+              !line.startsWith('---') &&
+              !line.startsWith('___'))
+          // Strip leading bullets, markdown header hashes that had leading spaces, and numbering (e.g. "1.", "1)", "(1)")
+          .map((line) => line
+              .replaceFirst(RegExp(r'^(?:[#•\-\*▪▫–\s]+|\(?\d+\)?[\.\)\-:\s]+)+'), '')
+              .replaceAll('**', '')
+              .replaceAll('__', '')
+              .trim())
+          // Filter out header-like title lines, document titles, or empty lines
+          .where((line) {
+            if (line.length < 8) return false;
+            final lower = line.toLowerCase();
+            if (lower.contains('rules & regulations') ||
+                lower.contains('rules and regulations') ||
+                lower.contains('नियम व अटी') ||
+                lower.contains('terms & conditions') ||
+                lower.contains('terms and conditions') ||
+                lower.contains('code of conduct') ||
+                lower.contains('आचारसंहिता') ||
+                lower.contains('membership & registration') ||
+                lower.contains('सभासदत्व व नोंदणी')) {
+              return false;
+            }
+            return true;
+          })
           .take(maxRules)
           .toList();
 

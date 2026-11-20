@@ -1156,6 +1156,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     return Stack(
       children: [
         Container(
+          constraints: const BoxConstraints(minHeight: 236),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -1624,6 +1625,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     return Stack(
       children: [
         Container(
+          constraints: const BoxConstraints(minHeight: 236),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -1654,46 +1656,83 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'TERMS OF ACCESS & EMERGENCY INFO',
-                style: TextStyle(
-                  color: Color(0xFF38BDF8),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5,
+              const Expanded(
+                child: Text(
+                  'TERMS OF ACCESS & CONDUCT',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFF38BDF8),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 'Issued: ${student.createdAt != null ? DateFormat('dd MMM yyyy').format(student.createdAt!) : 'Active'}',
-                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9.5),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          // Dynamic Rules from Settings or Library
+          const SizedBox(height: 8),
+          // Dynamic Clean Summary Rules from Settings or Library
           if (savedSettings.showRules) ...[
-            ...((savedSettings.customRulesText.trim().isNotEmpty
-                    ? savedSettings.customRulesText.trim()
-                    : (library is LibraryModel && library.rulesText.trim().isNotEmpty
-                        ? library.rulesText.trim()
-                        : ''))
-                .split(RegExp(r'\r?\n'))
-                .map((line) => line.replaceFirst(RegExp(r'^[•\-\*\d+\.]\s*'), '').trim())
-                .where((line) => line.isNotEmpty)
-                .take(2)
-                .map((rule) => Text(
-                      '• $rule',
-                      style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10.5, height: 1.3),
-                    ))),
+            ...IdCardTemplateSettings.resolveSummaryRules(
+              customRulesText: savedSettings.customRulesText,
+              libraryRulesText: library is LibraryModel ? library.rulesText : null,
+              maxRules: 2,
+            ).map((rule) => Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('• ', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10)),
+                      Expanded(
+                        child: Text(
+                          rule,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10, height: 1.25),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
           ],
           if (savedSettings.showEmergencyContact && savedSettings.showFatherName && student.fatherName.isNotEmpty)
-            Text('• Guardian: ${student.fatherName}',
-                style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10.5, height: 1.3)),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                children: [
+                  const Text('• ', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10)),
+                  Expanded(
+                    child: Text('Guardian: ${student.fatherName}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10, height: 1.25)),
+                  ),
+                ],
+              ),
+            ),
           if (savedSettings.showBloodGroup && student.bloodGroup != null && student.bloodGroup!.isNotEmpty)
-            Text('• Blood Group: ${student.bloodGroup}',
-                style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10.5, height: 1.3)),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                children: [
+                  const Text('• ', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10)),
+                  Expanded(
+                    child: Text('Blood Group: ${student.bloodGroup}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10, height: 1.25)),
+                  ),
+                ],
+              ),
+            ),
           if (savedSettings.showEmergencyContact || savedSettings.showHelpline) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             // Emergency Red Strip
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1703,23 +1742,33 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   if (savedSettings.showEmergencyContact)
-                    Text(
-                      'EMERGENCY: ${student.emergencyContact.isNotEmpty ? student.emergencyContact : student.phone}',
-                      style: const TextStyle(
-                        color: Color(0xFFFCA5A5),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        'EMERGENCY: ${student.emergencyContact.isNotEmpty ? student.emergencyContact : student.phone}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFFFCA5A5),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
+                  if (savedSettings.showEmergencyContact && savedSettings.showHelpline)
+                    const SizedBox(width: 8),
                   if (savedSettings.showHelpline)
-                    Text(
-                      'Reception: ${library?.helplineNumber.isNotEmpty == true ? library.helplineNumber : (library?.contact ?? "Desk")}',
-                      style: const TextStyle(
-                        color: Color(0xFFCBD5E1),
-                        fontSize: 10,
+                    Expanded(
+                      child: Text(
+                        'Reception: ${library?.helplineNumber.isNotEmpty == true ? library.helplineNumber : (library?.contact ?? "Desk")}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: savedSettings.showEmergencyContact ? TextAlign.end : TextAlign.start,
+                        style: const TextStyle(
+                          color: Color(0xFFCBD5E1),
+                          fontSize: 9.5,
+                        ),
                       ),
                     ),
                 ],

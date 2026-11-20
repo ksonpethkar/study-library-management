@@ -1080,26 +1080,14 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
     );
   }
 
-  /// Resolves up to 3 concise rules from template, library settings, or defaults
+  /// Resolves up to 3 concise summary rules from template, library settings, or defaults
   List<String> _resolveRules(IdCardTemplateSettings settings, LibraryModel? library) {
     if (!settings.showRules) return [];
-    String raw = settings.customRulesText.trim();
-    if (raw.isEmpty && library != null && library.rulesText.trim().isNotEmpty) {
-      raw = library.rulesText.trim();
-    }
-    if (raw.isEmpty) {
-      return const [
-        'Mandatory for reading hall admission & desk verification.',
-        'Strict pin-drop silence must be observed inside study zones.',
-        'Loss of ID card must be reported immediately to reception.',
-      ];
-    }
-    return raw
-        .split(RegExp(r'\r?\n'))
-        .map((line) => line.replaceFirst(RegExp(r'^[•\-\*\d+\.]\s*'), '').trim())
-        .where((line) => line.isNotEmpty)
-        .take(3)
-        .toList();
+    return IdCardTemplateSettings.resolveSummaryRules(
+      customRulesText: settings.customRulesText,
+      libraryRulesText: library?.rulesText,
+      maxRules: 3,
+    );
   }
 
   /// Back face of the ultra-modern ID card with Magnetic stripe, rules, QR, & official seal

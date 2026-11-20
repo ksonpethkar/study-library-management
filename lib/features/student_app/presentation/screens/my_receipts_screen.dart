@@ -17,7 +17,6 @@ import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
-import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 class MyReceiptsScreen extends ConsumerStatefulWidget {

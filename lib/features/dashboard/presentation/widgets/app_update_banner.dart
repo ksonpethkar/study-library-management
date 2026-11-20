@@ -77,29 +77,38 @@ class AppUpdateBanner extends ConsumerWidget {
                   ],
                 );
 
-                final actionButtons = Row(
-                  mainAxisSize: isCompact ? MainAxisSize.max : MainAxisSize.min,
-                  mainAxisAlignment: isCompact ? MainAxisAlignment.end : MainAxisAlignment.start,
+                final actionButtons = Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  alignment: isCompact ? WrapAlignment.end : WrapAlignment.start,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     TextButton.icon(
                       onPressed: () => WhatsNewService.showChangelog(context, isStudent: isStudent),
-                      icon: const Icon(Icons.auto_awesome, size: 15),
+                      icon: const Icon(Icons.auto_awesome, size: 14),
                       label: const Text("What's New"),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      ),
                     ),
-                    const SizedBox(width: 4),
                     TextButton(
                       onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      ),
                       child: const Text('Later'),
                     ),
-                    const SizedBox(width: 6),
                     FilledButton.icon(
                       onPressed: () => reloadAppWeb(),
-                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      icon: const Icon(Icons.refresh_rounded, size: 15),
                       label: const Text('Reload'),
                       style: FilledButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
                         foregroundColor: theme.colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       ),
                     ),
                   ],

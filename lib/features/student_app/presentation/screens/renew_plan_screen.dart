@@ -1743,16 +1743,19 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                               // Pay via UPI Native App Button
                               FilledButton.icon(
                                 icon: const Icon(Icons.flash_on_rounded),
-                                label: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(isAboveLimit ? 'Open UPI App & Pay ' : 'Pay '),
-                                    AnimatedRollingPrice(
-                                      targetPrice: effectivePrice,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                                    ),
-                                    Text(isAboveLimit ? '' : ' via UPI App'),
-                                  ],
+                                label: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(isAboveLimit ? 'Open UPI App & Pay ' : 'Pay '),
+                                      AnimatedRollingPrice(
+                                        targetPrice: effectivePrice,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
+                                      Text(isAboveLimit ? '' : ' via UPI App'),
+                                    ],
+                                  ),
                                 ),
                                 style: FilledButton.styleFrom(
                                   backgroundColor: const Color(0xFF00796B),
@@ -2061,7 +2064,9 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                                     : const Icon(Icons.send_rounded),
                                 label: _isSubmitting
                                     ? const Text('Submitting...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
-                                    : Row(
+                                    : FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
@@ -2081,6 +2086,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                                           const Text(')', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                         ],
                                       ),
+                                    ),
                                 style: FilledButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
