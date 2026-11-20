@@ -26,6 +26,7 @@ import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/core/widgets/cozy_settings_tile.dart';
 import 'package:study_library/core/providers/font_settings_provider.dart';
 import 'package:study_library/features/settings/presentation/widgets/typography_settings_sheet.dart';
+import 'package:study_library/features/dashboard/presentation/widgets/quick_control_center_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 String _getSafePlatformName() {
@@ -437,6 +438,21 @@ class SettingsScreen extends ConsumerWidget {
                     context,
                     isStudent: false,
                     authUid: user?.uid,
+                  );
+                },
+              ),
+              const CozySettingsDivider(),
+              _buildSettingsTile(
+                icon: Icons.lock_outline_rounded,
+                iconColor: const Color(0xFFEF4444),
+                title: 'Instant Lock Counter Screen',
+                subtitle: 'Immediately shield Aadhaar, fees & desk data right now',
+                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                onTap: () {
+                  QuickControlCenterSheet.triggerInstantLock(
+                    context,
+                    ref,
+                    isStudent: false,
                   );
                 },
               ),

@@ -57,6 +57,7 @@ import 'package:study_library/features/requests/presentation/screens/request_lis
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/services/inactivity_lock_service.dart';
 import 'package:study_library/models/id_card_template_model.dart';
+import 'package:study_library/features/dashboard/presentation/widgets/quick_control_center_sheet.dart';
 
 StudentModel createTestStudent({
   required String id,
@@ -6996,6 +6997,67 @@ void main() {
       expect(SeatHelper.formatDeskLabel(rawLabel: 'Desk ##35'), equals('Desk #35'));
       expect(SeatHelper.formatDeskLabel(rawLabel: 'Seat #35'), equals('Desk #35'));
       expect(SeatHelper.formatDeskLabel(rawLabel: '35'), equals('Desk #35'));
+    });
+
+    testWidgets('Test 138: UNIFIED QUICK CONTROL HUB & INSTANT LOCK ACCESSIBILITY', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'is_locked': false,
+      });
+
+      // 1. Verify InactivityLockService instant lock toggling
+      expect(InactivityLockService.isLocked, isFalse);
+      InactivityLockService.setLocked(true);
+      expect(InactivityLockService.isLocked, isTrue);
+      InactivityLockService.setLocked(false);
+      expect(InactivityLockService.isLocked, isFalse);
+
+      // 2. Pump QuickControlCenterSheet in Student mode
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: QuickControlCenterSheet(
+                isStudent: true,
+                libraryId: 'lib_test_01',
+                studentId: 'stud_123',
+                unreadNotificationsCount: 3,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Verify Student Controls
+      expect(find.text('Quick Control Center'), findsOneWidget);
+      expect(find.text('Student Privacy & Screen Shortcuts'), findsOneWidget);
+      expect(find.text('Instant Lock'), findsOneWidget);
+      expect(find.text('Sync Live Data'), findsOneWidget);
+      expect(find.text('Typography'), findsOneWidget);
+      expect(find.text('My ID Card'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('3 actionable items'), findsOneWidget);
+
+      // 3. Pump QuickControlCenterSheet in Admin mode
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: QuickControlCenterSheet(
+                isStudent: false,
+                libraryId: 'lib_test_01',
+                pendingRequestsCount: 5,
+                renewalsDueCount: 2,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Verify Admin Controls
+      expect(find.text('Front-Desk & Terminal Security Shortcuts'), findsOneWidget);
+      expect(find.text('Global Search'), findsOneWidget);
+      expect(find.text('Students, desks & plans'), findsOneWidget);
+      expect(find.text('7 actionable items'), findsOneWidget);
     });
   });
 }

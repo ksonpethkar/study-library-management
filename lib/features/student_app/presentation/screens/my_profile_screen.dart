@@ -16,6 +16,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/features/settings/presentation/screens/security_settings_dialog.dart';
+import 'package:study_library/features/dashboard/presentation/widgets/quick_control_center_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/core/providers/theme_provider.dart';
@@ -1166,6 +1167,24 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                       authUid: student.userId ?? FirebaseAuth.instance.currentUser?.uid,
                       libraryId: libraryId,
                     ),
+                  ),
+                  const CozySettingsDivider(),
+                  CozySettingsTile(
+                    icon: Icons.lock_outline_rounded,
+                    iconColor: const Color(0xFFEF4444),
+                    title: 'Instant Screen Lock',
+                    subtitle: 'Immediately shield my pass, seat & details now',
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                    onTap: () {
+                      QuickControlCenterSheet.triggerInstantLock(
+                        context,
+                        ref,
+                        isStudent: true,
+                        studentId: student.id,
+                        authUid: student.userId ?? FirebaseAuth.instance.currentUser?.uid,
+                        libraryId: libraryId,
+                      );
+                    },
                   ),
                   const CozySettingsDivider(),
                   CozySettingsTile(

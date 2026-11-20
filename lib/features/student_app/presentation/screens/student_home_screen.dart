@@ -12,6 +12,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/app_update_banner.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/notification_center_sheet.dart';
+import 'package:study_library/features/dashboard/presentation/widgets/quick_control_center_sheet.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/settings/presentation/screens/security_settings_dialog.dart';
 import 'package:study_library/services/biometric_service.dart';
@@ -25,7 +26,6 @@ import 'package:study_library/models/library_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/router/app_router.dart';
-import 'package:study_library/core/providers/theme_provider.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/theme/app_decorations.dart';
 import 'package:study_library/core/widgets/cozy_pressable.dart';
@@ -289,25 +289,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           ],
         ),
         actions: [
-          // 1. Theme Toggle (Direct on Dashboard per user request)
-          Consumer(
-            builder: (context, ref, _) {
-              final themeMode = ref.watch(themeNotifierProvider);
-              final isDark = themeMode == ThemeMode.dark;
-              return IconButton(
-                icon: Icon(
-                  isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                  color: isDark ? Colors.amber : null,
-                ),
-                tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
-                onPressed: () {
-                  HapticFeedback.selectionClick();
-                  ref.read(themeNotifierProvider.notifier).toggleTheme();
-                },
-              );
-            },
-          ),
-          // 2. Student Notification Center with Live Unread Badge
+          // 1. Student Notification Center with Live Unread Badge (Urgent Passive Visibility)
           Consumer(
             builder: (context, ref, _) {
               final student = studentAsync.value;
@@ -344,14 +326,36 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
               );
             },
           ),
-          // 3. Smooth Rotating Refresh Button
-          RotationTransition(
-            turns: _refreshAnimController,
-            child: IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              onPressed: _refreshAll,
-              tooltip: 'Sync Data',
-            ),
+          // 2. Cozy Quick Control Center & Instant Lock Hub (All Top-Bar Utilities in 1 Tap)
+          Consumer(
+            builder: (context, ref, _) {
+              final student = studentAsync.value;
+              final studentId = student?.id;
+              final effectiveAuthUid = FirebaseAuth.instance.currentUser?.uid;
+              final effectiveId = (studentId != null && studentId.isNotEmpty)
+                  ? studentId
+                  : effectiveAuthUid;
+              final libId = library?.id ?? ref.read(currentLibraryIdProvider) ?? '';
+              final notifs = effectiveId != null && effectiveId.isNotEmpty
+                  ? (ref.watch(studentNotificationsStreamProvider(effectiveId)).value ?? [])
+                  : [];
+              final unreadCount = notifs.where((n) => !n.read).length;
+
+              return IconButton(
+                icon: const Icon(Icons.tune_rounded),
+                tooltip: 'Quick Controls & Security',
+                onPressed: () {
+                  QuickControlCenterSheet.show(
+                    context,
+                    isStudent: true,
+                    libraryId: libId,
+                    studentId: studentId,
+                    authUid: effectiveAuthUid,
+                    unreadNotificationsCount: unreadCount,
+                  );
+                },
+              );
+            },
           ),
           const SizedBox(width: 4),
         ],

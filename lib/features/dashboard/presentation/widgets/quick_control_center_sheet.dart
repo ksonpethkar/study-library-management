@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,13 +6,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
-import 'package:study_library/core/theme/theme_notifier.dart';
-import 'package:study_library/features/dashboard/presentation/providers/dashboard_providers.dart';
-import 'package:study_library/features/dashboard/presentation/screens/global_search_screen.dart';
+import 'package:study_library/core/providers/theme_provider.dart';
+import 'package:study_library/features/search/presentation/screens/global_search_screen.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/notification_center_sheet.dart';
 import 'package:study_library/features/settings/presentation/screens/security_settings_dialog.dart';
 import 'package:study_library/features/settings/presentation/widgets/typography_settings_sheet.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
+import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/services/inactivity_lock_service.dart';
 
@@ -95,13 +93,12 @@ class QuickControlCenterSheet extends ConsumerWidget {
     if (!context.mounted) return;
 
     if (isLockEnabled) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final currentUri = GoRouterState.of(context).uri.path;
+      final currentUri = GoRouterState.of(context).uri.path;
+      SharedPreferences.getInstance().then((prefs) {
         if (currentUri.isNotEmpty && currentUri != Routes.biometricLock) {
-          await prefs.setString('last_active_route', currentUri);
+          prefs.setString('last_active_route', currentUri);
         }
-      } catch (_) {}
+      }).catchError((_) {});
 
       InactivityLockService.setLocked(true);
       context.go(Routes.biometricLock);
@@ -171,7 +168,8 @@ class QuickControlCenterSheet extends ConsumerWidget {
     if (isStudent) {
       ref.invalidate(currentStudentProvider);
     } else {
-      ref.invalidate(adminDashboardStatsProvider);
+      ref.invalidate(studentsStreamProvider);
+      ref.invalidate(occupancyProvider);
     }
 
     ScaffoldMessenger.of(context).showSnackBar(

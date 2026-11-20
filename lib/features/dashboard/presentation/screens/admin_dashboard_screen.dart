@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:study_library/core/providers/theme_provider.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/notification_center_sheet.dart';
+import 'package:study_library/features/dashboard/presentation/widgets/quick_control_center_sheet.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,7 +14,6 @@ import 'package:study_library/features/auth/services/auth_role_service.dart';
 import 'package:study_library/services/badge_service.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
-import 'package:study_library/features/search/presentation/screens/global_search_screen.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/revenue_chart.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/app_update_banner.dart';
 import 'package:study_library/core/widgets/update_reminder_dialog.dart';
@@ -461,25 +460,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 ],
               ),
               actions: [
-                // 1. Direct Theme Mode Toggle
-                Consumer(
-                  builder: (context, ref, _) {
-                    final themeMode = ref.watch(themeNotifierProvider);
-                    final isDark = themeMode == ThemeMode.dark;
-                    return IconButton(
-                      icon: Icon(
-                        isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                        color: isDark ? Colors.amber : null,
-                      ),
-                      tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
-                      onPressed: () {
-                        HapticFeedback.selectionClick();
-                        ref.read(themeNotifierProvider.notifier).toggleTheme();
-                      },
-                    );
-                  },
-                ),
-                // 2. Admin Notification Center with Live Unread Badge
+                // 1. Admin Notification Center with Live Unread Badge (Urgent Passive Visibility)
                 Consumer(
                   builder: (context, ref, _) {
                     final notifs = ref.watch(adminNotificationsStreamProvider).value ?? [];
@@ -538,14 +519,29 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                     );
                   },
                 ),
-                // 3. Global Search Action
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  tooltip: 'Global Search',
-                  onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                    MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
-                  ),
+                // 2. Cozy Quick Control Center & Instant Lock Hub (All Top-Bar Utilities in 1 Tap)
+                Consumer(
+                  builder: (context, ref, _) {
+                    final notifs = ref.watch(adminNotificationsStreamProvider).value ?? [];
+                    final unreadNotifsCount = notifs.where((n) => !n.read).length;
+                    final libId = library.value?.id ?? ref.read(currentLibraryIdProvider) ?? '';
+                    return IconButton(
+                      icon: const Icon(Icons.tune_rounded),
+                      tooltip: 'Quick Controls & Security',
+                      onPressed: () {
+                        QuickControlCenterSheet.show(
+                          context,
+                          isStudent: false,
+                          libraryId: libId,
+                          unreadNotificationsCount: unreadNotifsCount,
+                          pendingRequestsCount: _pendingCount,
+                          renewalsDueCount: effectiveRenewalsDue,
+                        );
+                      },
+                    );
+                  },
                 ),
+                const SizedBox(width: 4),
               ],
             ),
             SliverToBoxAdapter(
