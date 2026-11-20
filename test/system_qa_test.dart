@@ -6714,5 +6714,35 @@ void main() {
       expect(scholasticState.scale, equals(AppFontScale.compact));
       expect(scholasticState.family, equals(AppFontFamily.academic));
     });
+
+    test('Regression QA: SeatHelper.formatDeskLabel eliminates duplicate Desk #Seat # prefixes', () {
+      // 1. Raw numbers
+      expect(SeatHelper.formatDeskLabel(rawLabel: '35'), equals('Desk #35'));
+      expect(SeatHelper.formatDeskLabel(seatId: '35'), equals('Desk #35'));
+
+      // 2. Previously duplicated "Seat #35" or "Desk #35"
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'Seat #35'), equals('Desk #35'));
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'Desk #35'), equals('Desk #35'));
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'Desk #Seat #35'), equals('Desk #35'));
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'Seat ##35'), equals('Desk #35'));
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'Desk ##35'), equals('Desk #35'));
+
+      // 3. Coordinate styles
+      expect(SeatHelper.formatDeskLabel(seatId: 'r0_c4'), equals('Desk #5'));
+      expect(SeatHelper.formatDeskLabel(seatId: '1790647291016_r0_c4'), equals('Desk #5'));
+
+      // 4. Custom alphanumeric codes
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'CAB-05'), equals('Desk #CAB-05'));
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'A2'), equals('Desk #A2'));
+
+      // 5. Empty or null fallback
+      expect(SeatHelper.formatDeskLabel(rawLabel: ''), equals('Allocated Desk'));
+      expect(SeatHelper.formatDeskLabel(seatId: null, rawLabel: null), equals('Allocated Desk'));
+
+      // 6. formatSeatNumberOnly
+      expect(SeatHelper.formatSeatNumberOnly(rawLabel: 'Seat #35'), equals('35'));
+      expect(SeatHelper.formatSeatNumberOnly(rawLabel: 'Desk #Seat #35'), equals('35'));
+      expect(SeatHelper.formatSeatNumberOnly(rawLabel: '35'), equals('35'));
+    });
   });
 }

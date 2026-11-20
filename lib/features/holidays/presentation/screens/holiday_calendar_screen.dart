@@ -8,31 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
-/// Stream of holidays for the current library, sorted by date in Dart.
-final holidaysStreamProvider = StreamProvider.autoDispose<List<HolidayModel>>((ref) {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null || libraryId.isEmpty) {
-    return Stream.value([]);
-  }
-
-  return FirebaseFirestore.instance
-      .collection('libraries')
-      .doc(libraryId)
-      .collection('holidays')
-      .snapshots()
-      .map((snapshot) {
-    final holidays = snapshot.docs.map((doc) {
-      return HolidayModel.fromJson({
-        ...doc.data(),
-        'id': doc.id,
-      });
-    }).toList();
-
-    // Sort by date ascending in Dart (composite index avoided)
-    holidays.sort((a, b) => a.date.compareTo(b.date));
-    return holidays;
-  });
-});
+export '../providers/holiday_providers.dart';
+import '../providers/holiday_providers.dart';
 
 /// Screen to view, add, and manage library holidays.
 class HolidayCalendarScreen extends ConsumerStatefulWidget {

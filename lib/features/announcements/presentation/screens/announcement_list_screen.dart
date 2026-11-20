@@ -12,37 +12,8 @@ import 'package:study_library/features/recycle_bin/data/repositories/recycle_bin
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
-/// Stream provider for announcements of the current library, sorted by createdAt descending.
-final announcementsStreamProvider =
-    StreamProvider<List<AnnouncementModel>>((ref) {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null || libraryId.isEmpty) {
-    return Stream.value([]);
-  }
-
-  return FirebaseFirestore.instance
-      .collection('libraries')
-      .doc(libraryId)
-      .collection('announcements')
-      .snapshots()
-      .map((snapshot) {
-    final items = snapshot.docs.map((doc) {
-      return AnnouncementModel.fromJson({
-        ...doc.data(),
-        'id': doc.id,
-      });
-    }).toList();
-
-    // Sort in Dart by createdAt descending (newest first)
-    items.sort((a, b) {
-      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bDate.compareTo(aDate);
-    });
-
-    return items;
-  });
-});
+export 'package:study_library/features/announcements/presentation/providers/announcements_provider.dart';
+import 'package:study_library/features/announcements/presentation/providers/announcements_provider.dart';
 
 class AnnouncementListScreen extends ConsumerStatefulWidget {
   const AnnouncementListScreen({super.key});

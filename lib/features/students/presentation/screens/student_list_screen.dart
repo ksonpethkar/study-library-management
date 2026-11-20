@@ -1324,7 +1324,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                               ),
                               title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                               subtitle: Text(
-                                '${s.phone}${s.seatId != null ? ' • Seat #${SeatHelper.formatSeatLabel(seatId: s.seatId, includePrefix: false)}' : ''}',
+                                '${s.phone}${s.seatId != null ? ' • ${SeatHelper.formatDeskLabel(seatId: s.seatId)}' : ''}',
                                 style: const TextStyle(fontSize: 12),
                               ),
                               trailing: isSent
@@ -1687,7 +1687,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                          Icon(Icons.chair_rounded, size: 11, color: isDark ? theme.colorScheme.primary : const Color(0xFF0284C7)),
                                          const SizedBox(width: 3),
                                          Text(
-                                           'Desk #${SeatHelper.formatSeatLabel(seatId: student.seatId, includePrefix: false)}',
+                                           SeatHelper.formatDeskLabel(seatId: student.seatId),
                                            style: TextStyle(
                                              fontSize: 10.5,
                                              fontWeight: FontWeight.bold,
@@ -1963,6 +1963,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           return Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ChoiceChip(
+              materialTapTargetSize: MaterialTapTargetSize.padded,
               label: Text(label),
               avatar: showBadge
                   ? const Icon(Icons.mark_email_unread_rounded, size: 16, color: Color(0xFF0284C7))
@@ -2073,12 +2074,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     final isDark = theme.brightness == Brightness.dark;
     const primaryColor = Color(0xFF0284C7);
     final rawSeat = req.targetSeatLabel ?? req.currentSeatLabel;
-    final cleanSeat = rawSeat
-        ?.replaceAll(RegExp(r'(Desk|Seat)\s*#?\s*', caseSensitive: false), '')
-        .replaceAll('#', '')
-        .trim();
-    final seatLabel = (cleanSeat != null && cleanSeat.isNotEmpty)
-        ? 'Desk #$cleanSeat'
+    final seatLabel = (rawSeat != null && rawSeat.isNotEmpty)
+        ? SeatHelper.formatDeskLabel(rawLabel: rawSeat)
         : 'Auto Seat';
 
     return Container(
@@ -2527,7 +2524,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1), width: 0.8),
                                      ),
                                      child: Text(
-                                       'Desk #${SeatHelper.formatSeatLabel(seatId: student.seatId, includePrefix: false)}',
+                                       SeatHelper.formatDeskLabel(seatId: student.seatId),
                                        style: TextStyle(
                                          fontSize: 9.5,
                                          fontWeight: FontWeight.bold,

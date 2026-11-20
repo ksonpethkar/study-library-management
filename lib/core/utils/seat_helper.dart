@@ -32,7 +32,26 @@ class SeatHelper {
       cols: cols,
       includePrefix: false,
     );
-    return formatted.replaceFirst(RegExp(r'^[#\s]+'), '');
+    return formatted
+        .replaceAll(RegExp(r'(?:Desk|Seat)\s*#?\s*', caseSensitive: false), '')
+        .replaceAll(RegExp(r'^[#\s]+'), '')
+        .trim();
+  }
+
+  /// Formats a uniform "Desk #XX" label, strictly preventing double prefixes like "Desk #Seat #XX".
+  static String formatDeskLabel({
+    String? seatId,
+    String? rawLabel,
+    String? sectionName,
+    int? cols,
+  }) {
+    final numOnly = formatSeatNumberOnly(
+      seatId: seatId,
+      rawLabel: rawLabel,
+      cols: cols,
+    );
+    if (numOnly.isEmpty || numOnly.toLowerCase() == 'desk') return 'Allocated Desk';
+    return 'Desk #$numOnly';
   }
 
   /// Converts a raw seat ID, database label, or composite coordinates into a clean human string.
@@ -57,10 +76,16 @@ class SeatHelper {
     }
 
     // Strip prefixes like "Seat #", "Seat:", "Seat_", "Seat-", "Desk #", "Desk_", "#", etc.
-    var clean = input
-        .replaceFirst(RegExp(r'^(Seat|Desk)[\s#_\-:]*', caseSensitive: false), '')
-        .replaceFirst(RegExp(r'^[#_\-:\s]+'), '')
-        .trim();
+    // Handles recursive/nested combinations such as "Desk #Seat #35" or "Seat #Desk #35".
+    var clean = input;
+    while (true) {
+      final stripped = clean
+          .replaceFirst(RegExp(r'^(?:Seat|Desk)[\s#_\-:]*', caseSensitive: false), '')
+          .replaceFirst(RegExp(r'^[#_\-:\s]+'), '')
+          .trim();
+      if (stripped == clean || stripped.isEmpty) break;
+      clean = stripped;
+    }
 
     // 1. Check if it's a composite ID containing _r{row}_c{col} or r{row}_c{col}
     final match = RegExp(r'(?:^|_)r(\d+)_c(\d+)$', caseSensitive: false).firstMatch(clean);

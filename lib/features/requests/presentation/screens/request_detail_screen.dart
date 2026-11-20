@@ -2256,11 +2256,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             const Divider(height: 24),
             _buildRow(
               'Current Seat',
-              '${SeatHelper.formatSeatLabel(seatId: data['currentSeatId'] as String?, rawLabel: data['currentSeatLabel'] as String?)} (${data['currentSectionName'] ?? "Current Section"})',
+              '${SeatHelper.formatDeskLabel(seatId: data['currentSeatId'] as String?, rawLabel: data['currentSeatLabel'] as String?)} (${data['currentSectionName'] ?? "Current Section"})',
             ),
             _buildRow(
               'Target Seat',
-              '${SeatHelper.formatSeatLabel(seatId: data['targetSeatId'] as String?, rawLabel: data['targetSeatLabel'] as String?)} (${data['targetSectionName'] ?? "Target Section"})',
+              '${SeatHelper.formatDeskLabel(seatId: data['targetSeatId'] as String?, rawLabel: data['targetSeatLabel'] as String?)} (${data['targetSectionName'] ?? "Target Section"})',
               color: Colors.green,
               isBold: true,
             ),
@@ -2555,7 +2555,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                         const Icon(Icons.stars_rounded, color: Colors.white, size: 18),
                         const SizedBox(width: 8),
                         Text(
-                          'Desk #$seatLabel',
+                          SeatHelper.formatDeskLabel(rawLabel: seatLabel),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
                         ),
                       ],
@@ -2605,7 +2605,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Desk Collision Alert: Desk #$seatLabel is Occupied!',
+                              'Desk Collision Alert: ${SeatHelper.formatDeskLabel(rawLabel: seatLabel)} is Occupied!',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red),
                             ),
                           ),

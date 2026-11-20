@@ -2930,6 +2930,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           icon: Icons.campaign_rounded,
           label: 'Notice Board & Circulars',
           color: const Color(0xFF2563EB),
+          badgeCount: ref.watch(unreadAnnouncementsCountProvider(student?.id ?? '')),
           onTap: () => context.push(Routes.studentAnnouncements),
         ),
         const SizedBox(height: 10),
@@ -3225,19 +3226,41 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           return d == todayKey && h.isFullDay;
         }).firstOrNull;
 
-        if (todayHoliday == null) return const SizedBox.shrink();
+        final upcomingHoliday = todayHoliday == null
+            ? holidays.where((h) {
+                final d = DateTime(h.date.year, h.date.month, h.date.day);
+                final diff = d.difference(todayKey).inDays;
+                return diff > 0 && diff <= 3 && h.isFullDay;
+              }).firstOrNull
+            : null;
+
+        if (todayHoliday == null && upcomingHoliday == null) return const SizedBox.shrink();
+
+        final isToday = todayHoliday != null;
+        final holiday = todayHoliday ?? upcomingHoliday!;
+        final daysUntil = DateTime(holiday.date.year, holiday.date.month, holiday.date.day).difference(todayKey).inDays;
+
+        final bgCol = isToday ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB);
+        final borderCol = isToday ? const Color(0xFFFCA5A5) : const Color(0xFFFCD34D);
+        final iconBg = isToday ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
+        final titleCol = isToday ? const Color(0xFF991B1B) : const Color(0xFF92400E);
+        final subCol = isToday ? const Color(0xFFB91C1C) : const Color(0xFFB45309);
+
+        final titleText = isToday
+            ? '🔒 Library Closed Today'
+            : '📅 Upcoming Holiday: ${daysUntil == 1 ? "Tomorrow" : "in $daysUntil days"} (${DateFormat("dd MMM").format(holiday.date)})';
 
         return Container(
           width: double.infinity,
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF2F2),
+            color: bgCol,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFFCA5A5), width: 1.2),
+            border: Border.all(color: borderCol, width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: Colors.red.withValues(alpha: 0.08),
+                color: (isToday ? Colors.red : Colors.amber).withValues(alpha: 0.08),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -3247,11 +3270,15 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEF4444),
+                decoration: BoxDecoration(
+                  color: iconBg,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.event_busy_rounded, size: 20, color: Colors.white),
+                child: Icon(
+                  isToday ? Icons.event_busy_rounded : Icons.calendar_month_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -3259,21 +3286,21 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      '🔒 Library Closed Today',
+                    Text(
+                      titleText,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF991B1B),
+                        color: titleCol,
                       ),
                     ),
-                    if (todayHoliday.reason.trim().isNotEmpty) ...[
+                    if (holiday.reason.trim().isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        todayHoliday.reason,
-                        style: const TextStyle(
+                        holiday.reason,
+                        style: TextStyle(
                           fontSize: 12.5,
-                          color: Color(0xFFB91C1C),
+                          color: subCol,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -4232,12 +4259,14 @@ class _SecondaryQuickAction extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
+  final int? badgeCount;
 
   const _SecondaryQuickAction({
     required this.icon,
     required this.label,
     required this.color,
     required this.onTap,
+    this.badgeCount,
   });
 
   @override
@@ -4277,6 +4306,24 @@ class _SecondaryQuickAction extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (badgeCount != null && badgeCount! > 0) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDC2626),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badgeCount! > 9 ? '9+' : '$badgeCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
             Icon(
               Icons.chevron_right_rounded,
               size: 16,

@@ -459,7 +459,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     !seatDetails.isAutoAssign && seatDetails.hasSelection
-                                        ? 'Desk #${seatDetails.seatLabel}'
+                                        ? SeatHelper.formatDeskLabel(rawLabel: seatDetails.seatLabel)
                                         : 'Tap desk in grid below',
                                     style: TextStyle(
                                       fontSize: 12,
@@ -660,7 +660,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Selected: Desk #${seatDetails.seatLabel}',
+                                    'Selected: ${SeatHelper.formatDeskLabel(rawLabel: seatDetails.seatLabel)}',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 15,

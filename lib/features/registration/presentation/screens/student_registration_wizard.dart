@@ -17,6 +17,7 @@ import 'package:study_library/features/waiting_list/data/repositories/waiting_li
 import '../providers/registration_provider.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'id_scan_screen.dart';
 import 'registration_form_screen.dart';
 import 'photo_upload_screen.dart';
@@ -412,7 +413,7 @@ class _StudentRegistrationWizardState
                           'Requested Desk',
                           requestedSeatLabel.toLowerCase().contains('auto')
                               ? 'Auto-Assign'
-                              : 'Desk #$requestedSeatLabel',
+                              : SeatHelper.formatDeskLabel(rawLabel: requestedSeatLabel),
                         ),
                         const SizedBox(height: 8),
                         _buildDetailRow('Applied Plan', planName),

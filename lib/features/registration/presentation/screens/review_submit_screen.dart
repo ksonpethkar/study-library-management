@@ -21,6 +21,7 @@ import 'package:study_library/features/seats/presentation/providers/seat_provide
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 
 class ReviewSubmitScreen extends ConsumerStatefulWidget {
   const ReviewSubmitScreen({super.key});
@@ -448,7 +449,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
       try {
         final sName = (regData['name'] as String?)?.trim() ?? 'A student';
         final seatSnippet = seatDetails.hasSelection
-            ? (seatDetails.isAutoAssign ? ' (Auto-Assign Desk)' : ' (Desk #${seatDetails.seatLabel})')
+            ? (seatDetails.isAutoAssign ? ' (Auto-Assign Desk)' : ' (${SeatHelper.formatDeskLabel(rawLabel: seatDetails.seatLabel)})')
             : '';
         await AppNotificationService.sendNotification(
           libraryId: libraryId,
@@ -1146,7 +1147,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                               const Icon(Icons.stars_rounded, color: Colors.white, size: 16),
                                               const SizedBox(width: 6),
                                               Text(
-                                                'Desk #${seatDetails.seatLabel}',
+                                                SeatHelper.formatDeskLabel(rawLabel: seatDetails.seatLabel),
                                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
                                               ),
                                             ],

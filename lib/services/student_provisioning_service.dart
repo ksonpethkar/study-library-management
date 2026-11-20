@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:study_library/core/security/audit_logger.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/utils/sequence_counter.dart';
 import 'package:study_library/features/seats/data/repositories/seat_repository.dart';
 import 'package:study_library/features/students/data/repositories/student_repository.dart';
@@ -368,10 +369,11 @@ class StudentProvisioningService {
           // Notify student
           final studentName = data['studentName'] ?? studentData['name'] ?? 'Student';
           final targetSeatLabel = data['targetSeatLabel'] ?? targetSeatId;
+          final formattedDesk = SeatHelper.formatDeskLabel(rawLabel: targetSeatLabel?.toString());
           AppNotificationService.sendNotification(
             libraryId: libraryId,
             title: 'Seat Change Approved! 🪑',
-            body: 'Hello $studentName! Your seat change request has been approved. You are now assigned to Seat #$targetSeatLabel.',
+            body: 'Hello $studentName! Your seat change request has been approved. You are now assigned to $formattedDesk.',
             type: 'seat_change',
             targetRole: 'student',
             targetUserId: targetStudentId,
@@ -402,7 +404,7 @@ class StudentProvisioningService {
                   'status': 'superseded',
                   'processedAt': FieldValue.serverTimestamp(),
                   'updatedAt': FieldValue.serverTimestamp(),
-                  'rejectionReason': 'Superseded by approval of seat change to Seat #$targetSeatLabel',
+                  'rejectionReason': 'Superseded by approval of seat change to $formattedDesk',
                 });
               }
             }
@@ -669,7 +671,7 @@ class StudentProvisioningService {
       if (type == 'registration' || type == 'newregistration') {
         final studentName = studentData['name'] ?? data['studentName'] ?? 'Student';
         final seatLabelStr = (data['requestedSeatLabel'] ?? studentData['requestedSeatLabel'] ?? requestedSeatId)?.toString();
-        final seatNotice = seatLabelStr != null && !seatLabelStr.toLowerCase().contains('auto') ? ' (Desk #$seatLabelStr)' : '';
+        final seatNotice = seatLabelStr != null && !seatLabelStr.toLowerCase().contains('auto') ? ' (${SeatHelper.formatDeskLabel(rawLabel: seatLabelStr)})' : '';
         final primaryTarget = (studentUserId.isNotEmpty) ? studentUserId : createdStudentId;
         AppNotificationService.sendNotification(
           libraryId: libraryId,
