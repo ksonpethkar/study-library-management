@@ -146,3 +146,13 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
 1. **GitHub Release Publication Guardrail:**
    - Root Cause: Version `v1.5.58` was tagged and `update.json` was updated pointing to GitHub release asset URLs (`.../releases/download/v1.5.58/StudyLibrary-arm64-v8a.apk`), but the GitHub release was not created or binaries were not uploaded. This caused users downloading the APK from the portal to hit a GitHub 404 error page.
    - Guardrail: Never push a version manifest (`update.json`) pointing to a GitHub release tag before creating the GitHub release and uploading all 4 assets (`StudyLibrary-arm64-v8a.apk`, `StudyLibrary-armeabi-v7a.apk`, `StudyLibrary.apk`, and `StudyLibrary.aab`) via `gh release create <tag> ...`. Always verify download URL health (`HTTP 200 OK`) prior to deploying hosting.
+
+---
+
+## 12. Unified Quick Control Hub & Instant Screen Lock Discipline (Learned Nov 2026)
+1. **Top-Bar De-Cluttering & Consolidation:**
+   - Root Cause: Multiple loose action buttons in the top app bar (Theme toggle, Search, Notifications, Sync, Lock) caused mobile header crowding and RenderFlex overflow on viewports < 360px.
+   - Guardrail: Consolidate utilities into the unified `QuickControlCenterSheet` (`Icons.tune_rounded`). The top app bar must keep only the high-priority live notification bell and the quick control hub button.
+2. **Zero-Latency Instant Screen Lock:**
+   - Root Cause: Staff stepping away from counter or students stepping away from desks lacked a 1-tap lock mechanism to immediately shield Aadhaar, fees, and pass data from nearby onlookers.
+   - Guardrail: Tapping Instant Lock in `QuickControlCenterSheet`, Admin settings, or Student profile must immediately check `BiometricService.isLockEnabled()`, set `InactivityLockService.setLocked(true)`, and route to `Routes.biometricLock` with zero confirmation delay. If unconfigured, prompt to set up a 4-digit PIN in `SecuritySettingsDialog` without locking the user out.

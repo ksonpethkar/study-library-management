@@ -219,6 +219,9 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
       case 'renewal':
       case 'renewals':
         return 'Plan Renewals';
+      case 'due_payment':
+      case 'dues':
+        return 'Fee Dues';
       case 'profile_update':
       case 'profile':
         return 'Profile Edits';
@@ -241,6 +244,9 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
         case 'renewal':
         case 'renewals':
           return t == 'renewal' || t == 'plan_renewal';
+        case 'due_payment':
+        case 'dues':
+          return t == 'due_payment' || t == 'due_clearance';
         case 'profile_update':
         case 'profile':
           return t == 'profile_update';
@@ -377,6 +383,7 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
     final admissions = requests.where((r) => r.type.toLowerCase() == 'registration' || r.type.toLowerCase() == 'newregistration').length;
     final seatChanges = requests.where((r) => r.type.toLowerCase() == 'seat_change' || r.type.toLowerCase() == 'seatchange').length;
     final renewals = requests.where((r) => r.type.toLowerCase() == 'renewal' || r.type.toLowerCase() == 'plan_renewal').length;
+    final dues = requests.where((r) => r.type.toLowerCase() == 'due_payment' || r.type.toLowerCase() == 'due_clearance').length;
     final profile = requests.where((r) => r.type.toLowerCase() == 'profile_update').length;
 
     return Container(
@@ -421,6 +428,17 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
               isSelected: _selectedCategory == 'renewal' || _selectedCategory == 'renewals',
               onTap: () => setState(() => _selectedCategory = 'renewal'),
             ),
+            if (dues > 0 || _selectedCategory == 'due_payment') ...[
+              const SizedBox(width: 8),
+              _buildCategoryChip(
+                label: 'Fee Dues',
+                icon: Icons.payments_outlined,
+                count: dues,
+                color: const Color(0xFFD97706),
+                isSelected: _selectedCategory == 'due_payment' || _selectedCategory == 'dues',
+                onTap: () => setState(() => _selectedCategory = 'due_payment'),
+              ),
+            ],
             if (profile > 0 || _selectedCategory == 'profile_update') ...[
               const SizedBox(width: 8),
               _buildCategoryChip(

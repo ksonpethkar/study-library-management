@@ -723,6 +723,18 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   const SizedBox(height: 14),
                 ],
 
+                // Dynamic Outstanding Fee Balance / Due Payment Card
+                if ((student.pendingDueBalance ?? 0) > 0) ...[
+                  _buildPendingDueCard(
+                    context: context,
+                    ref: ref,
+                    student: student,
+                    library: library,
+                    theme: theme,
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
                 // 1. 3D Holographic Flip Smart Access Pass
                 _buildDigitalSmartPass(
                   context: context,
@@ -1021,11 +1033,13 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
   }
 
   List<Color> _getThemeGradient(String themeId, Color libraryAccent) {
-    if (themeId.startsWith('#')) {
-      try {
-        final c = Color(int.parse('FF${themeId.replaceAll('#', '')}', radix: 16));
+    final cleanHex = themeId.replaceAll('#', '').trim();
+    if (cleanHex.length == 6 || cleanHex.length == 8) {
+      final parsed = int.tryParse(cleanHex.length == 6 ? 'FF$cleanHex' : cleanHex, radix: 16);
+      if (parsed != null) {
+        final c = Color(parsed);
         return [c, Color.lerp(c, Colors.black, 0.45) ?? Colors.black];
-      } catch (_) {}
+      }
     }
     switch (themeId) {
       case 'royalNavy':
@@ -1059,9 +1073,11 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     final templateAsync = ref.watch(idCardTemplateProvider);
     final savedSettings = templateAsync.value ?? const IdCardTemplateSettings();
     final activeTheme = savedSettings.customColorHex ?? savedSettings.cardTheme;
+    final libAccentInt = library?.accentColor is int ? (library.accentColor as int) : 0;
+    final effectiveAccentInt = libAccentInt != 0 ? libAccentInt : 0xFF1E3A8A;
     final gradientColors = _getThemeGradient(
       activeTheme,
-      Color((library?.accentColor as int?) ?? 0xFF1E3A8A),
+      Color(effectiveAccentInt),
     );
 
     return RepaintBoundary(
@@ -2542,6 +2558,415 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPendingDueCard({
+    required BuildContext context,
+    required WidgetRef ref,
+    required StudentModel student,
+    required dynamic library,
+    required ThemeData theme,
+  }) {
+    final due = (student.pendingDueBalance ?? 0).toDouble();
+    final isDark = theme.brightness == Brightness.dark;
+    final libraryId = library?.id ?? ref.read(currentLibraryIdProvider) ?? 'lib_cozy_corner';
+    final libraryName = library?.name?.toString() ?? 'Study Library';
+    final upiId = (library?.upiId ?? '').toString().trim();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF291E0B) : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.6 : 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Color(0xFFD97706),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Outstanding Fee Balance',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                    Text(
+                      'Please clear dues to keep your desk reserved',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD97706),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '₹${due.toInt()}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              if (upiId.isNotEmpty)
+                FilledButton.icon(
+                  onPressed: () async {
+                    final cleanName = Uri.encodeComponent(libraryName);
+                    final cleanNote = Uri.encodeComponent('Due Fee Payment - ${student.name}');
+                    final uri = Uri.parse(
+                      'upi://pay?pa=$upiId&pn=$cleanName&am=${due.toStringAsFixed(2)}&cu=INR&tn=$cleanNote',
+                    );
+                    try {
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } else {
+                        if (context.mounted) {
+                          _showUpiCopyDialog(context, upiId, due);
+                        }
+                      }
+                    } catch (_) {
+                      if (context.mounted) {
+                        _showUpiCopyDialog(context, upiId, due);
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.flash_on_rounded, size: 16),
+                  label: const Text('Pay via UPI'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFD97706),
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  _showSubmitDuePaymentSheet(
+                    context: context,
+                    ref: ref,
+                    student: student,
+                    dueAmount: due,
+                    libraryId: libraryId,
+                  );
+                },
+                icon: const Icon(Icons.upload_file_rounded, size: 16),
+                label: const Text('Submit UTR / Pay at Desk'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFD97706),
+                  side: const BorderSide(color: Color(0xFFD97706)),
+                  visualDensity: VisualDensity.compact,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUpiCopyDialog(BuildContext context, String upiId, double amount) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.qr_code_rounded, color: Color(0xFFD97706)),
+            SizedBox(width: 8),
+            Text('Pay Outstanding Due'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Amount Due: ₹${amount.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            const Text('UPI ID:'),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SelectableText(
+                      upiId,
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy_rounded, size: 18),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: upiId));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('UPI ID copied to clipboard!')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Copy the UPI ID above and pay via any UPI app (GPay, PhonePe, Paytm). Then tap "Submit UTR / Pay at Desk" to notify the admin.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSubmitDuePaymentSheet({
+    required BuildContext context,
+    required WidgetRef ref,
+    required StudentModel student,
+    required double dueAmount,
+    required String libraryId,
+  }) {
+    final utrController = TextEditingController();
+    final notesController = TextEditingController();
+    String selectedMode = 'UPI / Online';
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (bCtx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(Icons.receipt_long_rounded, color: Color(0xFFD97706)),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Submit Due Clearance Details',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Clearing Outstanding Balance of ₹${dueAmount.toInt()}',
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
+                ),
+                const SizedBox(height: 16),
+                const Text('Payment Mode', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedMode,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'UPI / Online', child: Text('UPI / Online Payment')),
+                    DropdownMenuItem(value: 'Cash at Desk', child: Text('Paid Cash at Reception')),
+                    DropdownMenuItem(value: 'Bank Transfer / NEFT', child: Text('Bank Transfer / NEFT')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setModalState(() => selectedMode = val);
+                  },
+                ),
+                const SizedBox(height: 14),
+                const Text('Transaction UTR / Ref Number', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: utrController,
+                  decoration: InputDecoration(
+                    hintText: selectedMode == 'Cash at Desk' ? 'e.g. Paid to Rahul Sir at counter' : 'e.g. 421098234120',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text('Notes / Remarks (Optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: notesController,
+                  decoration: InputDecoration(
+                    hintText: 'Any message for the administrator',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final refNum = utrController.text.trim();
+                            if (selectedMode != 'Cash at Desk' && refNum.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please enter the Transaction ID / UTR')),
+                              );
+                              return;
+                            }
+                            setModalState(() => isSubmitting = true);
+                            try {
+                              final reqDoc = FirebaseFirestore.instance
+                                  .collection('libraries')
+                                  .doc(libraryId)
+                                  .collection('requests')
+                                  .doc();
+
+                              await reqDoc.set({
+                                'id': reqDoc.id,
+                                'studentId': student.id,
+                                'studentName': student.name,
+                                'studentPhone': student.phone,
+                                'studentUserId': student.userId,
+                                'type': 'due_payment',
+                                'amount': dueAmount,
+                                'referenceNumber': refNum,
+                                'paymentMode': selectedMode,
+                                'notes': notesController.text.trim(),
+                                'status': 'pending',
+                                'createdAt': FieldValue.serverTimestamp(),
+                                'libraryId': libraryId,
+                              });
+
+                              if (context.mounted) {
+                                Navigator.pop(ctx);
+                                HapticFeedback.mediumImpact();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Row(
+                                      children: [
+                                        Icon(Icons.check_circle_rounded, color: Colors.greenAccent),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Payment proof submitted! Admin will verify and clear your balance shortly.',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: Color(0xFF1E293B),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              setModalState(() => isSubmitting = false);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Submission failed: $e')),
+                                );
+                              }
+                            }
+                          },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFD97706),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text(
+                            'Submit for Verification',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

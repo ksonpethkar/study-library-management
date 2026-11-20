@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/id_card_template_model.dart';
 import 'package:study_library/core/widgets/brand_color_picker_dialog.dart';
@@ -21,7 +23,12 @@ final idCardTemplateProvider = StreamProvider<IdCardTemplateSettings>((ref) {
     if (!doc.exists || doc.data() == null) {
       return const IdCardTemplateSettings();
     }
-    return IdCardTemplateSettings.fromJson(doc.data()!);
+    final settings = IdCardTemplateSettings.fromJson(doc.data()!);
+    // Cache to local SharedPreferences for zero-network offline pass generation
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('cached_id_card_template_settings', jsonEncode(settings.toJson()));
+    }).catchError((_) {});
+    return settings;
   });
 });
 

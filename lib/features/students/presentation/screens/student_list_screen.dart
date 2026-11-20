@@ -2072,7 +2072,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     StudentRequestItem req,
   ) {
     final isDark = theme.brightness == Brightness.dark;
-    const primaryColor = Color(0xFF0284C7);
+    final primaryColor = theme.colorScheme.primary;
     final rawSeat = req.targetSeatLabel ?? req.currentSeatLabel;
     final seatLabel = (rawSeat != null && rawSeat.isNotEmpty)
         ? SeatHelper.formatDeskLabel(rawLabel: rawSeat)
@@ -2119,7 +2119,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                       backgroundColor: primaryColor.withValues(alpha: 0.15),
                       child: Text(
                         req.studentName.isNotEmpty ? req.studentName[0].toUpperCase() : '?',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: primaryColor,
@@ -2149,7 +2149,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                   color: primaryColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'NEW ADMISSION',
                                   style: TextStyle(
                                     fontSize: 10,

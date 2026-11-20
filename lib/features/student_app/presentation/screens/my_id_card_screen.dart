@@ -107,11 +107,13 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
   }
 
   List<Color> _getThemeGradient(String themeId, Color libraryAccent) {
-    if (themeId.startsWith('#')) {
-      try {
-        final c = Color(int.parse('FF${themeId.replaceAll('#', '')}', radix: 16));
+    final cleanHex = themeId.replaceAll('#', '').trim();
+    if (cleanHex.length == 6 || cleanHex.length == 8) {
+      final parsed = int.tryParse(cleanHex.length == 6 ? 'FF$cleanHex' : cleanHex, radix: 16);
+      if (parsed != null) {
+        final c = Color(parsed);
         return [c, Color.lerp(c, Colors.black, 0.45) ?? Colors.black];
-      } catch (_) {}
+      }
     }
     switch (themeId) {
       case 'royalNavy':
@@ -133,6 +135,14 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
   }
 
   Color _getThemeAccent(String themeId, Color libraryAccent, List<Color> gradientColors) {
+    final cleanHex = themeId.replaceAll('#', '').trim();
+    if (cleanHex.length == 6 || cleanHex.length == 8) {
+      final parsed = int.tryParse(cleanHex.length == 6 ? 'FF$cleanHex' : cleanHex, radix: 16);
+      if (parsed != null) {
+        final c = Color(parsed);
+        return Color.lerp(c, Colors.white, 0.4) ?? c;
+      }
+    }
     switch (themeId) {
       case 'royalNavy':
         return const Color(0xFF38BDF8);
@@ -149,12 +159,6 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
       case 'customBrand':
         return Color.lerp(libraryAccent, Colors.white, 0.4) ?? libraryAccent;
       default:
-        if (themeId.startsWith('#')) {
-          try {
-            final c = Color(int.parse('FF${themeId.replaceAll('#', '')}', radix: 16));
-            return Color.lerp(c, Colors.white, 0.4) ?? c;
-          } catch (_) {}
-        }
         if (gradientColors.isNotEmpty) {
           return Color.lerp(gradientColors.first, Colors.white, 0.4) ?? gradientColors.first;
         }
@@ -240,7 +244,8 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
               ? student.membershipNumber!
               : 'CC${student.id.length > 6 ? student.id.substring(0, 6).toUpperCase() : student.id.toUpperCase()}';
 
-          final gradientColors = _getThemeGradient(activeTheme, Color(library?.accentColor ?? 0xFF1E3A8A));
+          final effectiveAccentInt = (library != null && library.accentColor != 0) ? library.accentColor : 0xFF1E3A8A;
+          final gradientColors = _getThemeGradient(activeTheme, Color(effectiveAccentInt));
 
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),

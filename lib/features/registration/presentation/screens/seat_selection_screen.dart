@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
@@ -199,6 +201,39 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
 
     // Available & Eligible -> Select this desk!
     HapticFeedback.selectionClick();
+    final prevSeatId = ref.read(selectedSeatDetailsProvider).seatId;
+    final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+
+    // Release previously held seat if switching
+    if (prevSeatId != null && prevSeatId != seat.id && libId.isNotEmpty) {
+      FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libId)
+          .collection('seats')
+          .doc(prevSeatId)
+          .update({
+        'status': 'available',
+        'reservationType': null,
+        'reservationExpiresAt': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }).catchError((_) {});
+    }
+
+    // Apply temporary 5-minute soft lock (Cart Timer) to prevent registration collision
+    if (libId.isNotEmpty) {
+      FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libId)
+          .collection('seats')
+          .doc(seat.id)
+          .update({
+        'status': 'reserved',
+        'reservationType': 'registration_hold',
+        'reservationExpiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(minutes: 5))),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }).catchError((_) {});
+    }
+
     ref.read(selectedSeatDetailsProvider.notifier).selectSeat(
       seatId: seat.id,
       seatLabel: seat.label,
@@ -213,7 +248,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
           children: [
             const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 20),
             const SizedBox(width: 8),
-            Text('Selected Desk #${seat.label} in ${section.name}!'),
+            Text('Selected Desk #${seat.label} (Held for 5 mins)!'),
           ],
         ),
         backgroundColor: const Color(0xFF1E293B),
@@ -225,6 +260,24 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
 
   void _onAutoAssignTap({required SectionModel section}) {
     HapticFeedback.mediumImpact();
+    final prevSeatId = ref.read(selectedSeatDetailsProvider).seatId;
+    final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+
+    // Release previously held seat if switching to auto-assign
+    if (prevSeatId != null && libId.isNotEmpty) {
+      FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libId)
+          .collection('seats')
+          .doc(prevSeatId)
+          .update({
+        'status': 'available',
+        'reservationType': null,
+        'reservationExpiresAt': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }).catchError((_) {});
+    }
+
     ref.read(selectedSeatDetailsProvider.notifier).selectAutoAssign(
       sectionId: section.id,
       sectionName: section.name,

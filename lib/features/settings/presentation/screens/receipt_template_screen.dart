@@ -17,6 +17,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/image_transparency_service.dart';
 import 'package:study_library/core/widgets/brand_color_picker_dialog.dart';
 import 'package:study_library/core/error/error_handler.dart';
+import 'package:study_library/features/settings/presentation/providers/settings_provider.dart';
 
 class ReceiptTemplateScreen extends ConsumerStatefulWidget {
   const ReceiptTemplateScreen({super.key});
@@ -468,6 +469,8 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
         'primaryColor': _primaryColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      ref.invalidate(receiptTemplateStreamProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

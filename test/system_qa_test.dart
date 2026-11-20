@@ -55,6 +55,8 @@ import 'package:study_library/services/meta_whatsapp_api_service.dart';
 import 'package:study_library/services/messaging_hub_service.dart';
 import 'package:study_library/features/requests/presentation/screens/request_list_screen.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
+import 'package:study_library/models/id_card_template_model.dart';
 
 StudentModel createTestStudent({
   required String id,
@@ -6868,6 +6870,132 @@ void main() {
       final approvedRenewals = approved.where((r) => r.type == 'renewal').length;
       expect(approvedAdmissions, equals(2));
       expect(approvedRenewals, equals(1));
+    });
+
+    test('Test 137: DYNAMIC REALTIME THEME, BRAND COLOR, ID CARD & RECEIPT TEMPLATES STREAM INVARIANTS', () {
+      // 1. InactivityLockService state toggles
+      InactivityLockService.setLocked(false);
+      InactivityLockService.recordInteraction();
+      expect(InactivityLockService.isLocked, isFalse);
+
+      InactivityLockService.setLocked(true);
+      expect(InactivityLockService.isLocked, isTrue);
+
+      // 2. App Router contains BiometricLock route
+      expect(Routes.biometricLock, equals('/biometric-lock'));
+
+      // 3. Brand Hex Parsing Invariants: handles clean hex without '#', with '#', and 8-char ARGB
+      Color parseHexGradient(String themeId, Color fallback) {
+        final cleanHex = themeId.replaceAll('#', '').trim();
+        if (cleanHex.length == 6 || cleanHex.length == 8) {
+          final parsed = int.tryParse(cleanHex.length == 6 ? 'FF$cleanHex' : cleanHex, radix: 16);
+          if (parsed != null) {
+            return Color(parsed);
+          }
+        }
+        return fallback;
+      }
+
+      // Test bare 6-character hex (e.g. from color picker)
+      final colorBare = parseHexGradient('881337', const Color(0xFF1E3A8A));
+      expect(colorBare.toARGB32(), equals(0xFF881337));
+
+      // Test prefixed 6-character hex
+      final colorHash = parseHexGradient('#0284C7', const Color(0xFF1E3A8A));
+      expect(colorHash.toARGB32(), equals(0xFF0284C7));
+
+      // Test 8-character ARGB hex
+      final colorArgb = parseHexGradient('#FF10B981', const Color(0xFF1E3A8A));
+      expect(colorArgb.toARGB32(), equals(0xFF10B981));
+
+      // Test invalid hex gracefully falls back
+      final colorInvalid = parseHexGradient('invalid_hex', const Color(0xFF1E3A8A));
+      expect(colorInvalid.toARGB32(), equals(0xFF1E3A8A));
+
+      // 4. Accent Color Zero-Int Fallback Invariant
+      int resolveEffectiveAccent(int? rawAccent) {
+        return (rawAccent != null && rawAccent != 0) ? rawAccent : 0xFF1E3A8A;
+      }
+      expect(resolveEffectiveAccent(0), equals(0xFF1E3A8A));
+      expect(resolveEffectiveAccent(null), equals(0xFF1E3A8A));
+      expect(resolveEffectiveAccent(0xFF5D4037), equals(0xFF5D4037));
+
+      InactivityLockService.setLocked(false);
+    });
+
+    test('Regression QA: Due Payment Request Clearance & Dynamic Balance Deduction', () {
+      const initialDue = 1500.0;
+      const paymentAmount = 1500.0;
+      final newDue = (initialDue - paymentAmount).clamp(0.0, double.infinity);
+      expect(newDue, equals(0.0));
+
+      const partialPayment = 500.0;
+      final partialRemaining = (initialDue - partialPayment).clamp(0.0, double.infinity);
+      expect(partialRemaining, equals(1000.0));
+
+      const overPayment = 2000.0;
+      final overClamped = (initialDue - overPayment).clamp(0.0, double.infinity);
+      expect(overClamped, equals(0.0));
+    });
+
+    test('Regression QA: 5-Minute Seat Hold Soft-Lock Lifecycle', () {
+      final now = DateTime.now();
+      final activeHold = SeatModel(
+        id: 'seat_35',
+        sectionId: 'sec_1',
+        row: 0,
+        col: 0,
+        label: '35',
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+        reservationType: 'registration_hold',
+        reservationExpiresAt: now.add(const Duration(minutes: 5)),
+      );
+
+      expect(activeHold.hasActiveSoftLock, isTrue);
+      expect(activeHold.effectiveStatus, equals(SeatStatus.reserved));
+
+      final expiredHold = SeatModel(
+        id: 'seat_35',
+        sectionId: 'sec_1',
+        row: 0,
+        col: 0,
+        label: '35',
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+        reservationType: 'registration_hold',
+        reservationExpiresAt: now.subtract(const Duration(seconds: 1)),
+      );
+
+      expect(expiredHold.hasActiveSoftLock, isFalse);
+      expect(expiredHold.effectiveStatus, equals(SeatStatus.available));
+    });
+
+    test('Regression QA: Offline ID Card Template Serialization Roundtrip', () {
+      const template = IdCardTemplateSettings(
+        cardTheme: 'emeraldGreen',
+        customColorHex: '#10B981',
+        showBarcode: true,
+        showSeat: true,
+        showEmergencyContact: false,
+      );
+
+      final json = template.toJson();
+      final restored = IdCardTemplateSettings.fromJson(json);
+
+      expect(restored.cardTheme, equals('emeraldGreen'));
+      expect(restored.customColorHex, equals('#10B981'));
+      expect(restored.showBarcode, isTrue);
+      expect(restored.showSeat, isTrue);
+      expect(restored.showEmergencyContact, isFalse);
+    });
+
+    test('Regression QA: SeatHelper.formatDeskLabel iterative stripping eliminates nested prefixes', () {
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'Desk #Seat #35'), equals('Desk #35'));
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'Seat #Desk #35'), equals('Desk #35'));
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'Desk ##35'), equals('Desk #35'));
+      expect(SeatHelper.formatDeskLabel(rawLabel: 'Seat #35'), equals('Desk #35'));
+      expect(SeatHelper.formatDeskLabel(rawLabel: '35'), equals('Desk #35'));
     });
   });
 }

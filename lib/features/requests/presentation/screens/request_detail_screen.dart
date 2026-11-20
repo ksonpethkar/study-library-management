@@ -648,6 +648,72 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             },
           ).ignore();
         }
+      } else if (type == 'due_payment') {
+        final studentId = (data['studentId'] ?? '').toString();
+        final paidAmount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+        final refNumber = (data['referenceNumber'] ?? data['utr'] ?? '').toString();
+        final payMode = (data['paymentMode'] ?? 'online').toString();
+
+        if (studentId.isNotEmpty && paidAmount > 0) {
+          final studentRef = FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('students')
+              .doc(studentId);
+
+          final studentSnap = await studentRef.get();
+          final currentDue = (studentSnap.data()?['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
+          final newDue = (currentDue - paidAmount).clamp(0.0, double.infinity);
+
+          await studentRef.update({
+            'pendingDueBalance': newDue,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          // Generate payment record
+          final paymentDoc = FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('payments')
+              .doc();
+
+          await paymentDoc.set({
+            'id': paymentDoc.id,
+            'studentId': studentId,
+            'studentName': data['studentName'] ?? studentSnap.data()?['name'] ?? 'Student',
+            'amount': paidAmount,
+            'paymentDate': FieldValue.serverTimestamp(),
+            'paymentMethod': payMode,
+            'referenceNumber': refNumber,
+            'type': 'due_clearance',
+            'notes': 'Outstanding fee balance clearance via student portal',
+            'status': 'completed',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+          // Dispatch in-app notification to student
+          AppNotificationService.sendNotification(
+            libraryId: libraryId,
+            targetUserId: studentId,
+            targetRole: 'student',
+            title: 'Fee Dues Payment Confirmed! 💳',
+            body: 'Your payment of ₹${paidAmount.toInt()} has been verified and cleared by the counter.',
+            type: 'receipt',
+          ).ignore();
+
+          AuditLogger().log(
+            action: AuditAction.updated,
+            entityType: AuditEntity.student,
+            libraryId: libraryId,
+            entityId: studentId,
+            details: {
+              'action': 'due_payment_cleared',
+              'amount': paidAmount,
+              'referenceNumber': refNumber,
+              'remainingDue': newDue,
+            },
+          ).ignore();
+        }
       }
 
       // Mark request approved
@@ -680,9 +746,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ? 'Seat change approved and allocated successfully!'
                 : (type == 'freeze'
                     ? 'Study vacation freeze approved! Plan validity extended.'
-                    : (type == 'renewal'
-                        ? 'Renewal approved! Please record payment to extend validity.'
-                        : 'Request approved! Please record payment to activate pass.')));
+                    : (type == 'due_payment'
+                        ? 'Dues payment approved! Student balance cleared.'
+                        : (type == 'renewal'
+                            ? 'Renewal approved! Please record payment to extend validity.'
+                            : 'Request approved! Please record payment to activate pass.'))));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMsg), backgroundColor: Colors.green),
         );
@@ -1374,7 +1442,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             ? 'Seat Relocation'
             : (type == 'freeze'
                 ? 'Study Vacation / Freeze'
-                : (type == 'profile_update' ? 'Profile Update' : 'New Registration')));
+                : (type == 'due_payment'
+                    ? 'Outstanding Fee Payment'
+                    : (type == 'profile_update' ? 'Profile Update' : 'New Registration'))));
 
     return Container(
       padding: const EdgeInsets.all(20),

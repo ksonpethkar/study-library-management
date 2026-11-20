@@ -18,6 +18,7 @@ import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/features/settings/presentation/providers/settings_provider.dart';
 
 class ReceiptPreviewScreen extends ConsumerStatefulWidget {
   final String receiptId;
@@ -174,7 +175,10 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
         final receipt = data['receipt'] as ReceiptModel;
         final libraryData = data['library'] as Map<String, dynamic>;
         final studentData = data['student'] as Map<String, dynamic>;
-        final template = data['template'] as Map<String, dynamic>?;
+        
+        // Dynamic Receipt Template: Live Firestore stream takes precedence over static snapshot
+        final liveTemplate = ref.watch(receiptTemplateStreamProvider).value;
+        final template = liveTemplate ?? (data['template'] as Map<String, dynamic>?);
 
         final student = StudentModel.fromJson({...studentData, 'id': receipt.studentId});
         final plan = (data['plan'] as PlanModel?) ??
@@ -665,18 +669,21 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
         ? firestore.collection('libraries').doc(effectiveLibId).collection('plans').doc(receipt.planId).get()
         : null;
 
-    final templateDocFuture = firestore
-        .collection('libraries')
-        .doc(effectiveLibId)
-        .collection('settings')
-        .doc('receipt_template')
-        .get();
+    final cachedTemplate = ref.read(receiptTemplateStreamProvider).value;
+    final templateDocFuture = cachedTemplate == null
+        ? firestore
+            .collection('libraries')
+            .doc(effectiveLibId)
+            .collection('settings')
+            .doc('receipt_template')
+            .get()
+        : null;
 
     final results = await Future.wait([
       libDocFuture.catchError((_) => null as dynamic),
       if (studentDocFuture != null) studentDocFuture.catchError((_) => null as dynamic) else Future.value(null),
       if (planDocFuture != null) planDocFuture.catchError((_) => null as dynamic) else Future.value(null),
-      templateDocFuture.catchError((_) => null as dynamic),
+      if (templateDocFuture != null) templateDocFuture.catchError((_) => null as dynamic) else Future.value(null),
     ]);
 
     final libDoc = results[0];
@@ -717,7 +724,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
         (studentData['customPlanName'] as String?) ??
         (pDoc?.data()?['name'] as String?) ??
         'Membership';
-    final templateData = templateDoc?.exists == true ? templateDoc!.data() : null;
+    final templateData = cachedTemplate ?? (templateDoc != null && templateDoc.exists ? templateDoc.data() : null);
 
     // Resolve seat and section concurrently if attached to student
     String? resolvedSeatLabel;

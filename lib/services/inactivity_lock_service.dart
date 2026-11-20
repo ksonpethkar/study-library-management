@@ -15,6 +15,9 @@ class InactivityLockService {
   static bool _isEnabled = true;
   static bool _isLocked = false;
 
+  /// Whether the screen is currently locked
+  static bool get isLocked => _isLocked;
+
   /// Handle OS-level application lifecycle changes (background/foreground)
   static void onAppLifecycleStateChanged(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {

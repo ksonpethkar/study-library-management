@@ -119,11 +119,13 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
   }
 
   List<Color> _getThemeGradient(String themeId, Color libraryAccent) {
-    if (themeId.startsWith('#')) {
-      try {
-        final c = Color(int.parse('FF${themeId.replaceAll('#', '')}', radix: 16));
+    final cleanHex = themeId.replaceAll('#', '').trim();
+    if (cleanHex.length == 6 || cleanHex.length == 8) {
+      final parsed = int.tryParse(cleanHex.length == 6 ? 'FF$cleanHex' : cleanHex, radix: 16);
+      if (parsed != null) {
+        final c = Color(parsed);
         return [c, Color.lerp(c, Colors.black, 0.45) ?? Colors.black];
-      } catch (_) {}
+      }
     }
     switch (themeId) {
       case 'royalNavy':
@@ -449,7 +451,7 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                                         child: _buildCardBack(
                                           student: widget.student,
                                           library: library,
-                                          gradientColors: _getThemeGradient(activeTheme, Color(library.accentColor)),
+                                          gradientColors: _getThemeGradient(activeTheme, Color(library.accentColor != 0 ? library.accentColor : 0xFF1E3A8A)),
                                           dynamicId: dynamicId,
                                           seatText: seatText,
                                           dateFormat: dateFormat,
@@ -462,7 +464,7 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                                       child: _buildCardFront(
                                         student: widget.student,
                                         library: library,
-                                        gradientColors: _getThemeGradient(activeTheme, Color(library.accentColor)),
+                                        gradientColors: _getThemeGradient(activeTheme, Color(library.accentColor != 0 ? library.accentColor : 0xFF1E3A8A)),
                                         dynamicId: dynamicId,
                                         seatText: seatText,
                                         hasPhoto: widget.student.photoUrl.isNotEmpty,
