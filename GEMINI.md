@@ -21,9 +21,11 @@ Derived from past index crash: `"The query requires a COLLECTION_ASC index for c
    - Always query single entities (e.g. current student, library settings) using `.doc(id).snapshots()` rather than collection-wide `.where(...)` queries whenever the document ID is known or cached in `SharedPreferences`.
 2. **Never Disable `COLLECTION` Scope in `firestore.indexes.json`:**
    - When adding `COLLECTION_GROUP` overrides, NEVER omit the `{ "order": "ASCENDING", "queryScope": "COLLECTION" }` and `{ "order": "DESCENDING", "queryScope": "COLLECTION" }` definitions for core fields (`userId`, `email`, `phone`).
-3. **No Raw Firebase Exception Dumps:**
+3. **Atomic Transactions for Seat Allocation:**
+   - Prevent race conditions when two counter staff assign a seat at the same second: always wrap seat status changes in `FirebaseFirestore.instance.runTransaction()`.
+4. **No Raw Firebase Exception Dumps:**
    - Never display raw database exception traces (e.g. index URLs, internal error codes) directly on user-facing widgets. Wrap stream and future errors in clean, friendly retry cards using `AppErrorFormatter`.
-4. **Multi-Tenant Library Isolation:**
+5. **Multi-Tenant Library Isolation:**
    - Every read and write to subcollections or library assets must be strictly scoped to `libraries/{libraryId}`.
 
 ---
@@ -36,20 +38,24 @@ Derived from past bug: *Students refreshed and were immediately logged out or tr
    - If user data is resolving, render a stable "Connecting to your dashboard..." card with a manual "Retry Connection" button, allowing at least a 10-second grace window for slow 3G/4G networks.
 3. **Stream Fallback Providers:**
    - If a stream provider fails or encounters network degradation, fall back to cached local `SharedPreferences` state without crashing the screen.
+4. **Offline ID Pass & Barcode Availability:**
+   - The student's digital ID card, barcode, seat number, and validity dates must be cached in local storage so students can enter the library even during internet/broadband outages.
 
 ---
 
 ## 4. Mobile Screen Layout, Overflow & Viewport Standards
-Derived from past bugs: *RenderFlex overflows on small devices, dialog buttons clipped, keyboard obscuring inputs*.
+Derived from past bugs: *RenderFlex overflows on small devices, dialog buttons clipped, keyboard obscuring inputs, vertical scroll cut-off*.
 1. **Zero RenderFlex Overflow Tolerance:**
    - Never use fixed widths or unconstrained horizontal rows for action buttons or headers.
    - Always wrap action buttons in `Wrap(spacing: 8, runSpacing: 8)` or `FittedBox(fit: BoxFit.scaleDown)`.
    - In `Row` widgets, wrap variable-length text in `Expanded` or `Flexible` with `overflow: TextOverflow.ellipsis`.
 2. **Mobile Form Scrolling & Keyboard Behavior:**
    - Every form must use `keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag` so the virtual keyboard does not block submit buttons or inputs.
-3. **Text Scaling Clamping:**
+3. **No Bottom Viewport Clipping:**
+   - All scroll views with bottom action buttons must provide bottom padding (`EdgeInsets.only(bottom: 80 + MediaQuery.of(context).padding.bottom)`) to prevent bottom navigation bars or FABs from hiding options.
+4. **Text Scaling Clamping:**
    - Protect layouts against accessibility text scaling > 1.5x using `MediaQuery.withClampedTextScaling(maxScaleFactor: 1.3)`.
-4. **Memory-Safe Image Rendering:**
+5. **Memory-Safe Image Rendering:**
    - Never load uncompressed base64 photo strings or raw network images directly into high-density lists or ID cards.
    - Always wrap in `CachedNetworkImage` and use `ResizeImage` downsampling (e.g., max 256x256 for avatars) to prevent Android out-of-memory (OOM) crashes and scrolling jank.
 
@@ -58,7 +64,7 @@ Derived from past bugs: *RenderFlex overflows on small devices, dialog buttons c
 ## 5. Mobile Hardware Back-Button & Route Navigation Safety
 Derived from past bug: *Pressing Android physical back button on inner screens exited the app completely*.
 1. **Resilient Pop Scope:**
-   - Every secondary or inner screen (ID Card, Settings, Feedback, Receipts, Holidays, Announcements) must implement resilient back handling:
+   - Every secondary or inner screen (ID Card, Settings, Feedback, Receipts, Holidays, Announcements, Edit Student) must implement resilient back handling:
      ```dart
      if (context.canPop()) {
        context.pop();
@@ -84,13 +90,12 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
 
 ---
 
-## 7. Android Binary Build, Signing & OTA Distribution Discipline
-Derived from past bugs: *Mismatched keystore prevented OTA update installation; ARM64 APK failed on 32-bit devices; ServiceWorker cached stale web bundles*.
-1. **Identical Release Signing Keystore:**
+## 7. Android Binary Build, 64-Bit Architecture & OTA Discipline
+1. **64-bit ARM (`arm64-v8a`) as Primary Production Binary:**
+   - Make the lean **54.5 MB** 64-bit APK (`StudyLibrary-arm64-v8a.apk`) the primary default download. 96%+ of active Android devices in 2026 run 64-bit OS.
+   - Retain a secondary legacy 32-bit (`armeabi-v7a`, 47 MB) download link on the portal for vintage budget devices.
+2. **Identical Release Signing Keystore:**
    - All production APKs and App Bundles must be signed with the permanent release keystore (`upload-keystore.jks`). Never use debug or regenerated keys, or in-app OTA updates will fail with `"Package conflicts with an existing package"`.
-2. **Universal APK is Primary:**
-   - The primary public download link (`StudyLibrary.apk`) must ALWAYS be the Universal (FAT) APK containing all ABIs (`armeabi-v7a`, `arm64-v8a`, `x86_64`) to guarantee 100% device compatibility.
-   - Split-per-abi builds (54 MB) are published alongside as secondary optimized options.
 3. **Synchronized Version Manifest (`update.json`):**
    - Whenever a new version is released, synchronize `pubspec.yaml`, `update.json`, GitHub Releases CDN, and Firebase download landing page in a single commit.
 4. **Web Cache Busting:**
@@ -98,8 +103,23 @@ Derived from past bugs: *Mismatched keystore prevented OTA update installation; 
 
 ---
 
-## 8. Mandatory Pre-Commit & Pre-Release Verification Protocol
-Before any feature or bug fix is concluded:
-1. `flutter analyze` must run and output **0 issues found**.
-2. `flutter test test/system_qa_test.dart` must run and all QA tests must pass.
-3. Every new feature or fixed bug must have a dedicated automated test added to `test/system_qa_test.dart`.
+## 8. Unspoken but Critical Production Safeguards (Operator Best Practices)
+1. **Automated WhatsApp Renewal Notification Fallback:**
+   - Indian OEM Android skins (MIUI, ColorOS, FunTouchOS) aggressively kill background FCM push notifications.
+   - For all critical lifecycle events (Membership expiring in 3 days, Payment receipt ready, Desk reassignment), always provide a 1-tap WhatsApp deep-link (`https://wa.me/...`) so reminders are guaranteed to be delivered.
+2. **Counter Tablet Auto-Lock PIN (Data Privacy):**
+   - When the library admin/receptionist steps away from the counter, the admin tablet must auto-lock after 3 minutes of inactivity to protect student Aadhaar, phone numbers, and financial drawer records from visiting students.
+3. **Receipt Voiding on Payment Rollback:**
+   - If a payment is refunded or cancelled, the PDF receipt record must be marked `status: 'cancelled'` in Firestore to prevent students from using invalid downloaded PDFs as proof of active membership.
+4. **Aadhaar Data Masking Compliance:**
+   - In accordance with UIDAI best practices, only display the last 4 digits (`XXXX-XXXX-1234`) on screens, ID cards, and receipts. Store identity document images strictly in private, role-restricted Firebase Storage buckets.
+5. **Daily Database Backup (Disaster Recovery):**
+   - Scheduled export of core collections (`students`, `payments`, `libraries`) to ensure complete zero-data-loss recovery.
+
+---
+
+## 9. Continuous Learning & Auto-Rule Appending Rule
+- Whenever the user reports a bug, layout glitch, broken button, or operational requirement in chat:
+  1. Immediately record the root cause and guardrail in this `GEMINI.md` file.
+  2. Add an automated regression test to `test/system_qa_test.dart`.
+  3. Verify with `flutter analyze` and `flutter test` before completing the turn.
