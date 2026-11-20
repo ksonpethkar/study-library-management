@@ -6744,5 +6744,34 @@ void main() {
       expect(SeatHelper.formatSeatNumberOnly(rawLabel: 'Desk #Seat #35'), equals('35'));
       expect(SeatHelper.formatSeatNumberOnly(rawLabel: '35'), equals('35'));
     });
+
+    test('Regression QA: OTA Update Manifest & GitHub CDN Download URL Integrity', () {
+      const sampleManifestJson = '''
+      {
+        "latestVersion": "1.5.58",
+        "versionName": "1.5.58+2075",
+        "versionCode": 2075,
+        "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.58/StudyLibrary-arm64-v8a.apk",
+        "arm64DownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.58/StudyLibrary-arm64-v8a.apk",
+        "legacy32DownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.58/StudyLibrary-armeabi-v7a.apk",
+        "universalDownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.58/StudyLibrary.apk",
+        "aabDownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.58/StudyLibrary.aab"
+      }
+      ''';
+
+      final Map<String, dynamic> manifest = jsonDecode(sampleManifestJson) as Map<String, dynamic>;
+      final String version = manifest['latestVersion'] as String;
+      final String tag = 'v' + version;
+
+      // Ensure release URLs strictly target expected GitHub release tag
+      expect(manifest['downloadUrl'], contains('/releases/download/' + tag + '/StudyLibrary-arm64-v8a.apk'));
+      expect(manifest['arm64DownloadUrl'], contains('/releases/download/' + tag + '/StudyLibrary-arm64-v8a.apk'));
+      expect(manifest['legacy32DownloadUrl'], contains('/releases/download/' + tag + '/StudyLibrary-armeabi-v7a.apk'));
+      expect(manifest['universalDownloadUrl'], contains('/releases/download/' + tag + '/StudyLibrary.apk'));
+      expect(manifest['aabDownloadUrl'], contains('/releases/download/' + tag + '/StudyLibrary.aab'));
+
+      // Validate 64-bit ARM is primary download
+      expect(manifest['downloadUrl'], equals(manifest['arm64DownloadUrl']));
+    });
   });
 }

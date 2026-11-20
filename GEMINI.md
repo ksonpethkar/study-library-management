@@ -123,3 +123,26 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
   1. Immediately record the root cause and guardrail in this `GEMINI.md` file.
   2. Add an automated regression test to `test/system_qa_test.dart`.
   3. Verify with `flutter analyze` and `flutter test` before completing the turn.
+
+---
+
+## 10. Master Module Wiring & Desk Format Guardrails (Learned Nov 2026)
+1. **Centralized Desk Label Formatting (`SeatHelper.formatDeskLabel`):**
+   - Root Cause: Multiple widgets were prefixing `'Desk #' + SeatHelper.formatSeatLabel(...)` where `formatSeatLabel` already produced `#35` or `Seat #35`, creating recursive double prefixes like `'Desk #Seat #35'` or `'Desk ##35'`.
+   - Guardrail: NEVER concatenate `'Desk #' + ...`. Always invoke `SeatHelper.formatDeskLabel(seatId: ..., rawLabel: ...)` or `SeatHelper.formatSeatNumberOnly(...)`. `SeatHelper.formatSeatLabel` uses an iterative stripping loop to ensure legacy database strings containing nested prefixes (e.g., `'Desk #Seat #35'`) are cleanly reduced to the bare seat identifier.
+2. **Web Cache Busting & Service Worker Synchronization:**
+   - Always synchronize `<script src="/app/flutter_bootstrap.js?v=..." async></script>` in `study_library/web/index.html` and `public/app/index.html` on each deployment to force browser service workers to evict stale cached JavaScript bundles.
+3. **Announcements Repository & Dynamic Student Notice Board:**
+   - Always route announcements through `AnnouncementsRepository` and `announcementsStreamProvider`.
+   - The student portal Notice Board must dynamically display unread badge counts via `unreadAnnouncementsCountProvider(studentId)`.
+4. **Cross-Collection Global Search:**
+   - Search across students, plans, announcements, desks, and payments via `SearchRepository.searchAll` with a 300ms debounce timer to prevent Firestore query spikes.
+5. **Settings Dynamic Streams:**
+   - Settings for ID cards, receipts, grace periods, communications, and legal terms must use shared `StreamProvider`s in `settings_provider.dart` to maintain strict dual-portal parity between Admin and Student applications.
+
+---
+
+## 11. GitHub Releases & APK CDN Distribution Safeguard (Learned Nov 2026)
+1. **GitHub Release Publication Guardrail:**
+   - Root Cause: Version `v1.5.58` was tagged and `update.json` was updated pointing to GitHub release asset URLs (`.../releases/download/v1.5.58/StudyLibrary-arm64-v8a.apk`), but the GitHub release was not created or binaries were not uploaded. This caused users downloading the APK from the portal to hit a GitHub 404 error page.
+   - Guardrail: Never push a version manifest (`update.json`) pointing to a GitHub release tag before creating the GitHub release and uploading all 4 assets (`StudyLibrary-arm64-v8a.apk`, `StudyLibrary-armeabi-v7a.apk`, `StudyLibrary.apk`, and `StudyLibrary.aab`) via `gh release create <tag> ...`. Always verify download URL health (`HTTP 200 OK`) prior to deploying hosting.
