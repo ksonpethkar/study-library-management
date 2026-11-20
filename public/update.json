@@ -9,8 +9,8 @@
   "latestBuild": 2074,
   "latestVersion": "1.5.57",
   "versionName": "1.5.57+2074",
-  "apkSize": "139.1 MB",
-  "apkType": "Universal Compatible (Installs on all Android phones)",
+  "apkSize": "54.5 MB",
+  "apkType": "64-Bit ARM (arm64-v8a) — High-Performance & Instant Download",
   "arm64DownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary-arm64-v8a.apk",
   "arm64ApkSize": "54.5 MB",
   "universalDownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary.apk",
@@ -18,7 +18,7 @@
   "aabDownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.56/StudyLibrary.aab",
   "aabSize": "105.2 MB",
   "releaseNotes": "v1.5.57 (Build 2074): Production E2E QA release featuring hardened storage security rules, date-of-birth validation and duplicate applicant prevention, 4 new production WhatsApp templates (registration received, seat reassignment, 7-day expiry, ID card ready), FCM token rotation listener, network image caching, active membership query optimization, and resilient web base routing.",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary.apk",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary-arm64-v8a.apk",
   "mandatory": false,
   "organization": {
     "name": "The Cozy Corner Study Centre",
@@ -90,10 +90,10 @@
   "android": {
     "versionCode": 2074,
     "versionName": "1.5.57+2074",
-    "apkSize": "139.1 MB",
+    "apkSize": "54.5 MB",
     "arm64ApkSize": "54.5 MB",
-    "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary.apk",
-    "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary.apk",
+    "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary-arm64-v8a.apk",
+    "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary-arm64-v8a.apk",
     "arm64DownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.57/StudyLibrary-arm64-v8a.apk",
     "releasedAt": "2026-11-19T13:56:33.192Z",
     "releaseNotes": "v1.5.57 (Build 2074): Production E2E QA release featuring hardened storage security rules, date-of-birth validation and duplicate applicant prevention, 4 new production WhatsApp templates (registration received, seat reassignment, 7-day expiry, ID card ready), FCM token rotation listener, network image caching, active membership query optimization, and resilient web base routing."
