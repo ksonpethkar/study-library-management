@@ -178,13 +178,26 @@ class RequestListScreen extends ConsumerStatefulWidget {
   ConsumerState<RequestListScreen> createState() => _RequestListScreenState();
 }
 
-class _RequestListScreenState extends ConsumerState<RequestListScreen> {
+class _RequestListScreenState extends ConsumerState<RequestListScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   late String _selectedCategory;
 
   @override
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory ?? 'all';
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -283,22 +296,24 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
                 color: isSelected ? activeColor : theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-              decoration: BoxDecoration(
-                color: isSelected ? activeColor : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.white : theme.colorScheme.onSurfaceVariant,
+            if (count > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: isSelected ? activeColor : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? Colors.white : theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -640,6 +655,23 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
         final approved = requests.where((r) => r.status == 'approved').toList();
         final rejected = requests.where((r) => r.status == 'rejected' || r.status == 'superseded' || r.status == 'cancelled').toList();
 
+        List<StudentRequestItem> currentTabRequests;
+        switch (_tabController.index) {
+          case 0:
+            currentTabRequests = pending;
+            break;
+          case 1:
+            currentTabRequests = approved;
+            break;
+          case 2:
+            currentTabRequests = rejected;
+            break;
+          case 3:
+          default:
+            currentTabRequests = requests;
+            break;
+        }
+
         return PopScope(
           canPop: context.canPop(),
           onPopInvokedWithResult: (didPop, result) {
@@ -647,149 +679,226 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
               context.go(Routes.adminHome);
             }
           },
-          child: DefaultTabController(
-            length: 4,
-            child: Scaffold(
-              appBar: AppBar(
-                leading: buildBackButton(),
-                title: const Text('Requests Hub'),
-                bottom: TabBar(
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  tabs: [
-                    Tab(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('Pending'),
-                          if (pending.isNotEmpty) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.error,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '${pending.length}',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onError,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const Tab(text: 'Approved'),
-                    const Tab(text: 'Rejected'),
-                    const Tab(text: 'All'),
-                  ],
-                ),
-              ),
-              body: Column(
-                children: [
-                  // 1. Module Category Filter Ribbon
-                  _buildCategoryChips(context, requests, moduleCounts),
-                  const Divider(height: 1),
-
-                  // 2. Active Filter indicator (if not 'all')
-                  if (_selectedCategory != 'all')
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
-                      child: Row(
-                        children: [
-                          Icon(Icons.filter_alt_rounded, size: 14, color: Theme.of(context).colorScheme.onPrimaryContainer),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Filtered by Module: ${_categoryLabel(_selectedCategory)}',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                          const Spacer(),
-                          InkWell(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              setState(() => _selectedCategory = 'all');
-                            },
-                            child: Row(
-                              children: [
-                                Text(
-                                  'Clear Filter',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                                  ),
-                                ),
-                                const SizedBox(width: 2),
-                                Icon(Icons.close_rounded, size: 14, color: Theme.of(context).colorScheme.onPrimaryContainer),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // 3. Tab Contents
-                  Expanded(
-                    child: TabBarView(
+          child: Scaffold(
+            appBar: AppBar(
+              leading: buildBackButton(),
+              title: const Text('Requests Hub'),
+              bottom: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                tabs: [
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildRequestList(
-                          context,
-                          ref,
-                          libraryId,
-                          pending,
-                          isPendingTab: true,
-                          moduleCounts: moduleCounts,
-                          emptyTitle: 'All caught up! 🎉',
-                          emptySubtitle: 'There are no pending requests for this filter.',
-                          emptyIcon: Icons.check_circle_outline_rounded,
-                        ),
-                        _buildRequestList(
-                          context,
-                          ref,
-                          libraryId,
-                          approved,
-                          moduleCounts: moduleCounts,
-                          emptyTitle: 'No approved requests',
-                          emptySubtitle: 'Approved requests will appear here.',
-                          emptyIcon: Icons.task_alt_rounded,
-                        ),
-                        _buildRequestList(
-                          context,
-                          ref,
-                          libraryId,
-                          rejected,
-                          moduleCounts: moduleCounts,
-                          emptyTitle: 'No rejected requests',
-                          emptySubtitle: 'Rejected requests will appear here.',
-                          emptyIcon: Icons.cancel_outlined,
-                        ),
-                        _buildRequestList(
-                          context,
-                          ref,
-                          libraryId,
-                          requests,
-                          moduleCounts: moduleCounts,
-                          emptyTitle: 'No requests yet',
-                          emptySubtitle: 'Student requests across modules will appear here.',
-                          emptyIcon: Icons.inbox_outlined,
-                        ),
+                        const Text('Pending'),
+                        if (pending.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.error,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${pending.length}',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onError,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Approved'),
+                        if (approved.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade700,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${approved.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Rejected'),
+                        if (rejected.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.outline,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${rejected.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('All'),
+                        if (requests.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${requests.length}',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ],
               ),
+            ),
+            body: Column(
+              children: [
+                // 1. Module Category Filter Ribbon
+                _buildCategoryChips(context, currentTabRequests, moduleCounts),
+                const Divider(height: 1),
+
+                // 2. Active Filter indicator (if not 'all')
+                if (_selectedCategory != 'all')
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
+                    child: Row(
+                      children: [
+                        Icon(Icons.filter_alt_rounded, size: 14, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Filtered by Module: ${_categoryLabel(_selectedCategory)}',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        const Spacer(),
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            setState(() => _selectedCategory = 'all');
+                          },
+                          child: Row(
+                            children: [
+                              Text(
+                                'Clear Filter',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(Icons.close_rounded, size: 14, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // 3. Tab Contents
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildRequestList(
+                        context,
+                        ref,
+                        libraryId,
+                        pending,
+                        isPendingTab: true,
+                        moduleCounts: moduleCounts,
+                        emptyTitle: 'All caught up! 🎉',
+                        emptySubtitle: 'There are no pending requests for this filter.',
+                        emptyIcon: Icons.check_circle_outline_rounded,
+                      ),
+                      _buildRequestList(
+                        context,
+                        ref,
+                        libraryId,
+                        approved,
+                        moduleCounts: moduleCounts,
+                        emptyTitle: 'No approved requests',
+                        emptySubtitle: 'Approved requests will appear here.',
+                        emptyIcon: Icons.task_alt_rounded,
+                      ),
+                      _buildRequestList(
+                        context,
+                        ref,
+                        libraryId,
+                        rejected,
+                        moduleCounts: moduleCounts,
+                        emptyTitle: 'No rejected requests',
+                        emptySubtitle: 'Rejected requests will appear here.',
+                        emptyIcon: Icons.cancel_outlined,
+                      ),
+                      _buildRequestList(
+                        context,
+                        ref,
+                        libraryId,
+                        requests,
+                        moduleCounts: moduleCounts,
+                        emptyTitle: 'No requests yet',
+                        emptySubtitle: 'Student requests across modules will appear here.',
+                        emptyIcon: Icons.inbox_outlined,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -854,12 +963,32 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> {
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
-                  if (_selectedCategory != 'all' && rawItems.isNotEmpty) ...[
+                  if (_selectedCategory != 'all') ...[
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: () => setState(() => _selectedCategory = 'all'),
                       icon: const Icon(Icons.clear_all_rounded),
-                      label: const Text('Show All Requests'),
+                      label: const Text('Clear Filter'),
+                    ),
+                  ],
+                  if (isPendingTab && rawItems.isEmpty) ...[
+                    const SizedBox(height: 16),
+                    FilledButton.tonalIcon(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        _tabController.animateTo(1);
+                      },
+                      icon: const Icon(Icons.task_alt_rounded),
+                      label: const Text('View Approved Requests'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        _tabController.animateTo(3);
+                      },
+                      icon: const Icon(Icons.all_inbox_rounded),
+                      label: const Text('View All Requests History'),
                     ),
                   ],
                 ],

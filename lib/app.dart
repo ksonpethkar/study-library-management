@@ -28,11 +28,18 @@ class StudyLibraryApp extends ConsumerStatefulWidget {
 class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsBindingObserver {
   // S10: Listener that forces sign-out when user role is revoked server-side
   StreamSubscription<DocumentSnapshot>? _roleChangeSubscription;
+  StreamSubscription<DocumentSnapshot>? _securitySubscription;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Apply native screenshot protection immediately on startup based on cached setting
+    isScreenshotProtectionEnabled().then((enabled) {
+      applyNativeSecureFlag(enabled);
+    }).catchError((_) {});
+
     InactivityLockService.initialize(
       onLock: () {
         if (mounted) {
@@ -101,9 +108,37 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
   @override
   void dispose() {
     _roleChangeSubscription?.cancel();
+    _securitySubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     InactivityLockService.dispose();
     super.dispose();
+  }
+
+  void _watchScreenshotProtection(String libraryId) {
+    _securitySubscription?.cancel();
+    if (libraryId.isEmpty) return;
+
+    // Listen to libraries/{id}/settings/security in real-time
+    _securitySubscription = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('settings')
+        .doc('security')
+        .snapshots()
+        .listen((snap) async {
+      if (snap.exists && snap.data() != null) {
+        final data = snap.data()!;
+        if (data.containsKey('screenshotProtectionEnabled') &&
+            data['screenshotProtectionEnabled'] is bool) {
+          final enabled = data['screenshotProtectionEnabled'] as bool;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('screenshot_protection_global', enabled);
+          await prefs.setBool('screenshot_protection_configured', true);
+          await prefs.setBool('screenshot_protection_admin_disabled', !enabled);
+          await applyNativeSecureFlag(enabled);
+        }
+      }
+    }, onError: (_) {});
   }
 
   @override
@@ -166,6 +201,7 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
       if (next != null) {
         TelemetryService.setLibrary(next);
         loadScreenshotProtectionFromFirestore(next);
+        _watchScreenshotProtection(next);
       }
     });
 

@@ -146,6 +146,14 @@ class MessageTemplateService {
           .replaceAll(RegExp(r'\n{3,}'), '\n\n');
     }
 
+    // Clean up empty parentheses e.g. "₹2000 ()" or "₹ ()" -> "₹2000"
+    result = result.replaceAll(RegExp(r'\s*\(\s*\)'), '');
+
+    // If amount is empty, cleanly format or replace dangling currency symbols
+    if (amount == null || amount.trim().isEmpty || amount.trim() == '0') {
+      result = result.replaceAll(RegExp(r'₹\s*(?=\n|$)'), 'As per selected plan');
+    }
+
     return result.trim();
   }
 

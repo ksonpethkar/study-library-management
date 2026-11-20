@@ -768,7 +768,11 @@ class BiometricService {
 
   /// Called when app goes into background
   static void onAppPaused() {
-    _lastPausedTime = DateTime.now();
+    final now = DateTime.now();
+    _lastPausedTime = now;
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setInt('last_paused_time_ms', now.millisecondsSinceEpoch);
+    }).catchError((_) {});
   }
 
   /// Called when app resumes: returns true if app should navigate to lock screen
@@ -789,7 +793,18 @@ class BiometricService {
     );
     if (!enabled) return false;
 
-    if (_lastPausedTime == null) return false;
+    if (_lastPausedTime == null) {
+      final prefs = await SharedPreferences.getInstance();
+      final ms = prefs.getInt('last_paused_time_ms');
+      if (ms != null && ms > 0) {
+        _lastPausedTime = DateTime.fromMillisecondsSinceEpoch(ms);
+      }
+    }
+
+    if (_lastPausedTime == null) {
+      _isCurrentlyLocked = true;
+      return true;
+    }
 
     final timeoutMinutes = await getAutoLockTimeoutMinutes();
     final difference = DateTime.now().difference(_lastPausedTime!);
@@ -805,6 +820,9 @@ class BiometricService {
   static void markUnlocked() {
     _lastPausedTime = null;
     _isCurrentlyLocked = false;
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.remove('last_paused_time_ms');
+    }).catchError((_) {});
   }
 
   // ── Rate Limiting (5 failed attempts -> 15 min cooldown) ───────────────────

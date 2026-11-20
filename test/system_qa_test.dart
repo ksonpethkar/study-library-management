@@ -53,6 +53,7 @@ import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/services/meta_whatsapp_api_service.dart';
 import 'package:study_library/services/messaging_hub_service.dart';
+import 'package:study_library/features/requests/presentation/screens/request_list_screen.dart';
 import 'package:study_library/core/router/app_router.dart';
 
 StudentModel createTestStudent({
@@ -6761,17 +6762,112 @@ void main() {
 
       final Map<String, dynamic> manifest = jsonDecode(sampleManifestJson) as Map<String, dynamic>;
       final String version = manifest['latestVersion'] as String;
-      final String tag = 'v' + version;
+      final String tag = 'v$version';
 
       // Ensure release URLs strictly target expected GitHub release tag
-      expect(manifest['downloadUrl'], contains('/releases/download/' + tag + '/StudyLibrary-arm64-v8a.apk'));
-      expect(manifest['arm64DownloadUrl'], contains('/releases/download/' + tag + '/StudyLibrary-arm64-v8a.apk'));
-      expect(manifest['legacy32DownloadUrl'], contains('/releases/download/' + tag + '/StudyLibrary-armeabi-v7a.apk'));
-      expect(manifest['universalDownloadUrl'], contains('/releases/download/' + tag + '/StudyLibrary.apk'));
-      expect(manifest['aabDownloadUrl'], contains('/releases/download/' + tag + '/StudyLibrary.aab'));
+      expect(manifest['downloadUrl'], contains('/releases/download/$tag/StudyLibrary-arm64-v8a.apk'));
+      expect(manifest['arm64DownloadUrl'], contains('/releases/download/$tag/StudyLibrary-arm64-v8a.apk'));
+      expect(manifest['legacy32DownloadUrl'], contains('/releases/download/$tag/StudyLibrary-armeabi-v7a.apk'));
+      expect(manifest['universalDownloadUrl'], contains('/releases/download/$tag/StudyLibrary.apk'));
+      expect(manifest['aabDownloadUrl'], contains('/releases/download/$tag/StudyLibrary.aab'));
 
       // Validate 64-bit ARM is primary download
       expect(manifest['downloadUrl'], equals(manifest['arm64DownloadUrl']));
+    });
+
+    test('Regression QA: Welcome & Receipt Message formatting cleans empty brackets and substitutes valid tags', () {
+      final formatted = MessageTemplateService.substitute(
+        MessageTemplateService.welcomeMarathi,
+        studentName: 'Ashish Wagesh Choudhari',
+        membershipId: 'CC20260001',
+        planName: 'Quarterly',
+        seatLabel: 'Seat #6',
+        expiryDate: '31 Jan 2027',
+        amount: '2000',
+        paymentMethod: 'Cash / Pay at Reception',
+        libraryAddress: 'Someshwar Nagar, Parli',
+        libraryHelpline: '9403243830',
+      );
+
+      expect(formatted, contains('Ashish Wagesh Choudhari'));
+      expect(formatted, contains('CC20260001'));
+      expect(formatted, contains('Quarterly'));
+      expect(formatted, contains('Seat #6'));
+      expect(formatted, contains('₹2000 (Cash / Pay at Reception)'));
+      expect(formatted, isNot(contains('₹ ()')));
+
+      // Also verify when paymentMethod is omitted, empty parentheses are cleanly stripped
+      final withoutMethod = MessageTemplateService.substitute(
+        MessageTemplateService.welcomeMarathi,
+        studentName: 'Ashish Wagesh Choudhari',
+        membershipId: 'CC20260001',
+        planName: 'Quarterly',
+        seatLabel: 'Seat #6',
+        expiryDate: '31 Jan 2027',
+        amount: '2000',
+      );
+      expect(withoutMethod, contains('₹2000'));
+      expect(withoutMethod, isNot(contains('()')));
+    });
+
+    test('Regression QA: StudentModel copyWith preserves targetExamName, rollNumber and custom fields', () {
+      final student = StudentModel(
+        id: 'std_01',
+        name: 'Ashish Choudhari',
+        fatherName: 'Wagesh',
+        phone: '7385817571',
+        email: 'ashish@gmail.com',
+        gender: Gender.male,
+        address: 'Parli',
+        pincode: '431515',
+        govIdType: GovIdType.pan,
+        govIdNumber: 'BIJPC6452J',
+        govIdImageUrl: '',
+        photoUrl: '',
+        college: 'Latur College',
+        course: 'Banking',
+        year: 'Completed',
+        emergencyContact: '7385817571',
+        membershipStatus: MembershipStatus.active,
+        customFields: const {'prep': 'RTO Exam'},
+        membershipNumber: 'CC20260001',
+        bloodGroup: 'O+',
+        targetExamName: 'RTO Exam',
+        rollNumber: 'ROLL-101',
+      );
+
+      expect(student.effectiveTargetExamName, equals('RTO Exam'));
+      expect(student.bloodGroup, equals('O+'));
+      expect(student.rollNumber, equals('ROLL-101'));
+
+      final updated = student.copyWith(targetExamName: 'UPSC CSE', rollNumber: 'ROLL-102');
+      expect(updated.targetExamName, equals('UPSC CSE'));
+      expect(updated.rollNumber, equals('ROLL-102'));
+      expect(updated.membershipNumber, equals('CC20260001'));
+    });
+
+    test('Regression QA: Requests Hub tab-scoped category counts prevent false badges on Pending tab', () {
+      final allRequests = [
+        StudentRequestItem(id: '1', message: 'M1', studentId: 's1', studentName: 'A', type: 'registration', status: 'approved', createdAt: DateTime.now()),
+        StudentRequestItem(id: '2', message: 'M2', studentId: 's2', studentName: 'B', type: 'registration', status: 'approved', createdAt: DateTime.now()),
+        StudentRequestItem(id: '3', message: 'M3', studentId: 's3', studentName: 'C', type: 'renewal', status: 'approved', createdAt: DateTime.now()),
+        StudentRequestItem(id: '4', message: 'M4', studentId: 's4', studentName: 'D', type: 'seat_change', status: 'rejected', createdAt: DateTime.now()),
+      ];
+
+      final pending = allRequests.where((r) => r.isPending).toList();
+      final approved = allRequests.where((r) => r.status == 'approved').toList();
+
+      // Pending tab: count is 0, no false badges
+      expect(pending.isEmpty, isTrue);
+      final pendingAdmissions = pending.where((r) => r.type == 'registration').length;
+      expect(pendingAdmissions, equals(0));
+
+      // Approved tab: scoped counts match approved items
+      expect(approved.length, equals(3));
+      final approvedAdmissions = approved.where((r) => r.type == 'registration').length;
+      final approvedRenewals = approved.where((r) => r.type == 'renewal').length;
+      expect(approvedAdmissions, equals(2));
+      expect(approvedRenewals, equals(1));
     });
   });
 }

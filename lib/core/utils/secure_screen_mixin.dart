@@ -32,8 +32,13 @@ mixin SecureScreenMixin<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
-    _setSecure(false);
+    _restoreGlobalSecureFlag();
     super.dispose();
+  }
+
+  Future<void> _restoreGlobalSecureFlag() async {
+    final globalEnabled = await isScreenshotProtectionEnabled();
+    _setSecure(globalEnabled);
   }
 
   Future<void> _applySecureFlag() async {
@@ -173,6 +178,15 @@ Future<void> syncScreenshotProtectionToFirestore(
   }
 }
 
+/// Applies or removes Android window FLAG_SECURE natively.
+Future<void> applyNativeSecureFlag(bool enabled) async {
+  if (kIsWeb || !Platform.isAndroid) return;
+  try {
+    const MethodChannel('study_library/secure_screen')
+        .invokeMethod('setSecureFlag', {'secure': enabled});
+  } catch (_) {}
+}
+
 /// Helper to load screenshot protection setting from Firestore and persist locally.
 Future<bool> loadScreenshotProtectionFromFirestore(String libraryId) async {
   if (libraryId.isEmpty) return true;
@@ -195,6 +209,7 @@ Future<bool> loadScreenshotProtectionFromFirestore(String libraryId) async {
         await prefs.setBool('screenshot_protection_global', enabled);
         await prefs.setBool('screenshot_protection_configured', true);
         await prefs.setBool('screenshot_protection_admin_disabled', !enabled);
+        await applyNativeSecureFlag(enabled);
         return enabled;
       }
     }
@@ -213,19 +228,30 @@ Future<bool> loadScreenshotProtectionFromFirestore(String libraryId) async {
         await prefs.setBool('screenshot_protection_global', enabled);
         await prefs.setBool('screenshot_protection_configured', true);
         await prefs.setBool('screenshot_protection_admin_disabled', !enabled);
+        await applyNativeSecureFlag(enabled);
         return enabled;
       }
     }
 
     // 3. If cloud does not have it, respect existing local admin setting
     final adminDisabled = prefs.getBool('screenshot_protection_admin_disabled') ?? false;
-    if (adminDisabled) return false;
+    if (adminDisabled) {
+      await applyNativeSecureFlag(false);
+      return false;
+    }
 
-    return prefs.getBool('screenshot_protection_global') ?? true;
+    final global = prefs.getBool('screenshot_protection_global') ?? true;
+    await applyNativeSecureFlag(global);
+    return global;
   } catch (_) {
     final prefs = await SharedPreferences.getInstance();
     final adminDisabled = prefs.getBool('screenshot_protection_admin_disabled') ?? false;
-    if (adminDisabled) return false;
-    return prefs.getBool('screenshot_protection_global') ?? true;
+    if (adminDisabled) {
+      await applyNativeSecureFlag(false);
+      return false;
+    }
+    final global = prefs.getBool('screenshot_protection_global') ?? true;
+    await applyNativeSecureFlag(global);
+    return global;
   }
 }

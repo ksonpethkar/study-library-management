@@ -245,7 +245,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         );
         // Restore cloud security settings (PIN, timeout) in case of fresh install
         await BiometricService.restoreSecuritySettingsFromFirestore(libId);
-        final isLocked = await BiometricService.isLockEnabled();
+        final isLocked = await BiometricService.isLockEnabled(isAdmin: true, libraryId: libId);
         await _ensureMinAnimationDuration(startTime);
         if (!mounted) return;
         context.go(isLocked ? Routes.biometricLock : Routes.adminHome);
@@ -260,9 +260,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         navigate: false,
       );
       if (wasStudentHealed) {
+        final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+        final isLocked = await BiometricService.isLockEnabled(
+          authUid: user.uid,
+          libraryId: libId,
+          candidateIds: [user.uid],
+          isAdmin: false,
+        );
         await _ensureMinAnimationDuration(startTime);
         if (!mounted) return;
-        context.go(Routes.studentHome);
+        context.go(isLocked ? Routes.biometricLock : Routes.studentHome);
         return;
       }
 
@@ -285,7 +292,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             ref.read(currentLibraryIdProvider.notifier).set(libId);
             ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
             await BiometricService.restoreSecuritySettingsFromFirestore(libId);
-            final isLocked = await BiometricService.isLockEnabled();
+            final isLocked = await BiometricService.isLockEnabled(isAdmin: true, libraryId: libId);
             await _ensureMinAnimationDuration(startTime);
             if (!mounted) return;
             context.go(isLocked ? Routes.biometricLock : Routes.adminHome);
@@ -328,9 +335,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           if (studentDoc != null || hasActiveRequest) {
             ref.read(currentLibraryIdProvider.notifier).set(libId);
             ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+            final isLocked = await BiometricService.isLockEnabled(
+              userId: studentDoc?.id,
+              authUid: user.uid,
+              libraryId: libId,
+              candidateIds: [if (studentDoc?.id != null) studentDoc!.id, user.uid],
+              isAdmin: false,
+            );
             await _ensureMinAnimationDuration(startTime);
             if (!mounted) return;
-            context.go(Routes.studentHome);
+            context.go(isLocked ? Routes.biometricLock : Routes.studentHome);
             return;
           } else {
             // Stale or ghost role — purge cached role and proceed to full discovery
@@ -360,7 +374,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           role: AppUserRole.admin,
           libraryId: library.id,
         );
-        final isLocked = await BiometricService.isLockEnabled();
+        final isLocked = await BiometricService.isLockEnabled(isAdmin: true, libraryId: library.id);
         await _ensureMinAnimationDuration(startTime);
         if (!mounted) return;
         context.go(isLocked ? Routes.biometricLock : Routes.adminHome);
@@ -414,9 +428,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           role: AppUserRole.student,
           libraryId: libId,
         );
+        final isLocked = await BiometricService.isLockEnabled(
+          userId: studentDoc.id,
+          authUid: user.uid,
+          libraryId: libId,
+          candidateIds: [studentDoc.id, user.uid],
+          isAdmin: false,
+        );
         await _ensureMinAnimationDuration(startTime);
         if (!mounted) return;
-        context.go(Routes.studentHome);
+        context.go(isLocked ? Routes.biometricLock : Routes.studentHome);
         return;
       }
 
@@ -454,9 +475,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           role: AppUserRole.student,
           libraryId: defaultLibId,
         );
+        final isLocked = await BiometricService.isLockEnabled(
+          authUid: user.uid,
+          libraryId: defaultLibId,
+          candidateIds: [user.uid],
+          isAdmin: false,
+        );
         await _ensureMinAnimationDuration(startTime);
         if (!mounted) return;
-        context.go(Routes.studentHome);
+        context.go(isLocked ? Routes.biometricLock : Routes.studentHome);
         return;
       }
 

@@ -281,15 +281,44 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
               subtitle: const Text('Greet new member with library details'),
               onTap: () {
                 Navigator.pop(ctx);
+                final friendlyMemberId = s.membershipNumber?.isNotEmpty == true
+                    ? s.membershipNumber!
+                    : (s.customFields['admissionNo']?.toString().isNotEmpty == true
+                        ? s.customFields['admissionNo'].toString()
+                        : s.id);
+                final friendlyPlanName = planName.isNotEmpty
+                    ? planName
+                    : (s.customPlanName?.isNotEmpty == true
+                        ? s.customPlanName!
+                        : (s.planId != null && s.planId!.length < 15 ? s.planId! : 'Standard Plan'));
+                final friendlySeat = SeatHelper.formatDeskLabel(seatId: s.seatId, rawLabel: seatLabel);
+                final friendlyAmount = planPrice > 0
+                    ? planPrice.toStringAsFixed(0)
+                    : (s.customPlanFee != null && s.customPlanFee! > 0
+                        ? s.customPlanFee!.toStringAsFixed(0)
+                        : (s.customFields['paidAmount'] != null && s.customFields['paidAmount'].toString().isNotEmpty
+                            ? s.customFields['paidAmount'].toString()
+                            : (s.customFields['amount'] != null && s.customFields['amount'].toString().isNotEmpty
+                                ? s.customFields['amount'].toString()
+                                : '')));
+                final friendlyPaymentMethod = s.customFields['paymentMethod']?.toString().isNotEmpty == true
+                    ? s.customFields['paymentMethod'].toString()
+                    : (s.customFields['paymentMode']?.toString().isNotEmpty == true
+                        ? s.customFields['paymentMode'].toString()
+                        : 'Cash / Pay at Reception');
+
                 whatsapp.sendWelcomeMessage(
                   s.phone,
                   s.name,
                   libraryName,
                   adminTemplate: library?.effectiveWelcomeTemplate ?? '',
-                  membershipId: s.id,
-                  planName: s.planId ?? '',
-                  seatLabel: seatLabel,
+                  membershipId: friendlyMemberId,
+                  planName: friendlyPlanName,
+                  seatLabel: friendlySeat,
                   expiryDate: s.planEndDate != null ? DateFormat('dd MMM yyyy').format(s.planEndDate!) : '',
+                  validFromDate: s.planStartDate != null ? DateFormat('dd MMM yyyy').format(s.planStartDate!) : '',
+                  amount: friendlyAmount,
+                  paymentMethod: friendlyPaymentMethod,
                   libraryAddress: library?.address ?? '',
                   libraryHelpline: library?.phone ?? '',
                   context: context,
@@ -308,12 +337,13 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 subtitle: const Text('Notify student about plan status'),
                 onTap: () {
                   Navigator.pop(ctx);
+                  final friendlySeat = SeatHelper.formatDeskLabel(seatId: s.seatId, rawLabel: seatLabel);
                   whatsapp.sendExpiryReminder(
                     s.phone,
                     s.name,
                     daysLeft,
                     libraryName: libraryName,
-                    seatLabel: seatLabel,
+                    seatLabel: friendlySeat,
                     expiryDate: s.planEndDate != null ? DateFormat('dd MMM yyyy').format(s.planEndDate!) : null,
                     libraryHelpline: library?.phone,
                     libraryUpiId: library?.upiId,
@@ -329,10 +359,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   child: Icon(Icons.chair_rounded, color: Colors.green),
                 ),
                 title: const Text('Send Seat Assignment Info'),
-                subtitle: Text('Section: $sectionName · Seat: $seatLabel'),
+                subtitle: Text('Section: $sectionName · Seat: ${SeatHelper.formatDeskLabel(seatId: s.seatId, rawLabel: seatLabel)}'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  whatsapp.sendSeatAssigned(s.phone, s.name, seatLabel, sectionName, libraryName: libraryName, context: context);
+                  final friendlySeat = SeatHelper.formatDeskLabel(seatId: s.seatId, rawLabel: seatLabel);
+                  whatsapp.sendSeatAssigned(s.phone, s.name, friendlySeat, sectionName, libraryName: libraryName, context: context);
                 },
               ),
             const SizedBox(height: 8),

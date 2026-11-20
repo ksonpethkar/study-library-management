@@ -14,8 +14,6 @@ import 'package:study_library/models/library_model.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/models/student_model.dart';
-import 'package:study_library/services/badge_service.dart';
-import 'package:study_library/services/expiry_scheduler_service.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/features/settings/presentation/screens/security_settings_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -635,15 +633,26 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     );
 
     if (confirm == true) {
-      await ExpirySchedulerService.cancelExpiryReminders();
-      await BadgeService.clearBadge();
+      final currentLibId = ref.read(currentLibraryIdProvider);
+      // 1. Sign out of auth repository first so FirebaseAuth.instance.currentUser becomes null
+      try {
+        await ref.read(authRepositoryProvider).signOut(libraryId: currentLibId);
+      } catch (_) {
+        await FirebaseAuth.instance.signOut();
+      }
+      // 2. Clear role & cached preferences
       ref.read(userRoleProvider.notifier).clear();
+      ref.read(currentLibraryIdProvider.notifier).clear();
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('cached_current_user_role');
       await prefs.remove('persisted_role');
       await prefs.remove('persisted_uid');
-      await FirebaseAuth.instance.signOut();
-      if (mounted) context.go(Routes.login);
+      await prefs.remove('cached_current_library_id');
+      await prefs.remove('last_active_route');
+      // 3. Immediately route to Login screen
+      if (mounted) {
+        context.go(Routes.login);
+      }
     }
   }
 
@@ -768,29 +777,31 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                             ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.track_changes_rounded, size: 12, color: Color(0xFFFCD34D)),
-                              SizedBox(width: 4),
-                              Text(
-                                'Target: RTO Exam',
-                                style: TextStyle(
-                                  color: Color(0xFFFCD34D),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                        if ((student.targetExamName != null && student.targetExamName!.trim().isNotEmpty) ||
+                            (student.customFields['prep'] != null && student.customFields['prep'].toString().trim().isNotEmpty))
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.track_changes_rounded, size: 12, color: Color(0xFFFCD34D)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Target: ${student.targetExamName?.trim().isNotEmpty == true ? student.targetExamName!.trim() : student.customFields['prep'].toString().trim()}',
+                                  style: const TextStyle(
+                                    color: Color(0xFFFCD34D),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 16),

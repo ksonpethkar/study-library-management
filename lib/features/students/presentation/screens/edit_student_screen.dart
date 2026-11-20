@@ -41,6 +41,8 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
   final _emergencyController = TextEditingController();
   final _govIdNumberController = TextEditingController();
   final _notesController = TextEditingController();
+  final _targetExamController = TextEditingController();
+  final _rollNumberController = TextEditingController();
 
   // State
   Gender _gender = Gender.male;
@@ -78,6 +80,8 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
     _emergencyController.dispose();
     _govIdNumberController.dispose();
     _notesController.dispose();
+    _targetExamController.dispose();
+    _rollNumberController.dispose();
     for (final c in _customControllers.values) {
       c.dispose();
     }
@@ -169,6 +173,12 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         _emergencyController.text = s.emergencyContact;
         _govIdNumberController.text = s.govIdNumber;
         _notesController.text = s.notes ?? '';
+        _targetExamController.text = s.targetExamName?.isNotEmpty == true
+            ? s.targetExamName!
+            : (s.customFields['prep']?.toString() ?? '');
+        _rollNumberController.text = s.rollNumber?.isNotEmpty == true
+            ? s.rollNumber!
+            : (s.customFields['rollNumber']?.toString() ?? '');
         _gender = s.gender;
         _bloodGroup = s.bloodGroup;
         _govIdType = s.govIdType;
@@ -280,6 +290,19 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         updatedCustom[entry.key] = entry.value.text.trim();
       }
 
+      final prepVal = _targetExamController.text.trim();
+      final rollVal = _rollNumberController.text.trim();
+      if (prepVal.isNotEmpty) {
+        updatedCustom['prep'] = prepVal;
+      } else {
+        updatedCustom.remove('prep');
+      }
+      if (rollVal.isNotEmpty) {
+        updatedCustom['rollNumber'] = rollVal;
+      } else {
+        updatedCustom.remove('rollNumber');
+      }
+
       final updated = _originalStudent!.copyWith(
         name: _nameController.text.trim(),
         fatherName: _fatherNameController.text.trim(),
@@ -300,6 +323,8 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         membershipStatus: _membershipStatus,
         bloodGroup: _bloodGroup,
         admissionDate: _admissionDate,
+        targetExamName: prepVal.isNotEmpty ? prepVal : null,
+        rollNumber: rollVal.isNotEmpty ? rollVal : null,
         customFields: updatedCustom,
         updatedAt: DateTime.now(),
       );
@@ -799,6 +824,35 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     ],
                   ),
 
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _targetExamController,
+                          decoration: const InputDecoration(
+                            labelText: 'Target Exam / Competitive Goal',
+                            prefixIcon: Icon(Icons.track_changes_rounded),
+                            border: OutlineInputBorder(),
+                            hintText: 'e.g. RTO Exam, MPSC, UPSC, NEET',
+                          ),
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _rollNumberController,
+                          decoration: const InputDecoration(
+                            labelText: 'Roll / Enroll Number',
+                            prefixIcon: Icon(Icons.badge_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
                   const SizedBox(height: 24),
 
                   // Section 4: Remarks
@@ -817,16 +871,22 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     builder: (context) {
                       final formConfigAsync = ref.watch(formConfigStreamProvider);
                       final fieldsList = formConfigAsync.value ?? [];
+                      const hardcodedKeys = {
+                        'name', 'fatherName', 'gender', 'dob', 'bloodGroup',
+                        'phone', 'email', 'emergencyContact', 'address', 'pincode',
+                        'govId', 'govIdType', 'govIdNumber',
+                        'college', 'course', 'year', 'prep', 'rollNumber', 'notes'
+                      };
                       final customFields = fieldsList.where((f) {
-                        final isBuiltin = f['builtin'] as bool? ?? false;
+                        final id = f['id'] as String? ?? '';
                         final isVis = f['visible'] as bool? ?? true;
-                        return !isBuiltin && isVis;
+                        return !hardcodedKeys.contains(id) && isVis;
                       }).toList();
 
                       final allKeys = {
                         ...customFields.map((f) => f['id'] as String),
                         ..._customControllers.keys,
-                      }.where((k) => !_isInternalKey(k)).toList();
+                      }.where((k) => !_isInternalKey(k) && !hardcodedKeys.contains(k)).toList();
 
                       if (allKeys.isEmpty) return const SizedBox.shrink();
 
@@ -840,7 +900,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 24),
-                          _buildSectionHeader(context, 'Additional Information', Icons.tune_rounded),
+                          _buildSectionHeader(context, 'Additional Information / Custom Fields', Icons.tune_rounded),
                           const SizedBox(height: 12),
                           for (final fid in allKeys)
                             Builder(

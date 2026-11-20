@@ -26,6 +26,7 @@ import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/core/widgets/cozy_settings_tile.dart';
 import 'package:study_library/core/providers/font_settings_provider.dart';
 import 'package:study_library/features/settings/presentation/widgets/typography_settings_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 String _getSafePlatformName() {
   if (kIsWeb) return 'Web Browser';
@@ -624,11 +625,23 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 );
                 if (confirm == true) {
-                  // Clear role so router redirect guard resets
+                  final currentLibId = ref.read(currentLibraryIdProvider);
+                  // 1. Sign out of auth repository first
+                  try {
+                    await ref.read(authRepositoryProvider).signOut(libraryId: currentLibId);
+                  } catch (_) {
+                    await FirebaseAuth.instance.signOut();
+                  }
+                  // 2. Clear role so router redirect guard resets
                   await BadgeService.clearBadge();
                   ref.read(userRoleProvider.notifier).clear();
                   ref.read(currentLibraryIdProvider.notifier).clear();
-                  await ref.read(authRepositoryProvider).signOut();
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('cached_current_user_role');
+                  await prefs.remove('persisted_role');
+                  await prefs.remove('persisted_uid');
+                  await prefs.remove('cached_current_library_id');
+                  await prefs.remove('last_active_route');
                   if (context.mounted) {
                     context.go(Routes.login);
                   }
