@@ -41,9 +41,10 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
     }).catchError((_) {});
 
     InactivityLockService.initialize(
-      onLock: () {
+      onLock: () async {
         if (mounted) {
-          ref.read(appRouterProvider).go(Routes.biometricLock);
+          await _saveCurrentRoute();
+          ref.read(appRouterProvider).push(Routes.biometricLock);
         }
       },
       checkLockEnabled: () async {
@@ -143,11 +144,17 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (state == AppLifecycleState.paused) {
-      BiometricService.onAppPaused();
-      // Save current route so it can be restored after biometric unlock
-      _saveCurrentRoute();
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      if (!InactivityLockService.isExternalDialogActive) {
+        BiometricService.onAppPaused();
+        _saveCurrentRoute();
+      }
     } else if (state == AppLifecycleState.resumed) {
+      if (InactivityLockService.isExternalDialogActive) {
+        InactivityLockService.recordInteraction();
+        return;
+      }
+
       final role = ref.read(userRoleProvider);
       final isAdmin = role == AppUserRole.admin;
       final student = ref.read(currentStudentProvider).value;
@@ -162,8 +169,9 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
         isAdmin: isAdmin,
       );
       if (shouldLock && mounted) {
+        await _saveCurrentRoute();
         final router = ref.read(appRouterProvider);
-        router.go(Routes.biometricLock);
+        router.push(Routes.biometricLock);
       }
     }
   }

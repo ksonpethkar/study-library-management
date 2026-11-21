@@ -26,6 +26,7 @@ class ReceiptPdfService {
     String? gstin,
     int? accentColor,
     LibraryModel? existingLibrary,
+    Map<String, dynamic>? template,
   }) async {
     final effectiveValidFrom = validFrom ?? paymentDate;
     final effectiveValidTo = validTo ?? DateTime(paymentDate.year, paymentDate.month + 1, 0, 23, 59, 59);
@@ -111,7 +112,7 @@ class ReceiptPdfService {
       student,
       plan,
       library,
-      null,
+      template,
       gstin: gstin,
     );
   }

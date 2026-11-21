@@ -370,6 +370,8 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
     });
 
     final theme = Theme.of(context);
+    final formConfigAsync = ref.watch(formConfigStreamProvider);
+    final fieldsList = formConfigAsync.value ?? [];
 
     void handleBack() {
       if (context.canPop()) {
@@ -561,78 +563,90 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _fatherNameController,
-                    decoration: const InputDecoration(
-                      labelText: "Father's / Guardian's Name",
-                      prefixIcon: Icon(Icons.family_restroom_rounded),
-                      border: OutlineInputBorder(),
+                  if (FormConfigService.isFieldVisible(fieldsList, 'fatherName')) ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _fatherNameController,
+                      decoration: InputDecoration(
+                        labelText: FormConfigService.getFieldLabel(fieldsList, 'fatherName', "Father's / Guardian's Name"),
+                        prefixIcon: const Icon(Icons.family_restroom_rounded),
+                        border: const OutlineInputBorder(),
+                      ),
+                      textCapitalization: TextCapitalization.words,
                     ),
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<Gender>(
-                                    isExpanded: true,
-                                    initialValue: _gender,
-                          decoration: const InputDecoration(
-                            labelText: 'Gender *',
-                            prefixIcon: Icon(Icons.people_outline_rounded),
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: Gender.male, child: Text('Male')),
-                            DropdownMenuItem(value: Gender.female, child: Text('Female')),
-                            DropdownMenuItem(value: Gender.other, child: Text('Other')),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) setState(() => _gender = v);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          onTap: _pickDob,
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Date of Birth',
-                              prefixIcon: Icon(Icons.cake_outlined),
-                              border: OutlineInputBorder(),
-                            ),
-                            child: Text(
-                              _dob != null ? DateFormat('dd/MM/yyyy').format(_dob!) : 'DD/MM/YYYY',
+                  ],
+                  if (FormConfigService.isFieldVisible(fieldsList, 'gender') ||
+                      FormConfigService.isFieldVisible(fieldsList, 'dob')) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (FormConfigService.isFieldVisible(fieldsList, 'gender'))
+                          Expanded(
+                            child: DropdownButtonFormField<Gender>(
+                              isExpanded: true,
+                              initialValue: _gender,
+                              decoration: InputDecoration(
+                                labelText: '${FormConfigService.getFieldLabel(fieldsList, 'gender', 'Gender')} *',
+                                prefixIcon: const Icon(Icons.people_outline_rounded),
+                                border: const OutlineInputBorder(),
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: Gender.male, child: Text('Male')),
+                                DropdownMenuItem(value: Gender.female, child: Text('Female')),
+                                DropdownMenuItem(value: Gender.other, child: Text('Other')),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) setState(() => _gender = v);
+                              },
                             ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
+                        if (FormConfigService.isFieldVisible(fieldsList, 'gender') &&
+                            FormConfigService.isFieldVisible(fieldsList, 'dob'))
+                          const SizedBox(width: 12),
+                        if (FormConfigService.isFieldVisible(fieldsList, 'dob'))
+                          Expanded(
+                            child: InkWell(
+                              onTap: _pickDob,
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: FormConfigService.getFieldLabel(fieldsList, 'dob', 'Date of Birth'),
+                                  prefixIcon: const Icon(Icons.cake_outlined),
+                                  border: const OutlineInputBorder(),
+                                ),
+                                child: Text(
+                                  _dob != null ? DateFormat('dd/MM/yyyy').format(_dob!) : 'DD/MM/YYYY',
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
 
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    initialValue: _bloodGroup,
-                    decoration: const InputDecoration(
-                      labelText: 'Blood Group',
-                      prefixIcon: Icon(Icons.bloodtype_rounded),
-                      border: OutlineInputBorder(),
+                  if (FormConfigService.isFieldVisible(fieldsList, 'bloodGroup')) ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: _bloodGroup,
+                      decoration: InputDecoration(
+                        labelText: FormConfigService.getFieldLabel(fieldsList, 'bloodGroup', 'Blood Group'),
+                        prefixIcon: const Icon(Icons.bloodtype_rounded),
+                        border: const OutlineInputBorder(),
+                      ),
+                      hint: const Text('Select Blood Group'),
+                      items: const [
+                        DropdownMenuItem(value: 'A+', child: Text('A+')),
+                        DropdownMenuItem(value: 'A-', child: Text('A-')),
+                        DropdownMenuItem(value: 'B+', child: Text('B+')),
+                        DropdownMenuItem(value: 'B-', child: Text('B-')),
+                        DropdownMenuItem(value: 'AB+', child: Text('AB+')),
+                        DropdownMenuItem(value: 'AB-', child: Text('AB-')),
+                        DropdownMenuItem(value: 'O+', child: Text('O+')),
+                        DropdownMenuItem(value: 'O-', child: Text('O-')),
+                      ],
+                      onChanged: (v) => setState(() => _bloodGroup = v),
                     ),
-                    hint: const Text('Select Blood Group'),
-                    items: const [
-                      DropdownMenuItem(value: 'A+', child: Text('A+')),
-                      DropdownMenuItem(value: 'A-', child: Text('A-')),
-                      DropdownMenuItem(value: 'B+', child: Text('B+')),
-                      DropdownMenuItem(value: 'B-', child: Text('B-')),
-                      DropdownMenuItem(value: 'AB+', child: Text('AB+')),
-                      DropdownMenuItem(value: 'AB-', child: Text('AB-')),
-                      DropdownMenuItem(value: 'O+', child: Text('O+')),
-                      DropdownMenuItem(value: 'O-', child: Text('O-')),
-                    ],
-                    onChanged: (v) => setState(() => _bloodGroup = v),
-                  ),
+                  ],
                   const SizedBox(height: 12),
                   DropdownButtonFormField<MembershipStatus>(
                     isExpanded: true,
@@ -667,62 +681,73 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Mobile Number *',
-                      prefixIcon: Icon(Icons.phone_android_rounded),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: '${FormConfigService.getFieldLabel(fieldsList, 'phone', 'Mobile Number')} *',
+                      prefixIcon: const Icon(Icons.phone_android_rounded),
+                      border: const OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.phone,
                     validator: (v) => (v == null || v.trim().length < 10) ? 'Valid phone required' : null,
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email Address',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _addressController,
-                    decoration: const InputDecoration(
-                      labelText: 'Address',
-                      prefixIcon: Icon(Icons.home_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _pincodeController,
-                          decoration: const InputDecoration(
-                            labelText: 'Pincode',
-                            prefixIcon: Icon(Icons.pin_drop_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
+                  if (FormConfigService.isFieldVisible(fieldsList, 'email')) ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: InputDecoration(
+                        labelText: FormConfigService.getFieldLabel(fieldsList, 'email', 'Email Address'),
+                        prefixIcon: const Icon(Icons.email_outlined),
+                        border: const OutlineInputBorder(),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _emergencyController,
-                          decoration: const InputDecoration(
-                            labelText: 'Emergency Contact',
-                            prefixIcon: Icon(Icons.contact_phone_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.phone,
-                        ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ],
+                  if (FormConfigService.isFieldVisible(fieldsList, 'address')) ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _addressController,
+                      decoration: InputDecoration(
+                        labelText: FormConfigService.getFieldLabel(fieldsList, 'address', 'Address'),
+                        prefixIcon: const Icon(Icons.home_outlined),
+                        border: const OutlineInputBorder(),
                       ),
-                    ],
-                  ),
+                      maxLines: 2,
+                    ),
+                  ],
+                  if (FormConfigService.isFieldVisible(fieldsList, 'pincode') ||
+                      FormConfigService.isFieldVisible(fieldsList, 'emergencyContact')) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (FormConfigService.isFieldVisible(fieldsList, 'pincode'))
+                          Expanded(
+                            child: TextFormField(
+                              controller: _pincodeController,
+                              decoration: InputDecoration(
+                                labelText: FormConfigService.getFieldLabel(fieldsList, 'pincode', 'Pincode'),
+                                prefixIcon: const Icon(Icons.pin_drop_outlined),
+                                border: const OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                        if (FormConfigService.isFieldVisible(fieldsList, 'pincode') &&
+                            FormConfigService.isFieldVisible(fieldsList, 'emergencyContact'))
+                          const SizedBox(width: 12),
+                        if (FormConfigService.isFieldVisible(fieldsList, 'emergencyContact'))
+                          Expanded(
+                            child: TextFormField(
+                              controller: _emergencyController,
+                              decoration: InputDecoration(
+                                labelText: FormConfigService.getFieldLabel(fieldsList, 'emergencyContact', 'Emergency Contact'),
+                                prefixIcon: const Icon(Icons.contact_phone_outlined),
+                                border: const OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.phone,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
 
                   const SizedBox(height: 24),
 
@@ -798,60 +823,86 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _collegeController,
-                    decoration: const InputDecoration(labelText: 'College / School', prefixIcon: Icon(Icons.school), border: OutlineInputBorder()),
-                    validator: AppValidators.collegeName,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _courseController,
-                          decoration: const InputDecoration(labelText: 'Course / Degree', border: OutlineInputBorder()),
-                        ),
+                  if (FormConfigService.isFieldVisible(fieldsList, 'college')) ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _collegeController,
+                      decoration: InputDecoration(
+                        labelText: FormConfigService.getFieldLabel(fieldsList, 'college', 'College / School'),
+                        prefixIcon: const Icon(Icons.school),
+                        border: const OutlineInputBorder(),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _yearController,
-                          decoration: const InputDecoration(labelText: 'Year / Semester', border: OutlineInputBorder()),
-                          validator: AppValidators.yearOrSem,
-                        ),
-                      ),
-                    ],
-                  ),
+                      validator: AppValidators.collegeName,
+                    ),
+                  ],
+                  if (FormConfigService.isFieldVisible(fieldsList, 'course') ||
+                      FormConfigService.isFieldVisible(fieldsList, 'year')) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (FormConfigService.isFieldVisible(fieldsList, 'course'))
+                          Expanded(
+                            child: TextFormField(
+                              controller: _courseController,
+                              decoration: InputDecoration(
+                                labelText: FormConfigService.getFieldLabel(fieldsList, 'course', 'Course / Degree'),
+                                border: const OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                        if (FormConfigService.isFieldVisible(fieldsList, 'course') &&
+                            FormConfigService.isFieldVisible(fieldsList, 'year'))
+                          const SizedBox(width: 12),
+                        if (FormConfigService.isFieldVisible(fieldsList, 'year'))
+                          Expanded(
+                            child: TextFormField(
+                              controller: _yearController,
+                              decoration: InputDecoration(
+                                labelText: FormConfigService.getFieldLabel(fieldsList, 'year', 'Year / Semester'),
+                                border: const OutlineInputBorder(),
+                              ),
+                              validator: AppValidators.yearOrSem,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
 
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _targetExamController,
-                          decoration: const InputDecoration(
-                            labelText: 'Target Exam / Competitive Goal',
-                            prefixIcon: Icon(Icons.track_changes_rounded),
-                            border: OutlineInputBorder(),
-                            hintText: 'e.g. RTO Exam, MPSC, UPSC, NEET',
+                  if (FormConfigService.isFieldVisible(fieldsList, 'prep') ||
+                      FormConfigService.isFieldVisible(fieldsList, 'rollNumber')) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (FormConfigService.isFieldVisible(fieldsList, 'prep'))
+                          Expanded(
+                            child: TextFormField(
+                              controller: _targetExamController,
+                              decoration: InputDecoration(
+                                labelText: FormConfigService.getFieldLabel(fieldsList, 'prep', 'Target Exam / Competitive Goal'),
+                                prefixIcon: const Icon(Icons.track_changes_rounded),
+                                border: const OutlineInputBorder(),
+                                hintText: 'e.g. RTO Exam, MPSC, UPSC, NEET',
+                              ),
+                              textCapitalization: TextCapitalization.words,
+                            ),
                           ),
-                          textCapitalization: TextCapitalization.words,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _rollNumberController,
-                          decoration: const InputDecoration(
-                            labelText: 'Roll / Enroll Number',
-                            prefixIcon: Icon(Icons.badge_outlined),
-                            border: OutlineInputBorder(),
+                        if (FormConfigService.isFieldVisible(fieldsList, 'prep') &&
+                            FormConfigService.isFieldVisible(fieldsList, 'rollNumber'))
+                          const SizedBox(width: 12),
+                        if (FormConfigService.isFieldVisible(fieldsList, 'rollNumber'))
+                          Expanded(
+                            child: TextFormField(
+                              controller: _rollNumberController,
+                              decoration: InputDecoration(
+                                labelText: FormConfigService.getFieldLabel(fieldsList, 'rollNumber', 'Roll / Enroll Number'),
+                                prefixIcon: const Icon(Icons.badge_outlined),
+                                border: const OutlineInputBorder(),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
 
                   const SizedBox(height: 24),
 

@@ -12,6 +12,7 @@ import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/in_app_notification_toast.dart';
 import 'package:study_library/services/inactivity_lock_service.dart';
 import 'package:study_library/services/biometric_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'app_router.dart';
 
 /// Student shell with PopScope exit-app dialog so back never closes the app silently,
@@ -34,8 +35,16 @@ class _StudentShellState extends ConsumerState<StudentShell> with WidgetsBinding
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     InactivityLockService.initialize(
-      onLock: () {
-        if (mounted) context.go(Routes.biometricLock);
+      onLock: () async {
+        if (!mounted) return;
+        try {
+          final uri = GoRouterState.of(context).uri.toString();
+          if (uri.isNotEmpty && !uri.contains(Routes.biometricLock) && !uri.contains(Routes.login)) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('last_active_route', uri);
+          }
+        } catch (_) {}
+        if (mounted) context.push(Routes.biometricLock);
       },
       checkLockEnabled: () => BiometricService.isLockEnabled(isAdmin: false),
     );

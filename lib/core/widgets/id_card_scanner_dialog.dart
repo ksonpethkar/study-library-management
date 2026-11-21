@@ -7,6 +7,7 @@ import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/services/ocr_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
 
 /// Data returned when the user completes an ID scan
 class IdScanResult {
@@ -243,6 +244,8 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
         });
         AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'gov_id');
       }
+    } finally {
+      InactivityLockService.recordInteraction();
     }
   }
 

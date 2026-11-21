@@ -487,7 +487,11 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         return;
       }
       final totalFee = _effectiveTotalFee;
-      final remainingDue = _isPartialPayment ? _calculatedRemainingDue : 0.0;
+      // Auto-detect partial payment: if paid amount < total fee, automatically preserve remaining due!
+      final remainingDue = (_isPartialPayment || _calculatedRemainingDue > 0)
+          ? _calculatedRemainingDue
+          : 0.0;
+      final bool isPartial = remainingDue > 0;
 
       final repo = ref.read(paymentRepositoryProvider);
       final libraryId = _effectiveLibraryId;
@@ -618,7 +622,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           totalFee: totalFee,
           paidAmount: amount,
           remainingDue: remainingDue,
-          installmentNumber: _isPartialPayment ? 1 : null,
+          installmentNumber: isPartial ? 1 : null,
           paymentMethod: _paymentMethod,
           validFrom: validFrom,
           validTo: validTo,
@@ -633,7 +637,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
             if (_referenceController.text.trim().isNotEmpty) 'reference': _referenceController.text.trim(),
             if (_bankNameController.text.trim().isNotEmpty) 'bankName': _bankNameController.text.trim(),
             if (_notesController.text.trim().isNotEmpty) 'notes': _notesController.text.trim(),
-            if (_isPartialPayment) 'isInstalment': true,
+            if (isPartial) 'isInstalment': true,
             'planName': effectivePlanName,
             if (isGstBilling) ...{
               'isGstInvoice': true,
@@ -694,7 +698,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         totalPlanFee: totalFee,
         powerSurchargeAmount: _hasPowerSurcharge ? _powerSurchargeAmount : null,
         remainingDue: remainingDue,
-        installmentNumber: _isPartialPayment ? 1 : null,
+        installmentNumber: isPartial ? 1 : null,
         method: _paymentMethod,
         methodDetails: _bankNameController.text.trim().isNotEmpty ? _bankNameController.text.trim() : null,
         date: DateTime.now(),
@@ -702,7 +706,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         notes: paymentNotes,
         receiptId: createdReceiptId,
         receiptNumber: _generateReceipt ? receiptNumber : null,
-        status: _isPartialPayment && remainingDue > 0 ? PaymentStatus.partial : PaymentStatus.paid,
+        status: isPartial ? PaymentStatus.partial : PaymentStatus.paid,
         createdAt: DateTime.now(),
       );
 
@@ -2142,7 +2146,14 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                         keyboardType: TextInputType.number,
                         inputFormatters: AppValidators.amountFormatters,
                         prefixIcon: const Icon(Icons.receipt_outlined),
-                        onChanged: (_) => setState(() {}),
+                        onChanged: (val) {
+                        final num = double.tryParse(val) ?? 0.0;
+                        setState(() {
+                          if (num > 0 && num < _effectiveTotalFee) {
+                            _isPartialPayment = true;
+                          }
+                        });
+                      },
                         validator: (val) => AppValidators.amount(
                           val,
                           required: true,
@@ -2160,7 +2171,14 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                       keyboardType: TextInputType.number,
                       inputFormatters: AppValidators.amountFormatters,
                       prefixIcon: const Icon(Icons.currency_rupee_rounded),
-                      onChanged: (_) => setState(() {}),
+                      onChanged: (val) {
+                        final num = double.tryParse(val) ?? 0.0;
+                        setState(() {
+                          if (num > 0 && num < _effectiveTotalFee) {
+                            _isPartialPayment = true;
+                          }
+                        });
+                      },
                       validator: (val) {
                         final err = AppValidators.amount(
                           val,
@@ -2226,22 +2244,32 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                       ],
                     ),
 
-                    if (_isPartialPayment) ...[
+                    if (_isPartialPayment || _calculatedRemainingDue > 0) ...[
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.amber.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Colors.amber.shade400),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Remaining Due Balance:', style: TextStyle(fontWeight: FontWeight.w600)),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Pending Due Carried Forward:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Total Fee: ₹${_effectiveTotalFee.toStringAsFixed(0)} • Paid: ₹${_payingAmount.toStringAsFixed(0)}',
+                                  style: TextStyle(fontSize: 11, color: Colors.amber.shade900),
+                                ),
+                              ],
+                            ),
                             Text(
                               '₹${_calculatedRemainingDue.toStringAsFixed(0)}',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber.shade900, fontSize: 16),
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber.shade900, fontSize: 18),
                             ),
                           ],
                         ),

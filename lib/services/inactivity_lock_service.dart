@@ -14,12 +14,31 @@ class InactivityLockService {
   static Future<bool> Function()? _checkLockEnabledCallback;
   static bool _isEnabled = true;
   static bool _isLocked = false;
+  static bool _isExternalDialogActive = false;
 
   /// Whether the screen is currently locked
   static bool get isLocked => _isLocked;
 
+  /// Returns true if an external OS dialog (file picker, camera, image upload) is currently open.
+  /// When active, all inactivity timers and lifecycle lockouts are temporarily suppressed.
+  static bool get isExternalDialogActive => _isExternalDialogActive;
+
+  /// Mark when an external OS dialog opens or closes.
+  static void setExternalDialogActive(bool active) {
+    _isExternalDialogActive = active;
+    if (!active) {
+      _lastInteraction = DateTime.now();
+      _pausedAt = null;
+    }
+  }
+
   /// Handle OS-level application lifecycle changes (background/foreground)
   static void onAppLifecycleStateChanged(AppLifecycleState state) {
+    if (isExternalDialogActive) {
+      _lastInteraction = DateTime.now();
+      _pausedAt = null;
+      return;
+    }
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       _pausedAt = DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
@@ -34,7 +53,7 @@ class InactivityLockService {
   }
 
   static Future<void> _checkInactivityWithDuration(Duration backgroundDuration) async {
-    if (!_isEnabled || _isLocked) return;
+    if (!_isEnabled || _isLocked || isExternalDialogActive) return;
 
     final bool lockEnabled;
     if (_checkLockEnabledCallback != null) {
@@ -45,7 +64,10 @@ class InactivityLockService {
     if (!lockEnabled) return;
 
     final timeoutMinutes = await BiometricService.getAutoLockTimeoutMinutes();
-    if (backgroundDuration.inMinutes >= timeoutMinutes) {
+    final bool isTimeoutReached = timeoutMinutes == 0
+        ? backgroundDuration.inSeconds >= 15
+        : backgroundDuration.inMinutes >= timeoutMinutes;
+    if (isTimeoutReached) {
       _isLocked = true;
       _onLockTriggered?.call();
     }
@@ -85,7 +107,7 @@ class InactivityLockService {
   }
 
   static Future<void> _checkInactivity() async {
-    if (!_isEnabled || _isLocked) return;
+    if (!_isEnabled || _isLocked || isExternalDialogActive) return;
 
     final bool lockEnabled;
     if (_checkLockEnabledCallback != null) {
@@ -96,9 +118,12 @@ class InactivityLockService {
     if (!lockEnabled) return;
 
     final timeoutMinutes = await BiometricService.getAutoLockTimeoutMinutes();
+    // Inactivity idle timeout (front desk unattended) must have a safe floor (min 2 minutes)
+    // so that "Immediately" (which means background lock) does not lock active foreground sessions every 15 seconds.
+    final effectiveIdleMinutes = timeoutMinutes == 0 ? 2 : timeoutMinutes;
     final elapsedMinutes = DateTime.now().difference(_lastInteraction).inMinutes;
 
-    if (elapsedMinutes >= timeoutMinutes) {
+    if (elapsedMinutes >= effectiveIdleMinutes) {
       _isLocked = true;
       _onLockTriggered?.call();
     }

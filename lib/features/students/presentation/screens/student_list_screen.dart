@@ -533,6 +533,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                       ? StudentDetailScreen(
                           key: ValueKey(_desktopSelectedStudentId),
                           studentId: _desktopSelectedStudentId!,
+                          preloadedStudent: filtered.where((s) => s.id == _desktopSelectedStudentId).firstOrNull ??
+                              students.where((s) => s.id == _desktopSelectedStudentId).firstOrNull,
                           isEmbeddedInSplitView: true,
                         )
                       : _buildDesktopEmptyWorkbench(theme),
@@ -647,7 +649,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                           });
                                         } else {
                                           HapticFeedback.lightImpact();
-                                          context.go('/admin/students/${student.id}');
+                                          context.go('/admin/students/${student.id}', extra: student);
                                         }
                                       },
                                       onLongPress: () {
@@ -807,7 +809,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                     scaleFactor: 0.98,
                                     onTap: () {
                                       HapticFeedback.lightImpact();
-                                      context.go('/admin/students/${student.id}');
+                                      context.go('/admin/students/${student.id}', extra: student);
                                     },
                                     onLongPress: () {
                                       HapticFeedback.heavyImpact();
@@ -1523,7 +1525,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.pop(ctx);
-                  context.go('/admin/students/${student.id}');
+                  context.go('/admin/students/${student.id}', extra: student);
                 },
               ),
               ListTile(

@@ -33,6 +33,7 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _amountController;
+  late TextEditingController _remainingDueController;
   late TextEditingController _refController;
   late TextEditingController _notesController;
   late TextEditingController _bankNameController;
@@ -55,6 +56,13 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
   void initState() {
     super.initState();
     _amountController = TextEditingController(text: widget.payment.amount.toStringAsFixed(0));
+    _remainingDueController = TextEditingController(
+      text: widget.payment.remainingDue != null && widget.payment.remainingDue! > 0
+          ? widget.payment.remainingDue!.toStringAsFixed(0)
+          : (widget.student.pendingDueBalance != null && widget.student.pendingDueBalance! > 0
+              ? widget.student.pendingDueBalance!.toStringAsFixed(0)
+              : ''),
+    );
     _refController = TextEditingController(text: widget.payment.referenceNumber ?? '');
     _notesController = TextEditingController(text: widget.payment.notes ?? '');
     _bankNameController = TextEditingController(text: widget.payment.methodDetails ?? '');
@@ -118,6 +126,7 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
   @override
   void dispose() {
     _amountController.dispose();
+    _remainingDueController.dispose();
     _refController.dispose();
     _notesController.dispose();
     _bankNameController.dispose();
@@ -199,9 +208,10 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
 
       final deltaPaid = newEffectivePaid - oldEffectivePaid;
 
-      // 1. Calculate updated remaining due anchored on effective payment delta
-      double? updatedDue = widget.payment.remainingDue;
-      if (updatedDue != null) {
+      // 1. Calculate updated remaining due anchored on explicit input or effective payment delta
+      final newDueInput = double.tryParse(_remainingDueController.text.trim());
+      double? updatedDue = newDueInput ?? widget.payment.remainingDue;
+      if (newDueInput == null && updatedDue != null) {
         updatedDue = (updatedDue - deltaPaid).clamp(0.0, double.infinity);
       }
 
@@ -261,7 +271,8 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
         // ── DETERMINISTIC CALCULATIONS ──
         final currentDue = (studentData['pendingDueBalance'] as num?)?.toDouble() ??
             (widget.student.pendingDueBalance ?? 0.0);
-        final newStudentDue = (currentDue - deltaPaid).clamp(0.0, double.infinity);
+        final computedStudentDue = (currentDue - deltaPaid).clamp(0.0, double.infinity);
+        final finalStudentDue = newDueInput ?? computedStudentDue;
 
         // ── WRITES ──
         final Map<String, dynamic> updateData = {
@@ -273,7 +284,9 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
           if (newBank.isNotEmpty) 'methodDetails': newBank,
           'referenceNumber': newRef.isNotEmpty ? newRef : null,
           'notes': newNotes.isNotEmpty ? newNotes : null,
-          'status': _selectedStatus.name,
+          'status': (updatedDue != null && updatedDue > 0 && _selectedStatus == PaymentStatus.paid)
+              ? PaymentStatus.partial.name
+              : _selectedStatus.name,
           'updatedAt': FieldValue.serverTimestamp(),
         };
         if (updatedDue != null) {
@@ -296,17 +309,19 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
               _selectedStatus == PaymentStatus.partial) {
             receiptUpdate['status'] = ReceiptStatus.active.name;
           }
-          if (currentReceiptDue != null) {
+          if (newDueInput != null) {
+            receiptUpdate['remainingDue'] = newDueInput;
+          } else if (currentReceiptDue != null) {
             receiptUpdate['remainingDue'] = (currentReceiptDue - deltaPaid).clamp(0.0, double.infinity);
           }
           tx.update(targetReceiptRef, receiptUpdate);
         }
 
         final studentUpdates = <String, dynamic>{
-          'pendingDueBalance': newStudentDue,
+          'pendingDueBalance': finalStudentDue,
           'updatedAt': FieldValue.serverTimestamp(),
         };
-        if (newStudentDue <= 0.0) {
+        if (finalStudentDue <= 0.0) {
           final currentNotes = (studentData['notes'] ?? '').toString();
           if (currentNotes.contains('Pending Fee Payment')) {
             studentUpdates['notes'] = currentNotes
@@ -730,6 +745,20 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
                         ),
                       ),
                     ],
+                    const SizedBox(height: 14),
+
+                    // Remaining Due Balance Field
+                    TextFormField(
+                      controller: _remainingDueController,
+                      decoration: const InputDecoration(
+                        labelText: 'Remaining Due Balance (₹) (Optional)',
+                        prefixIcon: Icon(Icons.pending_actions_rounded),
+                        helperText: 'Leave empty or 0 if student has no pending fee dues',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    ),
                   ],
                 ),
 

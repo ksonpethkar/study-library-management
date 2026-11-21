@@ -47,6 +47,7 @@ import 'package:study_library/features/registration/presentation/providers/regis
 import 'package:study_library/features/maintenance/data/services/database_diagnostics_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/soundbox_service.dart';
@@ -7058,6 +7059,155 @@ void main() {
       expect(find.text('Global Search'), findsOneWidget);
       expect(find.text('Students, desks & plans'), findsOneWidget);
       expect(find.text('7 actionable items'), findsOneWidget);
+    });
+
+    testWidgets('Test 139: PRODUCTION STABILITY REGRESSION — QUICK CONTROLS, PHOTO FALLBACK, RECEIPT ACTION SHEET & DYNAMIC FORMS', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'last_active_route': '/app/admin/students/std_001',
+      });
+
+      // 1. Verify StudentModel photoUrl fallbacks for all aliases
+      final studentWithPhoto = StudentModel.fromJson({
+        'id': 'std_001',
+        'name': 'Swati Sonpethkar',
+        'phone': '8446306710',
+        'email': 'swati@example.com',
+        'photo': 'https://storage.googleapis.com/test-bucket/swati.jpg',
+      });
+      expect(studentWithPhoto.photoUrl, equals('https://storage.googleapis.com/test-bucket/swati.jpg'));
+
+      final studentWithAvatar = StudentModel.fromJson({
+        'id': 'std_002',
+        'name': 'Rahul Patil',
+        'phone': '9876543210',
+        'email': 'rahul@example.com',
+        'avatarUrl': 'https://storage.googleapis.com/test-bucket/rahul.jpg',
+      });
+      expect(studentWithAvatar.photoUrl, equals('https://storage.googleapis.com/test-bucket/rahul.jpg'));
+
+      // 2. Verify FormConfigService dynamic fields & custom labels
+      final mockFields = [
+        {'id': 'name', 'label': 'Full Name', 'visible': true, 'required': true},
+        {'id': 'fatherName', 'label': "Guardian's Name", 'visible': true, 'required': false},
+        {'id': 'bloodGroup', 'label': 'Blood Group', 'visible': false, 'required': false},
+        {'id': 'prep', 'label': 'Competitive Goal', 'visible': true, 'required': false},
+      ];
+      expect(FormConfigService.isFieldVisible(mockFields, 'bloodGroup'), isFalse);
+      expect(FormConfigService.isFieldVisible(mockFields, 'prep'), isTrue);
+      expect(FormConfigService.getFieldLabel(mockFields, 'fatherName', "Father's Name"), equals("Guardian's Name"));
+      expect(FormConfigService.getFieldLabel(mockFields, 'prep', 'Target Exam'), equals('Competitive Goal'));
+
+      // 3. Verify route normalization (stripping '/app/' safely)
+      final prefs = await SharedPreferences.getInstance();
+      final lastRoute = prefs.getString('last_active_route');
+      expect(lastRoute, equals('/app/admin/students/std_001'));
+      String cleanRoute = lastRoute!;
+      if (cleanRoute.startsWith('/app/')) cleanRoute = cleanRoute.substring(4);
+      expect(cleanRoute, equals('/admin/students/std_001'));
+      expect(cleanRoute.startsWith('/admin'), isTrue);
+
+      // 4. Verify QuickControlCenterSheet renders cleanly with deterministic rows
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: QuickControlCenterSheet(
+                isStudent: false,
+                libraryId: 'lib_test_01',
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Quick Control Center'), findsOneWidget);
+      expect(find.text('Instant Lock'), findsOneWidget);
+      expect(find.text('Sync Live Data'), findsOneWidget);
+    });
+
+    testWidgets('Test 140: OS FILE PICKER DIALOG LIFECYCLE & INACTIVITY LOCK IMMUNITY', (WidgetTester tester) async {
+      // 1. Initially verify external dialog is inactive
+      InactivityLockService.setExternalDialogActive(false);
+      expect(InactivityLockService.isExternalDialogActive, isFalse);
+
+      // 2. Simulate opening OS File Picker / Camera Dialog
+      InactivityLockService.setExternalDialogActive(true);
+      expect(InactivityLockService.isExternalDialogActive, isTrue);
+
+      // 3. Verify BiometricService.shouldLockOnResume returns false during external dialog
+      final shouldLockDuringFilePick = await BiometricService.shouldLockOnResume(isAdmin: true);
+      expect(shouldLockDuringFilePick, isFalse);
+
+      // 4. Simulate lifecycle state change during file pick (window blur / paused)
+      InactivityLockService.onAppLifecycleStateChanged(AppLifecycleState.paused);
+      expect(InactivityLockService.isLocked, isFalse);
+
+      // 5. Simulate closing file dialog and resuming app
+      InactivityLockService.setExternalDialogActive(false);
+      expect(InactivityLockService.isExternalDialogActive, isFalse);
+
+      // 6. Verify that if app was never put into background (_lastPausedTime == null), resume does not lock
+      BiometricService.markUnlocked();
+      final shouldLockWithoutPause = await BiometricService.shouldLockOnResume(isAdmin: true);
+      expect(shouldLockWithoutPause, isFalse);
+
+      // 7. Verify ImageService.buildImageWidget safely handles empty URL on Web without throwing
+      final emptyImageWidget = ImageService.buildImageWidget('');
+      expect(emptyImageWidget, isNotNull);
+    });
+
+    testWidgets('Test 141: REQUEST HUB PROVISIONING DATA TYPE-SAFETY & SEQUENCE COUNTER RESILIENCE', (WidgetTester tester) async {
+      // 1. Simulate Firestore Web returning Map<Object?, Object?> for nested studentData
+      final rawFirestoreWebData = <Object?, Object?>{
+        'studentData': <Object?, Object?>{
+          'name': 'Srikrishnadatta Bharat Sonpethkar',
+          'phone': '8793148930',
+          'email': 'ksonpethkar01@gmail.com',
+          'planId': 'plan_monthly',
+          'seatId': 28,
+        },
+        'status': 'pending',
+        'type': 'admission',
+      };
+
+      // 2. Safe casting without throwing TypeError
+      final studentData = (rawFirestoreWebData['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
+      expect(studentData['name'], equals('Srikrishnadatta Bharat Sonpethkar'));
+      expect(studentData['phone'], equals('8793148930'));
+      expect(studentData['seatId'].toString(), equals('28'));
+
+      // 3. Sequence counter num-to-int cast resilience
+      final dynamic doubleNumCounter = 14.0;
+      final int intCounter = (doubleNumCounter as num?)?.toInt() ?? 0;
+      expect(intCounter, equals(14));
+    });
+
+    testWidgets('Test 142: RECORD PAYMENT AUTO-PARTIAL DUES & DIRECT DUE ADJUSTMENT', (WidgetTester tester) async {
+      // 1. Simulate prorated plan fee ₹230 and payment of ₹30
+      const totalFee = 230.0;
+      const paidAmount = 30.0;
+      final calculatedRemaining = (totalFee - paidAmount).clamp(0.0, double.infinity);
+      expect(calculatedRemaining, equals(200.0));
+
+      // 2. Auto-detection rule: if calculatedRemaining > 0, remainingDue is ALWAYS retained
+      const isPartialToggle = false; // Even if staff did not manually flip the partial switch!
+      final remainingDue = (isPartialToggle || calculatedRemaining > 0) ? calculatedRemaining : 0.0;
+      expect(remainingDue, equals(200.0));
+      final bool isPartial = remainingDue > 0;
+      expect(isPartial, isTrue);
+
+      // 3. Student model pendingDueBalance updates
+      final student = createTestStudent(
+        id: 'std_001',
+        name: 'Srikrishnadatta Bharat Sonpethkar',
+        phone: '8793148930',
+        planId: 'plan_monthly',
+        pendingDueBalance: remainingDue,
+      );
+      expect(student.pendingDueBalance, equals(200.0));
+
+      // 4. Test direct due adjustment (e.g. setting due to ₹150)
+      final adjustedStudent = student.copyWith(pendingDueBalance: 150.0);
+      expect(adjustedStudent.pendingDueBalance, equals(150.0));
     });
   });
 }

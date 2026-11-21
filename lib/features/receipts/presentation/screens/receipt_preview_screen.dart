@@ -359,76 +359,58 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
             ),
             const SizedBox(width: 8),
 
-            // 2. WhatsApp Button (Admin Only: Admin dispatching receipt to student)
-            if (!isStudentUser) ...[
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF25D366),
-                    side: const BorderSide(color: Color(0xFF25D366), width: 1.5),
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    visualDensity: VisualDensity.compact,
+            // 2. WhatsApp Button (Both Admin and Student)
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF25D366),
+                  side: const BorderSide(color: Color(0xFF25D366), width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.chat_rounded, size: 16),
+                label: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'WhatsApp',
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
-                  icon: const Icon(Icons.chat_rounded, size: 16),
-                  label: const FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      'WhatsApp',
-                      maxLines: 1,
-                      softWrap: false,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                  ),
-                  onPressed: () => _shareWhatsApp(
-                    context: context,
-                    receipt: receipt,
-                    student: student,
-                    plan: plan,
-                    library: library,
-                    data: data,
-                  ),
+                ),
+                onPressed: () => _shareWhatsApp(
+                  context: context,
+                  receipt: receipt,
+                  student: student,
+                  plan: plan,
+                  library: library,
+                  data: data,
                 ),
               ),
-              const SizedBox(width: 8),
-            ],
+            ),
+            const SizedBox(width: 8),
 
-            // 3. Share Button
-            if (isStudentUser)
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: theme.colorScheme.primary,
-                    side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  icon: const Icon(Icons.share_rounded, size: 16),
-                  label: const FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      'Share PDF',
-                      maxLines: 1,
-                      softWrap: false,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                  ),
-                  onPressed: () => _shareReceipt(
-                    context: context,
-                    receipt: receipt,
-                    student: student,
-                    plan: plan,
-                    library: library,
-                    template: template,
-                    data: data,
+            // 3. Share / Copy Link Button
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.primary,
+                  side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.share_rounded, size: 16),
+                label: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Share Link',
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                 ),
-              )
-            else
-              IconButton.filledTonal(
-                tooltip: 'Share Receipt',
-                icon: const Icon(Icons.share_rounded, size: 18),
                 onPressed: () => _shareReceipt(
                   context: context,
                   receipt: receipt,
@@ -439,6 +421,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
                   data: data,
                 ),
               ),
+            ),
 
             // 4. Print Button (if Admin)
             if (!isStudentUser) ...[

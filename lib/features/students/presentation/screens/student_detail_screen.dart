@@ -46,11 +46,13 @@ import 'package:study_library/models/waiting_list_model.dart';
 class StudentDetailScreen extends ConsumerStatefulWidget {
   final String studentId;
   final bool isEmbeddedInSplitView;
+  final StudentModel? preloadedStudent;
 
   const StudentDetailScreen({
     super.key,
     required this.studentId,
     this.isEmbeddedInSplitView = false,
+    this.preloadedStudent,
   });
 
   @override
@@ -70,6 +72,13 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
   @override
   void initState() {
     super.initState();
+    if (widget.preloadedStudent != null) {
+      student = widget.preloadedStudent;
+      isLoading = false;
+      if (student!.seatId != null && student!.seatId!.isNotEmpty) {
+        seatLabel = SeatHelper.formatSeatLabel(seatId: student!.seatId);
+      }
+    }
     final initialLibId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
     _loadStudent(overrideLibId: initialLibId);
   }
@@ -88,20 +97,55 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     }
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('students')
-          .doc(widget.studentId)
-          .get()
-          .timeout(const Duration(seconds: 8));
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
+      DocumentSnapshot<Map<String, dynamic>>? doc;
+      try {
+        doc = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('students')
+            .doc(widget.studentId)
+            .get()
+            .timeout(const Duration(seconds: 6));
+      } catch (_) {}
+
+      // Fallback 1: Check defaultLibraryId if different
+      if ((doc == null || !doc.exists || doc.data() == null) &&
+          libraryId != CurrentLibraryNotifier.defaultLibraryId) {
+        try {
+          final fallbackDoc = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(CurrentLibraryNotifier.defaultLibraryId)
+              .collection('students')
+              .doc(widget.studentId)
+              .get()
+              .timeout(const Duration(seconds: 4));
+          if (fallbackDoc.exists && fallbackDoc.data() != null) {
+            doc = fallbackDoc;
+          }
+        } catch (_) {}
+      }
+
+      // Fallback 2: Check collectionGroup('students')
+      if (doc == null || !doc.exists || doc.data() == null) {
+        try {
+          final groupSnap = await FirebaseFirestore.instance
+              .collectionGroup('students')
+              .where(FieldPath.documentId, isEqualTo: widget.studentId)
+              .limit(1)
+              .get();
+          if (groupSnap.docs.isNotEmpty) {
+            doc = groupSnap.docs.first as DocumentSnapshot<Map<String, dynamic>>;
+          }
+        } catch (_) {}
+      }
+      final studentDoc = doc;
+      if (studentDoc != null && studentDoc.exists && studentDoc.data() != null) {
+        final data = studentDoc.data()!;
         final rawGovId = data['govIdNumber']?.toString() ?? '';
         final decryptedGovId = EncryptionService.safeDecryptGovId(rawGovId, libraryId);
         final s = StudentModel.fromJson({
           ...data,
-          'id': doc.id,
+          'id': studentDoc.id,
           'govIdNumber': decryptedGovId,
         });
         
@@ -121,7 +165,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   effectiveSectionId = sec.id;
                   loadedSectionName = sec.data()['name'] ?? 'Section';
                   loadedSeatLabel = seatDoc.data()?['label'] ?? 'Seat';
-                  doc.reference.update({'sectionId': effectiveSectionId}).ignore();
+                  studentDoc.reference.update({'sectionId': effectiveSectionId}).ignore();
                   break;
                 }
               }
@@ -3128,6 +3172,167 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     );
   }
 
+  void _showAdjustDueDialog(StudentModel s) {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    final dueController = TextEditingController(
+      text: (s.pendingDueBalance ?? 0.0) > 0 ? (s.pendingDueBalance ?? 0.0).toStringAsFixed(0) : '',
+    );
+    final reasonController = TextEditingController();
+    bool isSaving = false;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final theme = Theme.of(ctx);
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFD97706), size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Adjust Pending Due Balance',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Set or correct the outstanding fee balance for ${s.name} (ID: ${s.membershipNumber ?? s.id}).',
+                    style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: dueController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Pending Due Balance (₹) *',
+                      hintText: 'e.g. 200',
+                      prefixText: '₹ ',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: reasonController,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason / Note (Optional)',
+                      hintText: 'e.g. November prorated admission balance',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded, size: 16, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Entering 0 will mark all dues as fully settled. Entering an amount (e.g. ₹200) will show the Pay Due button and send reminders.',
+                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD97706)),
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final parsed = double.tryParse(dueController.text.trim()) ?? 0.0;
+                        setDialogState(() => isSaving = true);
+
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(libraryId)
+                              .collection('students')
+                              .doc(s.id)
+                              .update({
+                            'pendingDueBalance': parsed > 0 ? parsed : 0.0,
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          });
+
+                          AuditLogger().log(
+                            action: AuditAction.updated,
+                            entityType: AuditEntity.student,
+                            libraryId: libraryId,
+                            entityId: s.id,
+                            entityName: s.name,
+                            details: {
+                              'action': 'adjust_pending_due_balance',
+                              'previousDue': s.pendingDueBalance ?? 0.0,
+                              'newDue': parsed,
+                              'reason': reasonController.text.trim(),
+                            },
+                          ).ignore();
+
+                          ref.invalidate(studentsStreamProvider);
+
+                          if (dialogCtx.mounted) {
+                            Navigator.pop(dialogCtx);
+                          }
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(parsed > 0
+                                    ? 'Pending due balance updated to ₹${parsed.toStringAsFixed(0)} successfully! ✅'
+                                    : 'Pending dues marked fully settled (₹0)! ✅'),
+                                backgroundColor: Colors.green,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            _loadStudent();
+                          }
+                        } catch (e) {
+                          setDialogState(() => isSaving = false);
+                          if (dialogCtx.mounted) {
+                            AppErrorFormatter.showErrorSnackBar(dialogCtx, e, actionContext: 'due');
+                          }
+                        }
+                      },
+                icon: isSaving
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.save_rounded, size: 16),
+                label: const Text('Save Due Balance'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _showAssignPlanSheet() {
     showModalBottomSheet(
       context: context,
@@ -3604,19 +3809,154 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
   // MODERN STUDENT DETAILS HIERARCHY & RECOVERY WORKFLOWS
   // =========================================================================
 
+  Future<void> _showPhotoActionSheet(BuildContext context, StudentModel s) async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Student Profile Photo',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (s.photoUrl.isNotEmpty) ...[
+              ListTile(
+                leading: const Icon(Icons.zoom_in_rounded, color: Colors.blue),
+                title: const Text('View Full Photo'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ImageService.showImageViewer(context, imageUrl: s.photoUrl, title: s.name);
+                },
+              ),
+            ],
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: Colors.green),
+              title: Text(s.photoUrl.isNotEmpty ? 'Change / Upload New Photo' : 'Upload Student Photo'),
+              subtitle: const Text('Capture with camera or choose from gallery'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _updateStudentPhoto(context, s, libraryId);
+              },
+            ),
+            if (s.photoUrl.isNotEmpty) ...[
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await _removeStudentPhoto(context, s, libraryId);
+                },
+              ),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateStudentPhoto(BuildContext context, StudentModel s, String libraryId) async {
+    try {
+      final newUrl = await ImageService.pickAndUploadImage(
+        context: context,
+        folder: 'libraries/$libraryId/students/${s.id}',
+        canRemove: false,
+      );
+
+      if (newUrl == null || newUrl.isEmpty) return;
+
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .doc(s.id)
+          .update({'photoUrl': newUrl});
+
+      if (s.userId != null && s.userId!.isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(s.userId!)
+            .update({'photoUrl': newUrl})
+            .catchError((_) {});
+      }
+
+      if (mounted) {
+        setState(() {
+          student = s.copyWith(photoUrl: newUrl);
+        });
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          const SnackBar(
+            content: Text('Student profile photo updated successfully! 📸'),
+            backgroundColor: Color(0xFF059669),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppErrorFormatter.showErrorSnackBar(this.context, e, actionContext: 'photo upload');
+      }
+    }
+  }
+
+  Future<void> _removeStudentPhoto(BuildContext context, StudentModel s, String libraryId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .doc(s.id)
+          .update({'photoUrl': ''});
+
+      if (s.userId != null && s.userId!.isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(s.userId!)
+            .update({'photoUrl': ''})
+            .catchError((_) {});
+      }
+
+      if (mounted) {
+        setState(() {
+          student = s.copyWith(photoUrl: '');
+        });
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          const SnackBar(
+            content: Text('Student photo removed.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppErrorFormatter.showErrorSnackBar(this.context, e, actionContext: 'remove photo');
+      }
+    }
+  }
+
   Widget _buildStudentHeader(BuildContext context, StudentModel s) {
     return             Row(
               children: [
                 GestureDetector(
-                  onTap: () {
-                    if (s.photoUrl.isNotEmpty) {
-                      ImageService.showImageViewer(
-                        context,
-                        imageUrl: s.photoUrl,
-                        title: s.name,
-                      );
-                    }
-                  },
+                  onTap: () => _showPhotoActionSheet(context, s),
                   child: Stack(
                     children: [
                       CircleAvatar(
@@ -3630,16 +3970,19 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               )
                             : null,
                       ),
-                      if (s.photoUrl.isNotEmpty)
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: CircleAvatar(
-                            radius: 12,
-                            backgroundColor: Theme.of(context).colorScheme.primary,
-                            child: const Icon(Icons.zoom_in_rounded, size: 14, color: Colors.white),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: CircleAvatar(
+                          radius: 13,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: Icon(
+                            s.photoUrl.isNotEmpty ? Icons.camera_alt_rounded : Icons.add_a_photo_rounded,
+                            size: 14,
+                            color: Colors.white,
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -3778,6 +4121,36 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                       color: Theme.of(context).colorScheme.primary,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () => _showAdjustDueDialog(s),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.account_balance_wallet_outlined,
+                                    size: 13,
+                                    color: (s.pendingDueBalance ?? 0) > 0 ? const Color(0xFFD97706) : Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    (s.pendingDueBalance ?? 0) > 0
+                                        ? 'Due: ₹${(s.pendingDueBalance ?? 0).toStringAsFixed(0)} (Edit)'
+                                        : 'Set Due',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: (s.pendingDueBalance ?? 0) > 0 ? const Color(0xFFD97706) : Theme.of(context).colorScheme.primary,
                                       decoration: TextDecoration.underline,
                                     ),
                                   ),
@@ -5042,6 +5415,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               ).then((_) {
                                 if (mounted) _loadStudent();
                               });
+                            } else if (val == 'adjust_due') {
+                              _showAdjustDueDialog(s);
                             } else if (val == 'send_ledger') {
                               _sendWhatsAppPaymentLedger(s, libraryId);
                             } else if (val == 'refresh') {
@@ -5070,6 +5445,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                   ],
                                 ),
                               ),
+                            const PopupMenuItem(
+                              value: 'adjust_due',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit_note_rounded, color: Color(0xFFD97706), size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Adjust / Set Pending Due Balance'),
+                                ],
+                              ),
+                            ),
                             const PopupMenuItem(
                               value: 'send_ledger',
                               child: Row(
@@ -6068,7 +6453,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
               ],
               const Divider(height: 24),
 
-              // 0. Edit / Modify Payment Details
+              // 0. Adjust Student Due Balance
+              ListTile(
+                leading: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFD97706)),
+                title: const Text('Adjust Student Due Balance'),
+                subtitle: const Text('Directly update or correct pending fee dues on student profile'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showAdjustDueDialog(s);
+                },
+              ),
+
+              // 1. Edit / Modify Payment Details
               ListTile(
                 leading: Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary),
                 title: const Text('Edit / Modify Payment Details'),

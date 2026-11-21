@@ -75,6 +75,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   bool _sendWhatsAppWelcome = true;
   String? _bloodGroup;
   final _rollNumberController = TextEditingController();
+  final _targetExamController = TextEditingController();
   final Map<String, TextEditingController> _customControllers = {};
   bool _isLoading = false;
   String _loadingMessage = 'Saving student...';
@@ -121,6 +122,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
     _paidAmountController.dispose();
     _securityDepositController.dispose();
     _rollNumberController.dispose();
+    _targetExamController.dispose();
     for (final c in _customControllers.values) {
       c.dispose();
     }
@@ -418,6 +420,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         notes: _notesController.text.trim(),
         bloodGroup: _bloodGroup,
         rollNumber: _rollNumberController.text.trim().isEmpty ? null : _rollNumberController.text.trim(),
+        targetExamName: _targetExamController.text.trim().isEmpty ? null : _targetExamController.text.trim(),
         pendingDueBalance: remainingDue > 0 ? remainingDue : null,
         securityDepositAmount: (securityDeposit != null && securityDeposit > 0) ? securityDeposit : null,
         admissionDate: _admissionDate,
@@ -651,10 +654,10 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name *',
-                      prefixIcon: Icon(Icons.badge_outlined),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: '${FormConfigService.getFieldLabel(formFields, 'name', 'Full Name')} *',
+                      prefixIcon: const Icon(Icons.badge_outlined),
+                      border: const OutlineInputBorder(),
                     ),
                     textCapitalization: TextCapitalization.words,
                     validator: (v) => (v == null || v.trim().length < 2)
@@ -674,64 +677,74 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final genderField = DropdownButtonFormField<Gender>(
-                        isExpanded: true,
-                        initialValue: _gender,
-                        decoration: const InputDecoration(
-                          labelText: 'Gender *',
-                          prefixIcon: Icon(Icons.people_outline_rounded),
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(value: Gender.male, child: Text('Male')),
-                          DropdownMenuItem(value: Gender.female, child: Text('Female')),
-                          DropdownMenuItem(value: Gender.other, child: Text('Other')),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setState(() => _gender = v);
-                        },
-                      );
+                  if (FormConfigService.isFieldVisible(formFields, 'gender') ||
+                      FormConfigService.isFieldVisible(formFields, 'dob')) ...[
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final showGender = FormConfigService.isFieldVisible(formFields, 'gender');
+                        final showDob = FormConfigService.isFieldVisible(formFields, 'dob');
 
-                      final dobField = InkWell(
-                        onTap: _pickDob,
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Date of Birth',
-                            prefixIcon: Icon(Icons.cake_outlined),
-                            border: OutlineInputBorder(),
+                        final genderField = DropdownButtonFormField<Gender>(
+                          isExpanded: true,
+                          initialValue: _gender,
+                          decoration: InputDecoration(
+                            labelText: '${FormConfigService.getFieldLabel(formFields, 'gender', 'Gender')} *',
+                            prefixIcon: const Icon(Icons.people_outline_rounded),
+                            border: const OutlineInputBorder(),
                           ),
-                          child: Text(
-                            _dob != null ? DateFormat('dd/MM/yyyy').format(_dob!) : 'DD/MM/YYYY',
-                            style: TextStyle(
-                              color: _dob != null
-                                  ? theme.textTheme.bodyMedium?.color
-                                  : theme.hintColor,
+                          items: const [
+                            DropdownMenuItem(value: Gender.male, child: Text('Male')),
+                            DropdownMenuItem(value: Gender.female, child: Text('Female')),
+                            DropdownMenuItem(value: Gender.other, child: Text('Other')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setState(() => _gender = v);
+                          },
+                        );
+
+                        final dobField = InkWell(
+                          onTap: _pickDob,
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: FormConfigService.getFieldLabel(formFields, 'dob', 'Date of Birth'),
+                              prefixIcon: const Icon(Icons.cake_outlined),
+                              border: const OutlineInputBorder(),
+                            ),
+                            child: Text(
+                              _dob != null ? DateFormat('dd/MM/yyyy').format(_dob!) : 'DD/MM/YYYY',
+                              style: TextStyle(
+                                color: _dob != null
+                                    ? theme.textTheme.bodyMedium?.color
+                                    : theme.hintColor,
+                              ),
                             ),
                           ),
-                        ),
-                      );
+                        );
 
-                      if (constraints.maxWidth < 460) {
-                        return Column(
+                        if (!showGender && showDob) return dobField;
+                        if (showGender && !showDob) return genderField;
+
+                        if (constraints.maxWidth < 460) {
+                          return Column(
+                            children: [
+                              genderField,
+                              const SizedBox(height: 12),
+                              dobField,
+                            ],
+                          );
+                        }
+
+                        return Row(
                           children: [
-                            genderField,
-                            const SizedBox(height: 12),
-                            dobField,
+                            Expanded(child: genderField),
+                            const SizedBox(width: 12),
+                            Expanded(child: dobField),
                           ],
                         );
-                      }
-
-                      return Row(
-                        children: [
-                          Expanded(child: genderField),
-                          const SizedBox(width: 12),
-                          Expanded(child: dobField),
-                        ],
-                      );
-                    },
-                  ),
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
 
                   const SizedBox(height: 12),
                   InkWell(
@@ -776,12 +789,14 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                   const SizedBox(height: 12),
                   LayoutBuilder(
                     builder: (context, constraints) {
+                      final showEmail = FormConfigService.isFieldVisible(formFields, 'email');
+
                       final phoneField = TextFormField(
                         controller: _phoneController,
-                        decoration: const InputDecoration(
-                          labelText: 'Mobile Number *',
-                          prefixIcon: Icon(Icons.phone_android_rounded),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: '${FormConfigService.getFieldLabel(formFields, 'phone', 'Mobile Number')} *',
+                          prefixIcon: const Icon(Icons.phone_android_rounded),
+                          border: const OutlineInputBorder(),
                           hintText: '10-digit mobile number',
                         ),
                         keyboardType: TextInputType.phone,
@@ -790,13 +805,15 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
 
                       final emailField = TextFormField(
                         controller: _emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Email Address (Optional)',
-                          prefixIcon: Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: FormConfigService.getFieldLabel(formFields, 'email', 'Email Address (Optional)'),
+                          prefixIcon: const Icon(Icons.email_outlined),
+                          border: const OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.emailAddress,
                       );
+
+                      if (!showEmail) return phoneField;
 
                       if (constraints.maxWidth < 460) {
                         return Column(
@@ -816,57 +833,68 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _addressController,
-                    decoration: const InputDecoration(
-                      labelText: 'Residential Address',
-                      prefixIcon: Icon(Icons.home_outlined),
-                      border: OutlineInputBorder(),
+                  if (FormConfigService.isFieldVisible(formFields, 'address')) ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _addressController,
+                      decoration: InputDecoration(
+                        labelText: FormConfigService.getFieldLabel(formFields, 'address', 'Residential Address'),
+                        prefixIcon: const Icon(Icons.home_outlined),
+                        border: const OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
                     ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final pinField = TextFormField(
-                        controller: _pincodeController,
-                        decoration: const InputDecoration(
-                          labelText: 'Pincode',
-                          prefixIcon: Icon(Icons.pin_drop_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      );
+                  ],
+                  if (FormConfigService.isFieldVisible(formFields, 'pincode') ||
+                      FormConfigService.isFieldVisible(formFields, 'emergencyContact')) ...[
+                    const SizedBox(height: 12),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final showPin = FormConfigService.isFieldVisible(formFields, 'pincode');
+                        final showEmerg = FormConfigService.isFieldVisible(formFields, 'emergencyContact');
 
-                      final emergField = TextFormField(
-                        controller: _emergencyController,
-                        decoration: const InputDecoration(
-                          labelText: 'Emergency Contact',
-                          prefixIcon: Icon(Icons.contact_phone_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.phone,
-                      );
+                        final pinField = TextFormField(
+                          controller: _pincodeController,
+                          decoration: InputDecoration(
+                            labelText: FormConfigService.getFieldLabel(formFields, 'pincode', 'Pincode'),
+                            prefixIcon: const Icon(Icons.pin_drop_outlined),
+                            border: const OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                        );
 
-                      if (constraints.maxWidth < 460) {
-                        return Column(
+                        final emergField = TextFormField(
+                          controller: _emergencyController,
+                          decoration: InputDecoration(
+                            labelText: FormConfigService.getFieldLabel(formFields, 'emergencyContact', 'Emergency Contact'),
+                            prefixIcon: const Icon(Icons.contact_phone_outlined),
+                            border: const OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.phone,
+                        );
+
+                        if (showPin && !showEmerg) return pinField;
+                        if (!showPin && showEmerg) return emergField;
+
+                        if (constraints.maxWidth < 460) {
+                          return Column(
+                            children: [
+                              pinField,
+                              const SizedBox(height: 12),
+                              emergField,
+                            ],
+                          );
+                        }
+                        return Row(
                           children: [
-                            pinField,
-                            const SizedBox(height: 12),
-                            emergField,
+                            Expanded(child: pinField),
+                            const SizedBox(width: 12),
+                            Expanded(child: emergField),
                           ],
                         );
-                      }
-                      return Row(
-                        children: [
-                          Expanded(child: pinField),
-                          const SizedBox(width: 12),
-                          Expanded(child: emergField),
-                        ],
-                      );
-                    },
-                  ),
+                      },
+                    ),
+                  ],
 
                   const SizedBox(height: 24),
 
@@ -953,110 +981,150 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Section 4: Academics
-                  _buildSectionHeader(context, 'Education / College', Icons.school_outlined),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _collegeController,
-                    decoration: const InputDecoration(
-                      labelText: 'College / Institute Name',
-                      prefixIcon: Icon(Icons.school_rounded),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final courseField = TextFormField(
-                        controller: _courseController,
-                        decoration: const InputDecoration(
-                          labelText: 'Course / Degree',
-                          prefixIcon: Icon(Icons.menu_book_rounded),
-                          border: OutlineInputBorder(),
+                  // Section 4: Academics & Goals
+                  if (FormConfigService.isFieldVisible(formFields, 'college') ||
+                      FormConfigService.isFieldVisible(formFields, 'course') ||
+                      FormConfigService.isFieldVisible(formFields, 'year') ||
+                      FormConfigService.isFieldVisible(formFields, 'prep') ||
+                      FormConfigService.isFieldVisible(formFields, 'rollNumber') ||
+                      FormConfigService.isFieldVisible(formFields, 'bloodGroup')) ...[
+                    _buildSectionHeader(context, 'Education & Goals', Icons.school_outlined),
+                    const SizedBox(height: 12),
+                    if (FormConfigService.isFieldVisible(formFields, 'college')) ...[
+                      TextFormField(
+                        controller: _collegeController,
+                        decoration: InputDecoration(
+                          labelText: FormConfigService.getFieldLabel(formFields, 'college', 'College / Institute Name'),
+                          prefixIcon: const Icon(Icons.school_rounded),
+                          border: const OutlineInputBorder(),
                         ),
-                      );
-
-                      final yearField = TextFormField(
-                        controller: _yearController,
-                        decoration: const InputDecoration(
-                          labelText: 'Year / Sem',
-                          prefixIcon: Icon(Icons.calendar_today_rounded),
-                          border: OutlineInputBorder(),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (FormConfigService.isFieldVisible(formFields, 'prep')) ...[
+                      TextFormField(
+                        controller: _targetExamController,
+                        decoration: InputDecoration(
+                          labelText: FormConfigService.getFieldLabel(formFields, 'prep', 'Target Exam / Competitive Goal'),
+                          prefixIcon: const Icon(Icons.track_changes_rounded),
+                          border: const OutlineInputBorder(),
+                          hintText: 'e.g. UPSC, MPSC, NEET, JEE, Banking',
                         ),
-                      );
+                        textCapitalization: TextCapitalization.words,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (FormConfigService.isFieldVisible(formFields, 'course') ||
+                        FormConfigService.isFieldVisible(formFields, 'year')) ...[
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final showCourse = FormConfigService.isFieldVisible(formFields, 'course');
+                          final showYear = FormConfigService.isFieldVisible(formFields, 'year');
 
-                      if (constraints.maxWidth < 460) {
-                        return Column(
-                          children: [
-                            courseField,
-                            const SizedBox(height: 12),
-                            yearField,
-                          ],
-                        );
-                      }
-                      return Row(
-                        children: [
-                          Expanded(child: courseField),
-                          const SizedBox(width: 12),
-                          Expanded(child: yearField),
-                        ],
-                      );
-                    },
-                  ),
+                          final courseField = TextFormField(
+                            controller: _courseController,
+                            decoration: InputDecoration(
+                              labelText: FormConfigService.getFieldLabel(formFields, 'course', 'Course / Degree'),
+                              prefixIcon: const Icon(Icons.menu_book_rounded),
+                              border: const OutlineInputBorder(),
+                            ),
+                          );
 
-                  const SizedBox(height: 12),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final rollField = TextFormField(
-                        controller: _rollNumberController,
-                        decoration: const InputDecoration(
-                          labelText: 'Roll / Enroll Number',
-                          prefixIcon: Icon(Icons.numbers_rounded),
-                          border: OutlineInputBorder(),
-                        ),
-                      );
+                          final yearField = TextFormField(
+                            controller: _yearController,
+                            decoration: InputDecoration(
+                              labelText: FormConfigService.getFieldLabel(formFields, 'year', 'Year / Sem'),
+                              prefixIcon: const Icon(Icons.calendar_today_rounded),
+                              border: const OutlineInputBorder(),
+                            ),
+                          );
 
-                      final bloodField = DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: _bloodGroup,
-                        icon: const Icon(Icons.arrow_drop_down, size: 22),
-                        decoration: const InputDecoration(
-                          labelText: 'Blood Group',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-                          border: OutlineInputBorder(),
-                        ),
-                        hint: const Text('Select'),
-                        items: const [
-                          DropdownMenuItem(value: 'A+', child: Text('A+')),
-                          DropdownMenuItem(value: 'A-', child: Text('A-')),
-                          DropdownMenuItem(value: 'B+', child: Text('B+')),
-                          DropdownMenuItem(value: 'B-', child: Text('B-')),
-                          DropdownMenuItem(value: 'AB+', child: Text('AB+')),
-                          DropdownMenuItem(value: 'AB-', child: Text('AB-')),
-                          DropdownMenuItem(value: 'O+', child: Text('O+')),
-                          DropdownMenuItem(value: 'O-', child: Text('O-')),
-                        ],
-                        onChanged: (v) => setState(() => _bloodGroup = v),
-                      );
+                          if (showCourse && !showYear) return courseField;
+                          if (!showCourse && showYear) return yearField;
 
-                      if (constraints.maxWidth < 560) {
-                        return Column(
-                          children: [
-                            rollField,
-                            const SizedBox(height: 12),
-                            bloodField,
-                          ],
-                        );
-                      }
-                      return Row(
-                        children: [
-                          Expanded(flex: 3, child: rollField),
-                          const SizedBox(width: 12),
-                          Expanded(flex: 2, child: bloodField),
-                        ],
-                      );
-                    },
-                  ),
+                          if (constraints.maxWidth < 460) {
+                            return Column(
+                              children: [
+                                courseField,
+                                const SizedBox(height: 12),
+                                yearField,
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(child: courseField),
+                              const SizedBox(width: 12),
+                              Expanded(child: yearField),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (FormConfigService.isFieldVisible(formFields, 'rollNumber') ||
+                        FormConfigService.isFieldVisible(formFields, 'bloodGroup')) ...[
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final showRoll = FormConfigService.isFieldVisible(formFields, 'rollNumber');
+                          final showBlood = FormConfigService.isFieldVisible(formFields, 'bloodGroup');
+
+                          final rollField = TextFormField(
+                            controller: _rollNumberController,
+                            decoration: InputDecoration(
+                              labelText: FormConfigService.getFieldLabel(formFields, 'rollNumber', 'Roll / Enroll Number'),
+                              prefixIcon: const Icon(Icons.numbers_rounded),
+                              border: const OutlineInputBorder(),
+                            ),
+                          );
+
+                          final bloodField = DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: _bloodGroup,
+                            icon: const Icon(Icons.arrow_drop_down, size: 22),
+                            decoration: InputDecoration(
+                              labelText: FormConfigService.getFieldLabel(formFields, 'bloodGroup', 'Blood Group'),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                              border: const OutlineInputBorder(),
+                            ),
+                            hint: const Text('Select'),
+                            items: const [
+                              DropdownMenuItem(value: 'A+', child: Text('A+')),
+                              DropdownMenuItem(value: 'A-', child: Text('A-')),
+                              DropdownMenuItem(value: 'B+', child: Text('B+')),
+                              DropdownMenuItem(value: 'B-', child: Text('B-')),
+                              DropdownMenuItem(value: 'AB+', child: Text('AB+')),
+                              DropdownMenuItem(value: 'AB-', child: Text('AB-')),
+                              DropdownMenuItem(value: 'O+', child: Text('O+')),
+                              DropdownMenuItem(value: 'O-', child: Text('O-')),
+                            ],
+                            onChanged: (v) => setState(() => _bloodGroup = v),
+                          );
+
+                          if (showRoll && !showBlood) return rollField;
+                          if (!showRoll && showBlood) return bloodField;
+
+                          if (constraints.maxWidth < 560) {
+                            return Column(
+                              children: [
+                                rollField,
+                                const SizedBox(height: 12),
+                                bloodField,
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(flex: 3, child: rollField),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 2, child: bloodField),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
 
                   const SizedBox(height: 24),
 

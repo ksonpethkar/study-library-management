@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
 
 /// Represents a document or image picked from camera, gallery, or file system.
 class PickedDocument {
@@ -54,7 +55,9 @@ class DocumentPickerService {
     int imageQuality = 85,
     double maxWidth = 1600,
   }) async {
-    // ── 1. If Camera is explicitly requested ────────────────────────────────
+    InactivityLockService.setExternalDialogActive(true);
+    try {
+      // ── 1. If Camera is explicitly requested ────────────────────────────────
     if (preferredSource == ImageSource.camera) {
       try {
         final picked = await _imagePicker.pickImage(
@@ -161,6 +164,10 @@ class DocumentPickerService {
     } catch (_) {}
 
     return null;
+    } finally {
+      InactivityLockService.setExternalDialogActive(false);
+      InactivityLockService.recordInteraction();
+    }
   }
 
   static PickedDocument _createFromBytes({

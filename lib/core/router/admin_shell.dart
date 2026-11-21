@@ -11,6 +11,7 @@ import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/utils/app_haptics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
@@ -49,8 +50,16 @@ class _AdminShellState extends ConsumerState<AdminShell> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     InactivityLockService.initialize(
-      onLock: () {
-        if (mounted) context.go(Routes.biometricLock);
+      onLock: () async {
+        if (!mounted) return;
+        try {
+          final uri = GoRouterState.of(context).uri.toString();
+          if (uri.isNotEmpty && !uri.contains(Routes.biometricLock) && !uri.contains(Routes.login)) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('last_active_route', uri);
+          }
+        } catch (_) {}
+        if (mounted) context.push(Routes.biometricLock);
       },
       checkLockEnabled: () => BiometricService.isLockEnabled(isAdmin: true),
     );

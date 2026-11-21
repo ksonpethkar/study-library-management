@@ -282,12 +282,14 @@ class AuthRoleService {
         }
 
         // Update Firestore users collection
+        final sPhoto = (data?['photoUrl'] ?? data?['photo'] ?? data?['avatarUrl'] ?? user.photoURL ?? '') as String;
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'role': AppUserRole.student.name,
           'libraryId': effectiveLibId,
           'email': email,
           'displayName': user.displayName ?? (data?['name'] ?? ''),
           'phone': data?['phone'] ?? user.phoneNumber ?? '',
+          if (sPhoto.isNotEmpty) 'photoUrl': sPhoto,
           'lastHealedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 

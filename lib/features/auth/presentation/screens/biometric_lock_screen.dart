@@ -1014,19 +1014,36 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
 
     final isAdmin = _isAdminLock;
 
-    // Strict security check: Ensure student route cannot go to admin, and admin route cannot go to student
-    if (lastRoute != null &&
-        lastRoute.isNotEmpty &&
-        lastRoute != Routes.biometricLock &&
-        lastRoute != Routes.splash &&
-        lastRoute != Routes.login) {
-      final isRouteAdmin = lastRoute.startsWith('/admin');
-      if (isAdmin && isRouteAdmin) {
-        context.go(lastRoute);
-        return;
-      } else if (!isAdmin && !isRouteAdmin) {
-        context.go(lastRoute);
-        return;
+    // Priority 1: If the lock screen was pushed over an active workflow/form,
+    // popping reveals the underlying screen with 100% of state, scroll, and form entries preserved.
+    if (context.canPop()) {
+      prefs.remove('last_active_route');
+      context.pop();
+      return;
+    }
+
+    // Priority 2: Strict security check for route restoration
+    if (lastRoute != null && lastRoute.isNotEmpty) {
+      String cleanRoute = lastRoute;
+      if (cleanRoute.startsWith('/app/')) {
+        cleanRoute = cleanRoute.substring(4);
+      } else if (cleanRoute == '/app') {
+        cleanRoute = '/';
+      }
+
+      if (cleanRoute != Routes.biometricLock &&
+          cleanRoute != Routes.splash &&
+          cleanRoute != Routes.login) {
+        final isRouteAdmin = cleanRoute.startsWith('/admin');
+        if (isAdmin && isRouteAdmin) {
+          prefs.remove('last_active_route');
+          context.go(cleanRoute);
+          return;
+        } else if (!isAdmin && !isRouteAdmin) {
+          prefs.remove('last_active_route');
+          context.go(cleanRoute);
+          return;
+        }
       }
     }
 

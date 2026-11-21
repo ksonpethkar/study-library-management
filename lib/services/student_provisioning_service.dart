@@ -44,11 +44,11 @@ class StudentProvisioningService {
       if (data == null) return null;
 
       final type = data['type'] as String? ?? 'registration';
-      final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
+      final studentData = (data['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
       final studentUserId = (studentData['userId'] ?? data['studentId'] ?? '').toString();
       final studentEmail = (studentData['email'] ?? data['studentEmail'] ?? '').toString().trim();
-      final requestedSeatId = (studentData['seatId'] ?? data['requestedSeatId']) as String?;
-      final requestedSectionId = (studentData['sectionId'] ?? data['requestedSectionId']) as String?;
+      final requestedSeatId = (studentData['seatId'] ?? data['requestedSeatId'])?.toString();
+      final requestedSectionId = (studentData['sectionId'] ?? data['requestedSectionId'])?.toString();
       final bool isPaid = data['isPaid'] == true ||
           data['paymentReceived'] == true ||
           data['receiptId'] != null ||
@@ -113,7 +113,7 @@ class StudentProvisioningService {
         }
 
         // 2. Calculate Plan Expiry Dates if plan is selected
-        final planId = (studentData['planId'] ?? data['planId'] as String?)?.toString();
+        final planId = (studentData['planId'] ?? data['planId'])?.toString();
         DateTime? planStartDate;
         DateTime? planEndDate;
         double? planSecurityDeposit;
@@ -316,10 +316,10 @@ class StudentProvisioningService {
 
       if (type == 'seat_change' || type == 'seatchange') {
         final targetStudentId = (data['studentId'] ?? studentData['studentId'] ?? studentUserId).toString();
-        final targetSeatId = (data['targetSeatId'] ?? data['seatId'] ?? studentData['targetSeatId']) as String?;
-        final targetSectionId = (data['targetSectionId'] ?? data['sectionId'] ?? studentData['targetSectionId']) as String?;
-        final currentSeatId = (data['currentSeatId'] ?? studentData['currentSeatId']) as String?;
-        final currentSectionId = (data['currentSectionId'] ?? studentData['currentSectionId']) as String?;
+        final targetSeatId = (data['targetSeatId'] ?? data['seatId'] ?? studentData['targetSeatId'])?.toString();
+        final targetSectionId = (data['targetSectionId'] ?? data['sectionId'] ?? studentData['targetSectionId'])?.toString();
+        final currentSeatId = (data['currentSeatId'] ?? studentData['currentSeatId'])?.toString();
+        final currentSectionId = (data['currentSectionId'] ?? studentData['currentSectionId'])?.toString();
 
         if (targetStudentId.isNotEmpty && targetSeatId != null && targetSectionId != null) {
           if (currentSeatId != null && currentSectionId != null && currentSeatId.isNotEmpty && currentSectionId.isNotEmpty) {

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_library/core/router/app_router.dart';
@@ -10,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
+import 'package:study_library/features/receipts/presentation/widgets/receipt_action_sheet.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/payment_model.dart';
@@ -521,15 +520,15 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                                             backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.15),
                                             foregroundColor: const Color(0xFF25D366),
                                           ),
-                                          onPressed: () async {
-                                            HapticFeedback.lightImpact();
-                                            final msg = Uri.encodeComponent(
-                                              'Hello! Here is my official study centre fee receipt #${receipt.receiptNumber} for ₹${receipt.amount.toStringAsFixed(0)}.',
+                                          onPressed: () {
+                                            ReceiptActionSheet.show(
+                                              context,
+                                              receipt: receipt,
+                                              student: student,
+                                              plan: matchingPlan,
+                                              library: libraryAsync.value,
+                                              isStudent: true,
                                             );
-                                            final uri = Uri.parse('https://wa.me/?text=$msg');
-                                            if (await canLaunchUrl(uri)) {
-                                              await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                            }
                                           },
                                         ),
                                       ],

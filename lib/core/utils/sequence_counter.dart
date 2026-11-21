@@ -16,7 +16,7 @@ class SequenceCounter {
     int nextNum = 1;
     await FirebaseFirestore.instance.runTransaction((tx) async {
       final snap = await tx.get(counterRef);
-      final current = (snap.data()?['receiptCounter'] as int?) ?? 0;
+      final current = (snap.data()?['receiptCounter'] as num?)?.toInt() ?? 0;
       nextNum = current + 1;
       if (snap.exists) {
         tx.update(counterRef, {'receiptCounter': nextNum});
@@ -52,7 +52,7 @@ class SequenceCounter {
     int startNum = 1;
     await FirebaseFirestore.instance.runTransaction((tx) async {
       final snap = await tx.get(counterRef);
-      final current = (snap.data()?['studentCounter'] as int?) ?? 0;
+      final current = (snap.data()?['studentCounter'] as num?)?.toInt() ?? 0;
       startNum = current + 1;
       final newTotal = current + count;
       if (snap.exists) {

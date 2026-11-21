@@ -50,6 +50,7 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
   int _autoLockMinutes = 2;
   bool _screenshotProtectionEnabled = true;
   bool _loading = true;
+  String? _successBannerMessage;
 
   String? get _effectiveUserId => widget.isStudent ? widget.studentId : null;
   List<String> get _candidateIds {
@@ -178,100 +179,167 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
     final isChanging = _hasPin;
     final pinController = TextEditingController();
     final confirmController = TextEditingController();
+    String? dialogError;
+    bool isDialogSaving = false;
 
     await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          widget.isStudent
-              ? (isChanging ? 'Change Personal 4-Digit PIN' : 'Set Personal 4-Digit PIN')
-              : (isChanging ? 'Change Admin 4-Digit PIN' : 'Set Admin 4-Digit PIN'),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: pinController,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 4,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                labelText: isChanging ? 'Enter New 4-Digit PIN' : 'Enter 4-Digit PIN',
-                counterText: '',
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            widget.isStudent
+                ? (isChanging ? 'Change Personal 4-Digit PIN' : 'Set Personal 4-Digit PIN')
+                : (isChanging ? 'Change Admin 4-Digit PIN' : 'Set Admin 4-Digit PIN'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (dialogError != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFEF4444), width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          dialogError!,
+                          style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              TextField(
+                controller: pinController,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 4,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.bold),
+                onChanged: (_) {
+                  if (dialogError != null) setDialogState(() => dialogError = null);
+                },
+                decoration: InputDecoration(
+                  labelText: isChanging ? 'Enter New 4-Digit PIN' : 'Enter 4-Digit PIN',
+                  counterText: '',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmController,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 4,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.bold),
+                onChanged: (_) {
+                  if (dialogError != null) setDialogState(() => dialogError = null);
+                },
+                decoration: InputDecoration(
+                  labelText: isChanging ? 'Confirm New 4-Digit PIN' : 'Confirm 4-Digit PIN',
+                  counterText: '',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isDialogSaving ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: confirmController,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 4,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                labelText: isChanging ? 'Confirm New 4-Digit PIN' : 'Confirm 4-Digit PIN',
-                counterText: '',
-              ),
+            FilledButton(
+              onPressed: isDialogSaving
+                  ? null
+                  : () async {
+                      final pin = pinController.text.trim();
+                      final confirm = confirmController.text.trim();
+                      if (pin.length != 4) {
+                        setDialogState(() => dialogError = 'PIN must be exactly 4 digits');
+                        return;
+                      }
+                      if (pin != confirm) {
+                        setDialogState(() => dialogError = 'PINs do not match. Please re-enter.');
+                        return;
+                      }
+
+                      setDialogState(() {
+                        isDialogSaving = true;
+                        dialogError = null;
+                      });
+
+                      try {
+                        await BiometricService.setPin(
+                          pin,
+                          userId: _effectiveUserId,
+                          authUid: widget.authUid,
+                          candidateIds: _candidateIds,
+                        );
+
+                        final libraryId = widget.libraryId ?? ref.read(currentLibraryIdProvider);
+                        if (!widget.isStudent) {
+                          if (libraryId != null && libraryId.isNotEmpty) {
+                            await BiometricService.syncSecuritySettingsToFirestore(libraryId);
+                          }
+                        } else if (widget.studentId != null && libraryId != null && libraryId.isNotEmpty) {
+                          await BiometricService.syncStudentSecurityToFirestore(
+                            libraryId: libraryId,
+                            studentId: widget.studentId!,
+                            pin: pin,
+                            authUid: widget.authUid,
+                            candidateIds: _candidateIds,
+                            biometricEnabled: _biometricEnabled,
+                          );
+                          ref.invalidate(currentStudentProvider);
+                        }
+
+                        if (!ctx.mounted) return;
+                        Navigator.of(ctx).pop();
+
+                        if (!mounted) return;
+                        setState(() {
+                          _hasPin = true;
+                          _successBannerMessage = isChanging
+                              ? 'Security PIN updated and active! 🔒'
+                              : 'Security PIN configured and active! 🔒';
+                        });
+
+                        Future.delayed(const Duration(seconds: 4), () {
+                          if (mounted) setState(() => _successBannerMessage = null);
+                        });
+
+                        await _loadState();
+                      } catch (err) {
+                        if (ctx.mounted) {
+                          setDialogState(() {
+                            isDialogSaving = false;
+                            dialogError = 'Failed to save PIN: $err';
+                          });
+                        }
+                      }
+                    },
+              child: isDialogSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text(isChanging ? 'Update PIN' : 'Save PIN'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              final pin = pinController.text.trim();
-              final confirm = confirmController.text.trim();
-              if (pin.length != 4) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('PIN must be exactly 4 digits')),
-                );
-                return;
-              }
-              if (pin != confirm) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('PINs do not match')),
-                );
-                return;
-              }
-
-              await BiometricService.setPin(
-                pin,
-                userId: _effectiveUserId,
-                authUid: widget.authUid,
-                candidateIds: _candidateIds,
-              );
-
-              final libraryId = widget.libraryId ?? ref.read(currentLibraryIdProvider);
-              if (!widget.isStudent) {
-                if (libraryId != null && libraryId.isNotEmpty) {
-                  await BiometricService.syncSecuritySettingsToFirestore(libraryId);
-                }
-              } else if (widget.studentId != null && libraryId != null && libraryId.isNotEmpty) {
-                await BiometricService.syncStudentSecurityToFirestore(
-                  libraryId: libraryId,
-                  studentId: widget.studentId!,
-                  pin: pin,
-                  authUid: widget.authUid,
-                  candidateIds: _candidateIds,
-                  biometricEnabled: _biometricEnabled,
-                );
-                ref.invalidate(currentStudentProvider);
-              }
-
-              if (!ctx.mounted) return;
-              Navigator.of(ctx).pop();
-              if (!mounted) return;
-              await _loadState();
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(isChanging ? 'Security PIN updated successfully!' : 'Security PIN set successfully!')),
-              );
-            },
-            child: Text(isChanging ? 'Update PIN' : 'Save PIN'),
-          ),
-        ],
       ),
     );
   }
@@ -367,6 +435,35 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
                     ),
                     const SizedBox(height: 12),
+
+                    // Success Feedback Banner
+                    if (_successBannerMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF10B981), width: 1.2),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _successBannerMessage!,
+                                style: const TextStyle(
+                                  color: Color(0xFF047857),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
 
                     // Scrollable Settings Items
                     Flexible(

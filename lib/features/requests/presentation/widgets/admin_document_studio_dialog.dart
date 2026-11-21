@@ -510,7 +510,9 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                       icon: _isUploadingNewImage
                           ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.upload_file_rounded, size: 16),
-                      label: Text(_showingBackSide ? 'Replace Back' : 'Replace Front'),
+                      label: Text(_showingBackSide
+                          ? (_currentBackImageUrl != null && _currentBackImageUrl!.isNotEmpty ? 'Replace Back' : 'Upload Back')
+                          : (_currentImageUrl.isNotEmpty ? 'Replace Front' : 'Upload Front')),
                       style: FilledButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         backgroundColor: const Color(0xFF047857),
@@ -710,6 +712,56 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
   }
 
   Widget _buildFilteredImage(String url) {
+    if (url.trim().isEmpty) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          margin: const EdgeInsets.all(16),
+          constraints: const BoxConstraints(maxWidth: 440),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF334155)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.cloud_upload_outlined, color: Color(0xFF60A5FA), size: 48),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No Document Attached Yet',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Attach a Government ID (Aadhaar, PAN, Voter ID, Driving Licence, etc.) to verify this student.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: _isUploadingNewImage ? null : () => _reuploadDocument(isBackSide: _showingBackSide),
+                icon: const Icon(Icons.upload_file_rounded, size: 18),
+                label: Text(_showingBackSide ? 'Upload Back Side Document' : 'Upload Front Side Document'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF047857),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (DocumentPickerService.isPdf(url)) {
       return Center(
         child: Container(

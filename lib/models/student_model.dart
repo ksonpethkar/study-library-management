@@ -355,7 +355,18 @@ class StudentModel {
               json['documentBackUrl'] ??
               json['idCardBackUrl'] ??
               json['aadhaarBackUrl']) as String?,
-      photoUrl: json['photoUrl'] as String? ?? '',
+      photoUrl: (json['photoUrl'] ??
+              json['photo'] ??
+              json['avatarUrl'] ??
+              json['avatar'] ??
+              json['profilePhoto'] ??
+              json['profilePhotoUrl'] ??
+              json['studentPhoto'] ??
+              json['studentPhotoUrl'] ??
+              json['imageUrl'] ??
+              json['image'] ??
+              json['userPhoto']) as String? ??
+          '',
       college: json['college'] as String? ?? '',
       course: json['course'] as String? ?? '',
       year: json['year'] as String? ?? '',

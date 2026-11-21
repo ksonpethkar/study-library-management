@@ -445,7 +445,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         state: state, child: const BulkImportScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminStudentDetail, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: StudentDetailScreen(studentId: state.pathParameters['id'] ?? ''),
+        state: state, child: StudentDetailScreen(
+          studentId: state.pathParameters['id'] ?? '',
+          preloadedStudent: state.extra as StudentModel?,
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminStudentEdit, pageBuilder: (context, state) => AppPageTransitions.slideUp(
         state: state, child: EditStudentScreen(studentId: state.pathParameters['id'] ?? ''),

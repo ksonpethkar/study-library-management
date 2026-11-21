@@ -87,7 +87,7 @@ class StudentRequestItem {
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
     final data = doc.data() ?? {};
-    final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
+    final studentData = (data['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
 
     // Support both direct fields and nested studentData fallback
     String studentName = 'Student';
@@ -1122,6 +1122,8 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
       final studentName = requestItem?.studentName ?? 'Student';
       String selectedPaymentMethod = requestItem?.paymentMethod ?? 'Cash';
 
+      bool isSubmitting = false;
+
       final confirmed = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
@@ -1258,7 +1260,7 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
+                        onPressed: isSubmitting ? null : () => Navigator.of(ctx).pop(false),
                         style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
                         child: const Text('Cancel'),
                       ),
@@ -1271,18 +1273,43 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 13),
                         ),
-                        onPressed: () {
-                          if (isRenewal && selectedPaymentMethod != requestItem.paymentMethod) {
-                            FirebaseFirestore.instance
-                                .collection('libraries')
-                                .doc(libraryId)
-                                .collection('requests')
-                                .doc(requestId)
-                                .update({'paymentMethod': selectedPaymentMethod}).ignore();
-                          }
-                          Navigator.of(ctx).pop(true);
-                        },
-                        child: Text(isRenewal ? 'Collect & Approve' : 'Approve'),
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                setModalState(() => isSubmitting = true);
+                                try {
+                                  if (isRenewal && selectedPaymentMethod != requestItem.paymentMethod) {
+                                    await FirebaseFirestore.instance
+                                        .collection('libraries')
+                                        .doc(libraryId)
+                                        .collection('requests')
+                                        .doc(requestId)
+                                        .update({'paymentMethod': selectedPaymentMethod});
+                                  }
+                                  await StudentProvisioningService.approveAndProvisionRequest(
+                                    libraryId: libraryId,
+                                    requestId: requestId,
+                                    allowSharedGovId: true,
+                                    allowSharedPhone: true,
+                                    mergeExistingPhone: true,
+                                  );
+                                  if (ctx.mounted) {
+                                    Navigator.of(ctx).pop(true);
+                                  }
+                                } catch (err) {
+                                  if (ctx.mounted) {
+                                    setModalState(() => isSubmitting = false);
+                                    AppErrorFormatter.showErrorSnackBar(ctx, err, actionContext: 'request');
+                                  }
+                                }
+                              },
+                        child: isSubmitting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : Text(isRenewal ? 'Collect & Approve' : 'Approve'),
                       ),
                     ),
                   ],
@@ -1299,16 +1326,7 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
     if (!context.mounted) return;
 
     try {
-      if (newStatus == 'approved') {
-        // Complete Provisioning: Creates student, assigns seat, links user, and updates request
-        await StudentProvisioningService.approveAndProvisionRequest(
-          libraryId: libraryId,
-          requestId: requestId,
-          allowSharedGovId: true,
-          allowSharedPhone: true,
-          mergeExistingPhone: true,
-        );
-      } else {
+      if (newStatus != 'approved') {
         final updateData = <String, dynamic>{
           'status': newStatus,
           'processedAt': FieldValue.serverTimestamp(),

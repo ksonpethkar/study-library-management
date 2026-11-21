@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image/image.dart' as img;
 import 'package:study_library/core/utils/image_compressor.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
 
 class ImageService {
   static final ImagePicker _picker = ImagePicker();
@@ -79,6 +80,7 @@ class ImageService {
     int maxWidth = 1024,
     int quality = 80,
   }) async {
+    InactivityLockService.setExternalDialogActive(true);
     try {
       final picked = await _picker.pickImage(
         source: source,
@@ -98,6 +100,9 @@ class ImageService {
     } catch (e) {
       if (kDebugMode) debugPrint('Error picking/compressing image: $e');
       return null;
+    } finally {
+      InactivityLockService.setExternalDialogActive(false);
+      InactivityLockService.recordInteraction();
     }
   }
 
@@ -143,6 +148,7 @@ class ImageService {
     int quality = 75,
     CameraDevice preferredCameraDevice = CameraDevice.front,
   }) async {
+    InactivityLockService.setExternalDialogActive(true);
     try {
       final picked = await _picker.pickImage(
         source: source,
@@ -161,6 +167,9 @@ class ImageService {
     } catch (e) {
       if (kDebugMode) debugPrint('Error picking image as data URL: $e');
       return null;
+    } finally {
+      InactivityLockService.setExternalDialogActive(false);
+      InactivityLockService.recordInteraction();
     }
   }
 
@@ -386,6 +395,17 @@ class ImageService {
     double? width,
     double? height,
   }) {
+    // Graceful handling for empty or whitespace paths
+    if (pathOrUrl.trim().isEmpty) {
+      return Container(
+        width: width,
+        height: height,
+        alignment: Alignment.center,
+        color: Colors.transparent,
+        child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey),
+      );
+    }
+
     // Graceful handling for PDF documents (e-Aadhaar, DigiLocker certificates, scanned PDFs)
     if (pathOrUrl.startsWith('data:application/pdf') || pathOrUrl.toLowerCase().endsWith('.pdf')) {
       final isMini = height != null && height < 60;
@@ -460,17 +480,21 @@ class ImageService {
         ),
       );
     }
-    final file = File(pathOrUrl);
-    if (file.existsSync()) {
-      return Image.file(
-        file,
-        fit: fit,
-        width: width,
-        height: height,
-        errorBuilder: (context, error, stackTrace) => const Center(
-          child: Icon(Icons.broken_image, color: Colors.grey),
-        ),
-      );
+    if (!kIsWeb) {
+      try {
+        final file = File(pathOrUrl);
+        if (file.existsSync()) {
+          return Image.file(
+            file,
+            fit: fit,
+            width: width,
+            height: height,
+            errorBuilder: (context, error, stackTrace) => const Center(
+              child: Icon(Icons.broken_image, color: Colors.grey),
+            ),
+          );
+        }
+      } catch (_) {}
     }
     return const Center(child: Icon(Icons.image_not_supported, color: Colors.grey));
   }

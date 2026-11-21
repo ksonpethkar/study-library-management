@@ -167,18 +167,34 @@ class PdfService {
     final gstRate = receipt.gstRate ?? library.effectiveGstRate;
 
     // Fast-path cached base font for Unicode & Indian Rupee symbol
+    // Asynchronously resolve template from Firestore if not provided
+    Map<String, dynamic>? effectiveTemplate = template;
+    if (effectiveTemplate == null && library.id.isNotEmpty) {
+      try {
+        final tDoc = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(library.id)
+            .collection('settings')
+            .doc('receipt_template')
+            .get();
+        if (tDoc.exists && tDoc.data() != null) {
+          effectiveTemplate = tDoc.data();
+        }
+      } catch (_) {}
+    }
+
     final notoSans = await PdfFontService.getBaseFont();
 
     // ── Preload Transparent Images (Logo, Stamp & Watermark) concurrently ───
-    final stampUrl = template?['stampUrl'] as String?;
-    final stampEnabled = (template?['stampEnabled'] as bool?) ?? (stampUrl != null && stampUrl.isNotEmpty);
+    final stampUrl = effectiveTemplate?['stampUrl'] as String?;
+    final stampEnabled = (effectiveTemplate?['stampEnabled'] as bool?) ?? (stampUrl != null && stampUrl.isNotEmpty);
 
-    final rawWatermarkUrl = template?['watermarkUrl'] as String?;
+    final rawWatermarkUrl = effectiveTemplate?['watermarkUrl'] as String?;
     final watermarkUrl = (rawWatermarkUrl != null && rawWatermarkUrl.isNotEmpty) ? rawWatermarkUrl : library.logoUrl;
-    final watermarkEnabled = (template?['watermarkEnabled'] as bool?) ?? true;
-    final rawOpacity = (template?['watermarkOpacity'] as num?)?.toDouble();
+    final watermarkEnabled = (effectiveTemplate?['watermarkEnabled'] as bool?) ?? true;
+    final rawOpacity = (effectiveTemplate?['watermarkOpacity'] as num?)?.toDouble();
     final watermarkOpacity = (rawOpacity ?? 0.08).clamp(0.02, 0.35);
-    final rawScale = (template?['watermarkScale'] as num?)?.toDouble();
+    final rawScale = (effectiveTemplate?['watermarkScale'] as num?)?.toDouble();
     final watermarkScale = (rawScale ?? 0.88).clamp(0.40, 1.05);
 
     final imageResults = await Future.wait([
@@ -201,23 +217,29 @@ class PdfService {
     final watermarkImage = imageResults[2];
 
     // Template customization settings
-    final showLogo = (template?['Logo'] as bool?) ?? true;
-    final showOrgName = (template?['Org Name'] as bool?) ?? true;
-    final showAddress = (template?['Address'] as bool?) ?? true;
-    final showContact = (template?['Contact'] as bool?) ?? true;
-    final showTagline = (template?['Tagline'] as bool?) ?? false;
-    final showReceiptNo = (template?['Receipt #'] as bool?) ?? true;
-    final showDate = (template?['Date'] as bool?) ?? true;
-    final showStudentName = (template?['Student Name'] as bool?) ?? true;
-    final showTerms = (template?['Terms'] as bool?) ?? true;
-    final showSignature = (template?['Signature'] as bool?) ?? true;
+    final showLogo = (effectiveTemplate?['Logo'] as bool?) ?? true;
+    final showOrgName = (effectiveTemplate?['Org Name'] as bool?) ?? true;
+    final showAddress = (effectiveTemplate?['Address'] as bool?) ?? true;
+    final showContact = (effectiveTemplate?['Contact'] as bool?) ?? true;
+    final showTagline = (effectiveTemplate?['Tagline'] as bool?) ?? false;
+    final showReceiptNo = (effectiveTemplate?['Receipt #'] as bool?) ?? true;
+    final showDate = (effectiveTemplate?['Date'] as bool?) ?? true;
+    final showStudentName = (effectiveTemplate?['Student Name'] as bool?) ?? true;
+    final showTerms = (effectiveTemplate?['Terms'] as bool?) ?? true;
+    final showSignature = (effectiveTemplate?['Signature'] as bool?) ?? true;
+    final showSeatNumber = (effectiveTemplate?['Seat Number'] as bool?) ?? true;
+    final showPlanName = (effectiveTemplate?['Plan Name'] as bool?) ?? true;
+    final showValidity = (effectiveTemplate?['Valid From'] as bool?) ?? true;
+    final showPaymentMethod = (effectiveTemplate?['Payment Method'] as bool?) ?? true;
+    final showDeposit = (effectiveTemplate?['Security Deposit'] as bool?) ?? true;
+    final pageSize = (effectiveTemplate?['pageSize'] as String?) ?? 'A4';
 
-    final headerFontSize = ((template?['headerFontSize'] as num?)?.toDouble() ?? 22.0).clamp(16.0, 30.0);
-    final stampRotation = ((template?['stampRotation'] as num?)?.toDouble() ?? -12.0);
-    final stampScale = ((template?['stampScale'] as num?)?.toDouble() ?? 1.0).clamp(0.5, 1.8);
-    final customTerms = template?['customTerms'] as String? ?? '';
+    final headerFontSize = ((effectiveTemplate?['headerFontSize'] as num?)?.toDouble() ?? 22.0).clamp(16.0, 30.0);
+    final stampRotation = ((effectiveTemplate?['stampRotation'] as num?)?.toDouble() ?? -12.0);
+    final stampScale = ((effectiveTemplate?['stampScale'] as num?)?.toDouble() ?? 1.0).clamp(0.5, 1.8);
+    final customTerms = effectiveTemplate?['customTerms'] as String? ?? '';
 
-    final footerText = (template?['footerText'] as String?) ?? '';
+    final footerText = (effectiveTemplate?['footerText'] as String?) ?? '';
     final effectiveFooter = footerText.isNotEmpty
         ? footerText
         : library.receiptFooterText.isNotEmpty
@@ -245,8 +267,8 @@ class PdfService {
     final cleanWelcome = sanitizePdfText(library.welcomeMessage);
     final cleanStudentName = sanitizePdfText(student.name);
 
-    final pageFormat = PdfPageFormat.a4;
-    final primaryColorHex = (template?['primaryColor'] as String?) ?? '';
+    final pageFormat = pageSize == 'A5' ? PdfPageFormat.a5 : PdfPageFormat.a4;
+    final primaryColorHex = (effectiveTemplate?['primaryColor'] as String?) ?? '';
     final primaryColor = primaryColorHex.isNotEmpty
         ? PdfColor.fromHex('#$primaryColorHex')
         : (library.accentColor != 0
@@ -701,17 +723,18 @@ class PdfService {
                                     'Issue Date:',
                                     pw.Text(formattedDate, style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E293B'))),
                                   ),
-                                dualCardRow(
-                                  'Payment Mode:',
-                                  pw.Container(
-                                    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: pw.BoxDecoration(
-                                      borderRadius: pw.BorderRadius.circular(4),
-                                      border: pw.Border.all(color: PdfColor.fromHex('#C7D2FE'), width: 0.8),
+                                if (showPaymentMethod)
+                                  dualCardRow(
+                                    'Payment Mode:',
+                                    pw.Container(
+                                      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: pw.BoxDecoration(
+                                        borderRadius: pw.BorderRadius.circular(4),
+                                        border: pw.Border.all(color: PdfColor.fromHex('#C7D2FE'), width: 0.8),
+                                      ),
+                                      child: pw.Text(paymentMode, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#4338CA'))),
                                     ),
-                                    child: pw.Text(paymentMode, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#4338CA'))),
                                   ),
-                                ),
                                 if (isGstInvoice && resolvedGstin.isNotEmpty)
                                   dualCardRow(
                                     'GSTIN:',
@@ -752,17 +775,18 @@ class PdfService {
                                   'Admission ID:',
                                   pw.Text(admissionId, style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E293B'))),
                                 ),
-                                dualCardRow(
-                                  'Allocated Seat:',
-                                  pw.Container(
-                                    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: pw.BoxDecoration(
-                                      borderRadius: pw.BorderRadius.circular(4),
-                                      border: pw.Border.all(color: PdfColor.fromHex('#A7F3D0'), width: 0.8),
+                                if (showSeatNumber)
+                                  dualCardRow(
+                                    'Allocated Seat:',
+                                    pw.Container(
+                                      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: pw.BoxDecoration(
+                                        borderRadius: pw.BorderRadius.circular(4),
+                                        border: pw.Border.all(color: PdfColor.fromHex('#A7F3D0'), width: 0.8),
+                                      ),
+                                      child: pw.Text(resolvedSeat, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#047857'))),
                                     ),
-                                    child: pw.Text(resolvedSeat, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#047857'))),
                                   ),
-                                ),
                                 dualCardRow(
                                   'Mobile:',
                                   pw.Text(student.phone.isNotEmpty ? student.phone : '—', style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155'))),
@@ -827,7 +851,7 @@ class PdfService {
                                   child: pw.Column(
                                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                                     children: [
-                                      pw.Text(plan.name, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
+                                      pw.Text(showPlanName ? plan.name : 'Library Membership', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
                                       if (isGstInvoice) ...[
                                         pw.SizedBox(height: 3),
                                         pw.Text(
@@ -883,15 +907,18 @@ class PdfService {
                                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                                     mainAxisAlignment: pw.MainAxisAlignment.center,
                                     children: [
-                                      pw.Text(
-                                        startValidityStr,
-                                        style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155')),
-                                      ),
-                                      pw.Text('to', style: pw.TextStyle(fontSize: 7.5, color: PdfColor.fromHex('#94A3B8'))),
-                                      pw.Text(
-                                        endValidityStr,
-                                        style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
-                                      ),
+                                      if (showValidity) ...[
+                                        pw.Text(
+                                          startValidityStr,
+                                          style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155')),
+                                        ),
+                                        pw.Text('to', style: pw.TextStyle(fontSize: 7.5, color: PdfColor.fromHex('#94A3B8'))),
+                                        pw.Text(
+                                          endValidityStr,
+                                          style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
+                                        ),
+                                      ] else
+                                        pw.Text('—', style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#94A3B8'))),
                                     ],
                                   ),
                                 ),
@@ -909,7 +936,7 @@ class PdfService {
                                 ),
                               ],
                             ),
-                            if (hasDeposit)
+                            if (hasDeposit && showDeposit)
                               pw.TableRow(
                                 decoration: pw.BoxDecoration(
                                   border: pw.Border(top: pw.BorderSide(color: PdfColor.fromHex('#E2E8F0'), width: 0.8)),

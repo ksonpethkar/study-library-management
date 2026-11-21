@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
 
 class BiometricService {
   static final LocalAuthentication _auth = LocalAuthentication();
@@ -768,6 +769,10 @@ class BiometricService {
 
   /// Called when app goes into background
   static void onAppPaused() {
+    // If the user is currently interacting with an external OS dialog (file picker, camera),
+    // do not mark the app as paused.
+    if (InactivityLockService.isExternalDialogActive) return;
+
     final now = DateTime.now();
     _lastPausedTime = now;
     SharedPreferences.getInstance().then((prefs) {
@@ -784,6 +789,7 @@ class BiometricService {
     bool isAdmin = false,
   }) async {
     if (_isCurrentlyLocked) return false;
+    if (InactivityLockService.isExternalDialogActive) return false;
     final enabled = await isLockEnabled(
       userId: userId,
       authUid: authUid,
@@ -801,15 +807,22 @@ class BiometricService {
       }
     }
 
+    // Never lock if the app was never placed in paused background
     if (_lastPausedTime == null) {
-      _isCurrentlyLocked = true;
-      return true;
+      return false;
     }
 
     final timeoutMinutes = await getAutoLockTimeoutMinutes();
     final difference = DateTime.now().difference(_lastPausedTime!);
 
-    if (difference.inMinutes >= timeoutMinutes) {
+    // Grace period safety:
+    // If "Immediately" (0 min): require at least 15 seconds in background before locking.
+    // This prevents accidental lockouts on momentary window blurs, tab switching, or OS file dialogs.
+    final bool isTimeoutReached = timeoutMinutes == 0
+        ? difference.inSeconds >= 15
+        : difference.inMinutes >= timeoutMinutes;
+
+    if (isTimeoutReached) {
       _isCurrentlyLocked = true;
       return true;
     }
