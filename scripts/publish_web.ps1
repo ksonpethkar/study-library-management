@@ -27,6 +27,9 @@ if ($LASTEXITCODE -ne 0) {
 # 3. Synchronize Web Artifacts to public/app/ & Inject Splash Loader
 Write-Host "`n[3/4] Copying build artifacts to public\app..." -ForegroundColor Yellow
 Copy-Item -Path "build\web\*" -Destination "public\app" -Recurse -Force
+if (Test-Path "..\public\app") {
+    Copy-Item -Path "build\web\*" -Destination "..\public\app" -Recurse -Force
+}
 node scripts/inject_loader.js
 
 # 4. Deploy to Firebase Hosting

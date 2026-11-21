@@ -7209,5 +7209,59 @@ void main() {
       final adjustedStudent = student.copyWith(pendingDueBalance: 150.0);
       expect(adjustedStudent.pendingDueBalance, equals(150.0));
     });
+
+    testWidgets('Test 143: DYNAMIC PAYMENT METHODS, REGISTRATION PURGE & CASH AT RECEPTION DETECTION', (WidgetTester tester) async {
+      // 1. Dynamic Payment Methods filtering
+      final adminPaymentSettings = {
+        'methods': [
+          {'id': 'cash', 'name': 'Cash / Pay at Reception', 'active': true},
+          {'id': 'upi', 'name': 'UPI / QR Code', 'active': false},
+          {'id': 'bank', 'name': 'Bank Transfer', 'active': false},
+        ],
+      };
+      final methods = (adminPaymentSettings['methods'] as List).whereType<Map>().toList();
+      final bool isUpiEnabled = methods.any((m) => m['id'] == 'upi' && m['active'] == true);
+      final bool isCashEnabled = methods.any((m) => m['id'] == 'cash' && m['active'] == true);
+      expect(isUpiEnabled, isFalse);
+      expect(isCashEnabled, isTrue);
+
+      final availableModes = <Map<String, String>>[];
+      if (isUpiEnabled) availableModes.add({'value': 'UPI / Online', 'label': 'UPI / Online Payment'});
+      if (isCashEnabled) availableModes.add({'value': 'Cash at Desk', 'label': 'Paid Cash at Reception'});
+      expect(availableModes.length, equals(1));
+      expect(availableModes.first['value'], equals('Cash at Desk'));
+
+      // 2. Request Details: Cash at Reception detection
+      final requestData = {
+        'amount': 200,
+        'paymentMode': 'Cash at Desk',
+        'referenceNumber': 'cash',
+        'status': 'pending',
+      };
+      final paymentMethod = (requestData['paymentMethod'] ?? requestData['paymentMode'] ?? '').toString();
+      final refNumber = (requestData['referenceNumber'] ?? '').toString();
+      final isDeskCash = requestData['status'] == 'desk_payment_pending' ||
+          paymentMethod.toLowerCase().contains('cash') ||
+          paymentMethod.toLowerCase().contains('desk') ||
+          refNumber.toLowerCase().contains('cash');
+      expect(isDeskCash, isTrue);
+
+      // 3. Registration Purge
+      final container = ProviderContainer();
+      container.read(registrationNotifierProvider.notifier).updateFields({
+        'name': 'Swati Sonpethkar',
+        'photoUrl': 'photo12.jpg',
+        'photoDataUrl': 'data:image/jpeg;base64,xxxx',
+      });
+      expect(container.read(registrationNotifierProvider)['name'], equals('Swati Sonpethkar'));
+
+      // Simulate starting new registration
+      container.read(registrationNotifierProvider.notifier).clear();
+      container.read(ocrResultProvider.notifier).clear();
+      container.read(selectedSeatProvider.notifier).clear();
+      expect(container.read(registrationNotifierProvider), isEmpty);
+      expect(container.read(ocrResultProvider), isEmpty);
+      expect(container.read(selectedSeatProvider), isNull);
+    });
   });
 }

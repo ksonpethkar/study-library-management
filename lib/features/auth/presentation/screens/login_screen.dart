@@ -697,6 +697,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _startNewRegistration(User? user) {
     ref.read(currentLibraryIdProvider.notifier).set(CurrentLibraryNotifier.defaultLibraryId);
     ref.read(registrationStepProvider.notifier).reset();
+    ref.read(registrationNotifierProvider.notifier).clear();
+    ref.read(ocrResultProvider.notifier).clear();
+    ref.read(selectedSeatProvider.notifier).clear();
+    ref.read(selectedSeatDetailsProvider.notifier).clear();
     if (user != null) {
       ref.read(registrationNotifierProvider.notifier).updateFields({
         'name': user.displayName ?? '',

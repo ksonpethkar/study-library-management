@@ -35,6 +35,7 @@ import 'package:study_library/services/sms_service.dart';
 import 'package:study_library/services/telegram_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/messaging_hub_service.dart';
+import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
@@ -369,6 +370,29 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 );
               },
             ),
+            if ((s.pendingDueBalance ?? 0) > 0)
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFFEF3C7),
+                  child: Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFD97706)),
+                ),
+                title: Text('Send Due Fee Reminder (₹${(s.pendingDueBalance ?? 0).toStringAsFixed(0)} pending)'),
+                subtitle: const Text('Send itemized balance & UPI payment link via WhatsApp'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final due = s.pendingDueBalance ?? 0;
+                  final upiId = library?.upiId ?? '';
+                  final phoneClean = s.phone.replaceAll(RegExp(r'\D'), '');
+                  final phoneWithCountry = phoneClean.length == 10 ? '91$phoneClean' : phoneClean;
+                  final upiText = upiId.isNotEmpty ? '\n\n*Pay via UPI:* $upiId' : '';
+                  final message = 'Hello ${s.name},\n\nThis is a gentle reminder from *$libraryName* regarding your outstanding fee balance of *₹${due.toStringAsFixed(0)}*.$upiText\n\nPlease clear your pending balance at the reception counter or via UPI to keep your desk reserved.\n\nThank you,\n*$libraryName*';
+                  final encoded = Uri.encodeComponent(message);
+                  final uri = Uri.parse('https://wa.me/$phoneWithCountry?text=$encoded');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
             if (daysLeft != null)
               ListTile(
                 leading: const CircleAvatar(
@@ -3297,6 +3321,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             },
                           ).ignore();
 
+                          if (parsed > 0) {
+                            AppNotificationService.sendNotification(
+                              libraryId: libraryId,
+                              title: 'Pending Fee Balance • ₹${parsed.toStringAsFixed(0)} ⚠️',
+                              body: 'An outstanding fee balance of ₹${parsed.toStringAsFixed(0)} has been updated on your account. Tap to view and clear dues.',
+                              type: 'due',
+                              targetRole: 'student',
+                              targetUserId: s.id,
+                              actionRoute: '/student/home',
+                            ).ignore();
+                          }
+
                           ref.invalidate(studentsStreamProvider);
 
                           if (dialogCtx.mounted) {
@@ -3959,16 +3995,25 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   onTap: () => _showPhotoActionSheet(context, s),
                   child: Stack(
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                        backgroundImage: ImageService.getImageProvider(s.photoUrl),
-                        child: s.photoUrl.isEmpty
-                            ? Text(
-                                s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
-                                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                              )
-                            : null,
+                      ClipOval(
+                        child: Container(
+                          width: 80,
+                          height: 80,
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          child: s.photoUrl.trim().isNotEmpty
+                              ? ImageService.buildImageWidget(
+                                  s.photoUrl,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                )
+                              : Center(
+                                  child: Text(
+                                    s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
+                                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                        ),
                       ),
                       Positioned(
                         bottom: 0,

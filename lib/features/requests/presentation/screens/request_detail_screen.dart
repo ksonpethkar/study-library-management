@@ -1183,14 +1183,21 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     final amount = amountNum?.toDouble();
     final origPriceNum = data['originalPrice'] as num?;
     final origPrice = origPriceNum?.toDouble();
-    final paymentMethod = (data['paymentMethod'] ?? data['paymentModeLabel'] ?? '').toString();
+    final paymentMethod = (data['paymentMethod'] ?? data['paymentMode'] ?? data['paymentModeLabel'] ?? '').toString();
     final refNumber = (data['referenceNumber'] ?? '').toString().trim();
     final paymentProofUrl = (data['paymentProofUrl'] ?? '').toString().trim();
     final notes = (data['notes'] ?? studentData['notes'] ?? '').toString().trim();
     final createdAt = _parseDate(data['createdAt']);
     final isDeskCash = status == 'desk_payment_pending' ||
         paymentMethod.toLowerCase().contains('cash') ||
-        (data['paymentModeLabel'] ?? '').toString().toLowerCase().contains('desk');
+        paymentMethod.toLowerCase().contains('desk') ||
+        (data['paymentMode'] ?? '').toString().toLowerCase().contains('cash') ||
+        (data['paymentMode'] ?? '').toString().toLowerCase().contains('desk') ||
+        (data['paymentModeLabel'] ?? '').toString().toLowerCase().contains('cash') ||
+        (data['paymentModeLabel'] ?? '').toString().toLowerCase().contains('desk') ||
+        refNumber.toLowerCase().contains('cash') ||
+        refNumber.toLowerCase().contains('counter') ||
+        refNumber.toLowerCase().contains('reception');
 
     final isRenewal = type == 'renewal';
     final isRegistration = type == 'registration' || type == 'newregistration';
@@ -1798,7 +1805,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          paymentMethod.isNotEmpty ? paymentMethod.toUpperCase() : (isDeskCash ? 'CASH AT DESK' : 'UPI'),
+                          isDeskCash
+                              ? 'CASH AT RECEPTION'
+                              : (paymentMethod.toLowerCase().contains('bank')
+                                  ? 'BANK TRANSFER'
+                                  : (paymentMethod.isNotEmpty ? paymentMethod.toUpperCase() : 'UPI')),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,

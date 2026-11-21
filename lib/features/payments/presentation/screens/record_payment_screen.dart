@@ -869,6 +869,18 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         actionRoute: '/student/receipts',
       ).ignore();
 
+      if (remainingDue > 0) {
+        AppNotificationService.sendNotification(
+          libraryId: libraryId,
+          title: 'Pending Balance Reminder • ₹${remainingDue.toStringAsFixed(0)} ⚠️',
+          body: 'Receipt #$receiptNumber generated with an outstanding balance of ₹${remainingDue.toStringAsFixed(0)}. Please clear dues to keep your desk reserved.',
+          type: 'due',
+          targetRole: 'student',
+          targetUserId: widget.studentId,
+          actionRoute: '/student/home',
+        ).ignore();
+      }
+
       final hub = ref.read(messagingHubServiceProvider);
       await hub.dispatchPaymentConfirmation(
         libraryId: libraryId,

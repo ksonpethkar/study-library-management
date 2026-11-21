@@ -42,6 +42,8 @@ import 'package:study_library/models/id_card_template_model.dart';
 import 'package:study_library/features/settings/presentation/screens/id_card_customizer_screen.dart';
 import 'package:study_library/features/student_app/presentation/widgets/silent_reception_help_sheet.dart';
 import 'package:study_library/features/legal/presentation/widgets/policy_agreement_dialog.dart';
+import 'package:study_library/features/settings/presentation/providers/settings_provider.dart';
+import 'package:image_picker/image_picker.dart';
 
 /// Real-time stream of the current student's pending registration request.
 /// Returns the request document if status == 'pending', null otherwise.
@@ -2577,7 +2579,15 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     final isDark = theme.brightness == Brightness.dark;
     final libraryId = library?.id ?? ref.read(currentLibraryIdProvider) ?? 'lib_cozy_corner';
     final libraryName = library?.name?.toString() ?? 'Study Library';
-    final upiId = (library?.upiId ?? '').toString().trim();
+    
+    // Dynamically watch Payment Methods settings configured by Admin
+    final paymentSettings = ref.watch(paymentMethodsStreamProvider).value;
+    final methods = (paymentSettings?['methods'] as List?)?.whereType<Map>().toList();
+    final libMethods = library?.enabledPaymentMethods;
+    final bool isUpiEnabled = methods != null && methods.isNotEmpty
+        ? methods.any((m) => m['id'] == 'upi' && m['active'] == true)
+        : (libMethods != null && libMethods.isNotEmpty ? libMethods.contains('upi') : true);
+    final upiId = (paymentSettings?['upiId'] ?? library?.upiId ?? '').toString().trim();
 
     return Container(
       decoration: BoxDecoration(
@@ -2660,7 +2670,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             spacing: 10,
             runSpacing: 10,
             children: [
-              if (upiId.isNotEmpty)
+              if (isUpiEnabled && upiId.isNotEmpty)
                 FilledButton.icon(
                   onPressed: () async {
                     final cleanName = Uri.encodeComponent(libraryName);
@@ -2699,6 +2709,8 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                     student: student,
                     dueAmount: due,
                     libraryId: libraryId,
+                    paymentSettings: paymentSettings,
+                    library: library,
                   );
                 },
                 icon: const Icon(Icons.upload_file_rounded, size: 16),
@@ -2785,10 +2797,44 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     required StudentModel student,
     required double dueAmount,
     required String libraryId,
+    Map<String, dynamic>? paymentSettings,
+    LibraryModel? library,
   }) {
     final utrController = TextEditingController();
     final notesController = TextEditingController();
-    String selectedMode = 'UPI / Online';
+    String? paymentProofDataUrl;
+
+    // Filter available payment modes dynamically based on admin settings
+    final methods = (paymentSettings?['methods'] as List?)?.whereType<Map>().toList();
+    final libMethods = library?.enabledPaymentMethods;
+    final availableModes = <Map<String, String>>[];
+
+    final bool hasUpi = methods != null && methods.isNotEmpty
+        ? methods.any((m) => m['id'] == 'upi' && m['active'] == true)
+        : (libMethods != null && libMethods.isNotEmpty ? libMethods.contains('upi') : true);
+
+    final bool hasCash = methods != null && methods.isNotEmpty
+        ? methods.any((m) => m['id'] == 'cash' && m['active'] == true)
+        : (libMethods != null && libMethods.isNotEmpty ? libMethods.contains('cash') : true);
+
+    final bool hasBank = methods != null && methods.isNotEmpty
+        ? methods.any((m) => m['id'] == 'bank' && m['active'] == true)
+        : (libMethods != null && libMethods.isNotEmpty ? libMethods.contains('bank') : false);
+
+    if (hasUpi) {
+      availableModes.add({'value': 'UPI / Online', 'label': 'UPI / Online Payment'});
+    }
+    if (hasCash) {
+      availableModes.add({'value': 'Cash at Desk', 'label': 'Paid Cash at Reception'});
+    }
+    if (hasBank) {
+      availableModes.add({'value': 'Bank Transfer / NEFT', 'label': 'Bank Transfer / NEFT'});
+    }
+    if (availableModes.isEmpty) {
+      availableModes.add({'value': 'Cash at Desk', 'label': 'Paid Cash at Reception'});
+    }
+
+    String selectedMode = availableModes.first['value']!;
     bool isSubmitting = false;
 
     showModalBottomSheet(
@@ -2799,175 +2845,316 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
       ),
       builder: (bCtx) => StatefulBuilder(
         builder: (ctx, setModalState) {
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 20,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.receipt_long_rounded, color: Color(0xFFD97706)),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Submit Due Clearance Details',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Clearing Outstanding Balance of ₹${dueAmount.toInt()}',
-                  style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
-                ),
-                const SizedBox(height: 16),
-                const Text('Payment Mode', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedMode,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'UPI / Online', child: Text('UPI / Online Payment')),
-                    DropdownMenuItem(value: 'Cash at Desk', child: Text('Paid Cash at Reception')),
-                    DropdownMenuItem(value: 'Bank Transfer / NEFT', child: Text('Bank Transfer / NEFT')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setModalState(() => selectedMode = val);
-                  },
-                ),
-                const SizedBox(height: 14),
-                const Text('Transaction UTR / Ref Number', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: utrController,
-                  decoration: InputDecoration(
-                    hintText: selectedMode == 'Cash at Desk' ? 'e.g. Paid to Rahul Sir at counter' : 'e.g. 421098234120',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text('Notes / Remarks (Optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: notesController,
-                  decoration: InputDecoration(
-                    hintText: 'Any message for the administrator',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: isSubmitting
-                        ? null
-                        : () async {
-                            final refNum = utrController.text.trim();
-                            if (selectedMode != 'Cash at Desk' && refNum.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Please enter the Transaction ID / UTR')),
-                              );
-                              return;
-                            }
-                            setModalState(() => isSubmitting = true);
-                            try {
-                              final reqDoc = FirebaseFirestore.instance
-                                  .collection('libraries')
-                                  .doc(libraryId)
-                                  .collection('requests')
-                                  .doc();
+          final isCash = selectedMode == 'Cash at Desk';
+          final isBank = selectedMode == 'Bank Transfer / NEFT';
 
-                              await reqDoc.set({
-                                'id': reqDoc.id,
-                                'studentId': student.id,
-                                'studentName': student.name,
-                                'studentPhone': student.phone,
-                                'studentUserId': student.userId,
-                                'type': 'due_payment',
-                                'amount': dueAmount,
-                                'referenceNumber': refNum,
-                                'paymentMode': selectedMode,
-                                'notes': notesController.text.trim(),
-                                'status': 'pending',
-                                'createdAt': FieldValue.serverTimestamp(),
-                                'libraryId': libraryId,
-                              });
+          String fieldLabel = '12-Digit UPI Transaction ID / UTR Number';
+          String fieldHint = 'e.g. 421098234120';
+          String fieldHelper = 'Find the 12-digit UTR in your payment app';
+          IconData fieldIcon = Icons.qr_code_scanner_rounded;
 
-                              if (context.mounted) {
-                                Navigator.pop(ctx);
-                                HapticFeedback.mediumImpact();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Row(
-                                      children: [
-                                        Icon(Icons.check_circle_rounded, color: Colors.greenAccent),
-                                        SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            'Payment proof submitted! Admin will verify and clear your balance shortly.',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    backgroundColor: Color(0xFF1E293B),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              setModalState(() => isSubmitting = false);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Submission failed: $e')),
-                                );
-                              }
-                            }
-                          },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFD97706),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text(
-                            'Submit for Verification',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          if (isCash) {
+            fieldLabel = 'Staff Name / Received By at Counter (Optional)';
+            fieldHint = 'e.g. Paid to Rahul Sir at reception';
+            fieldHelper = 'Name of library desk staff who received the cash';
+            fieldIcon = Icons.person_pin_circle_outlined;
+          } else if (isBank) {
+            fieldLabel = 'Bank Transfer / NEFT / IMPS Reference Number';
+            fieldHint = 'e.g. IMPS/NEFT Ref: 202611210045';
+            fieldHelper = 'Enter transaction or UTR number from bank receipt';
+            fieldIcon = Icons.account_balance_outlined;
+          }
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 540),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(2),
                           ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Icon(Icons.receipt_long_rounded, color: Color(0xFFD97706)),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Submit Due Clearance Details',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Clearing Outstanding Balance of ₹${dueAmount.toInt()}',
+                        style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Payment Mode Dropdown
+                      const Text('Payment Mode', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedMode,
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(
+                            isCash
+                                ? Icons.payments_rounded
+                                : (isBank ? Icons.account_balance_rounded : Icons.flash_on_rounded),
+                            color: const Color(0xFFD97706),
+                            size: 20,
+                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        items: availableModes.map((m) {
+                          return DropdownMenuItem<String>(
+                            value: m['value'],
+                            child: Text(m['label']!),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setModalState(() {
+                              selectedMode = val;
+                              utrController.clear();
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Informational Banner based on selectedMode
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isCash
+                              ? const Color(0xFFFEF3C7)
+                              : (isBank ? const Color(0xFFEFF6FF) : const Color(0xFFF3E8FF)),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isCash
+                                ? const Color(0xFFF59E0B).withValues(alpha: 0.3)
+                                : (isBank ? const Color(0xFF3B82F6).withValues(alpha: 0.3) : const Color(0xFFA855F7).withValues(alpha: 0.3)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline_rounded,
+                              size: 16,
+                              color: isCash
+                                  ? const Color(0xFFD97706)
+                                  : (isBank ? const Color(0xFF2563EB) : const Color(0xFF7E22CE)),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                isCash
+                                    ? 'Hand over cash directly at the reception counter. Counter staff will verify and clear your balance.'
+                                    : (isBank
+                                        ? 'Please ensure your bank NEFT/IMPS reference is accurate for bank reconciliation.'
+                                        : 'Please enter the 12-digit UTR from GPay / PhonePe / Paytm for instant clearance.'),
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: isCash
+                                      ? const Color(0xFF92400E)
+                                      : (isBank ? const Color(0xFF1E40AF) : const Color(0xFF6B21A8)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Dynamic Reference / Handover Field
+                      Text(fieldLabel, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: utrController,
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(fieldIcon, size: 20),
+                          hintText: fieldHint,
+                          helperText: fieldHelper,
+                          helperStyle: const TextStyle(fontSize: 11),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Notes / Remarks
+                      const Text('Notes / Remarks (Optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: notesController,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+                          hintText: 'Any message for the administrator',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Optional Screenshot Upload
+                      if (!isCash) ...[
+                        Row(
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                final dataUrl = await ImageService.pickImageAsDataUrl(
+                                  source: ImageSource.gallery,
+                                  maxWidth: 600,
+                                  quality: 75,
+                                );
+                                if (dataUrl != null) {
+                                  setModalState(() => paymentProofDataUrl = dataUrl);
+                                }
+                              },
+                              icon: const Icon(Icons.attach_file_rounded, size: 16),
+                              label: Text(paymentProofDataUrl == null ? 'Attach Screenshot (Optional)' : 'Screenshot Attached ✅'),
+                            ),
+                            if (paymentProofDataUrl != null) ...[
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.cancel_rounded, color: Colors.red, size: 20),
+                                tooltip: 'Remove Screenshot',
+                                onPressed: () => setModalState(() => paymentProofDataUrl = null),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  final refNum = utrController.text.trim();
+                                  if (!isCash && refNum.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Please enter the Transaction ID / UTR')),
+                                    );
+                                    return;
+                                  }
+                                  setModalState(() => isSubmitting = true);
+                                  try {
+                                    final reqDoc = FirebaseFirestore.instance
+                                        .collection('libraries')
+                                        .doc(libraryId)
+                                        .collection('requests')
+                                        .doc();
+
+                                    final effectiveRef = refNum.isNotEmpty
+                                        ? refNum
+                                        : (isCash ? 'Cash at Reception' : '');
+
+                                    await reqDoc.set({
+                                      'id': reqDoc.id,
+                                      'studentId': student.id,
+                                      'studentName': student.name,
+                                      'studentPhone': student.phone,
+                                      'studentUserId': student.userId ?? '',
+                                      'type': 'due_payment',
+                                      'amount': dueAmount,
+                                      'referenceNumber': effectiveRef,
+                                      'paymentMode': selectedMode,
+                                      'paymentMethod': selectedMode,
+                                      'paymentModeLabel': isCash ? 'Paid Cash at Reception' : selectedMode,
+                                      'paymentProofUrl': ?paymentProofDataUrl,
+                                      'notes': notesController.text.trim(),
+                                      'status': 'pending',
+                                      'createdAt': FieldValue.serverTimestamp(),
+                                      'libraryId': libraryId,
+                                    });
+
+                                    // Dispatch admin in-app notification
+                                    AppNotificationService.sendNotification(
+                                      libraryId: libraryId,
+                                      title: 'Due Payment Clearance Submitted • ₹${dueAmount.toStringAsFixed(0)} 💰',
+                                      body: '${student.name} submitted $selectedMode proof to clear pending fee dues. Tap to verify and approve.',
+                                      type: 'due_clearance',
+                                      targetRole: 'admin',
+                                      actionRoute: Routes.adminRequests,
+                                    ).ignore();
+
+                                    if (context.mounted) {
+                                      Navigator.pop(ctx);
+                                      HapticFeedback.mediumImpact();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Row(
+                                            children: [
+                                              Icon(Icons.check_circle_rounded, color: Colors.greenAccent),
+                                              SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  'Payment proof submitted! Admin will verify and clear your balance shortly.',
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          backgroundColor: Color(0xFF1E293B),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    setModalState(() => isSubmitting = false);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Submission failed: $e')),
+                                      );
+                                    }
+                                  }
+                                },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFD97706),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Text('Submit for Verification', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           );
         },

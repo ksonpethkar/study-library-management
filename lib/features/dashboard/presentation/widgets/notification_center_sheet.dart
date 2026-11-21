@@ -744,7 +744,12 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
       icon = Icons.receipt_long_rounded;
       color = const Color(0xFF10B981);
       defaultRoute = isAdmin ? Routes.adminReceipts : Routes.studentReceipts;
-    } else if (type == 'expiry' || type == 'due' || type == 'renewal') {
+    } else if (type == 'due') {
+      label = isAdmin ? 'Review Due Pass' : 'Clear Fee Due';
+      icon = Icons.payments_outlined;
+      color = const Color(0xFFF59E0B);
+      defaultRoute = isAdmin ? Uri(path: Routes.adminStudents, queryParameters: {'filter': 'Due Soon'}).toString() : Routes.studentHome;
+    } else if (type == 'expiry' || type == 'renewal') {
       label = isAdmin ? 'Review Due Pass' : '1-Tap Renew';
       icon = Icons.autorenew_rounded;
       color = const Color(0xFFF59E0B);
