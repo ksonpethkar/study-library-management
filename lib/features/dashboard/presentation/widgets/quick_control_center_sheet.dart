@@ -101,7 +101,7 @@ class QuickControlCenterSheet extends ConsumerWidget {
       }).catchError((_) {});
 
       InactivityLockService.setLocked(true);
-      context.push(Routes.biometricLock);
+      context.go(Routes.biometricLock);
     } else {
       showDialog(
         context: context,
@@ -196,283 +196,317 @@ class QuickControlCenterSheet extends ConsumerWidget {
     final isDark = themeMode == ThemeMode.dark;
     final totalUnread = unreadNotificationsCount + pendingRequestsCount + renewalsDueCount;
 
-    final maxHeight = MediaQuery.of(context).size.height * 0.9;
-
     return Align(
       alignment: Alignment.bottomCenter,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 540, maxHeight: maxHeight),
-        child: Material(
-          type: MaterialType.transparency,
-          child: Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 20,
-                  offset: const Offset(0, -6),
-                ),
-              ],
-            ),
+        constraints: BoxConstraints(
+          maxWidth: 540,
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 20,
+                offset: const Offset(0, -6),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
             child: SafeArea(
               top: false,
-              child: SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
+              child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                  // Top Drag Handle
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(2.5),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Sheet Header
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
+                    // Top Drag Handle
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 5,
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(
-                          Icons.tune_rounded,
-                          color: theme.colorScheme.primary,
-                          size: 22,
+                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2.5),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Quick Control Center',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                            Text(
-                              isStudent
-                                  ? 'Student Privacy & Screen Shortcuts'
-                                  : 'Front-Desk & Terminal Security Shortcuts',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        tooltip: 'Close',
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Action Tiles Grid (2 columns via deterministic Rows - zero Web layout loops)
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Row 1: Instant Lock & Dark/Light Theme
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildControlTile(
-                              context,
-                              icon: Icons.lock_rounded,
-                              iconColor: const Color(0xFFEF4444),
-                              bgColor: const Color(0xFFEF4444).withValues(alpha: 0.12),
-                              title: 'Instant Lock',
-                              subtitle: 'Shield screen immediately',
-                              onTap: () => _handleInstantLock(context, ref),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildControlTile(
-                              context,
-                              icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                              iconColor: isDark ? const Color(0xFFF59E0B) : const Color(0xFF6366F1),
-                              bgColor: (isDark ? const Color(0xFFF59E0B) : const Color(0xFF6366F1)).withValues(alpha: 0.12),
-                              title: isDark ? 'Light Theme' : 'Dark Theme',
-                              subtitle: isDark ? 'Switch to light mode' : 'Switch to dark mode',
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                ref.read(themeNotifierProvider.notifier).toggleTheme();
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Row 2: Sync Live Data & Typography
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildControlTile(
-                              context,
-                              icon: Icons.sync_rounded,
-                              iconColor: const Color(0xFF10B981),
-                              bgColor: const Color(0xFF10B981).withValues(alpha: 0.12),
-                              title: 'Sync Live Data',
-                              subtitle: 'Refresh cloud data',
-                              onTap: () => _handleDataSync(context, ref),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildControlTile(
-                              context,
-                              icon: Icons.format_size_rounded,
-                              iconColor: const Color(0xFF8B5CF6),
-                              bgColor: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
-                              title: 'Typography',
-                              subtitle: 'Text size & font styles',
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                TypographySettingsSheet.show(context);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Row 3: Global Search / Pass & Notifications
-                      Row(
-                        children: [
-                          Expanded(
-                            child: !isStudent
-                                ? _buildControlTile(
-                                    context,
-                                    icon: Icons.search_rounded,
-                                    iconColor: const Color(0xFF0284C7),
-                                    bgColor: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                                    title: 'Global Search',
-                                    subtitle: 'Students, desks & plans',
-                                    onTap: () {
-                                      Navigator.of(context).pop();
-                                      Navigator.of(context, rootNavigator: true).push(
-                                        MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
-                                      );
-                                    },
-                                  )
-                                : _buildControlTile(
-                                    context,
-                                    icon: Icons.badge_outlined,
-                                    iconColor: const Color(0xFF0284C7),
-                                    bgColor: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                                    title: 'My ID Card',
-                                    subtitle: 'Digital pass & barcode',
-                                    onTap: () {
-                                      Navigator.of(context).pop();
-                                      context.push(Routes.studentIdCard);
-                                    },
-                                  ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildControlTile(
-                              context,
-                              icon: Icons.notifications_active_rounded,
-                              iconColor: totalUnread > 0 ? const Color(0xFFF97316) : const Color(0xFF64748B),
-                              bgColor: (totalUnread > 0 ? const Color(0xFFF97316) : const Color(0xFF64748B)).withValues(alpha: 0.12),
-                              badgeText: totalUnread > 0 ? '$totalUnread' : null,
-                              title: 'Notifications',
-                              subtitle: totalUnread > 0 ? '$totalUnread actionable items' : 'View history & updates',
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                NotificationCenterSheet.show(
-                                  context,
-                                  libraryId: libraryId,
-                                  role: isStudent ? 'student' : 'admin',
-                                  studentId: studentId,
-                                  pendingRequestsCount: pendingRequestsCount,
-                                  renewalsDueCount: renewalsDueCount,
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Bottom Pro-Tip Bar
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
+                    const SizedBox(height: 16),
+
+                    // Sheet Header
+                    Row(
                       children: [
-                        const Icon(Icons.security_rounded, size: 18, color: Color(0xFF10B981)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            isStudent
-                                ? 'Instant Lock shields your active screen with PIN / Fingerprint.'
-                                : 'Reception staff can 1-tap lock the terminal before stepping away.',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            Icons.tune_rounded,
+                            color: theme.colorScheme.primary,
+                            size: 22,
                           ),
                         ),
-                        TextButton(
-                          style: TextButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Quick Control Center',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              Text(
+                                isStudent
+                                    ? 'Student Privacy & Screen Shortcuts'
+                                    : 'Front-Desk & Terminal Security Shortcuts',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            SecuritySettingsDialog.show(
-                              context,
-                              isStudent: isStudent,
-                              authUid: authUid,
-                              studentId: studentId,
-                              libraryId: libraryId,
-                            );
-                          },
-                          child: const Text('Security', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          tooltip: 'Close',
+                          onPressed: () => Navigator.of(context).pop(),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 18),
+
+                    // Deterministic Action Rows (Zero LayoutBuilder/Wrap to prevent Web intrinsic freeze)
+                    // Row 1: Instant Screen Lock & Theme Toggle
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildControlTile(
+                            context,
+                            icon: Icons.lock_rounded,
+                            iconColor: const Color(0xFFEF4444),
+                            bgColor: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                            title: 'Instant Lock',
+                            subtitle: 'Shield screen immediately',
+                            onTap: () => _handleInstantLock(context, ref),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildControlTile(
+                            context,
+                            icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                            iconColor: isDark ? const Color(0xFFF59E0B) : const Color(0xFF6366F1),
+                            bgColor: (isDark ? const Color(0xFFF59E0B) : const Color(0xFF6366F1)).withValues(alpha: 0.12),
+                            title: isDark ? 'Light Theme' : 'Dark Theme',
+                            subtitle: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              ref.read(themeNotifierProvider.notifier).toggleTheme();
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Row 2: Sync Live Data & Typography
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildControlTile(
+                            context,
+                            icon: Icons.sync_rounded,
+                            iconColor: const Color(0xFF10B981),
+                            bgColor: const Color(0xFF10B981).withValues(alpha: 0.12),
+                            title: 'Sync Live Data',
+                            subtitle: 'Refresh cloud data',
+                            onTap: () => _handleDataSync(context, ref),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildControlTile(
+                            context,
+                            icon: Icons.format_size_rounded,
+                            iconColor: const Color(0xFF8B5CF6),
+                            bgColor: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                            title: 'Typography',
+                            subtitle: 'Text size & font styles',
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              TypographySettingsSheet.show(context);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Row 3: Search / ID Card & Notifications
+                    Row(
+                      children: [
+                        Expanded(
+                          child: !isStudent
+                              ? _buildControlTile(
+                                  context,
+                                  icon: Icons.search_rounded,
+                                  iconColor: const Color(0xFF0284C7),
+                                  bgColor: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                                  title: 'Global Search',
+                                  subtitle: 'Students, desks & plans',
+                                  onTap: () {
+                                    Navigator.of(context).pop();
+                                    Navigator.of(context, rootNavigator: true).push(
+                                      MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+                                    );
+                                  },
+                                )
+                              : _buildControlTile(
+                                  context,
+                                  icon: Icons.badge_outlined,
+                                  iconColor: const Color(0xFF0284C7),
+                                  bgColor: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                                  title: 'My ID Card',
+                                  subtitle: 'Digital pass & barcode',
+                                  onTap: () {
+                                    Navigator.of(context).pop();
+                                    context.push(Routes.studentIdCard);
+                                  },
+                                ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildControlTile(
+                            context,
+                            icon: Icons.notifications_active_rounded,
+                            iconColor: totalUnread > 0 ? const Color(0xFFF97316) : const Color(0xFF64748B),
+                            bgColor: (totalUnread > 0 ? const Color(0xFFF97316) : const Color(0xFF64748B)).withValues(alpha: 0.12),
+                            badgeText: totalUnread > 0 ? '$totalUnread' : null,
+                            title: 'Notifications',
+                            subtitle: totalUnread > 0 ? '$totalUnread actionable items' : 'View history & updates',
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              NotificationCenterSheet.show(
+                                context,
+                                libraryId: libraryId,
+                                role: isStudent ? 'student' : 'admin',
+                                studentId: studentId,
+                                pendingRequestsCount: pendingRequestsCount,
+                                renewalsDueCount: renewalsDueCount,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Row 4 (Admin only): Sentinel AI Guardian & Audit Trail
+                    if (!isStudent) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildControlTile(
+                              context,
+                              icon: Icons.health_and_safety_rounded,
+                              iconColor: const Color(0xFF059669),
+                              bgColor: const Color(0xFF059669).withValues(alpha: 0.12),
+                              title: 'Sentinel AI Guardian',
+                              subtitle: 'Health & integrity audit',
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                context.push(Routes.sentinelDiagnostics);
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildControlTile(
+                              context,
+                              icon: Icons.history_rounded,
+                              iconColor: const Color(0xFF0D9488),
+                              bgColor: const Color(0xFF0D9488).withValues(alpha: 0.12),
+                              title: 'Audit Log',
+                              subtitle: 'Staff activity & events',
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                context.push(Routes.adminAuditLog);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+
+                    // Bottom Pro-Tip Bar
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.security_rounded, size: 18, color: Color(0xFF10B981)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isStudent
+                                  ? 'Instant Lock shields your active screen with PIN / Fingerprint.'
+                                  : 'Reception staff can 1-tap lock the terminal before stepping away.',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              SecuritySettingsDialog.show(
+                                context,
+                                isStudent: isStudent,
+                                authUid: authUid,
+                                studentId: studentId,
+                                libraryId: libraryId,
+                              );
+                            },
+                            child: const Text('Security', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildControlTile(
     BuildContext context, {
+    double? width,
     required IconData icon,
     required Color iconColor,
     required Color bgColor,
@@ -487,6 +521,7 @@ class QuickControlCenterSheet extends ConsumerWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
+        width: width,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),

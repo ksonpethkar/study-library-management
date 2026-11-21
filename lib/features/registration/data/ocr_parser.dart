@@ -553,7 +553,19 @@ class OcrParser {
   static GovIdType detectGovIdType(String rawText) {
     final text = rawText.toUpperCase();
 
-    // 1. Aadhaar check (Priority #1: Covers >95% of applicants, contains unique authority identifiers)
+    // 1. Passport check (High priority: ICAO 9303 MRZ P<IND, EMIGRATION CHECK REQUIRED, or Passport Number W0255557)
+    if (text.contains('PASSPORT') ||
+        text.contains('P<IND') ||
+        text.contains('P<') ||
+        text.contains('EMIGRATION CHECK') ||
+        text.contains('EMIGRATION') ||
+        RegExp(r'P[<(\w]{1,4}IND').hasMatch(text) ||
+        (text.contains('REPUBLIC OF INDIA') && (text.contains('NATIONALITY') || text.contains('SURNAME') || text.contains('GIVEN NAME'))) ||
+        RegExp(r'\b[A-Z][0-9]{7}\b').hasMatch(text)) {
+      return GovIdType.passport;
+    }
+
+    // 2. Aadhaar check (Priority #2: Unique authority identifiers, UIDAI, 12-digit spaced numbers)
     if (text.contains('AADHAAR') ||
         text.contains('आधार') ||
         text.contains('UIDAI') ||
@@ -566,15 +578,6 @@ class OcrParser {
         RegExp(r'\b\d{4}/\d{5}/\d{5}\b').hasMatch(text) ||
         RegExp(r'\b\d{4}\s\d{4}\s\d{4}\b').hasMatch(text)) {
       return GovIdType.aadhaar;
-    }
-
-    // 2. Passport check (Look for PASSPORT, MRZ P<IND, or Passport No W0255557)
-    if (text.contains('PASSPORT') ||
-        text.contains('P<IND') ||
-        text.contains('P<') ||
-        (text.contains('REPUBLIC OF INDIA') && text.contains('NATIONALITY')) ||
-        RegExp(r'\b[A-Z][0-9]{7}\b').hasMatch(text)) {
-      return GovIdType.passport;
     }
 
     // 3. Driving Licence check (Look for DL keywords or MH RTO pattern)

@@ -245,7 +245,13 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
               upper.contains('DRIVING LICENSE');
           final isDefiniteVoter = upper.contains('ELECTION COMMISSION');
           final isDefinitePassport = upper.contains('PASSPORT') ||
-              upper.contains('P<IND');
+              upper.contains('P<IND') ||
+              upper.contains('P<') ||
+              upper.contains('EMIGRATION CHECK') ||
+              upper.contains('EMIGRATION') ||
+              upper.contains('REPUBLIC OF INDIA') ||
+              RegExp(r'P[<(\w]{1,4}IND').hasMatch(upper) ||
+              RegExp(r'\b[A-Z][0-9]{7}\b').hasMatch(upper);
 
           if (isDefinitePan) {
             effectiveType = GovIdType.pan;

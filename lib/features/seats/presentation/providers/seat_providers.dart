@@ -35,6 +35,18 @@ final availableSeatsProvider = StreamProvider<List<SeatModel>>((ref) {
   return repository.getAvailableSeats(libraryId);
 });
 
+final allSeatsProvider = Provider<List<SeatModel>>((ref) {
+  final sections = ref.watch(sectionsProvider).value ?? [];
+  if (sections.isEmpty) return const [];
+
+  final allSeats = <SeatModel>[];
+  for (final section in sections) {
+    final sectionSeats = ref.watch(seatsProvider(section.id)).value ?? [];
+    allSeats.addAll(sectionSeats);
+  }
+  return allSeats;
+});
+
 final occupancyProvider = StreamProvider<Map<String, int>>((ref) async* {
   final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
   if (libraryId.isEmpty) {

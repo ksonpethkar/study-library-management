@@ -16,13 +16,13 @@ import 'package:study_library/features/payments/presentation/screens/record_paym
 import 'package:study_library/features/payments/presentation/screens/edit_payment_screen.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/form_config_service.dart';
+import 'package:study_library/services/message_template_service.dart';
 import 'package:study_library/features/id_cards/presentation/screens/id_card_preview_screen.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/models/payment_model.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/models/seat_model.dart';
-import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:flutter/services.dart';
 import 'package:study_library/core/security/encryption_service.dart';
@@ -38,6 +38,7 @@ import 'package:study_library/services/messaging_hub_service.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
+import 'package:study_library/features/seats/presentation/widgets/seat_assignment_map_sheet.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/features/requests/presentation/widgets/admin_document_studio_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -68,6 +69,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
   String sectionName = '';
   String planName = '';
   double planPrice = 0;
+  double lastPaidAmount = 0.0;
+  String lastPaymentMethod = 'Cash';
+  double totalPaidAmount = 0.0;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _studentSub;
 
   @override
@@ -216,13 +220,48 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           }
         }
 
+        // Safely query payment ledger for accurate last paid amount & method
+        double loadedLastPaid = 0.0;
+        String loadedLastMethod = 'Cash';
+        double loadedTotalPaid = 0.0;
+        try {
+          final paymentsSnap = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('payments')
+              .where('studentId', isEqualTo: widget.studentId)
+              .get()
+              .timeout(const Duration(seconds: 4));
+
+          DateTime? latestDate;
+          for (final pDoc in paymentsSnap.docs) {
+            final pData = pDoc.data();
+            final pStatus = pData['status']?.toString();
+            if (pStatus == 'refunded' || pStatus == 'voided' || pStatus == 'cancelled') continue;
+            final amt = (pData['amount'] as num?)?.toDouble() ?? 0.0;
+            loadedTotalPaid += amt;
+            final pDate = (pData['date'] as Timestamp?)?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+            if (latestDate == null || pDate.isAfter(latestDate)) {
+              latestDate = pDate;
+              loadedLastPaid = amt;
+              loadedLastMethod = pData['method']?.toString() ?? pData['paymentMethod']?.toString() ?? 'Cash';
+            }
+          }
+        } catch (_) {}
+
         if (mounted) {
+          final effectivePrice = loadedPlanPrice > 0
+              ? loadedPlanPrice
+              : (loadedTotalPaid > 0 ? (loadedTotalPaid + (s.pendingDueBalance ?? 0.0)) : 0.0);
           setState(() {
             student = s;
             seatLabel = loadedSeatLabel;
             sectionName = loadedSectionName;
             planName = loadedPlanName;
-            planPrice = loadedPlanPrice;
+            planPrice = effectivePrice;
+            lastPaidAmount = loadedLastPaid;
+            lastPaymentMethod = loadedLastMethod;
+            totalPaidAmount = loadedTotalPaid;
             isLoading = false;
           });
 
@@ -286,156 +325,399 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     final whatsapp = ref.read(whatsappServiceProvider);
 
     final daysLeft = s.planEndDate?.difference(DateTime.now()).inDays;
+    final due = s.pendingDueBalance ?? 0.0;
+    final hasDue = due > 0;
+    final isExpired = s.isExpired || (daysLeft != null && daysLeft < 0);
+    final isExpiringSoon = !isExpired && (daysLeft != null && daysLeft <= 7);
+    final isMarathi = (library?.templateLanguage ?? 'mr') == 'mr';
+
+    final friendlyMemberId = s.membershipNumber?.isNotEmpty == true
+        ? s.membershipNumber!
+        : (s.customFields['admissionNo']?.toString().isNotEmpty == true
+            ? s.customFields['admissionNo'].toString()
+            : s.id);
+    final friendlyPlanName = planName.isNotEmpty
+        ? planName
+        : (s.customPlanName?.isNotEmpty == true
+            ? s.customPlanName!
+            : (s.planId != null && s.planId!.length < 20 ? s.planId! : 'Standard Plan'));
+    final friendlySeat = (s.seatId != null && s.seatId!.isNotEmpty)
+        ? SeatHelper.formatSeatLabel(seatId: s.seatId, rawLabel: seatLabel)
+        : (isMarathi ? 'फ्लेक्सिबल / जनरल सीट (रिसेप्शनवर संपर्क साधा)' : 'Flexible / General Access');
+
+    final effectivePlanCost = planPrice > 0
+        ? planPrice
+        : (s.customPlanFee != null && s.customPlanFee! > 0
+            ? s.customPlanFee!
+            : (totalPaidAmount > 0 ? (totalPaidAmount + due) : 0.0));
+
+    final double paidCalc = lastPaidAmount > 0
+        ? lastPaidAmount
+        : (totalPaidAmount > 0
+            ? totalPaidAmount
+            : (effectivePlanCost > 0
+                ? (hasDue ? (effectivePlanCost - due).clamp(0, effectivePlanCost) : effectivePlanCost)
+                : (s.customFields['paidAmount'] != null ? double.tryParse(s.customFields['paidAmount'].toString()) ?? 0.0 : 0.0)));
+
+    final friendlyAmount = paidCalc > 0
+        ? paidCalc.toStringAsFixed(0)
+        : (s.customFields['paidAmount']?.toString() ?? (effectivePlanCost > 0 ? effectivePlanCost.toStringAsFixed(0) : '0'));
+
+    final friendlyPaymentMethod = lastPaymentMethod.isNotEmpty
+        ? lastPaymentMethod
+        : (s.customFields['paymentMethod']?.toString().isNotEmpty == true
+            ? s.customFields['paymentMethod'].toString()
+            : (s.customFields['paymentMode']?.toString().isNotEmpty == true
+                ? s.customFields['paymentMode'].toString()
+                : 'Cash / Pay at Reception'));
+
+    final expiryFormatted = s.planEndDate != null ? DateFormat('dd MMM yyyy').format(s.planEndDate!) : '';
+    final validFromFormatted = s.planStartDate != null ? DateFormat('dd MMM yyyy').format(s.planStartDate!) : '';
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
-                  const SizedBox(width: 8),
-                  Text('WhatsApp: ${s.name}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
-                ],
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'WhatsApp · +91 ${s.phone.replaceAll(RegExp(r"^91"), "")}',
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFDCF8C6),
-                child: Icon(Icons.waving_hand_rounded, color: Color(0xFF25D366)),
+              const SizedBox(height: 6),
+              // Dynamic Status Chips Row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      // Membership Status Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isExpired ? Colors.red : (s.isFrozen ? Colors.blue : Colors.green)).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isExpired ? Colors.red.shade300 : (s.isFrozen ? Colors.blue.shade300 : Colors.green.shade300),
+                          ),
+                        ),
+                        child: Text(
+                          isExpired ? 'EXPIRED' : (s.isFrozen ? 'FROZEN' : 'ACTIVE'),
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: isExpired ? Colors.red.shade800 : (s.isFrozen ? Colors.blue.shade800 : Colors.green.shade800),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Payment Status Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: hasDue ? Colors.amber.shade100 : const Color(0xFFD1FAE5),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: hasDue ? Colors.amber.shade400 : const Color(0xFF34D399)),
+                        ),
+                        child: Text(
+                          hasDue ? '⚠️ Due: ₹${due.toStringAsFixed(0)}' : '✅ Paid in Full',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: hasDue ? Colors.amber.shade900 : const Color(0xFF065F46),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Desk Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          '💺 $friendlySeat',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              title: const Text('Send Welcome Message'),
-              subtitle: const Text('Greet new member with library details'),
-              onTap: () {
-                Navigator.pop(ctx);
-                final friendlyMemberId = s.membershipNumber?.isNotEmpty == true
-                    ? s.membershipNumber!
-                    : (s.customFields['admissionNo']?.toString().isNotEmpty == true
-                        ? s.customFields['admissionNo'].toString()
-                        : s.id);
-                final friendlyPlanName = planName.isNotEmpty
-                    ? planName
-                    : (s.customPlanName?.isNotEmpty == true
-                        ? s.customPlanName!
-                        : (s.planId != null && s.planId!.length < 15 ? s.planId! : 'Standard Plan'));
-                final friendlySeat = SeatHelper.formatDeskLabel(seatId: s.seatId, rawLabel: seatLabel);
-                final friendlyAmount = planPrice > 0
-                    ? planPrice.toStringAsFixed(0)
-                    : (s.customPlanFee != null && s.customPlanFee! > 0
-                        ? s.customPlanFee!.toStringAsFixed(0)
-                        : (s.customFields['paidAmount'] != null && s.customFields['paidAmount'].toString().isNotEmpty
-                            ? s.customFields['paidAmount'].toString()
-                            : (s.customFields['amount'] != null && s.customFields['amount'].toString().isNotEmpty
-                                ? s.customFields['amount'].toString()
-                                : '')));
-                final friendlyPaymentMethod = s.customFields['paymentMethod']?.toString().isNotEmpty == true
-                    ? s.customFields['paymentMethod'].toString()
-                    : (s.customFields['paymentMode']?.toString().isNotEmpty == true
-                        ? s.customFields['paymentMode'].toString()
-                        : 'Cash / Pay at Reception');
+              const SizedBox(height: 8),
+              const Divider(height: 1),
 
-                whatsapp.sendWelcomeMessage(
-                  s.phone,
-                  s.name,
-                  libraryName,
-                  adminTemplate: library?.effectiveWelcomeTemplate ?? '',
-                  membershipId: friendlyMemberId,
-                  planName: friendlyPlanName,
-                  seatLabel: friendlySeat,
-                  expiryDate: s.planEndDate != null ? DateFormat('dd MMM yyyy').format(s.planEndDate!) : '',
-                  validFromDate: s.planStartDate != null ? DateFormat('dd MMM yyyy').format(s.planStartDate!) : '',
-                  amount: friendlyAmount,
-                  paymentMethod: friendlyPaymentMethod,
-                  libraryAddress: library?.address ?? '',
-                  libraryHelpline: library?.phone ?? '',
-                  context: context,
-                );
-              },
-            ),
-            if ((s.pendingDueBalance ?? 0) > 0)
+              // OPTION A: Outstanding Fee Due Reminder (Highlighted if student has dues)
+              if (hasDue)
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFFEF3C7),
+                    child: Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFD97706)),
+                  ),
+                  title: Row(
+                    children: [
+                      Text('Send Fee Due Reminder (₹${due.toStringAsFixed(0)} Due)',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade700,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('RECOMMENDED',
+                            style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                  subtitle: Text('Itemized due reminder with UPI payment link (${library?.upiId ?? ""})'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    whatsapp.sendDueReminder(
+                      phone: s.phone,
+                      studentName: s.name,
+                      libraryName: libraryName,
+                      dueAmount: due,
+                      planName: friendlyPlanName,
+                      seatLabel: friendlySeat,
+                      membershipId: friendlyMemberId,
+                      libraryHelpline: library?.phone,
+                      libraryUpiId: library?.upiId,
+                      adminTemplate: library?.effectiveDueReminderTemplate,
+                      context: context,
+                    );
+                  },
+                ),
+
+              // OPTION B: Expiry / Renewal Notice (Highlighted if expired or expiring soon)
+              if (isExpired || isExpiringSoon)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: isExpired ? const Color(0xFFFEE2E2) : const Color(0xFFFFF3CD),
+                    child: Icon(
+                      isExpired ? Icons.timer_off_rounded : Icons.schedule_rounded,
+                      color: isExpired ? Colors.red : Colors.orange.shade800,
+                    ),
+                  ),
+                  title: Row(
+                    children: [
+                      Text(
+                        isExpired ? 'Send Membership Expired Notice' : 'Send Renewal Reminder ($daysLeft days left)',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isExpired ? Colors.red : Colors.orange,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          isExpired ? 'EXPIRED' : 'EXPIRING',
+                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  subtitle: Text(isExpired
+                      ? 'Expired on $expiryFormatted. Remind student to renew or vacate desk.'
+                      : 'Expiring on $expiryFormatted. Invite student to renew and retain seat.'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    whatsapp.sendExpiryReminder(
+                      s.phone,
+                      s.name,
+                      daysLeft ?? 0,
+                      libraryName: libraryName,
+                      seatLabel: friendlySeat,
+                      expiryDate: expiryFormatted.isNotEmpty ? expiryFormatted : null,
+                      libraryHelpline: library?.phone,
+                      libraryUpiId: library?.upiId,
+                      adminTemplate: library?.effectiveExpiryReminderTemplate,
+                      context: context,
+                    );
+                  },
+                ),
+
+              // OPTION C: Welcome & Admission Fee Receipt
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: hasDue ? const Color(0xFFDCF8C6) : const Color(0xFFDCF8C6),
+                  child: const Icon(Icons.waving_hand_rounded, color: Color(0xFF25D366)),
+                ),
+                title: Text(
+                  hasDue ? 'Send Admission & Payment Summary' : 'Send Welcome Message & Receipt',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                subtitle: Text(
+                  '₹$friendlyAmount Paid${hasDue ? " • ₹${due.toStringAsFixed(0)} Due" : " • Fully Paid"} · Plan: $friendlyPlanName',
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  whatsapp.sendWelcomeMessage(
+                    s.phone,
+                    s.name,
+                    libraryName,
+                    adminTemplate: library?.effectiveWelcomeTemplate ?? '',
+                    membershipId: friendlyMemberId,
+                    planName: friendlyPlanName,
+                    seatLabel: friendlySeat,
+                    expiryDate: expiryFormatted,
+                    validFromDate: validFromFormatted,
+                    amount: friendlyAmount,
+                    dueAmount: hasDue ? due.toStringAsFixed(0) : '0',
+                    libraryUpiId: library?.upiId ?? '',
+                    paymentMethod: friendlyPaymentMethod,
+                    libraryAddress: library?.address ?? '',
+                    libraryHelpline: library?.phone ?? '',
+                    context: context,
+                  );
+                },
+              ),
+
+              // OPTION D: Verified Fee Statement & Payment Ledger
               ListTile(
                 leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFFEF3C7),
-                  child: Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFD97706)),
+                  backgroundColor: Color(0xFFE0F2FE),
+                  child: Icon(Icons.receipt_long_rounded, color: Color(0xFF0284C7)),
                 ),
-                title: Text('Send Due Fee Reminder (₹${(s.pendingDueBalance ?? 0).toStringAsFixed(0)} pending)'),
-                subtitle: const Text('Send itemized balance & UPI payment link via WhatsApp'),
+                title: const Text('Send Payment Ledger & Statement',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                subtitle: const Text('Itemized history of all recorded payments & balance status'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _sendWhatsAppPaymentLedger(s, library?.id ?? '');
+                },
+              ),
+
+              // OPTION E: Digital Smart ID Card Ready Notice
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFF3E8FF),
+                  child: Icon(Icons.badge_rounded, color: Color(0xFF9333EA)),
+                ),
+                title: const Text('Send Digital ID Card Ready Notice',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                subtitle: const Text('Notify student that official digital pass is ready in app'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  final cardTemplate = MessageTemplateService.getTemplate(
+                    type: 'id_card_ready',
+                    language: library?.templateLanguage ?? 'mr',
+                  );
+                  final cardMsg = MessageTemplateService.substitute(
+                    cardTemplate,
+                    studentName: s.name,
+                    libraryName: libraryName,
+                    membershipId: friendlyMemberId,
+                    seatLabel: friendlySeat,
+                    expiryDate: expiryFormatted,
+                    libraryHelpline: library?.phone ?? '',
+                  );
+                  whatsapp.sendMessage(
+                    s.phone,
+                    cardMsg,
+                    context: context,
+                    recipientName: s.name,
+                    title: 'Digital ID Pass Notification',
+                  );
+                },
+              ),
+
+              // OPTION F: Seat Assignment Details (if desk is allocated)
+              if (s.seatId != null && s.seatId!.isNotEmpty)
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFE8F5E9),
+                    child: Icon(Icons.chair_rounded, color: Colors.green),
+                  ),
+                  title: const Text('Send Seat Assignment Info',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: Text('Section: $sectionName · Seat: $friendlySeat'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    whatsapp.sendSeatAssigned(
+                      s.phone,
+                      s.name,
+                      friendlySeat,
+                      sectionName,
+                      libraryName: libraryName,
+                      context: context,
+                    );
+                  },
+                ),
+
+              // OPTION G: Direct 1-on-1 WhatsApp Chat
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.grey.shade100,
+                  child: Icon(Icons.chat_bubble_outline_rounded, color: Colors.grey.shade700),
+                ),
+                title: const Text('Open Direct WhatsApp Chat',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                subtitle: Text('Open 1-on-1 chat with ${s.name}'),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  final due = s.pendingDueBalance ?? 0;
-                  final upiId = library?.upiId ?? '';
                   final phoneClean = s.phone.replaceAll(RegExp(r'\D'), '');
                   final phoneWithCountry = phoneClean.length == 10 ? '91$phoneClean' : phoneClean;
-                  final upiText = upiId.isNotEmpty ? '\n\n*Pay via UPI:* $upiId' : '';
-                  final message = 'Hello ${s.name},\n\nThis is a gentle reminder from *$libraryName* regarding your outstanding fee balance of *₹${due.toStringAsFixed(0)}*.$upiText\n\nPlease clear your pending balance at the reception counter or via UPI to keep your desk reserved.\n\nThank you,\n*$libraryName*';
-                  final encoded = Uri.encodeComponent(message);
-                  final uri = Uri.parse('https://wa.me/$phoneWithCountry?text=$encoded');
+                  final uri = Uri.parse('https://wa.me/$phoneWithCountry');
                   if (await canLaunchUrl(uri)) {
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
                   }
                 },
               ),
-            if (daysLeft != null)
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFFFF3CD),
-                  child: Icon(Icons.schedule_rounded, color: Colors.orange),
-                ),
-                title: Text(daysLeft >= 0
-                    ? 'Send Renewal Reminder ($daysLeft days left)'
-                    : 'Send Expired Notice'),
-                subtitle: const Text('Notify student about plan status'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  final friendlySeat = SeatHelper.formatDeskLabel(seatId: s.seatId, rawLabel: seatLabel);
-                  whatsapp.sendExpiryReminder(
-                    s.phone,
-                    s.name,
-                    daysLeft,
-                    libraryName: libraryName,
-                    seatLabel: friendlySeat,
-                    expiryDate: s.planEndDate != null ? DateFormat('dd MMM yyyy').format(s.planEndDate!) : null,
-                    libraryHelpline: library?.phone,
-                    libraryUpiId: library?.upiId,
-                    adminTemplate: library?.effectiveExpiryReminderTemplate,
-                    context: context,
-                  );
-                },
-              ),
-            if (seatLabel.isNotEmpty)
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFE8F5E9),
-                  child: Icon(Icons.chair_rounded, color: Colors.green),
-                ),
-                title: const Text('Send Seat Assignment Info'),
-                subtitle: Text('Section: $sectionName · Seat: ${SeatHelper.formatDeskLabel(seatId: s.seatId, rawLabel: seatLabel)}'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  final friendlySeat = SeatHelper.formatDeskLabel(seatId: s.seatId, rawLabel: seatLabel);
-                  whatsapp.sendSeatAssigned(s.phone, s.name, friendlySeat, sectionName, libraryName: libraryName, context: context);
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 12),
+            ],
+          ),
         ),
       ),
     );
@@ -472,45 +754,20 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
   }
 
   void _showAssignSeatSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.6,
-          builder: (context, scrollController) {
-            return Consumer(
-              builder: (context, ref, child) {
-                final sectionsAsync = ref.watch(sectionsProvider);
-                return sectionsAsync.when(
-                  data: (sections) {
-                    if (sections.isEmpty) {
-                      return const Center(child: Text('No sections available'));
-                    }
-                    return ListView.builder(
-                      controller: scrollController,
-                      itemCount: sections.length,
-                      itemBuilder: (context, index) {
-                        final section = sections[index];
-                        return _SectionItem(
-                          section: section,
-                          studentId: widget.studentId,
-                          onSeatAssigned: () {
-                            Navigator.pop(context);
-                            _loadStudent(); // Reload student data
-                          },
-                        );
-                      },
-                    );
-                  },
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Error: $err')),
-                );
-              },
-            );
-          },
-        );
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) return;
+    final s = student ?? widget.preloadedStudent;
+    final studentName = s?.name ?? 'Student';
+
+    SeatAssignmentMapSheet.show(
+      context,
+      libraryId: libraryId,
+      studentId: widget.studentId,
+      studentName: studentName,
+      currentSeatId: s?.seatId,
+      currentSectionId: s?.sectionId,
+      onSeatAssigned: () {
+        _loadStudent();
       },
     );
   }
@@ -2932,12 +3189,49 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     DateTime? selectedPlanEndDate = s.planEndDate;
     bool shiftEndDateAutomatically = true;
     bool isSaving = false;
+    bool recalculateDueProRata = false;
+
+    final allPlans = ref.read(plansStreamProvider).value ?? [];
+    PlanModel? enrolledPlan;
+    if (s.planId != null && s.planId!.isNotEmpty) {
+      try {
+        enrolledPlan = allPlans.firstWhere((p) => p.id == s.planId);
+      } catch (_) {}
+    }
+
+    int standardDurationDays = 30;
+    if (enrolledPlan != null) {
+      if (enrolledPlan.durationUnit == DurationUnit.months) {
+        standardDurationDays = enrolledPlan.duration * 30;
+      } else if (enrolledPlan.durationUnit == DurationUnit.weeks) {
+        standardDurationDays = enrolledPlan.duration * 7;
+      } else {
+        standardDurationDays = enrolledPlan.duration;
+      }
+    }
+
+    final double planPrice = enrolledPlan?.price ?? s.customPlanFee ?? 1000.0;
+    final double currentPendingDue = s.pendingDueBalance ?? 0.0;
 
     showDialog<void>(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final theme = Theme.of(ctx);
+
+          final curStart = selectedPlanStartDate ?? selectedAdmissionDate;
+          final curEnd = selectedPlanEndDate ?? curStart.add(Duration(days: standardDurationDays));
+          final int selectedDurationDays = curEnd.difference(curStart).inDays + 1;
+          final int varianceDays = selectedDurationDays - standardDurationDays;
+
+          final durationSummary = selectedDurationDays >= 30
+              ? '$selectedDurationDays Days (~${(selectedDurationDays / 30).toStringAsFixed(1)} Mo)'
+              : '$selectedDurationDays Days';
+
+          final double dailyRate = standardDurationDays > 0 ? (planPrice / standardDurationDays) : (planPrice / 30);
+          final double proRataFee = (selectedDurationDays * dailyRate).roundToDouble();
+          final double paidAmount = planPrice > currentPendingDue ? (planPrice - currentPendingDue) : 0.0;
+          final double recalculatedDue = math.max(0.0, proRataFee - paidAmount);
 
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -2969,6 +3263,14 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     'Student: ${s.name}',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
+                  if (enrolledPlan != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        'Enrolled Plan: ${enrolledPlan.name} ($standardDurationDays Days @ ₹${planPrice.toInt()})',
+                        style: TextStyle(fontSize: 11.5, color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ),
                   const SizedBox(height: 12),
 
                   // 1. Admission Date
@@ -3117,6 +3419,186 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     contentPadding: EdgeInsets.zero,
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
+                  const SizedBox(height: 8),
+
+                  // Live Duration Meter & Plan Match Banner
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: varianceDays == 0
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : (varianceDays < 0
+                              ? Colors.amber.withValues(alpha: 0.12)
+                              : Colors.blue.withValues(alpha: 0.1)),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: varianceDays == 0
+                            ? Colors.green
+                            : (varianceDays < 0 ? Colors.amber.shade700 : Colors.blue),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          varianceDays == 0
+                              ? Icons.check_circle_rounded
+                              : (varianceDays < 0 ? Icons.warning_amber_rounded : Icons.info_outline_rounded),
+                          size: 18,
+                          color: varianceDays == 0
+                              ? Colors.green
+                              : (varianceDays < 0 ? Colors.amber.shade800 : Colors.blue),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Selected Duration: $durationSummary',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                varianceDays == 0
+                                    ? 'Matches enrolled ${enrolledPlan?.name ?? "Plan"} ($standardDurationDays Days) ✓'
+                                    : (varianceDays < 0
+                                        ? 'Shorter by ${-varianceDays} days vs ${enrolledPlan?.name ?? "enrolled plan"} ($standardDurationDays d)'
+                                        : 'Extended by +$varianceDays bonus/grace days vs ${enrolledPlan?.name ?? "enrolled plan"}'),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: varianceDays == 0
+                                      ? Colors.green.shade800
+                                      : (varianceDays < 0 ? Colors.amber.shade900 : Colors.blue.shade800),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Quick Alignment Preset Chips
+                  const Text('Quick Alignment Presets:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.auto_fix_high_rounded, size: 14),
+                        label: Text(
+                          'Fit Plan (${standardDurationDays}d)',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            if (enrolledPlan != null && enrolledPlan.durationUnit == DurationUnit.months) {
+                              selectedPlanEndDate = DateTime(curStart.year, curStart.month + enrolledPlan.duration, curStart.day, 23, 59, 59);
+                            } else {
+                              selectedPlanEndDate = curStart.add(Duration(days: standardDurationDays - 1));
+                            }
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.calendar_today_rounded, size: 14),
+                        label: Text(
+                          'Month End (${DateFormat('dd MMM').format(DateTime(curStart.year, curStart.month + 1, 0))})',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            selectedPlanEndDate = DateTime(curStart.year, curStart.month + 1, 0, 23, 59, 59);
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.add_rounded, size: 14),
+                        label: const Text('+7d Grace', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          setDialogState(() {
+                            selectedPlanEndDate = (selectedPlanEndDate ?? curEnd).add(const Duration(days: 7));
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.add_rounded, size: 14),
+                        label: const Text('+15d Grace', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          setDialogState(() {
+                            selectedPlanEndDate = (selectedPlanEndDate ?? curEnd).add(const Duration(days: 15));
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+
+                  // Smart Dues Impact Selector
+                  if (currentPendingDue > 0) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: theme.colorScheme.outlineVariant),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.account_balance_wallet_outlined, size: 16, color: Colors.orange),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Pending Due Balance: ₹${currentPendingDue.toInt()}',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          // ignore: deprecated_member_use
+                          RadioListTile<bool>(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            value: false,
+                            // ignore: deprecated_member_use
+                            groupValue: recalculateDueProRata,
+                            title: Text(
+                              'Keep Existing Due (₹${currentPendingDue.toInt()})',
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: const Text(
+                              'Recommended for administrative corrections, exam grace & holiday extensions.',
+                              style: TextStyle(fontSize: 10),
+                            ),
+                            // ignore: deprecated_member_use
+                            onChanged: (val) => setDialogState(() => recalculateDueProRata = val ?? false),
+                          ),
+                          // ignore: deprecated_member_use
+                          RadioListTile<bool>(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            value: true,
+                            // ignore: deprecated_member_use
+                            groupValue: recalculateDueProRata,
+                            title: Text(
+                              'Recalculate Due Pro-Rata (₹${recalculatedDue.toInt()})',
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              'Adjusts total fee to ₹${proRataFee.toInt()} based on $selectedDurationDays days stay.',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            // ignore: deprecated_member_use
+                            onChanged: (val) => setDialogState(() => recalculateDueProRata = val ?? true),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -3141,6 +3623,10 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               'planStartDate': Timestamp.fromDate(selectedPlanStartDate!),
                             if (selectedPlanEndDate != null)
                               'planEndDate': Timestamp.fromDate(selectedPlanEndDate!),
+                            if (recalculateDueProRata && currentPendingDue > 0) ...{
+                              'pendingDueBalance': recalculatedDue,
+                              'totalFee': proRataFee,
+                            },
                             'updatedAt': FieldValue.serverTimestamp(),
                           };
 
@@ -3162,10 +3648,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               'admissionDate': DateFormat('yyyy-MM-dd').format(selectedAdmissionDate),
                               'planStartDate': selectedPlanStartDate != null ? DateFormat('yyyy-MM-dd').format(selectedPlanStartDate!) : null,
                               'planEndDate': selectedPlanEndDate != null ? DateFormat('yyyy-MM-dd').format(selectedPlanEndDate!) : null,
+                              if (recalculateDueProRata) 'recalculatedDue': recalculatedDue,
                             },
                           ).ignore();
 
                           ref.invalidate(studentsStreamProvider);
+                          _loadStudent();
 
                           if (ctx.mounted) {
                             Navigator.pop(dialogCtx);
@@ -3803,9 +4291,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   unselectedLabelColor: Colors.grey.shade600,
                   indicatorColor: Theme.of(context).colorScheme.primary,
                   tabs: const [
-                    Tab(icon: Icon(Icons.deck_rounded, size: 16), text: 'Desk & Plan'),
+                    Tab(icon: Icon(Icons.person_outline_rounded, size: 16), text: 'Overview & Profile'),
                     Tab(icon: Icon(Icons.receipt_long_rounded, size: 16), text: 'Payments & Dues'),
-                    Tab(icon: Icon(Icons.badge_rounded, size: 16), text: 'Profile & KYC'),
+                    Tab(icon: Icon(Icons.badge_rounded, size: 16), text: 'Documents & KYC'),
                     Tab(icon: Icon(Icons.security_rounded, size: 16), text: 'Activity & PIN'),
                   ],
                 ),
@@ -3867,9 +4355,23 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Student Profile Photo',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Profile Photo: ${s.name}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${s.membershipNumber != null ? '#${s.membershipNumber} • ' : ''}${SeatHelper.formatDeskLabel(seatId: s.seatId)} • ${s.phone}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 8),
@@ -3934,14 +4436,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             .catchError((_) {});
       }
 
+      ref.invalidate(studentsStreamProvider);
+
       if (mounted) {
         setState(() {
           student = s.copyWith(photoUrl: newUrl);
         });
         ScaffoldMessenger.of(this.context).showSnackBar(
-          const SnackBar(
-            content: Text('Student profile photo updated successfully! 📸'),
-            backgroundColor: Color(0xFF059669),
+          SnackBar(
+            content: Text('Profile photo for ${s.name} updated successfully! 📸'),
+            backgroundColor: const Color(0xFF059669),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -3970,13 +4474,15 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             .catchError((_) {});
       }
 
+      ref.invalidate(studentsStreamProvider);
+
       if (mounted) {
         setState(() {
           student = s.copyWith(photoUrl: '');
         });
         ScaffoldMessenger.of(this.context).showSnackBar(
-          const SnackBar(
-            content: Text('Student photo removed.'),
+          SnackBar(
+            content: Text('Profile photo for ${s.name} removed.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -4036,13 +4542,25 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(s.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                      Text(
+                        s.name,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        maxLines: 2,
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
                           const Icon(Icons.phone_rounded, size: 14, color: Colors.grey),
                           const SizedBox(width: 4),
-                          Text(s.phone, style: Theme.of(context).textTheme.bodyMedium),
+                          Expanded(
+                            child: Text(
+                              s.phone,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                       if (s.email.isNotEmpty) ...[
@@ -4051,7 +4569,13 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           children: [
                             const Icon(Icons.email_outlined, size: 14, color: Colors.grey),
                             const SizedBox(width: 4),
-                            Text(s.email, style: Theme.of(context).textTheme.bodySmall),
+                            Expanded(
+                              child: Text(
+                                s.email,
+                                style: Theme.of(context).textTheme.bodySmall,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -4757,6 +5281,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           _buildSeatInfoCard(context, s),
           const SizedBox(height: 16),
           _buildPlanInfoCard(context, s),
+          const SizedBox(height: 16),
+          _buildProfileDetailsCard(context, s),
         ],
       ),
     );
@@ -5975,6 +6501,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       initialGovIdNumber: s.govIdNumber,
                       libraryId: effectiveLibId,
                       studentId: s.id,
+                      initialFilterMode: s.govIdFilterMode,
+                      initialShowWatermark: s.govIdShowWatermark,
+                      initialQuarterTurns: s.govIdRotation,
                       onDocumentUpdated: _loadStudent,
                     );
                   },
@@ -6003,6 +6532,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           initialGovIdNumber: s.govIdNumber,
                           libraryId: effectiveLibId,
                           studentId: s.id,
+                          initialFilterMode: s.govIdFilterMode,
+                          initialShowWatermark: s.govIdShowWatermark,
+                          initialQuarterTurns: s.govIdRotation,
                           onDocumentUpdated: _loadStudent,
                         );
                       },
@@ -6036,6 +6568,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           initialGovIdNumber: s.govIdNumber,
                           libraryId: effectiveLibId,
                           studentId: s.id,
+                          initialFilterMode: s.govIdFilterMode,
+                          initialShowWatermark: s.govIdShowWatermark,
+                          initialQuarterTurns: s.govIdRotation,
                           onDocumentUpdated: _loadStudent,
                         );
                       },
@@ -6879,79 +7414,6 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
   }
 }
 
-class _SectionItem extends ConsumerWidget {
-  final SectionModel section;
-  final String studentId;
-  final VoidCallback onSeatAssigned;
-
-  const _SectionItem({
-    required this.section,
-    required this.studentId,
-    required this.onSeatAssigned,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final seatsAsync = ref.watch(seatsProvider(section.id));
-
-    return ExpansionTile(
-      title: Text(section.name),
-      children: [
-        seatsAsync.when(
-          data: (seats) {
-            final availableSeats = seats.where((s) => s.status == SeatStatus.available).toList()
-              ..sort(SeatHelper.compareSeats);
-            if (availableSeats.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text('No available seats in this section.'),
-              );
-            }
-            return Wrap(
-              spacing: 8,
-              children: availableSeats.map((seat) {
-                return ActionChip(
-                  label: Text(seat.label),
-                  onPressed: () async {
-                    final libraryId = ref.read(currentLibraryIdProvider);
-                    if (libraryId == null) return;
-
-                    // Assign student through SeatRepository which atomically releases
-                    // any old/duplicate seat the student previously occupied!
-                    await ref.read(seatRepositoryProvider).assignStudent(
-                          libraryId,
-                          section.id,
-                          seat.id,
-                          studentId,
-                        );
-
-                    AuditLogger().log(
-                      action: AuditAction.updated,
-                      entityType: AuditEntity.student,
-        libraryId: libraryId,
-                      entityId: studentId,
-                      details: {'seatAssigned': true, 'seatId': seat.id, 'sectionId': section.id},
-                    ).ignore();
-
-                    onSeatAssigned();
-                  },
-                );
-              }).toList(),
-            );
-          },
-          loading: () => const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: CircularProgressIndicator(),
-          ),
-          error: (err, stack) => Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text('Error loading seats: $err'),
-          ),
-        ),
-      ],
-    );
-  }
-}
 class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverTabBarDelegate(this._tabBar);
 

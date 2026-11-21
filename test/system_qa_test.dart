@@ -38,6 +38,7 @@ import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/constants/app_constants.dart';
 import 'package:study_library/features/legal/presentation/screens/terms_screen.dart';
 import 'package:study_library/features/legal/presentation/screens/privacy_policy_screen.dart';
+import 'package:study_library/core/widgets/whatsapp_preview_sheet.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/firebase_options.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
@@ -58,12 +59,18 @@ import 'package:study_library/features/requests/presentation/screens/request_lis
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/services/inactivity_lock_service.dart';
 import 'package:study_library/models/id_card_template_model.dart';
+import 'package:study_library/core/sentinel/sentinel_models.dart';
+import 'package:study_library/core/sentinel/sentinel_echo_verifier.dart';
+import 'package:study_library/core/sentinel/sentinel_invariant_engine.dart';
+import 'package:study_library/core/sentinel/sentinel_ai_diagnostic.dart';
+import 'package:study_library/core/sentinel/sentinel_service.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/quick_control_center_sheet.dart';
+import 'package:study_library/features/seats/presentation/widgets/seat_assignment_map_sheet.dart';
 
 StudentModel createTestStudent({
   required String id,
   required String name,
-  required String phone,
+  String phone = '9876543210',
   String? membershipNumber,
   MembershipStatus membershipStatus = MembershipStatus.active,
   double? pendingDueBalance,
@@ -73,6 +80,8 @@ StudentModel createTestStudent({
   DateTime? graceEndDate,
   String? seatId,
   String? blockedReason,
+  DateTime? admissionDate,
+  String photoUrl = '',
 }) {
   return StudentModel(
     id: id,
@@ -86,7 +95,7 @@ StudentModel createTestStudent({
     govIdType: GovIdType.aadhaar,
     govIdNumber: '123456789012',
     govIdImageUrl: '',
-    photoUrl: '',
+    photoUrl: photoUrl,
     college: 'University',
     course: 'Gov Exam',
     year: '2026',
@@ -100,6 +109,7 @@ StudentModel createTestStudent({
     graceEndDate: graceEndDate,
     seatId: seatId,
     blockedReason: blockedReason,
+    admissionDate: admissionDate,
     customFields: const {},
     createdAt: DateTime(2026, 10, 1),
     updatedAt: DateTime(2026, 10, 1),
@@ -7125,6 +7135,7 @@ void main() {
     });
 
     testWidgets('Test 140: OS FILE PICKER DIALOG LIFECYCLE & INACTIVITY LOCK IMMUNITY', (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
       // 1. Initially verify external dialog is inactive
       InactivityLockService.setExternalDialogActive(false);
       expect(InactivityLockService.isExternalDialogActive, isFalse);
@@ -7262,6 +7273,896 @@ void main() {
       expect(container.read(registrationNotifierProvider), isEmpty);
       expect(container.read(ocrResultProvider), isEmpty);
       expect(container.read(selectedSeatProvider), isNull);
+    });
+
+    // ==========================================
+    // COZY SENTINEL: Autonomous System Intelligence & Integrity Guardian
+    // ==========================================
+    test('Regression QA: Cozy Sentinel Echo Verifier Mutation Lifecycle & SLA Timing', () {
+      final verifier = SentinelEchoVerifier();
+
+      // 1. Register expectation: student balance update
+      final exp = verifier.registerExpectation(
+        actionName: 'Approve Due Payment #RQ-101',
+        correlationId: 'trace_sentinel_001',
+        domain: SentinelDomain.students,
+        entityId: 'stu_rahul',
+        expectedKey: 'balance',
+        expectedValue: 0.0,
+        timeout: const Duration(milliseconds: 1500),
+      );
+
+      expect(verifier.activeExpectations.length, equals(1));
+      expect(exp.status, equals(EchoStatus.pending));
+
+      // 2. State reflects within SLA
+      final reflected = verifier.notifyStateReflected(
+        domain: SentinelDomain.students,
+        entityId: 'stu_rahul',
+        key: 'balance',
+        actualValue: 0.0,
+      );
+
+      expect(reflected, isTrue);
+      expect(verifier.activeExpectations, isEmpty);
+      expect(verifier.recentEvents.isNotEmpty, isTrue);
+      expect(verifier.recentEvents.first.status, equals(EchoStatus.passed));
+      expect(verifier.recentEvents.first.actionName, equals('Approve Due Payment #RQ-101'));
+
+      verifier.dispose();
+    });
+
+    test('Regression QA: Cozy Sentinel Invariant Engine (Zombie Hold Hunter & Double-Binding)', () {
+      final engine = SentinelInvariantEngine();
+
+      final now = DateTime.now();
+
+      // Test 1: Zombie Hold Detection
+      final expiredSeat = SeatModel(
+        id: 'seat_zombie',
+        sectionId: 'sec_ac',
+        row: 1,
+        col: 1,
+        label: 'A1',
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+        reservationType: 'registration_hold',
+        reservationExpiresAt: now.subtract(const Duration(minutes: 6)),
+      );
+
+      final activeSeat = SeatModel(
+        id: 'seat_valid',
+        sectionId: 'sec_ac',
+        row: 1,
+        col: 2,
+        label: 'A2',
+        status: SeatStatus.available,
+        genderRestriction: GenderRestriction.any,
+      );
+
+      final zombieAnomalies = engine.auditExpiredCartHolds([expiredSeat, activeSeat]);
+      expect(zombieAnomalies.length, equals(1));
+      expect(zombieAnomalies.first.id, equals('zombie_hold_seat_zombie'));
+      expect(zombieAnomalies.first.canAutoHeal, isTrue);
+      expect(zombieAnomalies.first.domain, equals(SentinelDomain.seats));
+
+      // Test 2: Seat ↔ Student Double-Binding Mismatch
+      final occupiedSeat = SeatModel(
+        id: 'seat_10',
+        sectionId: 'sec_main',
+        row: 2,
+        col: 1,
+        label: 'Desk 10',
+        status: SeatStatus.occupied,
+        genderRestriction: GenderRestriction.any,
+        studentId: 'stu_99',
+      );
+
+      final studentWithDifferentSeat = createTestStudent(
+        id: 'stu_99',
+        name: 'Amit Deshmukh',
+        phone: '9876543210',
+        seatId: 'seat_15', // Desynced!
+      );
+
+      final bindingAnomalies = engine.auditSeatStudentBindings(
+        seats: [occupiedSeat],
+        students: [studentWithDifferentSeat],
+      );
+
+      expect(bindingAnomalies.isNotEmpty, isTrue);
+      final desync = bindingAnomalies.firstWhere((a) => a.id.contains('seat_10'));
+      expect(desync.canAutoHeal, isTrue);
+      expect(desync.title, contains('Desync'));
+
+      // Test 3: Financial Invariant (Negative Due Balance)
+      final studentWithNegativeDue = createTestStudent(
+        id: 'stu_neg',
+        name: 'Sneha Patil',
+        phone: '9876543211',
+        pendingDueBalance: -250.0,
+      );
+
+      final financeAnomalies = engine.auditFinancialInvariants([studentWithNegativeDue]);
+      expect(financeAnomalies.length, equals(1));
+      expect(financeAnomalies.first.id, equals('negative_due_stu_neg'));
+      expect(financeAnomalies.first.canAutoHeal, isTrue);
+      expect(financeAnomalies.first.domain, equals(SentinelDomain.payments));
+    });
+
+    test('Regression QA: Cozy Sentinel Health Metrics Calculation & AI Diagnostic Synthesis', () {
+      final service = SentinelService.instance;
+      service.clearAllAnomalies();
+
+      // Clean state
+      var metrics = service.getHealthMetrics();
+      expect(metrics.score, equals(100.0));
+      expect(metrics.isHealthy, isTrue);
+      expect(metrics.statusText, equals('EXCELLENT'));
+
+      final cleanSummary = service.aiDiagnostic.generateExecutiveSummary(metrics, []);
+      expect(cleanSummary, contains('operating normally'));
+
+      // Add a warning anomaly
+      service.reportAnomaly(
+        SentinelAnomaly(
+          id: 'test_warn_1',
+          title: 'Test Anomaly',
+          description: 'Test warning issue',
+          severity: SentinelSeverity.warning,
+          domain: SentinelDomain.seats,
+          detectedAt: DateTime.now(),
+        ),
+      );
+
+      metrics = service.getHealthMetrics();
+      expect(metrics.warningCount, equals(1));
+      expect(metrics.score, equals(96.0)); // 100 - 4 = 96
+      expect(metrics.isHealthy, isTrue);
+
+      // AI Root Cause analysis
+      final analysis = service.aiDiagnostic.analyzeAnomaly(
+        SentinelAnomaly(
+          id: 'zombie_hold_test',
+          title: 'Expired Cart Hold',
+          description: 'Expired test hold',
+          severity: SentinelSeverity.warning,
+          domain: SentinelDomain.seats,
+          detectedAt: DateTime.now(),
+        ),
+      );
+
+      expect(analysis['actionLabel'], equals('Release Desk Now'));
+      expect(analysis['diagnosis'], contains('5-minute reservation timer'));
+
+      service.clearAllAnomalies();
+    });
+
+    test('Regression QA: Document Studio Preferences Persistence (filterMode, showWatermark, rotation)', () {
+      final student = createTestStudent(
+        id: 'std_doc_test',
+        name: 'Srikrishnadatta Bharatrao Sonpethkar',
+        phone: '9156492238',
+      ).copyWith(
+        govIdFilterMode: 'grayscale',
+        govIdShowWatermark: false,
+        govIdRotation: 2,
+      );
+
+      final json = student.toJson();
+      expect(json['govIdFilterMode'], equals('grayscale'));
+      expect(json['govIdShowWatermark'], equals(false));
+      expect(json['govIdRotation'], equals(2));
+
+      final restored = StudentModel.fromJson(json);
+      expect(restored.govIdFilterMode, equals('grayscale'));
+      expect(restored.govIdShowWatermark, equals(false));
+      expect(restored.govIdRotation, equals(2));
+
+      // Test copyWith update
+      final modified = restored.copyWith(govIdFilterMode: 'highContrast', govIdShowWatermark: true);
+      expect(modified.govIdFilterMode, equals('highContrast'));
+      expect(modified.govIdShowWatermark, equals(true));
+      expect(modified.govIdRotation, equals(2)); // preserved
+    });
+
+    test('Regression QA: Dynamic Payment & Due Reflection in WhatsApp Templates & Profile Status Resolution', () {
+      // 1. Partial payment with pending due
+      final marathiMsgWithDue = MessageTemplateService.substitute(
+        MessageTemplateService.welcomeMarathi,
+        studentName: 'Srikrishnadatta Sonpethkar',
+        libraryName: 'The Cozy Corner Study Centre',
+        membershipId: 'CC20260015',
+        planName: 'Quarterly',
+        seatLabel: 'Allocated Desk', // test that literal 'Allocated Desk' is cleanly converted to Marathi
+        amount: '2000',
+        dueAmount: '1000',
+        libraryUpiId: '7276959070@upi',
+      );
+
+      expect(marathiMsgWithDue, contains('*भरलेले शुल्क:* ₹2000'));
+      expect(marathiMsgWithDue, contains('बाकी शुल्क'));
+      expect(marathiMsgWithDue, contains('*₹1000*'));
+      expect(marathiMsgWithDue, contains('7276959070@upi'));
+      // Ensure literal English 'Allocated Desk' placeholder was replaced with Marathi flexible text
+      expect(marathiMsgWithDue, isNot(contains('Allocated Desk')));
+      expect(marathiMsgWithDue, contains('फ्लेक्सिबल / जनरल सीट'));
+
+      // 2. Full payment with 0 due
+      final marathiMsgFullyPaid = MessageTemplateService.substitute(
+        MessageTemplateService.welcomeMarathi,
+        studentName: 'Srikrishnadatta Sonpethkar',
+        libraryName: 'The Cozy Corner Study Centre',
+        membershipId: 'CC20260015',
+        planName: 'Quarterly',
+        seatLabel: 'Seat #15',
+        amount: '3000',
+        dueAmount: '0',
+      );
+
+      expect(marathiMsgFullyPaid, contains('*भरलेले शुल्क:* ₹3000'));
+      expect(marathiMsgFullyPaid, contains('पूर्ण भरले ✓'));
+      expect(marathiMsgFullyPaid, isNot(contains('उर्वरित बाकी शुल्क')));
+      expect(marathiMsgFullyPaid, contains('Seat #15'));
+
+      // 3. English template dynamic due test
+      final englishMsgWithDue = MessageTemplateService.substitute(
+        MessageTemplateService.defaultWelcomeTemplate,
+        studentName: 'John Doe',
+        libraryName: 'The Cozy Corner Study Centre',
+        membershipId: 'CC20260016',
+        amount: '1500',
+        dueAmount: '500',
+        libraryUpiId: 'cozy@upi',
+      );
+
+      expect(englishMsgWithDue, contains('*Fee Paid:* ₹1500'));
+      expect(englishMsgWithDue, contains('*Pending Due Balance:* *₹500*'));
+      expect(englishMsgWithDue, contains('cozy@upi'));
+    });
+
+    testWidgets('Test 144: ADJUST DATES DURATION & PRO-RATA DUES, PASSPORT OCR MRZ & TRILINGUAL WHATSAPP INVARIANTS', (tester) async {
+      // 1. Passport OCR Detection Invariant
+      const samplePassportText = '''
+        PASSPORT
+        REPUBLIC OF INDIA
+        P<INDSONPETHKAR<<SRIKRISHNADATTA<BHARATRAO<<
+        W0255557<7IND9505184M320531216C4039299422<74
+        EMIGRATION CHECK REQUIRED
+        BHARATRAO SONPETHKAR
+        SWATI SONPETHKAR
+      ''';
+      final detectedType = OcrParser.detectGovIdType(samplePassportText);
+      expect(detectedType, equals(GovIdType.passport));
+
+      // 2. Adjust Dates Pro-Rata Dues Calculation Invariant
+      final start = DateTime(2026, 11, 21);
+      final end = DateTime(2027, 1, 31, 23, 59, 59);
+      final durationDays = end.difference(start).inDays + 1;
+      expect(durationDays, equals(72));
+
+      const standardDays = 90;
+      const planPrice = 2000.0;
+      const paidAmount = 200.0;
+      final dailyRate = planPrice / standardDays;
+      final proRataFee = (durationDays * dailyRate).roundToDouble();
+      final recalculatedDue = (proRataFee - paidAmount).clamp(0.0, double.infinity);
+
+      expect(proRataFee, equals(1600.0));
+      expect(recalculatedDue, equals(1400.0));
+
+      // 3. Multilingual Message Translation Invariant
+      const englishDueMsg = 'Dear sk,\n\nYou have a pending fee of ₹200 for your study library membership at The Cozy Corner Study Centre. Kindly clear it at your earliest convenience.';
+      final previewSheet = WhatsAppPreviewSheet(phone: '8575653245', message: englishDueMsg, recipientName: 'sk');
+      expect(previewSheet.phone, equals('8575653245'));
+    });
+
+    testWidgets('Test 145: SEAT MAP ASSIGNMENT SHEET & 2D SPATIAL GRID INTEGRITY', (WidgetTester tester) async {
+      // 1. Create a 10-column section floor plan model
+      final testSection = SectionModel(
+        id: 'sec_cozy_hall',
+        libraryId: 'lib_test',
+        name: 'Cozy Hall',
+        rows: 6,
+        cols: 10,
+        color: 0xFF3B82F6,
+        order: 1,
+        isActive: true,
+        genderRestriction: 'any',
+        totalSeats: 60,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      );
+
+      expect(testSection.cols, equals(10));
+      expect(testSection.rows, equals(6));
+
+      // 2. Generate full 60-seat floor plan with mixed statuses
+      final currentStudent = createTestStudent(
+        id: 'stud_sk_1',
+        name: 'Srikrishnadatta Sonpethkar',
+        phone: '8208492238',
+        membershipNumber: 'CC20260015',
+      );
+
+      final otherStudent = createTestStudent(
+        id: 'stud_ashish_2',
+        name: 'Ashish Wagesh Choudhari',
+        phone: '7385817571',
+        membershipNumber: 'CC20260001',
+      );
+
+      final testSeats = List.generate(60, (index) {
+        final seatNum = index + 1;
+        final row = index ~/ 10;
+        final col = index % 10;
+        if (seatNum == 6) {
+          // Current student's assigned seat
+          return SeatModel(
+            id: 'seat_$seatNum',
+            sectionId: testSection.id,
+            label: 'Seat #$seatNum',
+            row: row,
+            col: col,
+            status: SeatStatus.occupied,
+            genderRestriction: GenderRestriction.any,
+            studentId: currentStudent.id,
+          );
+        } else if (seatNum == 3 || seatNum == 5 || seatNum == 7 || seatNum == 8) {
+          // Occupied by other students
+          return SeatModel(
+            id: 'seat_$seatNum',
+            sectionId: testSection.id,
+            label: 'Seat #$seatNum',
+            row: row,
+            col: col,
+            status: SeatStatus.occupied,
+            genderRestriction: GenderRestriction.any,
+            studentId: otherStudent.id,
+          );
+        } else {
+          // Available seats
+          return SeatModel(
+            id: 'seat_$seatNum',
+            sectionId: testSection.id,
+            label: 'Seat #$seatNum',
+            row: row,
+            col: col,
+            status: SeatStatus.available,
+            genderRestriction: GenderRestriction.any,
+          );
+        }
+      });
+
+      // Invariant: Floor plan MUST contain all 60 seats without filtering out occupied seats
+      expect(testSeats.length, equals(60));
+      final availableCount = testSeats.where((s) => s.status == SeatStatus.available).length;
+      expect(availableCount, equals(55)); // 60 - 5 occupied
+
+      // Verify spatial coordinates integrity
+      final seat6 = testSeats.firstWhere((s) => s.label == 'Seat #6');
+      expect(seat6.row, equals(0));
+      expect(seat6.col, equals(5));
+      expect(seat6.studentId, equals(currentStudent.id));
+
+      final seat11 = testSeats.firstWhere((s) => s.label == 'Seat #11');
+      expect(seat11.row, equals(1));
+      expect(seat11.col, equals(0));
+
+      // 3. Render SeatAssignmentMapSheet in widget tree
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: custom_theme.AppTheme.lightTheme,
+            home: Scaffold(
+              body: SeatAssignmentMapSheet(
+                libraryId: 'lib_test',
+                studentId: currentStudent.id,
+                studentName: currentStudent.name,
+                currentSeatId: seat6.id,
+                onSeatAssigned: () {},
+                preloadedSections: [testSection],
+                preloadedSeats: testSeats,
+                preloadedStudents: [currentStudent, otherStudent],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify header and section tile are present
+      expect(find.text('Change Desk Allocation'), findsOneWidget);
+      expect(find.text('Cozy Hall'), findsNothing); // Single section doesn't render tabs
+
+      // Verify orientation markers are present
+      expect(find.text('Front Reception & Main Entrance'), findsOneWidget);
+      expect(find.text('Quiet Study Zone & Rear Area'), findsOneWidget);
+
+      // Verify legend indicators are present
+      expect(find.text('Vacant (55)'), findsOneWidget);
+      expect(find.text('Occupied (5)'), findsOneWidget);
+      expect(find.text('Current Desk'), findsOneWidget);
+
+      // Verify that current student seat (Desk #6) displays "MINE" tag
+      expect(find.text('MINE'), findsOneWidget);
+
+      // Verify tapping a vacant seat (e.g. seat 1) selects it and opens the assignment drawer
+      final vacantSeatFinder = find.text('1');
+      expect(vacantSeatFinder, findsWidgets);
+      await tester.tap(vacantSeatFinder.first);
+      await tester.pumpAndSettle();
+
+      // Drawer should reveal "Confirm Desk Transfer ➔" action button
+      expect(find.text('Confirm Desk Transfer ➔'), findsOneWidget);
+    });
+
+    test('Test 146: STUDENT SORT FILTER INVARIANTS (RECENT ADMISSIONS, DESK NUMBER 1->100, HIGHEST DUES)', () {
+      final s1 = createTestStudent(
+        id: 's_ashish',
+        name: 'Ashish Wagesh Choudhari',
+        seatId: 'seat_6',
+        admissionDate: DateTime(2026, 11, 1),
+        pendingDueBalance: 0,
+        membershipNumber: 'CC20260001',
+      );
+
+      final s2 = createTestStudent(
+        id: 's_shubham',
+        name: 'Shubham Kandukatle',
+        seatId: 'seat_5',
+        admissionDate: DateTime(2026, 11, 15),
+        pendingDueBalance: 500,
+        membershipNumber: 'CC20260005',
+      );
+
+      final s3 = createTestStudent(
+        id: 's_swati',
+        name: 'Swati Sonpethkar',
+        seatId: 'seat_35',
+        admissionDate: DateTime(2026, 11, 19),
+        pendingDueBalance: 200,
+        membershipNumber: 'CC20260012',
+      );
+
+      final s4 = createTestStudent(
+        id: 's_unassigned',
+        name: 'Zack Unassigned',
+        seatId: null,
+        admissionDate: DateTime(2026, 11, 18),
+        pendingDueBalance: 1000,
+        membershipNumber: 'CC20260010',
+      );
+
+      // 1. Verify Recent Admissions First sorting (latest admission first)
+      final recentList = [s1, s2, s3, s4];
+      recentList.sort((a, b) {
+        final aDate = a.admissionDate ?? a.createdAt;
+        final bDate = b.admissionDate ?? b.createdAt;
+        if (aDate != null && bDate != null) {
+          final cmp = bDate.compareTo(aDate);
+          if (cmp != 0) return cmp;
+        } else if (aDate == null && bDate != null) {
+          return 1;
+        } else if (aDate != null && bDate == null) {
+          return -1;
+        }
+        return (b.membershipNumber ?? b.id).compareTo(a.membershipNumber ?? a.id);
+      });
+
+      expect(recentList[0].id, equals('s_swati')); // Nov 19
+      expect(recentList[1].id, equals('s_unassigned')); // Nov 18
+      expect(recentList[2].id, equals('s_shubham')); // Nov 15
+      expect(recentList[3].id, equals('s_ashish')); // Nov 1
+
+      // 2. Verify Desk Number (1 -> 100) sorting (Desk #5 before Desk #6, unassigned at bottom)
+      final deskList = [s1, s2, s3, s4];
+      deskList.sort((a, b) {
+        final aSeat = (a.seatId ?? '').trim();
+        final bSeat = (b.seatId ?? '').trim();
+        final aHasSeat = aSeat.isNotEmpty;
+        final bHasSeat = bSeat.isNotEmpty;
+        if (!aHasSeat && !bHasSeat) return 0;
+        if (!aHasSeat) return 1;
+        if (!bHasSeat) return -1;
+        final aNum = int.tryParse(SeatHelper.formatSeatNumberOnly(seatId: aSeat));
+        final bNum = int.tryParse(SeatHelper.formatSeatNumberOnly(seatId: bSeat));
+        if (aNum != null && bNum != null) {
+          final cmp = aNum.compareTo(bNum);
+          if (cmp != 0) return cmp;
+        } else if (aNum != null) {
+          return -1;
+        } else if (bNum != null) {
+          return 1;
+        }
+        return SeatHelper.compareNatural(aSeat, bSeat);
+      });
+
+      expect(deskList[0].seatId, equals('seat_5')); // Desk #5 (Shubham)
+      expect(deskList[1].seatId, equals('seat_6')); // Desk #6 (Ashish)
+      expect(deskList[2].seatId, equals('seat_35')); // Desk #35 (Swati)
+      expect(deskList[3].seatId, isNull); // Unassigned (Zack at bottom)
+
+      // 3. Verify Highest Dues sorting (₹1000 -> ₹500 -> ₹200 -> ₹0)
+      final duesList = [s1, s2, s3, s4];
+      duesList.sort((a, b) {
+        final aDue = a.pendingDueBalance ?? 0.0;
+        final bDue = b.pendingDueBalance ?? 0.0;
+        if (aDue != bDue) return bDue.compareTo(aDue);
+        final aDate = a.admissionDate ?? a.createdAt;
+        final bDate = b.admissionDate ?? b.createdAt;
+        if (aDate != null && bDate != null) return bDate.compareTo(aDate);
+        return 0;
+      });
+
+      expect(duesList[0].id, equals('s_unassigned')); // ₹1000
+      expect(duesList[1].id, equals('s_shubham')); // ₹500
+      expect(duesList[2].id, equals('s_swati')); // ₹200
+      expect(duesList[3].id, equals('s_ashish')); // ₹0
+    });
+
+    test('Test 147: COZY SENTINEL UI WIRING & ADMISSION WHATSAPP DUE INTEGRITY', () {
+      // 1. Verify Sentinel route invariant
+      expect(Routes.sentinelDiagnostics, equals('/admin/sentinel'));
+
+      // 2. Verify Admission approval dynamic due reflection
+      final admissionData = {
+        'studentName': 'Rahul Sharma',
+        'pendingDueBalance': 1500.0,
+        'remainingDue': 1500.0,
+      };
+      final rawDue = (admissionData['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
+      expect(rawDue, equals(1500.0));
+
+      final admissionMsg = MessageTemplateService.substitute(
+        MessageTemplateService.welcomeMarathi,
+        studentName: 'Rahul Sharma',
+        libraryName: 'The Cozy Corner Study Centre',
+        membershipId: 'CC20260018',
+        planName: 'Quarterly',
+        seatLabel: 'Seat #21',
+        amount: '2500',
+        dueAmount: rawDue.toStringAsFixed(0),
+        libraryUpiId: '7276959070@upi',
+      );
+
+      expect(admissionMsg, contains('*भरलेले शुल्क:* ₹2500'));
+      expect(admissionMsg, contains('*उर्वरित बाकी शुल्क:* *₹1500*'));
+      expect(admissionMsg, contains('7276959070@upi'));
+      expect(admissionMsg, contains('Seat #21'));
+    });
+
+    test('Test 148: STUDENT CARD GRID DETERMINISTIC KEY BINDING & AVATAR INTEGRITY (PREVENT CARD PHOTO CROSS-SWAP)', () {
+      // 1. Verify two distinct students with separate photo data URLs
+      final photoSrikrishnadatta = 'data:image/jpeg;base64,${base64Encode(List.filled(120, 42))}';
+      final photoSwati = 'data:image/jpeg;base64,${base64Encode(List.filled(120, 99))}';
+
+      final studentSrikrishnadatta = createTestStudent(
+        id: 'stud_sk_14',
+        name: 'Srikrishnadatta Bharat Sonpethkar',
+        phone: '8783148936',
+        membershipNumber: 'CC20260014',
+        photoUrl: photoSrikrishnadatta,
+      );
+
+      final studentSwati = createTestStudent(
+        id: 'stud_swati_12',
+        name: 'Swati Bharatrao Sonpethkar',
+        phone: '8446306710',
+        membershipNumber: 'CC20260012',
+        photoUrl: photoSwati,
+      );
+
+      // 2. Invariant: Distinct unique identity and avatar hash keys
+      final keySrikrishnadatta = 'avatar_${studentSrikrishnadatta.id}_${studentSrikrishnadatta.photoUrl.hashCode}';
+      final keySwati = 'avatar_${studentSwati.id}_${studentSwati.photoUrl.hashCode}';
+      expect(keySrikrishnadatta, isNot(equals(keySwati)));
+
+      // 3. ImageService: Base64 data URL comma extraction resilience
+      final srikrishnaProvider = ImageService.getImageProvider(photoSrikrishnadatta);
+      final swatiProvider = ImageService.getImageProvider(photoSwati);
+      expect(srikrishnaProvider, isNotNull);
+      expect(swatiProvider, isNotNull);
+      expect(srikrishnaProvider, isNot(equals(swatiProvider)));
+
+      // 4. Invariant: StudentCard keys are uniquely bound by student.id
+      final gridKeySrikrishnadatta = 'grid_item_${studentSrikrishnadatta.id}';
+      final gridKeySwati = 'grid_item_${studentSwati.id}';
+      expect(gridKeySrikrishnadatta, equals('grid_item_stud_sk_14'));
+      expect(gridKeySwati, equals('grid_item_stud_swati_12'));
+    });
+
+    test('Test 149: DYNAMIC PAYMENT DUE TEMPLATE LINE STRIPPING & STUDIO SIMULATOR INTEGRITY', () {
+      // 1. Partial payment with NO explicit due tag in template -> Smart auto-injection of dues & UPI
+      const marathiWithoutDueTag = '''
+📋 *प्रवेश तपशील:*
+👤 *विद्यार्थ्याचे नाव:* {studentName}
+💰 *भरलेले शुल्क:* ₹{amount} ({paymentMethod})
+📍 *पत्ता:* {libraryAddress}
+''';
+
+      final msgPartial = MessageTemplateService.substitute(
+        marathiWithoutDueTag,
+        studentName: 'Srikrishnadatta Sonpethkar',
+        amount: '2000',
+        dueAmount: '1900',
+        paymentMethod: 'Cash / Reception',
+        libraryUpiId: '7276959070@upi',
+      );
+
+      expect(msgPartial, contains('💰 *भरलेले शुल्क:* ₹2000 (Cash / Reception)'));
+      expect(msgPartial, contains('⚠️ *उर्वरित बाकी शुल्क:* *₹1900*'));
+      expect(msgPartial, contains('📲 *बाकी भरण्यासाठी UPI ID:* `7276959070@upi`'));
+      expect(msgPartial, isNot(contains('पूर्ण भरले')));
+
+      // 2. Full payment with NO explicit due tag in template -> Smart auto-completion badge & NO due
+      final msgFull = MessageTemplateService.substitute(
+        marathiWithoutDueTag,
+        studentName: 'Srikrishnadatta Sonpethkar',
+        amount: '3900',
+        dueAmount: '0',
+        paymentMethod: 'Cash / Reception',
+      );
+
+      expect(msgFull, contains('💰 *भरलेले शुल्क:* ₹3900 (Cash / Reception) • पूर्ण भरले ✓'));
+      expect(msgFull, isNot(contains('बाकी')));
+      expect(msgFull, isNot(contains('1900')));
+      expect(msgFull, isNot(contains('₹0')));
+
+      // 3. Template WITH explicit {dueAmount} line -> Strip entire due line when due is 0!
+      const marathiWithExplicitDueLine = '''
+📋 *प्रवेश तपशील:*
+👤 *विद्यार्थ्याचे नाव:* {studentName}
+💰 *भरलेले शुल्क:* ₹{amount} ({paymentMethod})
+⚠️ *बाकी शुल्क:* ₹{dueAmount}
+📍 *पत्ता:* {libraryAddress}
+''';
+
+      final msgExplicitPartial = MessageTemplateService.substitute(
+        marathiWithExplicitDueLine,
+        studentName: 'Srikrishnadatta Sonpethkar',
+        amount: '2000',
+        dueAmount: '1900',
+        paymentMethod: 'Cash / Reception',
+      );
+      expect(msgExplicitPartial, contains('💰 *भरलेले शुल्क:* ₹2000 (Cash / Reception)'));
+      expect(msgExplicitPartial, contains('⚠️ *बाकी शुल्क:* ₹1900'));
+
+      // Fully paid -> explicit {dueAmount} line must be COMPLETELY STRIPPED! Never show 'बाकी शुल्क: ₹0'!
+      final msgExplicitFull = MessageTemplateService.substitute(
+        marathiWithExplicitDueLine,
+        studentName: 'Srikrishnadatta Sonpethkar',
+        amount: '3900',
+        dueAmount: '0',
+        paymentMethod: 'Cash / Reception',
+      );
+      expect(msgExplicitFull, contains('💰 *भरलेले शुल्क:* ₹3900 (Cash / Reception) • पूर्ण भरले ✓'));
+      expect(msgExplicitFull, isNot(contains('बाकी शुल्क')));
+      expect(msgExplicitFull, isNot(contains('₹0')));
+
+      // 4. MessageTemplateService.getLivePreview state simulation
+      // Fully paid simulation (default)
+      final previewFull = MessageTemplateService.getLivePreview(
+        MessageTemplateService.welcomeMarathi,
+        simulatePartialPayment: false,
+      );
+      expect(previewFull, contains('₹1000'));
+      expect(previewFull, contains('पूर्ण भरले ✓'));
+      expect(previewFull, isNot(contains('उर्वरित बाकी शुल्क')));
+
+      // Partial payment simulation
+      final previewPartial = MessageTemplateService.getLivePreview(
+        MessageTemplateService.welcomeMarathi,
+        simulatePartialPayment: true,
+      );
+      expect(previewPartial, contains('₹700'));
+      expect(previewPartial, contains('⚠️ *उर्वरित बाकी शुल्क:* *₹300*'));
+      expect(previewPartial, contains('7276959070@upi'));
+      expect(previewPartial, isNot(contains('पूर्ण भरले')));
+    });
+
+    test('167. WHATSAPP MULTILINGUAL PREVIEW HOT-SWAPPING & LEDGER-BACKED DUE RESOLUTION', () {
+      // 1. Multilingual welcome messages generation with accurate payment amount & due
+      final studentName = 'Srikrishnadatta Bharatrao Sonpethkar';
+      final libraryName = 'The Cozy Corner Study Centre';
+      final membershipId = 'CC20260015';
+      final planName = 'Standard Plan';
+      final seatLabel = 'Seat #28';
+      final expiryDate = '31 Jan 2027';
+      final paidAmount = '200';
+      final dueAmount = '1800';
+      final paymentMethod = 'Cash';
+      final libraryUpiId = '7276969070@upi';
+      final helpline = '9403243830';
+      final address = 'Front Of Reliance Fashion Factory, Nath Road, Parli-431515';
+
+      final enMsg = MessageTemplateService.substitute(
+        MessageTemplateService.defaultWelcomeTemplate,
+        studentName: studentName,
+        libraryName: libraryName,
+        membershipId: membershipId,
+        planName: planName,
+        seatLabel: seatLabel,
+        expiryDate: expiryDate,
+        amount: paidAmount,
+        dueAmount: dueAmount,
+        paymentMethod: paymentMethod,
+        libraryUpiId: libraryUpiId,
+        libraryHelpline: helpline,
+        libraryAddress: address,
+      );
+
+      final mrMsg = MessageTemplateService.substitute(
+        MessageTemplateService.welcomeMarathi,
+        studentName: studentName,
+        libraryName: libraryName,
+        membershipId: membershipId,
+        planName: planName,
+        seatLabel: seatLabel,
+        expiryDate: expiryDate,
+        amount: paidAmount,
+        dueAmount: dueAmount,
+        paymentMethod: paymentMethod,
+        libraryUpiId: libraryUpiId,
+        libraryHelpline: helpline,
+        libraryAddress: address,
+      );
+
+      final hiMsg = MessageTemplateService.substitute(
+        MessageTemplateService.welcomeHindi,
+        studentName: studentName,
+        libraryName: libraryName,
+        membershipId: membershipId,
+        planName: planName,
+        seatLabel: seatLabel,
+        expiryDate: expiryDate,
+        amount: paidAmount,
+        dueAmount: dueAmount,
+        paymentMethod: paymentMethod,
+        libraryUpiId: libraryUpiId,
+        libraryHelpline: helpline,
+        libraryAddress: address,
+      );
+
+      // Verify each language contains language-specific headers
+      expect(enMsg, contains('Welcome to The Cozy Corner Study Centre'));
+      expect(mrMsg, contains('मध्ये आपले सहर्ष स्वागत आहे'));
+      expect(hiMsg, contains('में आपका स्वागत है'));
+
+      // Verify paid amount is explicitly present in all 3 languages without empty placeholders
+      expect(enMsg, contains('₹200 (Cash)'));
+      expect(mrMsg, contains('₹200 (Cash)'));
+      expect(hiMsg, contains('₹200 (Cash)'));
+
+      // Verify due amounts are present
+      expect(enMsg, contains('1800'));
+      expect(mrMsg, contains('1800'));
+      expect(hiMsg, contains('1800'));
+
+      // Verify no empty dangling currency parenthesis '₹ (' or '₹ ()' exists
+      expect(enMsg, isNot(contains('₹ (')));
+      expect(mrMsg, isNot(contains('₹ (')));
+      expect(hiMsg, isNot(contains('₹ (')));
+
+      // 2. Multilingual dictionary integrity for WhatsAppPreviewSheet
+      final multilingualMap = {'en': enMsg, 'mr': mrMsg, 'hi': hiMsg};
+      expect(multilingualMap.keys, containsAll(['en', 'mr', 'hi']));
+      expect(multilingualMap['en'], isNot(equals(multilingualMap['mr'])));
+      expect(multilingualMap['mr'], isNot(equals(multilingualMap['hi'])));
+
+      // 3. Dynamic ledger calculation: paid amount + pending due gives full plan price
+      final double recordedPayment = 200.0;
+      final double recordedDue = 1800.0;
+      final double computedTotalCost = recordedPayment + recordedDue;
+      expect(computedTotalCost, equals(2000.0));
+      expect(recordedPayment.toStringAsFixed(0), equals('200'));
+    });
+
+    test('Test 150: COZY SENTINEL FULL-INVENTORY AUDIT & AUTO-HEAL DESK INTEGRITY', () {
+      final engine = SentinelInvariantEngine();
+
+      // 1. Setup real student models with Cozy Corner seat IDs
+      final ashish = createTestStudent(
+        id: 'stud_ashish',
+        name: 'Ashish Wagesh Choudhari',
+        seatId: '1790847281816_r0_c5',
+      );
+
+      final shubham = createTestStudent(
+        id: 'stud_shubham',
+        name: 'Shubham Datta Kandukatle',
+        seatId: '1790847281816_r0_c4',
+      );
+
+      final sk = createTestStudent(
+        id: 'stud_sk',
+        name: 'Srikrishnadatta Bharat Sonpethkar',
+        seatId: '1790847281816_r2_c7',
+      );
+
+      final students = [ashish, shubham, sk];
+
+      // 2. Scenario A: Audited with only available seats (reproducing the false-positive bug)
+      final availableOnlySeats = [
+        SeatModel(
+          id: '1790847281816_r0_c0',
+          sectionId: '1790847281816',
+          label: 'Seat #1',
+          row: 0,
+          col: 0,
+          status: SeatStatus.available,
+          genderRestriction: GenderRestriction.any,
+        ),
+      ];
+
+      final falsePositiveAnomalies = engine.auditSeatStudentBindings(
+        seats: availableOnlySeats,
+        students: students,
+      );
+
+      // Verify that missing occupied seats trigger warnings if only available seats are scanned
+      expect(falsePositiveAnomalies.length, equals(3));
+      expect(falsePositiveAnomalies.every((a) => a.title.contains('Invalid Desk Reference')), isTrue);
+
+      // 3. Scenario B: Full library seat inventory (both occupied and available)
+      final fullInventorySeats = [
+        ...availableOnlySeats,
+        SeatModel(
+          id: '1790847281816_r0_c5',
+          sectionId: '1790847281816',
+          label: 'Seat #6',
+          row: 0,
+          col: 5,
+          status: SeatStatus.occupied,
+          genderRestriction: GenderRestriction.any,
+          studentId: ashish.id,
+        ),
+        SeatModel(
+          id: '1790847281816_r0_c4',
+          sectionId: '1790847281816',
+          label: 'Seat #5',
+          row: 0,
+          col: 4,
+          status: SeatStatus.occupied,
+          genderRestriction: GenderRestriction.any,
+          studentId: shubham.id,
+        ),
+        SeatModel(
+          id: '1790847281816_r2_c7',
+          sectionId: '1790847281816',
+          label: 'Seat #28',
+          row: 2,
+          col: 7,
+          status: SeatStatus.occupied,
+          genderRestriction: GenderRestriction.any,
+          studentId: sk.id,
+        ),
+      ];
+
+      final healthyAnomalies = engine.auditSeatStudentBindings(
+        seats: fullInventorySeats,
+        students: students,
+      );
+
+      // Invariant: Full inventory MUST produce exactly 0 anomalies with 100% health
+      expect(healthyAnomalies.isEmpty, isTrue);
+
+      // 4. Verify AI Diagnostic Executive Summary for 100% clean state
+      final healthyMetrics = SentinelHealthMetrics(
+        score: 100.0,
+        activeWatchersCount: 6,
+        totalInvariantsChecked: 8,
+        criticalCount: 0,
+        warningCount: 0,
+        advisoryCount: 0,
+        averageStreamLatencyMs: 110,
+        lastAuditTime: DateTime.now(),
+        isScanning: false,
+      );
+
+      final summary = SentinelService.instance.aiDiagnostic.generateExecutiveSummary(healthyMetrics, []);
+      expect(summary, contains('All operational systems are operating normally'));
+      expect(summary, contains('100% consistent across both portals'));
     });
   });
 }

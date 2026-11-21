@@ -916,7 +916,10 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                           DropdownMenuItem(value: GovIdType.aadhaar, child: Text('Aadhaar Card')),
                           DropdownMenuItem(value: GovIdType.pan, child: Text('PAN Card')),
                           DropdownMenuItem(value: GovIdType.drivingLicence, child: Text('Driving Licence')),
+                          DropdownMenuItem(value: GovIdType.passport, child: Text('Passport')),
+                          DropdownMenuItem(value: GovIdType.voterId, child: Text('Voter ID (EPIC)')),
                           DropdownMenuItem(value: GovIdType.collegeId, child: Text('College ID')),
+                          DropdownMenuItem(value: GovIdType.other, child: Text('Other Govt ID')),
                         ],
                         onChanged: (v) {
                           if (v != null) setState(() => _govIdType = v);
@@ -978,6 +981,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       );
                     },
                   ),
+
+                  const SizedBox(height: 12),
+                  _buildGovIdDocumentPreviewCard(context),
 
                   const SizedBox(height: 24),
 
@@ -2325,6 +2331,233 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
             title: const Text('Send Welcome & Admission Confirmation to WhatsApp', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
             subtitle: const Text('Dispatches greeting with Desk #, Plan, and Receipt details', style: TextStyle(fontSize: 11.5)),
             onChanged: (val) => setState(() => _sendWhatsAppWelcome = val ?? true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGovIdDocumentPreviewCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    if (_govIdImageUrl == null && _govIdBackImageUrl == null) {
+      return InkWell(
+        onTap: _openOcrScanner,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.document_scanner_rounded, color: theme.colorScheme.primary, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Attach / Scan ${_govIdType.displayName} (Optional)',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tap to scan or upload ID document front & back photos for KYC verification.',
+                      style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.add_photo_alternate_outlined, color: Colors.grey, size: 22),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final hasBack = _govIdBackImageUrl != null && _govIdBackImageUrl!.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.verified_user_rounded, color: Colors.green.shade600, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${_govIdType.displayName} Document Attached',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  hasBack ? 'Front + Back ✓' : 'Front Side ✓',
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              // Front Thumbnail
+              if (_govIdImageUrl != null)
+                Expanded(
+                  child: InkWell(
+                    onTap: () => ImageService.showImageViewer(
+                      context,
+                      imageUrl: _govIdImageUrl,
+                      title: '${_govIdType.displayName} Front Side',
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            height: 110,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.black38 : Colors.grey.shade200,
+                              image: DecorationImage(
+                                image: ImageService.getImageProvider(_govIdImageUrl)!,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 6,
+                          left: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.zoom_in_rounded, size: 12, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text('Front (Zoom)', style: TextStyle(color: Colors.white, fontSize: 9.5)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              if (_govIdImageUrl != null && hasBack) const SizedBox(width: 10),
+
+              // Back Thumbnail
+              if (hasBack)
+                Expanded(
+                  child: InkWell(
+                    onTap: () => ImageService.showImageViewer(
+                      context,
+                      imageUrl: _govIdBackImageUrl,
+                      title: '${_govIdType.displayName} Back Side',
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            height: 110,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.black38 : Colors.grey.shade200,
+                              image: DecorationImage(
+                                image: ImageService.getImageProvider(_govIdBackImageUrl)!,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 6,
+                          left: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.zoom_in_rounded, size: 12, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text('Back (Zoom)', style: TextStyle(color: Colors.white, fontSize: 9.5)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _openOcrScanner,
+                icon: const Icon(Icons.crop_rotate_rounded, size: 15),
+                label: const Text('Retake / Replace', style: TextStyle(fontSize: 11.5)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _govIdImageUrl = null;
+                    _govIdBackImageUrl = null;
+                  });
+                },
+                icon: const Icon(Icons.delete_outline_rounded, size: 15, color: Colors.red),
+                label: const Text('Remove', style: TextStyle(fontSize: 11.5, color: Colors.red)),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -14,6 +14,8 @@ import 'package:study_library/services/remote_config_service.dart';
 import 'package:study_library/core/security/legacy_key_migration_service.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/services/telemetry_service.dart';
+import 'package:study_library/core/sentinel/sentinel_provider_observer.dart';
+import 'package:study_library/core/sentinel/sentinel_service.dart';
 import 'firebase_options.dart';
 import 'package:study_library/core/utils/url_strategy_helper.dart';
 import 'app.dart';
@@ -81,8 +83,14 @@ void main() async {
 
   final prefs = await SharedPreferences.getInstance();
 
+  // Initialize Cozy Sentinel Autonomous Quality Guardian
+  SentinelService.instance.startMonitoring();
+
   runApp(
     ProviderScope(
+      observers: [
+        SentinelProviderObserver(),
+      ],
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
       ],

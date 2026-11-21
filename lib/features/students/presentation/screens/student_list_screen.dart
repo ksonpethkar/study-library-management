@@ -177,19 +177,45 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   void _applySort(List<StudentModel> list) {
     switch (_selectedSortOrder) {
       case StudentSortOrder.recent:
+        list.sort((a, b) {
+          final aDate = a.admissionDate ?? a.createdAt;
+          final bDate = b.admissionDate ?? b.createdAt;
+          if (aDate != null && bDate != null) {
+            final cmp = bDate.compareTo(aDate); // Recent admissions first
+            if (cmp != 0) return cmp;
+          } else if (aDate == null && bDate != null) {
+            return 1;
+          } else if (aDate != null && bDate == null) {
+            return -1;
+          }
+          final aId = a.membershipNumber ?? a.id;
+          final bId = b.membershipNumber ?? b.id;
+          return bId.compareTo(aId);
+        });
         break;
       case StudentSortOrder.nameAsc:
-        list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        list.sort((a, b) => a.name.toLowerCase().trim().compareTo(b.name.toLowerCase().trim()));
         break;
       case StudentSortOrder.seatNumber:
         list.sort((a, b) {
-          if (a.seatId == null && b.seatId == null) return 0;
-          if (a.seatId == null) return 1;
-          if (b.seatId == null) return -1;
-          final aNum = int.tryParse(SeatHelper.formatSeatLabel(seatId: a.seatId, includePrefix: false).replaceAll(RegExp(r'\D'), ''));
-          final bNum = int.tryParse(SeatHelper.formatSeatLabel(seatId: b.seatId, includePrefix: false).replaceAll(RegExp(r'\D'), ''));
-          if (aNum != null && bNum != null) return aNum.compareTo(bNum);
-          return (a.seatId ?? '').compareTo(b.seatId ?? '');
+          final aSeat = (a.seatId ?? '').trim();
+          final bSeat = (b.seatId ?? '').trim();
+          final aHasSeat = aSeat.isNotEmpty;
+          final bHasSeat = bSeat.isNotEmpty;
+          if (!aHasSeat && !bHasSeat) return 0;
+          if (!aHasSeat) return 1; // Unassigned desks at bottom
+          if (!bHasSeat) return -1;
+          final aNum = int.tryParse(SeatHelper.formatSeatNumberOnly(seatId: aSeat));
+          final bNum = int.tryParse(SeatHelper.formatSeatNumberOnly(seatId: bSeat));
+          if (aNum != null && bNum != null) {
+            final cmp = aNum.compareTo(bNum);
+            if (cmp != 0) return cmp;
+          } else if (aNum != null) {
+            return -1;
+          } else if (bNum != null) {
+            return 1;
+          }
+          return SeatHelper.compareNatural(aSeat, bSeat);
         });
         break;
       case StudentSortOrder.expirySoon:
@@ -197,14 +223,20 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           if (a.planEndDate == null && b.planEndDate == null) return 0;
           if (a.planEndDate == null) return 1;
           if (b.planEndDate == null) return -1;
-          return a.planEndDate!.compareTo(b.planEndDate!);
+          final cmp = a.planEndDate!.compareTo(b.planEndDate!);
+          if (cmp != 0) return cmp;
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
         });
         break;
       case StudentSortOrder.highestDue:
         list.sort((a, b) {
           final aDue = a.pendingDueBalance ?? 0.0;
           final bDue = b.pendingDueBalance ?? 0.0;
-          return bDue.compareTo(aDue);
+          if (aDue != bDue) return bDue.compareTo(aDue);
+          final aDate = a.admissionDate ?? a.createdAt;
+          final bDate = b.admissionDate ?? b.createdAt;
+          if (aDate != null && bDate != null) return bDate.compareTo(aDate);
+          return 0;
         });
         break;
     }
@@ -485,6 +517,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                     final isFocused = student.id == _desktopSelectedStudentId;
 
                                     return PressableScale(
+                                      key: ValueKey('desktop_item_${student.id}'),
                                       scaleFactor: 0.99,
                                       onTap: () {
                                         if (_isSelectionMode) {
@@ -551,6 +584,41 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 _buildFilterChips(pendingAdmissionsCount: pendingAdmissions.length),
                 if (pendingAdmissions.isNotEmpty && _selectedFilter != 'Pending')
                   _buildPendingAdmissionsBanner(context, theme, pendingAdmissions.length),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.15),
+                    border: Border(bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.35), width: 0.5)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${filtered.length} Scholars',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: theme.colorScheme.onSurface),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.25)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(_getSortIcon(_selectedSortOrder), size: 12, color: theme.colorScheme.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Sort: ${_getSortLabel(_selectedSortOrder)}',
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
               Expanded(
                 child: (_selectedFilter == 'Pending' && pendingAdmissions.isNotEmpty)
@@ -637,6 +705,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                     final isSelected = _selectedStudentIds.contains(student.id);
 
                                     return PressableScale(
+                                      key: ValueKey('grid_item_${student.id}'),
                                       scaleFactor: 0.98,
                                       onTap: () {
                                         if (_isSelectionMode) {
@@ -708,6 +777,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
 
                           return _isSelectionMode
                               ? PressableScale(
+                                  key: ValueKey('list_item_sel_${student.id}'),
                                   scaleFactor: 0.98,
                                   onTap: () {
                                     HapticFeedback.selectionClick();
@@ -806,6 +876,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                     ),
                                   ),
                                   child: PressableScale(
+                                    key: ValueKey('list_item_${student.id}'),
                                     scaleFactor: 0.98,
                                     onTap: () {
                                       HapticFeedback.lightImpact();
@@ -1396,6 +1467,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               Row(
                 children: [
                   CircleAvatar(
+                    key: ValueKey('sheet_contact_avatar_${student.id}_${student.photoUrl.hashCode}'),
                     backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
                     child: ImageService.getAvatarProvider(student.photoUrl) == null
                         ? Text(student.name.isNotEmpty ? student.name[0].toUpperCase() : '?')
@@ -1499,6 +1571,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               Row(
                 children: [
                   CircleAvatar(
+                    key: ValueKey('sheet_fast_action_avatar_${student.id}_${student.photoUrl.hashCode}'),
                     backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
                     child: ImageService.getAvatarProvider(student.photoUrl) == null
                         ? Text(student.name.isNotEmpty ? student.name[0].toUpperCase() : '?')
@@ -1558,6 +1631,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
+      key: ValueKey('student_card_${student.id}'),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: isSelected
@@ -1599,39 +1673,37 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Row(
                     children: [
-                      Hero(
-                        tag: 'student-avatar-${student.id}',
-                        child: Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                              backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
-                              child: ImageService.getAvatarProvider(student.photoUrl) == null
-                                  ? Text(
-                                      student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    )
-                                  : null,
-                            ),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                width: 11,
-                                height: 11,
-                                decoration: BoxDecoration(
-                                  color: statusColor,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: theme.cardColor,
-                                    width: 2,
-                                  ),
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            key: ValueKey('avatar_${student.id}_${student.photoUrl.hashCode}'),
+                            radius: 22,
+                            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                            backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
+                            child: ImageService.getAvatarProvider(student.photoUrl) == null
+                                ? Text(
+                                    student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  )
+                                : null,
+                          ),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 11,
+                              height: 11,
+                              decoration: BoxDecoration(
+                                color: statusColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: theme.cardColor,
+                                  width: 2,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1639,18 +1711,15 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Hero(
-                              tag: 'student-name-${student.id}',
-                              child: Material(
-                                type: MaterialType.transparency,
-                                child: Text(
-                                  student.name,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.2,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                            Material(
+                              type: MaterialType.transparency,
+                              child: Text(
+                                student.name,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(height: 3),
@@ -1895,9 +1964,23 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 value: StudentSortOrder.recent,
                 child: Row(
                   children: [
-                    Icon(Icons.history_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.recent ? theme.colorScheme.primary : null),
-                    const SizedBox(width: 8),
-                    const Text('Recent Admissions First'),
+                    Icon(
+                      Icons.history_rounded,
+                      size: 18,
+                      color: _selectedSortOrder == StudentSortOrder.recent ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Recent Admissions First',
+                        style: TextStyle(
+                          fontWeight: _selectedSortOrder == StudentSortOrder.recent ? FontWeight.bold : FontWeight.normal,
+                          color: _selectedSortOrder == StudentSortOrder.recent ? theme.colorScheme.primary : null,
+                        ),
+                      ),
+                    ),
+                    if (_selectedSortOrder == StudentSortOrder.recent)
+                      Icon(Icons.check_rounded, size: 18, color: theme.colorScheme.primary),
                   ],
                 ),
               ),
@@ -1905,9 +1988,23 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 value: StudentSortOrder.seatNumber,
                 child: Row(
                   children: [
-                    Icon(Icons.chair_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.seatNumber ? theme.colorScheme.primary : null),
-                    const SizedBox(width: 8),
-                    const Text('Desk Number (1 → 100)'),
+                    Icon(
+                      Icons.chair_rounded,
+                      size: 18,
+                      color: _selectedSortOrder == StudentSortOrder.seatNumber ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Desk Number (1 → 100)',
+                        style: TextStyle(
+                          fontWeight: _selectedSortOrder == StudentSortOrder.seatNumber ? FontWeight.bold : FontWeight.normal,
+                          color: _selectedSortOrder == StudentSortOrder.seatNumber ? theme.colorScheme.primary : null,
+                        ),
+                      ),
+                    ),
+                    if (_selectedSortOrder == StudentSortOrder.seatNumber)
+                      Icon(Icons.check_rounded, size: 18, color: theme.colorScheme.primary),
                   ],
                 ),
               ),
@@ -1915,9 +2012,23 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 value: StudentSortOrder.nameAsc,
                 child: Row(
                   children: [
-                    Icon(Icons.sort_by_alpha_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.nameAsc ? theme.colorScheme.primary : null),
-                    const SizedBox(width: 8),
-                    const Text('Name (A → Z)'),
+                    Icon(
+                      Icons.sort_by_alpha_rounded,
+                      size: 18,
+                      color: _selectedSortOrder == StudentSortOrder.nameAsc ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Name (A → Z)',
+                        style: TextStyle(
+                          fontWeight: _selectedSortOrder == StudentSortOrder.nameAsc ? FontWeight.bold : FontWeight.normal,
+                          color: _selectedSortOrder == StudentSortOrder.nameAsc ? theme.colorScheme.primary : null,
+                        ),
+                      ),
+                    ),
+                    if (_selectedSortOrder == StudentSortOrder.nameAsc)
+                      Icon(Icons.check_rounded, size: 18, color: theme.colorScheme.primary),
                   ],
                 ),
               ),
@@ -1925,9 +2036,23 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 value: StudentSortOrder.expirySoon,
                 child: Row(
                   children: [
-                    Icon(Icons.event_busy_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.expirySoon ? theme.colorScheme.primary : null),
-                    const SizedBox(width: 8),
-                    const Text('Expiring Soonest First'),
+                    Icon(
+                      Icons.event_busy_rounded,
+                      size: 18,
+                      color: _selectedSortOrder == StudentSortOrder.expirySoon ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Expiring Soonest First',
+                        style: TextStyle(
+                          fontWeight: _selectedSortOrder == StudentSortOrder.expirySoon ? FontWeight.bold : FontWeight.normal,
+                          color: _selectedSortOrder == StudentSortOrder.expirySoon ? theme.colorScheme.primary : null,
+                        ),
+                      ),
+                    ),
+                    if (_selectedSortOrder == StudentSortOrder.expirySoon)
+                      Icon(Icons.check_rounded, size: 18, color: theme.colorScheme.primary),
                   ],
                 ),
               ),
@@ -1935,9 +2060,23 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 value: StudentSortOrder.highestDue,
                 child: Row(
                   children: [
-                    Icon(Icons.money_off_rounded, size: 18, color: _selectedSortOrder == StudentSortOrder.highestDue ? theme.colorScheme.primary : null),
-                    const SizedBox(width: 8),
-                    const Text('Highest Dues / Defaulters'),
+                    Icon(
+                      Icons.money_off_rounded,
+                      size: 18,
+                      color: _selectedSortOrder == StudentSortOrder.highestDue ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Highest Dues / Defaulters',
+                        style: TextStyle(
+                          fontWeight: _selectedSortOrder == StudentSortOrder.highestDue ? FontWeight.bold : FontWeight.normal,
+                          color: _selectedSortOrder == StudentSortOrder.highestDue ? theme.colorScheme.primary : null,
+                        ),
+                      ),
+                    ),
+                    if (_selectedSortOrder == StudentSortOrder.highestDue)
+                      Icon(Icons.check_rounded, size: 18, color: theme.colorScheme.primary),
                   ],
                 ),
               ),
@@ -2399,15 +2538,30 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   String _getSortLabel(StudentSortOrder order) {
     switch (order) {
       case StudentSortOrder.recent:
-        return 'Recent';
+        return 'Recent Admissions';
       case StudentSortOrder.seatNumber:
-        return 'Desk #';
+        return 'Desk # (1 → 100)';
       case StudentSortOrder.nameAsc:
-        return 'Name';
+        return 'Name (A → Z)';
       case StudentSortOrder.expirySoon:
-        return 'Expiring';
+        return 'Expiring Soonest';
       case StudentSortOrder.highestDue:
-        return 'Dues';
+        return 'Highest Dues';
+    }
+  }
+
+  IconData _getSortIcon(StudentSortOrder order) {
+    switch (order) {
+      case StudentSortOrder.recent:
+        return Icons.history_rounded;
+      case StudentSortOrder.seatNumber:
+        return Icons.chair_rounded;
+      case StudentSortOrder.nameAsc:
+        return Icons.sort_by_alpha_rounded;
+      case StudentSortOrder.expirySoon:
+        return Icons.event_busy_rounded;
+      case StudentSortOrder.highestDue:
+        return Icons.money_off_rounded;
     }
   }
 
@@ -2421,6 +2575,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
+      key: ValueKey('desktop_card_${student.id}'),
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
       decoration: BoxDecoration(
         color: isFocused
@@ -2471,6 +2626,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                       Stack(
                         children: [
                           CircleAvatar(
+                            key: ValueKey('desktop_avatar_${student.id}_${student.photoUrl.hashCode}'),
                             radius: 18,
                             backgroundColor: theme.colorScheme.surfaceContainerHighest,
                             backgroundImage: ImageService.getAvatarProvider(student.photoUrl),

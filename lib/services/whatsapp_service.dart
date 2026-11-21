@@ -19,6 +19,8 @@ class WhatsAppService {
     BuildContext? context,
     String? recipientName,
     String? title,
+    Map<String, String>? multilingualMessages,
+    String? defaultLanguage,
   }) async {
     String finalMessage = message;
     if (context != null && context.mounted) {
@@ -28,6 +30,8 @@ class WhatsAppService {
         message: message,
         recipientName: recipientName,
         title: title,
+        multilingualMessages: multilingualMessages,
+        defaultLanguage: defaultLanguage,
       );
       if (confirmed == null) return false;
       finalMessage = confirmed;
@@ -77,85 +81,70 @@ class WhatsAppService {
   }) async {
     final formattedDate = paymentDate ?? DateFormat('dd MMM yyyy').format(DateTime.now());
 
-    String finalMessage;
-    if (adminTemplate != null && adminTemplate.trim().isNotEmpty) {
-      finalMessage = MessageTemplateService.substitute(
-        adminTemplate,
-        studentName: studentName,
-        libraryName: libraryName,
-        amount: amount.toStringAsFixed(0),
-        receiptNumber: receiptNumber,
-        planName: planName,
-        seatLabel: seatLabel,
-        validFromDate: validFromDate,
-        expiryDate: expiryDate,
-        paymentMethod: paymentMethod,
-        dueAmount: remainingDue?.toStringAsFixed(0) ?? '0',
-        receiptUrl: receiptUrl,
-        libraryHelpline: libraryHelpline,
-        paymentDate: formattedDate,
-      );
-    } else {
-      final dueBlock = (remainingDue != null && remainingDue > 0)
-          ? '⚠️ *Remaining Balance Due:* ₹${remainingDue.toStringAsFixed(0)}\n'
-          : '💰 *Balance Due:* ₹0.00 (Fully Settled)\n';
+    final enMsg = MessageTemplateService.substitute(
+      MessageTemplateService.defaultPaymentReceiptTemplate,
+      studentName: studentName,
+      libraryName: libraryName,
+      amount: amount.toStringAsFixed(0),
+      receiptNumber: receiptNumber,
+      planName: planName,
+      seatLabel: seatLabel,
+      validFromDate: validFromDate,
+      expiryDate: expiryDate,
+      paymentMethod: paymentMethod,
+      dueAmount: remainingDue?.toStringAsFixed(0) ?? '0',
+      receiptUrl: receiptUrl,
+      libraryHelpline: libraryHelpline,
+      paymentDate: formattedDate,
+    );
 
-      final buffer = StringBuffer()
-        ..writeln('✅ *Payment Received — Fee Receipt*')
-        ..writeln()
-        ..writeln('Dear *$studentName*,')
-        ..writeln('Thank you for your payment. Your official fee receipt has been recorded at *$libraryName*.')
-        ..writeln()
-        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-        ..writeln('🧾 *RECEIPT PARTICULARS*')
-        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-        ..writeln('🧾 *Receipt Number:* $receiptNumber')
-        ..writeln('📅 *Payment Date:* $formattedDate')
-        ..writeln('💳 *Amount Received:* *₹${amount.toStringAsFixed(0)}*');
+    final mrMsg = MessageTemplateService.substitute(
+      MessageTemplateService.paymentReceiptMarathi,
+      studentName: studentName,
+      libraryName: libraryName,
+      amount: amount.toStringAsFixed(0),
+      receiptNumber: receiptNumber,
+      planName: planName,
+      seatLabel: seatLabel,
+      validFromDate: validFromDate,
+      expiryDate: expiryDate,
+      paymentMethod: paymentMethod,
+      dueAmount: remainingDue?.toStringAsFixed(0) ?? '0',
+      receiptUrl: receiptUrl,
+      libraryHelpline: libraryHelpline,
+      paymentDate: formattedDate,
+    );
 
-      if (paymentMethod != null && paymentMethod.isNotEmpty) {
-        buffer.writeln('💳 *Payment Mode:* $paymentMethod');
-      }
-      if (planName != null && planName.isNotEmpty) {
-        buffer.writeln('📦 *Subscription Plan:* $planName');
-      }
-      if (seatLabel != null && seatLabel.isNotEmpty) {
-        buffer.writeln('💺 *Seat Number:* $seatLabel');
-      }
-      if (validFromDate != null && expiryDate != null) {
-        buffer.writeln('🗓️ *Validity:* $validFromDate to $expiryDate');
-      } else if (expiryDate != null) {
-        buffer.writeln('🗓️ *Valid Until:* $expiryDate');
-      }
+    final hiMsg = MessageTemplateService.substitute(
+      MessageTemplateService.paymentReceiptHindi,
+      studentName: studentName,
+      libraryName: libraryName,
+      amount: amount.toStringAsFixed(0),
+      receiptNumber: receiptNumber,
+      planName: planName,
+      seatLabel: seatLabel,
+      validFromDate: validFromDate,
+      expiryDate: expiryDate,
+      paymentMethod: paymentMethod,
+      dueAmount: remainingDue?.toStringAsFixed(0) ?? '0',
+      receiptUrl: receiptUrl,
+      libraryHelpline: libraryHelpline,
+      paymentDate: formattedDate,
+    );
 
-      buffer.write(dueBlock);
-
-      if (receiptUrl != null && receiptUrl.isNotEmpty) {
-        buffer
-          ..writeln()
-          ..writeln('🔗 *View & Download Official Receipt:*')
-          ..writeln(receiptUrl);
-      }
-
-      if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
-        buffer
-          ..writeln()
-          ..writeln('📞 *Helpline:* $libraryHelpline');
-      }
-
-      buffer
-        ..writeln()
-        ..writeln('Thank you for choosing *$libraryName*! 🙏');
-
-      finalMessage = buffer.toString();
-    }
+    final multi = {'en': enMsg, 'mr': mrMsg, 'hi': hiMsg};
+    final isMarathiDefault = adminTemplate == null || adminTemplate.isEmpty || RegExp(r'[\u0900-\u097F]').hasMatch(adminTemplate);
+    final defaultMsg = isMarathiDefault ? mrMsg : enMsg;
+    final defaultLang = isMarathiDefault ? 'mr' : 'en';
 
     return await sendMessage(
       phone,
-      finalMessage,
+      defaultMsg,
       context: context,
       recipientName: studentName,
       title: 'Fee Receipt Preview',
+      multilingualMessages: multi,
+      defaultLanguage: defaultLang,
     );
   }
 
@@ -174,71 +163,58 @@ class WhatsAppService {
     String? adminTemplate,
     BuildContext? context,
   }) async {
-    String finalMessage;
-    if (adminTemplate != null && adminTemplate.trim().isNotEmpty) {
-      finalMessage = MessageTemplateService.substitute(
-        adminTemplate,
-        studentName: studentName,
-        libraryName: libraryName,
-        dueAmount: dueAmount.toStringAsFixed(0),
-        planName: planName,
-        seatLabel: seatLabel,
-        dueDate: dueDate,
-        membershipId: membershipId,
-        libraryHelpline: libraryHelpline,
-        libraryUpiId: libraryUpiId,
-      );
-    } else {
-      final buffer = StringBuffer()
-        ..writeln('📌 *Fee Balance Reminder — $libraryName*')
-        ..writeln()
-        ..writeln('Dear *$studentName*,')
-        ..writeln('Greetings from $libraryName! This is a gentle reminder regarding your pending fee balance for your *${planName ?? "membership"}* subscription.')
-        ..writeln()
-        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-        ..writeln('💰 *DUES DETAILS*')
-        ..writeln('━━━━━━━━━━━━━━━━━━━━━')
-        ..writeln('👤 *Student Name:* $studentName');
+    final enMsg = MessageTemplateService.substitute(
+      MessageTemplateService.defaultDueReminderTemplate,
+      studentName: studentName,
+      libraryName: libraryName,
+      dueAmount: dueAmount.toStringAsFixed(0),
+      planName: planName,
+      seatLabel: seatLabel,
+      dueDate: dueDate,
+      membershipId: membershipId,
+      libraryHelpline: libraryHelpline,
+      libraryUpiId: libraryUpiId,
+    );
 
-      if (membershipId != null && membershipId.isNotEmpty) {
-        buffer.writeln('🆔 *Admission ID:* $membershipId');
-      }
-      if (seatLabel != null && seatLabel.isNotEmpty) {
-        buffer.writeln('💺 *Allocated Seat:* $seatLabel');
-      }
+    final mrMsg = MessageTemplateService.substitute(
+      MessageTemplateService.dueReminderMarathi,
+      studentName: studentName,
+      libraryName: libraryName,
+      dueAmount: dueAmount.toStringAsFixed(0),
+      planName: planName,
+      seatLabel: seatLabel,
+      dueDate: dueDate,
+      membershipId: membershipId,
+      libraryHelpline: libraryHelpline,
+      libraryUpiId: libraryUpiId,
+    );
 
-      buffer.writeln('💵 *Pending Balance Due:* *₹${dueAmount.toStringAsFixed(0)}*');
+    final hiMsg = MessageTemplateService.substitute(
+      MessageTemplateService.dueReminderHindi,
+      studentName: studentName,
+      libraryName: libraryName,
+      dueAmount: dueAmount.toStringAsFixed(0),
+      planName: planName,
+      seatLabel: seatLabel,
+      dueDate: dueDate,
+      membershipId: membershipId,
+      libraryHelpline: libraryHelpline,
+      libraryUpiId: libraryUpiId,
+    );
 
-      if (dueDate != null && dueDate.isNotEmpty) {
-        buffer.writeln('🗓️ *Due Date:* $dueDate');
-      }
-
-      buffer
-        ..writeln()
-        ..writeln('To ensure uninterrupted study hours and retain your dedicated seat, kindly settle the balance at the reception desk.');
-
-      if (libraryUpiId != null && libraryUpiId.isNotEmpty) {
-        buffer.writeln('📲 *UPI ID / GPay / PhonePe:* `$libraryUpiId`');
-      }
-
-      if (libraryHelpline != null && libraryHelpline.isNotEmpty) {
-        buffer.writeln('📞 *Helpline:* $libraryHelpline');
-      }
-
-      buffer
-        ..writeln()
-        ..writeln('Warm regards,')
-        ..writeln('*Admin Desk · $libraryName*');
-
-      finalMessage = buffer.toString();
-    }
+    final multi = {'en': enMsg, 'mr': mrMsg, 'hi': hiMsg};
+    final isMarathiDefault = adminTemplate == null || adminTemplate.isEmpty || RegExp(r'[\u0900-\u097F]').hasMatch(adminTemplate);
+    final defaultMsg = isMarathiDefault ? mrMsg : enMsg;
+    final defaultLang = isMarathiDefault ? 'mr' : 'en';
 
     return await sendMessage(
       phone,
-      finalMessage,
+      defaultMsg,
       context: context,
       recipientName: studentName,
       title: 'Fee Due Reminder Preview',
+      multilingualMessages: multi,
+      defaultLanguage: defaultLang,
     );
   }
 
@@ -275,6 +251,8 @@ class WhatsAppService {
     String expiryDate = '',
     String validFromDate = '',
     String amount = '',
+    String dueAmount = '',
+    String libraryUpiId = '',
     String paymentMethod = '',
     String libraryAddress = '',
     String libraryHelpline = '',
@@ -282,11 +260,12 @@ class WhatsAppService {
     String shiftName = '',
     BuildContext? context,
   }) async {
-    final template = adminTemplate.isNotEmpty
-        ? adminTemplate
-        : MessageTemplateService.defaultWelcomeTemplate;
-    final message = MessageTemplateService.substitute(
-      template,
+    final enTemplate = MessageTemplateService.defaultWelcomeTemplate;
+    final mrTemplate = MessageTemplateService.welcomeMarathi;
+    final hiTemplate = MessageTemplateService.welcomeHindi;
+
+    final enMsg = MessageTemplateService.substitute(
+      (adminTemplate.isNotEmpty && !RegExp(r'[\u0900-\u097F]').hasMatch(adminTemplate)) ? adminTemplate : enTemplate,
       studentName: studentName,
       libraryName: libraryName,
       membershipId: membershipId,
@@ -295,18 +274,66 @@ class WhatsAppService {
       expiryDate: expiryDate,
       validFromDate: validFromDate,
       amount: amount,
+      dueAmount: dueAmount,
+      libraryUpiId: libraryUpiId,
       paymentMethod: paymentMethod,
       libraryAddress: libraryAddress,
       libraryHelpline: libraryHelpline,
       shiftTiming: shiftTiming,
       shiftName: shiftName,
     );
+
+    final mrMsg = MessageTemplateService.substitute(
+      (adminTemplate.isNotEmpty && RegExp(r'[\u0900-\u097F]').hasMatch(adminTemplate)) ? adminTemplate : mrTemplate,
+      studentName: studentName,
+      libraryName: libraryName,
+      membershipId: membershipId,
+      planName: planName,
+      seatLabel: seatLabel,
+      expiryDate: expiryDate,
+      validFromDate: validFromDate,
+      amount: amount,
+      dueAmount: dueAmount,
+      libraryUpiId: libraryUpiId,
+      paymentMethod: paymentMethod,
+      libraryAddress: libraryAddress,
+      libraryHelpline: libraryHelpline,
+      shiftTiming: shiftTiming,
+      shiftName: shiftName,
+    );
+
+    final hiMsg = MessageTemplateService.substitute(
+      hiTemplate,
+      studentName: studentName,
+      libraryName: libraryName,
+      membershipId: membershipId,
+      planName: planName,
+      seatLabel: seatLabel,
+      expiryDate: expiryDate,
+      validFromDate: validFromDate,
+      amount: amount,
+      dueAmount: dueAmount,
+      libraryUpiId: libraryUpiId,
+      paymentMethod: paymentMethod,
+      libraryAddress: libraryAddress,
+      libraryHelpline: libraryHelpline,
+      shiftTiming: shiftTiming,
+      shiftName: shiftName,
+    );
+
+    final multi = {'en': enMsg, 'mr': mrMsg, 'hi': hiMsg};
+    final isMarathiDefault = adminTemplate.isEmpty || RegExp(r'[\u0900-\u097F]').hasMatch(adminTemplate);
+    final defaultMsg = isMarathiDefault ? mrMsg : enMsg;
+    final defaultLang = isMarathiDefault ? 'mr' : 'en';
+
     return await sendMessage(
       phone,
-      message,
+      defaultMsg,
       context: context,
       recipientName: studentName,
       title: 'Welcome Message Preview',
+      multilingualMessages: multi,
+      defaultLanguage: defaultLang,
     );
   }
 
@@ -324,60 +351,53 @@ class WhatsAppService {
     BuildContext? context,
   }) async {
     final libName = libraryName.isNotEmpty ? libraryName : 'Study Library';
-    final seatText = seatLabel.isNotEmpty ? ' for *Seat $seatLabel*' : '';
-    final helpText = (libraryHelpline != null && libraryHelpline.isNotEmpty)
-        ? '\n📞 Reception Helpline: $libraryHelpline'
-        : '';
-    final upiText = (libraryUpiId != null && libraryUpiId.isNotEmpty)
-        ? '\n📲 Renew via UPI: `$libraryUpiId`'
-        : '';
 
-    String message;
-    if (adminTemplate != null && adminTemplate.trim().isNotEmpty) {
-      message = MessageTemplateService.substitute(
-        adminTemplate,
-        studentName: studentName,
-        libraryName: libName,
-        seatLabel: seatLabel,
-        expiryDate: expiryDate,
-        libraryHelpline: libraryHelpline,
-        libraryUpiId: libraryUpiId,
-        daysRemaining: daysRemaining.toString(),
-      );
-    } else if (daysRemaining > 3) {
-      message = '⏳ *Upcoming Plan Renewal Notice*\n\n'
-          'Dear *$studentName*,\n'
-          'Hope your study and exam preparation are going smoothly!\n\n'
-          'This is a friendly reminder that your library membership$seatText at *$libName* will complete its cycle in *$daysRemaining days*${expiryDate != null ? " (on *$expiryDate*)" : ""}.\n\n'
-          'To retain your preferred seat and avoid reassignment, you may renew in advance at the reception desk.$upiText$helpText\n\n'
-          'Warm regards,\n'
-          '*$libName Management*';
-    } else if (daysRemaining > 0) {
-      final dayStr = daysRemaining == 1 ? '1 day' : '$daysRemaining days';
-      message = '⏰ *Seat Renewal Reminder — $dayStr Left*\n\n'
-          'Dear *$studentName*,\n'
-          'Your membership$seatText at *$libName* is scheduled to expire in *$dayStr*${expiryDate != null ? " (on *$expiryDate*)" : ""}.\n\n'
-          'To guarantee continuous reservation of your study spot, please renew your plan before expiry.$upiText$helpText\n\n'
-          'Best wishes for your studies! 📚';
-    } else if (daysRemaining == 0) {
-      message = '🔔 *Membership Expires Today*\n\n'
-          'Dear *$studentName*,\n'
-          'Your library membership$seatText at *$libName* concludes *today*.\n\n'
-          'We want to ensure your daily study routine remains uninterrupted! Please visit the desk today to renew your subscription.$upiText$helpText\n\n'
-          'Thank you for being a valued member! 📖';
-    } else {
-      message = '⚠️ *Membership Expiry & Seat Retention Notice*\n\n'
-          'Dear *$studentName*,\n'
-          'Your membership$seatText at *$libName* has expired.\n\n'
-          'We are holding your seat under our temporary grace policy. If you would like to continue your preparation with us, kindly confirm your renewal today to prevent reassignment.$upiText$helpText\n\n'
-          'We would love to continue supporting your preparation! 🎯';
-    }
+    final enMsg = MessageTemplateService.substitute(
+      MessageTemplateService.defaultExpiryReminderTemplate,
+      studentName: studentName,
+      libraryName: libName,
+      seatLabel: seatLabel,
+      expiryDate: expiryDate,
+      libraryHelpline: libraryHelpline,
+      libraryUpiId: libraryUpiId,
+      daysRemaining: daysRemaining.toString(),
+    );
+
+    final mrMsg = MessageTemplateService.substitute(
+      MessageTemplateService.expiryReminderMarathi,
+      studentName: studentName,
+      libraryName: libName,
+      seatLabel: seatLabel,
+      expiryDate: expiryDate,
+      libraryHelpline: libraryHelpline,
+      libraryUpiId: libraryUpiId,
+      daysRemaining: daysRemaining.toString(),
+    );
+
+    final hiMsg = MessageTemplateService.substitute(
+      MessageTemplateService.expiryReminderHindi,
+      studentName: studentName,
+      libraryName: libName,
+      seatLabel: seatLabel,
+      expiryDate: expiryDate,
+      libraryHelpline: libraryHelpline,
+      libraryUpiId: libraryUpiId,
+      daysRemaining: daysRemaining.toString(),
+    );
+
+    final multi = {'en': enMsg, 'mr': mrMsg, 'hi': hiMsg};
+    final isMarathiDefault = adminTemplate == null || adminTemplate.isEmpty || RegExp(r'[\u0900-\u097F]').hasMatch(adminTemplate);
+    final defaultMsg = isMarathiDefault ? mrMsg : enMsg;
+    final defaultLang = isMarathiDefault ? 'mr' : 'en';
+
     return await sendMessage(
       phone,
-      message,
+      defaultMsg,
       context: context,
       recipientName: studentName,
       title: 'Plan Renewal Reminder Preview',
+      multilingualMessages: multi,
+      defaultLanguage: defaultLang,
     );
   }
 

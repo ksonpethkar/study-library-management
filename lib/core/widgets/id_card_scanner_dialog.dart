@@ -90,6 +90,8 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
   OcrResult? _frontResult;
   OcrResult? _backResult;
   GovIdType _detectedType = GovIdType.aadhaar;
+  String? _lastRawText;
+  String? _lastQrString;
 
   bool _isScanning = false;
   String _scanStatus = '';
@@ -99,10 +101,44 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialType != null) {
-      _selectedType = widget.initialType;
+    // Intelligent Auto-Detect is enabled by default to prevent stale type locking
+    _isAutoDetect = true;
+    _selectedType = null;
+  }
+
+  void _reparseAs(GovIdType newType) {
+    if (_lastRawText == null) return;
+    final parsed = OcrParser.parseUnified(
+      qrString: _lastQrString,
+      rawText: _lastRawText!,
+      preferredType: newType,
+    );
+    setState(() {
+      _detectedType = newType;
+      _selectedType = newType;
       _isAutoDetect = false;
-    }
+      _frontResult = parsed;
+      _layoutGuidance = null;
+    });
+  }
+
+  Widget _buildDocTypeChip(GovIdType type, String label) {
+    final isSelected = _detectedType == type;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (selected) {
+        if (selected) _reparseAs(type);
+      },
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+    );
   }
 
   bool _requiresTwoSides(GovIdType type) {
@@ -141,6 +177,9 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
       final rawText = await _ocrService.processImageBytes(bytes);
 
       if (!mounted) return;
+
+      _lastRawText = rawText;
+      _lastQrString = qrString;
 
       if (isBack) {
         // Back side parsing
@@ -757,6 +796,17 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
                       icon: const Icon(Icons.refresh_rounded, size: 16),
                       label: const Text('Retake', style: TextStyle(fontSize: 12)),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _buildDocTypeChip(GovIdType.passport, '🛂 Passport'),
+                    _buildDocTypeChip(GovIdType.aadhaar, '🪪 Aadhaar'),
+                    _buildDocTypeChip(GovIdType.pan, '💳 PAN'),
+                    _buildDocTypeChip(GovIdType.drivingLicence, '🚗 DL'),
                   ],
                 ),
                 const Divider(height: 12),

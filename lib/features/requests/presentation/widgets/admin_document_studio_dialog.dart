@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
@@ -25,6 +26,9 @@ class AdminDocumentStudioDialog extends StatefulWidget {
   final String libraryId;
   final String? requestId;
   final String? studentId;
+  final String? initialFilterMode;
+  final bool? initialShowWatermark;
+  final int? initialQuarterTurns;
   final VoidCallback? onDocumentUpdated;
 
   const AdminDocumentStudioDialog({
@@ -37,6 +41,9 @@ class AdminDocumentStudioDialog extends StatefulWidget {
     required this.libraryId,
     this.requestId,
     this.studentId,
+    this.initialFilterMode,
+    this.initialShowWatermark,
+    this.initialQuarterTurns,
     this.onDocumentUpdated,
   });
 
@@ -50,6 +57,9 @@ class AdminDocumentStudioDialog extends StatefulWidget {
     required String libraryId,
     String? requestId,
     String? studentId,
+    String? initialFilterMode,
+    bool? initialShowWatermark,
+    int? initialQuarterTurns,
     VoidCallback? onDocumentUpdated,
   }) {
     return showDialog(
@@ -64,6 +74,9 @@ class AdminDocumentStudioDialog extends StatefulWidget {
         libraryId: libraryId,
         requestId: requestId,
         studentId: studentId,
+        initialFilterMode: initialFilterMode,
+        initialShowWatermark: initialShowWatermark,
+        initialQuarterTurns: initialQuarterTurns,
         onDocumentUpdated: onDocumentUpdated,
       ),
     );
@@ -103,11 +116,31 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
     0,   0,   0,   1, 0,
   ];
 
+  static DocumentFilterMode _parseFilterMode(String? mode) {
+    if (mode == null) return DocumentFilterMode.original;
+    final lower = mode.toLowerCase();
+    if (lower.contains('contrast') || lower == 'highcontrast') return DocumentFilterMode.highContrast;
+    if (lower.contains('gray') || lower == 'grayscale') return DocumentFilterMode.grayscale;
+    return DocumentFilterMode.original;
+  }
+
+  String get _prefKey => 'doc_studio_${widget.studentId ?? widget.requestId ?? widget.imageUrl.hashCode}';
+
   @override
   void initState() {
     super.initState();
     _currentImageUrl = widget.imageUrl;
     _currentBackImageUrl = widget.backImageUrl;
+
+    if (widget.initialFilterMode != null) {
+      _filterMode = _parseFilterMode(widget.initialFilterMode);
+    }
+    if (widget.initialShowWatermark != null) {
+      _showWatermark = widget.initialShowWatermark!;
+    }
+    if (widget.initialQuarterTurns != null) {
+      _quarterTurns = widget.initialQuarterTurns! % 4;
+    }
 
     final rawType = widget.initialGovIdType.toLowerCase();
     _selectedType = GovIdType.values.firstWhere(
@@ -133,6 +166,123 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
         'docType': _selectedType.name,
       },
     ).ignore();
+
+    _loadPersistedPreferences();
+  }
+
+  Future<void> _loadPersistedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = _prefKey;
+      final cachedFilter = prefs.getString('${key}_filter');
+      final cachedWatermark = prefs.getBool('${key}_watermark');
+      final cachedRotation = prefs.getInt('${key}_rotation');
+
+      if (mounted && (cachedFilter != null || cachedWatermark != null || cachedRotation != null)) {
+        setState(() {
+          if (cachedFilter != null) _filterMode = _parseFilterMode(cachedFilter);
+          if (cachedWatermark != null) _showWatermark = cachedWatermark;
+          if (cachedRotation != null) _quarterTurns = cachedRotation % 4;
+        });
+      }
+
+      // Check Firestore for remote saved preferences if identifiers are available
+      if (widget.libraryId.isNotEmpty && (widget.studentId != null || widget.requestId != null)) {
+        DocumentSnapshot<Map<String, dynamic>>? snap;
+        if (widget.studentId != null) {
+          snap = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(widget.libraryId)
+              .collection('students')
+              .doc(widget.studentId)
+              .get();
+        } else if (widget.requestId != null) {
+          snap = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(widget.libraryId)
+              .collection('requests')
+              .doc(widget.requestId)
+              .get();
+        }
+
+        if (snap != null && snap.exists && mounted) {
+          final data = snap.data();
+          if (data != null) {
+            final remoteFilter = data['govIdFilterMode'] as String? ??
+                (data['studentData'] is Map ? (data['studentData'] as Map)['govIdFilterMode'] as String? : null);
+            final remoteWatermark = data['govIdShowWatermark'] as bool? ??
+                (data['studentData'] is Map ? (data['studentData'] as Map)['govIdShowWatermark'] as bool? : null);
+            final remoteRotation = (data['govIdRotation'] as num?)?.toInt() ??
+                (data['studentData'] is Map ? ((data['studentData'] as Map)['govIdRotation'] as num?)?.toInt() : null);
+
+            if (remoteFilter != null || remoteWatermark != null || remoteRotation != null) {
+              setState(() {
+                if (remoteFilter != null) _filterMode = _parseFilterMode(remoteFilter);
+                if (remoteWatermark != null) _showWatermark = remoteWatermark;
+                if (remoteRotation != null) _quarterTurns = remoteRotation % 4;
+              });
+
+              if (remoteFilter != null) await prefs.setString('${key}_filter', remoteFilter);
+              if (remoteWatermark != null) await prefs.setBool('${key}_watermark', remoteWatermark);
+              if (remoteRotation != null) await prefs.setInt('${key}_rotation', remoteRotation % 4);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading document studio preferences: $e');
+    }
+  }
+
+  Future<void> _persistPreferences({
+    DocumentFilterMode? filterMode,
+    bool? showWatermark,
+    int? quarterTurns,
+  }) async {
+    final f = filterMode ?? _filterMode;
+    final w = showWatermark ?? _showWatermark;
+    final r = quarterTurns ?? _quarterTurns;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = _prefKey;
+      await prefs.setString('${key}_filter', f.name);
+      await prefs.setBool('${key}_watermark', w);
+      await prefs.setInt('${key}_rotation', r);
+
+      final updates = <String, dynamic>{
+        'govIdFilterMode': f.name,
+        'govIdShowWatermark': w,
+        'govIdRotation': r,
+      };
+
+      if (widget.requestId != null && widget.libraryId.isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('requests')
+            .doc(widget.requestId)
+            .set({
+          ...updates,
+          'studentData': updates,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)).ignore();
+      }
+
+      if (widget.studentId != null && widget.libraryId.isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('students')
+            .doc(widget.studentId)
+            .set({
+          ...updates,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)).ignore();
+      }
+    } catch (e) {
+      debugPrint('Error persisting document studio preferences: $e');
+    }
   }
 
   @override
@@ -143,9 +293,11 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
 
   void _rotateClockwise() {
     HapticFeedback.selectionClick();
+    final nextTurns = (_quarterTurns + 1) % 4;
     setState(() {
-      _quarterTurns = (_quarterTurns + 1) % 4;
+      _quarterTurns = nextTurns;
     });
+    _persistPreferences(quarterTurns: nextTurns);
   }
 
   Future<void> _reuploadDocument({bool isBackSide = false}) async {
@@ -246,9 +398,15 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
             .set({
           'govIdType': _selectedType.name,
           'govIdNumber': encryptedId,
+          'govIdFilterMode': _filterMode.name,
+          'govIdShowWatermark': _showWatermark,
+          'govIdRotation': _quarterTurns,
           'studentData': {
             'govIdType': _selectedType.name,
             'govIdNumber': clean,
+            'govIdFilterMode': _filterMode.name,
+            'govIdShowWatermark': _showWatermark,
+            'govIdRotation': _quarterTurns,
           },
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
@@ -263,9 +421,14 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
             .set({
           'govIdType': _selectedType.name,
           'govIdNumber': encryptedId,
+          'govIdFilterMode': _filterMode.name,
+          'govIdShowWatermark': _showWatermark,
+          'govIdRotation': _quarterTurns,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
+
+      await _persistPreferences();
 
       widget.onDocumentUpdated?.call();
 
@@ -276,7 +439,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
               children: [
                 Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 20),
                 SizedBox(width: 8),
-                Text('Government ID details updated and encrypted!'),
+                Text('Government ID details and studio preferences saved!'),
               ],
             ),
             backgroundColor: Color(0xFF1E293B),
@@ -329,7 +492,10 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
             : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
       ),
       onSelected: (sel) {
-        if (sel) setState(() => _filterMode = mode);
+        if (sel) {
+          setState(() => _filterMode = mode);
+          _persistPreferences(filterMode: mode);
+        }
       },
     );
   }
@@ -500,7 +666,10 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                             ? const Color(0xFF059669)
                             : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
                       ),
-                      onSelected: (val) => setState(() => _showWatermark = val),
+                      onSelected: (val) {
+                        setState(() => _showWatermark = val);
+                        _persistPreferences(showWatermark: val);
+                      },
                     ),
                     const SizedBox(width: 14),
 

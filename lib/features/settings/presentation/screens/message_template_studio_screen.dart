@@ -36,6 +36,7 @@ class _MessageTemplateStudioScreenState
   String _activeLanguage = 'en'; // 'en', 'hi', 'mr'
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _simulatePartialPayment = false;
 
   // Controllers for each template type
   final _welcomeController = TextEditingController();
@@ -262,6 +263,7 @@ class _MessageTemplateStudioScreenState
       upiId: library?.upiId,
       address: library?.address,
       prefix: library?.membershipPrefix,
+      simulatePartialPayment: _simulatePartialPayment,
     );
 
     final phoneController = TextEditingController(text: library?.phone ?? '');
@@ -733,6 +735,7 @@ class _MessageTemplateStudioScreenState
       upiId: library?.upiId,
       address: library?.address,
       prefix: library?.membershipPrefix,
+      simulatePartialPayment: _simulatePartialPayment,
     );
 
     // Authentic WhatsApp palette
@@ -778,7 +781,109 @@ class _MessageTemplateStudioScreenState
           ],
         ),
 
-        const SizedBox(height: 8),
+        // Dynamic Payment State Simulator Bar
+        Container(
+          margin: const EdgeInsets.only(top: 8, bottom: 10),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _simulatePartialPayment = false),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: !_simulatePartialPayment
+                          ? (isDark ? const Color(0xFF065F46) : const Color(0xFFD1FAE5))
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: !_simulatePartialPayment
+                          ? Border.all(color: isDark ? const Color(0xFF10B981) : const Color(0xFF34D399))
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle_rounded,
+                          size: 14,
+                          color: !_simulatePartialPayment
+                              ? (isDark ? Colors.greenAccent : const Color(0xFF047857))
+                              : Colors.grey,
+                        ),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            'Fully Paid (₹0 Due) ✓',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: !_simulatePartialPayment
+                                  ? (isDark ? Colors.white : const Color(0xFF047857))
+                                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _simulatePartialPayment = true),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: _simulatePartialPayment
+                          ? (isDark ? const Color(0xFF78350F) : const Color(0xFFFEF3C7))
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: _simulatePartialPayment
+                          ? Border.all(color: isDark ? const Color(0xFFF59E0B) : const Color(0xFFFBBF24))
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          size: 14,
+                          color: _simulatePartialPayment
+                              ? (isDark ? Colors.amberAccent : const Color(0xFFB45309))
+                              : Colors.grey,
+                        ),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            'Partial Payment (₹300 Due) ⚠️',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: _simulatePartialPayment
+                                  ? (isDark ? Colors.white : const Color(0xFFB45309))
+                                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
 
         // Simulated Mobile Phone / Chat Frame
         Container(

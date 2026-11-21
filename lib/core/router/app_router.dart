@@ -52,6 +52,7 @@ import '../../features/settings/presentation/screens/payment_methods_screen.dart
 import '../../features/settings/presentation/screens/communications_hub_screen.dart';
 import '../../features/backup/presentation/screens/backup_restore_screen.dart';
 import '../../features/maintenance/presentation/screens/maintenance_diagnostics_screen.dart';
+import '../../features/sentinel/presentation/screens/sentinel_diagnostic_screen.dart';
 import '../../features/audit_log/presentation/screens/audit_log_screen.dart';
 import '../../features/recycle_bin/presentation/screens/recycle_bin_screen.dart';
 import '../../features/settings/presentation/screens/rules_editor_screen.dart';
@@ -150,6 +151,7 @@ class Routes {
   
   static const adminBackup = '/admin/backup';
   static const adminMaintenance = '/admin/maintenance';
+  static const sentinelDiagnostics = '/admin/sentinel';
   static const adminDataExport = '/admin/data-export';
   static const adminAuditLog = '/admin/audit-log';
   static const adminRecycleBin = '/admin/recycle-bin';
@@ -614,6 +616,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminMaintenance, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const MaintenanceDiagnosticsScreen(),
+      )),
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.sentinelDiagnostics, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const SentinelDiagnosticScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminDataExport, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const DataExportScreen(),

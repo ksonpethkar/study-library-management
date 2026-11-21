@@ -111,6 +111,9 @@ class StudentModel {
   final String govIdNumber; // encrypted ideally
   final String govIdImageUrl;
   final String? govIdBackImageUrl;
+  final String? govIdFilterMode;
+  final bool? govIdShowWatermark;
+  final int? govIdRotation;
   final String photoUrl;
   final String college;
   final String course;
@@ -268,6 +271,9 @@ class StudentModel {
     required this.govIdNumber,
     required this.govIdImageUrl,
     this.govIdBackImageUrl,
+    this.govIdFilterMode,
+    this.govIdShowWatermark,
+    this.govIdRotation,
     required this.photoUrl,
     required this.college,
     required this.course,
@@ -355,6 +361,9 @@ class StudentModel {
               json['documentBackUrl'] ??
               json['idCardBackUrl'] ??
               json['aadhaarBackUrl']) as String?,
+      govIdFilterMode: json['govIdFilterMode'] as String?,
+      govIdShowWatermark: json['govIdShowWatermark'] as bool?,
+      govIdRotation: (json['govIdRotation'] as num?)?.toInt(),
       photoUrl: (json['photoUrl'] ??
               json['photo'] ??
               json['avatarUrl'] ??
@@ -371,7 +380,7 @@ class StudentModel {
       course: json['course'] as String? ?? '',
       year: json['year'] as String? ?? '',
       emergencyContact: json['emergencyContact'] as String? ?? '',
-      seatId: json['seatId'] as String?,
+      seatId: (json['seatId'] ?? json['seatNumber'] ?? json['seat'] ?? json['assignedSeat']) as String?,
       sectionId: json['sectionId'] as String?,
       previousSeatId: json['previousSeatId'] as String?,
       previousSectionId: json['previousSectionId'] as String?,
@@ -434,6 +443,9 @@ class StudentModel {
       'govIdNumber': govIdNumber,
       'govIdImageUrl': govIdImageUrl,
       if (govIdBackImageUrl != null) 'govIdBackImageUrl': govIdBackImageUrl,
+      if (govIdFilterMode != null) 'govIdFilterMode': govIdFilterMode,
+      if (govIdShowWatermark != null) 'govIdShowWatermark': govIdShowWatermark,
+      if (govIdRotation != null) 'govIdRotation': govIdRotation,
       'photoUrl': photoUrl,
       'college': college,
       'course': course,
@@ -501,6 +513,9 @@ class StudentModel {
     String? govIdNumber,
     String? govIdImageUrl,
     String? govIdBackImageUrl,
+    String? govIdFilterMode,
+    bool? govIdShowWatermark,
+    int? govIdRotation,
     String? photoUrl,
     String? college,
     String? course,
@@ -570,6 +585,9 @@ class StudentModel {
       govIdNumber: govIdNumber ?? this.govIdNumber,
       govIdImageUrl: govIdImageUrl ?? this.govIdImageUrl,
       govIdBackImageUrl: govIdBackImageUrl ?? this.govIdBackImageUrl,
+      govIdFilterMode: govIdFilterMode ?? this.govIdFilterMode,
+      govIdShowWatermark: govIdShowWatermark ?? this.govIdShowWatermark,
+      govIdRotation: govIdRotation ?? this.govIdRotation,
       photoUrl: photoUrl ?? this.photoUrl,
       college: college ?? this.college,
       course: course ?? this.course,

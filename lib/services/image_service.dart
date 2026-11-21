@@ -259,7 +259,8 @@ class ImageService {
         resolved = cached;
       } else {
         try {
-          final base64String = trimmed.contains(',') ? trimmed.split(',')[1].trim() : trimmed;
+          final commaIdx = trimmed.indexOf(',');
+          final base64String = commaIdx != -1 ? trimmed.substring(commaIdx + 1).trim() : trimmed;
           final cleanBase64 = base64String.replaceAll(RegExp(r'\s+'), '');
           final provider = MemoryImage(base64Decode(cleanBase64));
           if (_base64ImageCache.length > 60) {
@@ -331,6 +332,13 @@ class ImageService {
   }
 
   /// Shows an interactive fullscreen viewer for an image (remote URL or local File).
+  static void showImagePreview(
+    BuildContext context, {
+    String? imageUrl,
+    File? imageFile,
+    String title = 'Photo Preview',
+  }) => showImageViewer(context, imageUrl: imageUrl, imageFile: imageFile, title: title);
+
   static void showImageViewer(
     BuildContext context, {
     String? imageUrl,

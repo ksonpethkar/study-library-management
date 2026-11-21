@@ -22,7 +22,7 @@ class MessageTemplateService {
     TemplateVariable(tag: '{seatLabel}', label: 'Desk / Seat', example: 'Seat #14', description: 'Allocated study desk label (alias: {seat}, {desk})'),
     TemplateVariable(tag: '{planName}', label: 'Plan Name', example: 'Monthly Full-Day', description: 'Enrolled plan name (alias: {plan})'),
     TemplateVariable(tag: '{amount}', label: 'Amount', example: '700', description: 'Payment amount received (in ₹)'),
-    TemplateVariable(tag: '{dueAmount}', label: 'Due Balance', example: '350', description: 'Pending dues balance (alias: {due})'),
+    TemplateVariable(tag: '{dueAmount}', label: 'Due Balance', example: '350', description: 'Pending dues balance (alias: {due}) • Auto-omitted when fully paid'),
     TemplateVariable(tag: '{expiryDate}', label: 'Expiry Date', example: '30 Nov 2026', description: 'Membership expiration date (alias: {expiry})'),
     TemplateVariable(tag: '{validFromDate}', label: 'Start Date', example: '01 Nov 2026', description: 'Plan starting date (alias: {validFrom})'),
     TemplateVariable(tag: '{receiptNumber}', label: 'Receipt #', example: 'REC-2026-0842', description: 'Official receipt number (alias: {receiptNo})'),
@@ -102,10 +102,55 @@ class MessageTemplateService {
         .replaceAll('{days}', '{daysRemaining}')
         .replaceAll('{holdHours}', '{holdingHours}');
 
-    // Clean fallback for seatLabel
-    final cleanSeat = (seatLabel != null && seatLabel.trim().isNotEmpty)
-        ? seatLabel.trim()
-        : 'फ्लेक्सिबल (General Shift)';
+    final isMarathi = template.contains('मध्ये') || template.contains('शुल्क') || template.contains('तपशील') || template.contains('सस्नेह');
+    final isHindi = template.contains('में आपका') || template.contains('बकाया') || template.contains('नमस्ते');
+
+    // Clean fallback for seatLabel (strictly avoiding literal 'Allocated Desk' placeholders)
+    final rawSeat = seatLabel?.trim() ?? '';
+    final cleanSeat = (rawSeat.isNotEmpty &&
+            rawSeat.toLowerCase() != 'allocated desk' &&
+            rawSeat.toLowerCase() != 'desk')
+        ? rawSeat
+        : (isMarathi
+            ? 'फ्लेक्सिबल / जनरल सीट (रिसेप्शनवर संपर्क साधा)'
+            : (isHindi ? 'फ्लेक्सिबल / सामान्य सीट' : 'Flexible / General Access'));
+
+    final cleanDue = dueAmount?.trim() ?? '';
+    final hasDue = cleanDue.isNotEmpty && (double.tryParse(cleanDue) ?? 0) > 0;
+    final hadDuePlaceholder = template.contains('{dueAmount}') || template.contains('{due}');
+
+    // If template has explicit {dueAmount} line but payment is fully paid (due == 0),
+    // cleanly strip dedicated due balance lines so awkward 'Due: ₹0' does not appear.
+    if (hadDuePlaceholder && !hasDue) {
+      result = result.replaceAllMapped(
+        RegExp(r'^[^\n]*\{due(?:Amount)?\}[^\n]*(?:\r?\n)?', multiLine: true),
+        (match) {
+          final line = match.group(0)!;
+          // If the line also contains primary profile tags (e.g. single-line compact templates), preserve line
+          if (line.contains('{studentName}') ||
+              line.contains('{name}') ||
+              line.contains('{seatLabel}') ||
+              line.contains('{seat}') ||
+              line.contains('{desk}') ||
+              line.contains('{planName}') ||
+              line.contains('{plan}') ||
+              line.contains('{expiryDate}') ||
+              line.contains('{expiry}')) {
+            return line;
+          }
+          return ''; // Strip dedicated due line completely!
+        },
+      );
+    }
+
+    final String cleanAmount;
+    if (amount != null && amount.trim().isNotEmpty) {
+      cleanAmount = amount.trim();
+    } else if (hasDue) {
+      cleanAmount = '0';
+    } else {
+      cleanAmount = '';
+    }
 
     // Substitute canonical tags
     result = result
@@ -116,14 +161,14 @@ class MessageTemplateService {
         .replaceAll('{membershipId}', membershipId ?? '')
         .replaceAll('{seatLabel}', cleanSeat)
         .replaceAll('{libraryName}', libraryName ?? '')
-        .replaceAll('{amount}', amount ?? '')
+        .replaceAll('{amount}', cleanAmount)
         .replaceAll('{paymentMethod}', paymentMethod ?? '')
         .replaceAll('{phone}', phone ?? '')
         .replaceAll('{libraryAddress}', libraryAddress ?? '')
         .replaceAll('{libraryHelpline}', libraryHelpline ?? '')
         .replaceAll('{receiptNumber}', receiptNumber ?? '')
         .replaceAll('{receiptUrl}', receiptUrl?.trim() ?? '')
-        .replaceAll('{dueAmount}', dueAmount ?? '')
+        .replaceAll('{dueAmount}', cleanDue.isNotEmpty ? cleanDue : '0')
         .replaceAll('{dueDate}', dueDate ?? '')
         .replaceAll('{shiftName}', shiftName ?? '')
         .replaceAll('{shiftTiming}', shiftTiming ?? '')
@@ -131,6 +176,46 @@ class MessageTemplateService {
         .replaceAll('{paymentDate}', paymentDate ?? '')
         .replaceAll('{daysRemaining}', daysRemaining ?? '')
         .replaceAll('{holdingHours}', holdingHours ?? '24');
+
+    // Dynamically reflect payment status & pending dues (Smart Block Architecture)
+    if (hasDue) {
+      if (!hadDuePlaceholder) {
+        if (isMarathi && result.contains(RegExp(r'(?:भरलेले|एकूण|जमा)\s+शुल्क'))) {
+          result = result.replaceFirstMapped(
+            RegExp(r'([^\n]*(?:भरलेले|एकूण|जमा)\s+शुल्क[^\n]*)'),
+            (m) => '${m.group(1)}\n⚠️ *उर्वरित बाकी शुल्क:* *₹$cleanDue*${(libraryUpiId != null && libraryUpiId.isNotEmpty) ? "\n📲 *बाकी भरण्यासाठी UPI ID:* `$libraryUpiId`" : ""}',
+          );
+        } else if (isHindi && result.contains(RegExp(r'(?:जमा|कुल)\s+शुल्क'))) {
+          result = result.replaceFirstMapped(
+            RegExp(r'([^\n]*(?:जमा|कुल)\s+शुल्क[^\n]*)'),
+            (m) => '${m.group(1)}\n⚠️ *कुल बकाया राशि:* *₹$cleanDue*${(libraryUpiId != null && libraryUpiId.isNotEmpty) ? "\n📲 *UPI ID:* `$libraryUpiId`" : ""}',
+          );
+        } else if (result.contains(RegExp(r'Fee\s+Paid|Amount\s+Paid|Payment\s+Received', caseSensitive: false))) {
+          result = result.replaceFirstMapped(
+            RegExp(r'([^\n]*(?:Fee\s+Paid|Amount\s+Paid|Payment\s+Received)[^\n]*)', caseSensitive: false),
+            (m) => '${m.group(1)}\n⚠️ *Pending Due Balance:* *₹$cleanDue*${(libraryUpiId != null && libraryUpiId.isNotEmpty) ? "\n📲 *Pay via UPI:* `$libraryUpiId`" : ""}',
+          );
+        }
+      }
+    } else if (amount != null && amount.trim().isNotEmpty && amount.trim() != '0') {
+      // Fully Paid: append positive verified completion badge to amount line
+      if (isMarathi && result.contains(RegExp(r'(?:भरलेले|एकूण|जमा)\s+शुल्क')) && !result.contains('पूर्ण भरले')) {
+        result = result.replaceFirstMapped(
+          RegExp(r'([^\n]*(?:भरलेले|एकूण|जमा)\s+शुल्क[^\n]*)'),
+          (m) => '${m.group(1)} • पूर्ण भरले ✓',
+        );
+      } else if (isHindi && result.contains(RegExp(r'(?:जमा|कुल)\s+शुल्क')) && !result.contains('पूर्ण भुगतान')) {
+        result = result.replaceFirstMapped(
+          RegExp(r'([^\n]*(?:जमा|कुल)\s+शुल्क[^\n]*)'),
+          (m) => '${m.group(1)} • पूर्ण भुगतान ✓',
+        );
+      } else if (result.contains(RegExp(r'Fee\s+Paid|Amount\s+Paid|Payment\s+Received', caseSensitive: false)) && !result.toLowerCase().contains('paid in full')) {
+        result = result.replaceFirstMapped(
+          RegExp(r'([^\n]*(?:Fee\s+Paid|Amount\s+Paid|Payment\s+Received)[^\n]*)', caseSensitive: false),
+          (m) => '${m.group(1)} • Paid in Full ✓',
+        );
+      }
+    }
 
     // If receiptUrl is empty, cleanly strip empty receipt link lines so no dangling labels appear
     if (receiptUrl == null || receiptUrl.trim().isEmpty) {
@@ -149,6 +234,9 @@ class MessageTemplateService {
     // Clean up empty parentheses e.g. "₹2000 ()" or "₹ ()" -> "₹2000"
     result = result.replaceAll(RegExp(r'\s*\(\s*\)'), '');
 
+    // Eliminate dangling currency symbol before parentheses e.g. "₹ (Cash)" -> "₹0 (Cash)" or "(Cash)"
+    result = result.replaceAll(RegExp(r'₹\s*(?=\()'), hasDue ? '₹0 ' : '');
+
     // If amount is empty, cleanly format or replace dangling currency symbols
     if (amount == null || amount.trim().isEmpty || amount.trim() == '0') {
       result = result.replaceAll(RegExp(r'₹\s*(?=\n|$)'), 'As per selected plan');
@@ -165,6 +253,7 @@ class MessageTemplateService {
     String? upiId,
     String? address,
     String? prefix,
+    bool simulatePartialPayment = false,
   }) {
     return substitute(
       template,
@@ -175,14 +264,14 @@ class MessageTemplateService {
       membershipId: '${prefix ?? "CC"}20260014',
       seatLabel: 'Seat #14 (Cozy Hall)',
       libraryName: (libraryName != null && libraryName.isNotEmpty) ? libraryName : 'The Cozy Corner Study Centre',
-      amount: '700',
+      amount: simulatePartialPayment ? '700' : '1000',
       paymentMethod: 'Cash / Reception',
       phone: '+91 91569 44773',
       libraryAddress: (address != null && address.isNotEmpty) ? address : 'Someshwar Nagar, Parli Vaijanath',
       libraryHelpline: (helpline != null && helpline.isNotEmpty) ? helpline : '+91 91569 44773',
       receiptNumber: 'REC-2026-0842',
       receiptUrl: 'https://study-lib-mgmt-2026.web.app/receipts/REC-2026-0842',
-      dueAmount: '0',
+      dueAmount: simulatePartialPayment ? '300' : '0',
       dueDate: '05 Nov 2026',
       shiftName: 'Full Day (24/7)',
       shiftTiming: '07:00 AM – 11:00 PM',

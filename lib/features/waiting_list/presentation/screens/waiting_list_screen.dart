@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -1513,23 +1514,46 @@ class _AvailableSeatsSectionTile extends ConsumerWidget {
                   );
                 }
 
-                return Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: availableSeats.map((seat) {
-                    return ActionChip(
-                      avatar: const Icon(
-                        Icons.chair,
-                        size: 16,
-                        color: Colors.green,
+                final crossAxisCount = section.cols > 0 ? math.min(section.cols, 8) : 6;
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1.1,
+                  ),
+                  itemCount: availableSeats.length,
+                  itemBuilder: (ctx, i) {
+                    final seat = availableSeats[i];
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => onSeatSelected(seat),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.event_seat_rounded, size: 14, color: Color(0xFF059669)),
+                            const SizedBox(height: 2),
+                            Text(
+                              SeatHelper.formatSeatNumberOnly(rawLabel: seat.label),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: Color(0xFF047857),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      label: Text(
-                        seat.label,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      onPressed: () => onSeatSelected(seat),
                     );
-                  }).toList(),
+                  },
                 );
               },
             ),

@@ -519,6 +519,14 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Restore soft-deleted students, payments, plans & sections',
                 onTap: () => context.push(Routes.adminRecycleBin),
               ),
+              const CozySettingsDivider(),
+              _buildSettingsTile(
+                icon: Icons.health_and_safety_rounded,
+                iconColor: const Color(0xFF059669),
+                title: 'Cozy Sentinel AI Guardian',
+                subtitle: 'Real-time reflection monitor, anomaly detector & 1-tap self-healing',
+                onTap: () => context.push(Routes.sentinelDiagnostics),
+              ),
             ],
           ),
 

@@ -4109,6 +4109,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                           initialGovIdNumber: govIdNum,
                           libraryId: ref.read(currentLibraryIdProvider) ?? '',
                           requestId: widget.requestId,
+                          initialFilterMode: studentData['govIdFilterMode'] as String?,
+                          initialShowWatermark: studentData['govIdShowWatermark'] as bool?,
+                          initialQuarterTurns: (studentData['govIdRotation'] as num?)?.toInt(),
                           onDocumentUpdated: _loadRequest,
                         );
                       },
@@ -4129,6 +4132,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                           backUrl: backUrl,
                           govIdType: govIdType,
                           govIdNum: govIdNum,
+                          filterMode: studentData['govIdFilterMode'] as String?,
+                          showWatermark: studentData['govIdShowWatermark'] as bool?,
+                          quarterTurns: (studentData['govIdRotation'] as num?)?.toInt(),
                         ),
                       ),
                     if (frontUrl.isNotEmpty && backUrl.isNotEmpty)
@@ -4141,6 +4147,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                           backUrl: backUrl,
                           govIdType: govIdType,
                           govIdNum: govIdNum,
+                          filterMode: studentData['govIdFilterMode'] as String?,
+                          showWatermark: studentData['govIdShowWatermark'] as bool?,
+                          quarterTurns: (studentData['govIdRotation'] as num?)?.toInt(),
                         ),
                       ),
                   ],
@@ -4179,6 +4188,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     String? backUrl,
     required String govIdType,
     required String govIdNum,
+    String? filterMode,
+    bool? showWatermark,
+    int? quarterTurns,
   }) {
     return InkWell(
       borderRadius: BorderRadius.circular(8),
@@ -4192,6 +4204,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           initialGovIdNumber: govIdNum,
           libraryId: ref.read(currentLibraryIdProvider) ?? '',
           requestId: widget.requestId,
+          initialFilterMode: filterMode,
+          initialShowWatermark: showWatermark,
+          initialQuarterTurns: quarterTurns,
           onDocumentUpdated: _loadRequest,
         );
       },
@@ -5066,7 +5081,14 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     effectiveEnd ??= DateTime.now().add(const Duration(days: 30));
     final formattedExpiry = DateFormat('dd MMM yyyy').format(effectiveEnd);
 
-    // 6. Resolve Library Details
+    // 6. Resolve Library Details & Pending Due
+    final double rawDue = (liveStudentData['pendingDueBalance'] as num?)?.toDouble() ??
+        (studentData['pendingDueBalance'] as num?)?.toDouble() ??
+        (data['pendingDueBalance'] as num?)?.toDouble() ??
+        (data['remainingDue'] as num?)?.toDouble() ??
+        0.0;
+    final libraryUpiId = library?.upiId ?? '';
+
     final libraryName = (library?.name != null && library!.name.trim().isNotEmpty)
         ? library.name.trim()
         : 'The Cozy Corner Study Centre';
@@ -5090,6 +5112,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       seatLabel: friendlySeatLabel,
       expiryDate: formattedExpiry,
       amount: amount > 0 ? amount.toStringAsFixed(0) : '0',
+      dueAmount: rawDue > 0 ? rawDue.toStringAsFixed(0) : '0',
+      libraryUpiId: libraryUpiId,
       paymentMethod: paymentMethod.isNotEmpty ? paymentMethod : 'Cash',
       libraryAddress: libraryAddress,
       libraryHelpline: libraryHelpline,

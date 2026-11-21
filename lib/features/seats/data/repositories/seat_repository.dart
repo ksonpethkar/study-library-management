@@ -1245,6 +1245,35 @@ class SeatRepository {
     return list;
   }
 
+  /// Fetches all seats across all sections for a given library.
+  Future<List<SeatModel>> getAllSeats(String libraryId) async {
+    try {
+      final sectionsSnapshot = await _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .get();
+
+      final allSeats = <SeatModel>[];
+      for (final sectionDoc in sectionsSnapshot.docs) {
+        final seatsSnapshot = await sectionDoc.reference
+            .collection(FirestorePaths.seats)
+            .get();
+        for (final sDoc in seatsSnapshot.docs) {
+          allSeats.add(SeatModel.fromJson({
+            ...sDoc.data(),
+            'id': sDoc.id,
+          }));
+        }
+      }
+      allSeats.sort(SeatHelper.compareSeats);
+      return allSeats;
+    } catch (e) {
+      debugPrint('[SeatRepository] Error in getAllSeats: $e');
+      return [];
+    }
+  }
+
   Stream<List<SeatModel>> getAvailableSeats(
     String libraryId, {
     GenderRestriction? gender,
