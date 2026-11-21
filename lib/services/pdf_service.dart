@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -167,7 +168,7 @@ class PdfService {
     final gstRate = receipt.gstRate ?? library.effectiveGstRate;
 
     // Fast-path cached base font for Unicode & Indian Rupee symbol
-    // Asynchronously resolve template from Firestore if not provided
+    // Asynchronously resolve template from Firestore if not provided, with SharedPreferences offline fallback
     Map<String, dynamic>? effectiveTemplate = template;
     if (effectiveTemplate == null && library.id.isNotEmpty) {
       try {
@@ -179,8 +180,21 @@ class PdfService {
             .get();
         if (tDoc.exists && tDoc.data() != null) {
           effectiveTemplate = tDoc.data();
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('cached_receipt_template_${library.id}', jsonEncode(effectiveTemplate));
+          } catch (_) {}
         }
-      } catch (_) {}
+      } catch (_) {
+        // Fallback to SharedPreferences cache during offline/network degradation
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final raw = prefs.getString('cached_receipt_template_${library.id}');
+          if (raw != null) {
+            effectiveTemplate = jsonDecode(raw) as Map<String, dynamic>?;
+          }
+        } catch (_) {}
+      }
     }
 
     final notoSans = await PdfFontService.getBaseFont();

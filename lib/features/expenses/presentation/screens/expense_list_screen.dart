@@ -72,14 +72,27 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     final netProfitAsync = ref.watch(netProfitProvider);
     final dateFormat = DateFormat('dd MMM yyyy');
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
-        ),
-        title: const Text('Operating Expenses & Net Profit'),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.adminHome);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+          ),
+          title: const FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('Operating Expenses & Net Profit'),
+          ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -450,6 +463,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         label: const Text('Record Expense'),
         onPressed: () => AddExpenseDialog.show(context),
       ),
-    );
+    ),
+  );
   }
 }

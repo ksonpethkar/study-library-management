@@ -36,10 +36,32 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
   @override
   void initState() {
     super.initState();
-    if (widget.seat.studentId != null &&
-        widget.seat.status == SeatStatus.occupied) {
+    if (widget.seat.studentId != null && widget.seat.studentId!.isNotEmpty) {
       _loadStudentName();
+    } else {
+      _lookupStudentBySeat();
     }
+  }
+
+  Future<void> _lookupStudentBySeat() async {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null) return;
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .where('seatId', isEqualTo: widget.seat.id)
+          .limit(1)
+          .get();
+      if (snap.docs.isNotEmpty && mounted) {
+        final doc = snap.docs.first;
+        setState(() {
+          studentName = doc.data()['name'] ?? 'Unknown';
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadStudentName() async {
@@ -423,6 +445,9 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final isOccupied = widget.seat.isOccupied || (studentName != null && studentName!.isNotEmpty);
+    final effectiveStatus = isOccupied ? SeatStatus.occupied : widget.seat.effectiveStatus;
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -448,13 +473,13 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: _getStatusColor(widget.seat.status)
+                            color: _getStatusColor(effectiveStatus)
                                 .withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
                             Icons.event_seat,
-                            color: _getStatusColor(widget.seat.status),
+                            color: _getStatusColor(effectiveStatus),
                             size: 28,
                           ),
                         ),
@@ -494,14 +519,14 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                     ),
                     Chip(
                       label: Text(
-                        widget.seat.status.name.toUpperCase(),
+                        effectiveStatus.name.toUpperCase(),
                         style: TextStyle(
-                          color: _getStatusColor(widget.seat.status),
+                          color: _getStatusColor(effectiveStatus),
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
                       ),
-                      backgroundColor: _getStatusColor(widget.seat.status)
+                      backgroundColor: _getStatusColor(effectiveStatus)
                           .withValues(alpha: 0.15),
                     ),
                   ],
@@ -509,7 +534,7 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                 const SizedBox(height: 20),
 
                 // Student info (if occupied)
-                if (widget.seat.status == SeatStatus.occupied) ...[
+                if (isOccupied) ...[
                   Card(
                     child: ListTile(
                       leading: CircleAvatar(

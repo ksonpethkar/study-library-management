@@ -1972,31 +1972,70 @@ class _RequestCard extends StatelessWidget {
                         if (request.studentPhone != null && request.studentPhone!.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 2),
-                            child: InkWell(
-                              onTap: () async {
-                                final clean = request.studentPhone!.replaceAll(RegExp(r'\D'), '');
-                                final uri = Uri.parse('tel:$clean');
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri);
-                                }
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.phone_rounded, size: 12, color: Color(0xFF0284C7)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    request.studentPhone!,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF0284C7),
-                                      decoration: TextDecoration.underline,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  onTap: () async {
+                                    final clean = request.studentPhone!.replaceAll(RegExp(r'\D'), '');
+                                    final uri = Uri.parse('tel:$clean');
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.phone_rounded, size: 12, color: Color(0xFF0284C7)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        request.studentPhone!,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF0284C7),
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: () async {
+                                    final clean = request.studentPhone!.replaceAll(RegExp(r'\D'), '');
+                                    final waPhone = clean.length == 10 ? '91$clean' : clean;
+                                    final uri = Uri.parse('https://wa.me/$waPhone');
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF25D366).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.chat_bubble_outline_rounded, size: 11, color: Color(0xFF25D366)),
+                                        SizedBox(width: 3),
+                                        Text(
+                                          'Chat',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF16A34A),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         if (request.studentEmail != null && request.studentEmail!.isNotEmpty)

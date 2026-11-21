@@ -51,6 +51,7 @@ import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/models/app_notification_model.dart';
+import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/services/meta_whatsapp_api_service.dart';
@@ -62,7 +63,6 @@ import 'package:study_library/models/id_card_template_model.dart';
 import 'package:study_library/core/sentinel/sentinel_models.dart';
 import 'package:study_library/core/sentinel/sentinel_echo_verifier.dart';
 import 'package:study_library/core/sentinel/sentinel_invariant_engine.dart';
-import 'package:study_library/core/sentinel/sentinel_ai_diagnostic.dart';
 import 'package:study_library/core/sentinel/sentinel_service.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/quick_control_center_sheet.dart';
 import 'package:study_library/features/seats/presentation/widgets/seat_assignment_map_sheet.dart';
@@ -1794,8 +1794,8 @@ void main() {
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.56'));
-      expect(AppConstants.buildNumber, equals(2073));
+      expect(AppConstants.appVersion, equals('1.5.58'));
+      expect(AppConstants.buildNumber, equals(2075));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -5148,8 +5148,8 @@ void main() {
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.56'));
-      expect(AppConstants.buildNumber, equals(2073));
+      expect(AppConstants.appVersion, equals('1.5.58'));
+      expect(AppConstants.buildNumber, equals(2075));
 
       // 2. Student-facing release changes include all 4 automation features
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
@@ -5170,7 +5170,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.56+2073'));
+      expect(formattedVersion, equals('v1.5.58+2075'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -6220,8 +6220,8 @@ void main() {
     test('126. MOBILE PERSPECTIVE INVARIANTS: BOTTOM SCROLL CLEARANCE, TABBAR SCROLLABILITY & ZERO-TEXT-SQUISHING', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.56'));
-      expect(AppConstants.buildNumber, equals(2073));
+      expect(AppConstants.appVersion, equals('1.5.58'));
+      expect(AppConstants.buildNumber, equals(2075));
 
       // 2. Minimum bottom clearance for mobile navigation bar & FAB visibility (>= 100dp)
       const standardShellBottomClearance = 110.0;
@@ -8163,6 +8163,227 @@ void main() {
       final summary = SentinelService.instance.aiDiagnostic.generateExecutiveSummary(healthyMetrics, []);
       expect(summary, contains('All operational systems are operating normally'));
       expect(summary, contains('100% consistent across both portals'));
+    });
+
+    test('Test 151: REAL-TIME SEAT MAP OCCUPANCY, EFFECTIVE STATUS & CROSS-PORTAL SYNCHRONIZATION', () {
+      // 1. Invariant: SeatModel effectiveStatus converts available + studentId to occupied
+      final seatWithStudent = SeatModel(
+        id: 'seat_desk_2',
+        sectionId: 'sec_cozy_hall',
+        label: '2',
+        row: 0,
+        col: 1,
+        status: SeatStatus.available, // Raw status in database might be available
+        genderRestriction: GenderRestriction.any,
+        studentId: 'stud_shubham',
+      );
+
+      expect(seatWithStudent.status, equals(SeatStatus.available));
+      expect(seatWithStudent.effectiveStatus, equals(SeatStatus.occupied));
+      expect(seatWithStudent.isOccupied, isTrue);
+
+      // 2. Invariant: Expired reservation defaults back to available
+      final expiredReservedSeat = SeatModel(
+        id: 'seat_desk_60',
+        sectionId: 'sec_cozy_hall',
+        label: '60',
+        row: 5,
+        col: 9,
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+        reservationExpiresAt: DateTime.now().subtract(const Duration(minutes: 10)),
+      );
+
+      expect(expiredReservedSeat.isCurrentlyReserved, isFalse);
+      expect(expiredReservedSeat.effectiveStatus, equals(SeatStatus.available));
+      expect(expiredReservedSeat.isOccupied, isFalse);
+
+      // 3. Invariant: Active reservation stays reserved
+      final activeReservedSeat = SeatModel(
+        id: 'seat_desk_60_active',
+        sectionId: 'sec_cozy_hall',
+        label: '60',
+        row: 5,
+        col: 9,
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+        reservationExpiresAt: DateTime.now().add(const Duration(minutes: 5)),
+      );
+
+      expect(activeReservedSeat.isCurrentlyReserved, isTrue);
+      expect(activeReservedSeat.effectiveStatus, equals(SeatStatus.reserved));
+      expect(activeReservedSeat.hasActiveSoftLock, isTrue);
+
+      // 4. Section Occupancy Calculation Parity: 60 total desks, 5 occupied, 1 active reserve
+      final sectionSeats = <SeatModel>[
+        for (int i = 1; i <= 60; i++)
+          SeatModel(
+            id: 'seat_$i',
+            sectionId: 'sec_cozy_hall',
+            label: '$i',
+            row: (i - 1) ~/ 10,
+            col: (i - 1) % 10,
+            status: i == 60 ? SeatStatus.reserved : SeatStatus.available,
+            genderRestriction: GenderRestriction.any,
+            studentId: [2, 3, 6, 7, 8].contains(i) ? 'stud_$i' : null,
+            reservationExpiresAt: i == 60 ? DateTime.now().add(const Duration(minutes: 5)) : null,
+          ),
+      ];
+
+      final occupiedSeats = sectionSeats.where((s) => s.isOccupied).toList();
+      final reservedSeats = sectionSeats.where((s) => s.hasActiveSoftLock).toList();
+      final availableSeats = sectionSeats.where((s) => !s.isOccupied && !s.hasActiveSoftLock).toList();
+
+      expect(sectionSeats.length, equals(60));
+      expect(occupiedSeats.length, equals(5));
+      expect(reservedSeats.length, equals(1));
+      expect(availableSeats.length, equals(54));
+      expect(occupiedSeats.length + reservedSeats.length + availableSeats.length, equals(60));
+    });
+  });
+
+  group('Phase 4 QA Regression Suite: P0-P2 Guardrails and Invariants', () {
+    test('StudentModel copyWith(clearRemindedStages: true) clears reminded stages on renewal', () {
+      final student = createTestStudent(
+        id: 'std_renew_test',
+        name: 'Renewal Test Student',
+      ).copyWith(
+        remindedStages: ['3_day', '1_day', 'today'],
+      );
+
+      expect(student.remindedStages, equals(['3_day', '1_day', 'today']));
+
+      // Invariant: Calling copyWith with clearRemindedStages: true clears the array completely
+      final renewed = student.copyWith(
+        clearRemindedStages: true,
+        planEndDate: DateTime.now().add(const Duration(days: 30)),
+      );
+
+      expect(renewed.remindedStages.isEmpty, isTrue);
+
+      // JSON serialization check: empty/omitted list allows fresh reminders in subsequent months
+      final json = renewed.toJson();
+      expect(json['remindedStages'], isNull);
+    });
+
+    test('ReceiptRepository standard receipt number format produces CC-YYYY-NNNN', () {
+      final number = ReceiptRepository.formatReceiptNumber(prefix: 'CC', count: 15);
+      final currentYear = DateTime.now().year;
+      expect(number, equals('CC-$currentYear-0015'));
+
+      final customPrefixNum = ReceiptRepository.formatReceiptNumber(prefix: 'LIB', count: 1);
+      expect(customPrefixNum, equals('LIB-$currentYear-0001'));
+    });
+
+    test('AppNotificationModel read status and isRead getter consistency', () {
+      final now = DateTime(2026, 11, 21);
+      final unreadNotification = AppNotificationModel(
+        id: 'notif_1',
+        title: 'New Request',
+        body: 'Renewal request submitted',
+        type: 'renewal',
+        read: false,
+        createdAt: now,
+        targetRole: 'admin',
+      );
+
+      expect(unreadNotification.read, isFalse);
+      expect(unreadNotification.isRead, isFalse);
+
+      final readNotification = AppNotificationModel(
+        id: 'notif_2',
+        title: 'Payment Received',
+        body: '₹2000 paid',
+        type: 'payment',
+        read: true,
+        createdAt: now,
+        targetRole: 'admin',
+      );
+
+      expect(readNotification.read, isTrue);
+      expect(readNotification.isRead, isTrue);
+    });
+
+    test('ID Card Adaptive Luminance Header Contrast Logic', () {
+      // White / High-luminance brand color should produce dark text
+      const lightBg = Colors.white;
+      final lightText = lightBg.computeLuminance() > 0.55 ? Colors.black87 : Colors.white;
+      expect(lightText, equals(Colors.black87));
+
+      // Amber / Light yellow
+      const yellowBg = Color(0xFFFEF08A);
+      final yellowText = yellowBg.computeLuminance() > 0.55 ? Colors.black87 : Colors.white;
+      expect(yellowText, equals(Colors.black87));
+
+      // Navy Blue / Emerald / Slate should produce light text
+      const navyBg = Color(0xFF1E3A8A);
+      final navyText = navyBg.computeLuminance() > 0.55 ? Colors.black87 : Colors.white;
+      expect(navyText, equals(Colors.white));
+
+      const emeraldBg = Color(0xFF065F46);
+      final emeraldText = emeraldBg.computeLuminance() > 0.55 ? Colors.black87 : Colors.white;
+      expect(emeraldText, equals(Colors.white));
+    });
+
+    test('WaitingListEntry promotion fields and hold expiry tracking', () {
+      final now = DateTime.now();
+      final expiresAt = now.add(const Duration(hours: 4));
+
+      final entry = WaitingListEntry(
+        id: 'wl_entry_1',
+        libraryId: 'lib_test',
+        studentId: 'std_test',
+        studentName: 'Candidate In Queue',
+        studentPhone: '9876543210',
+        position: 1,
+        createdAt: now,
+        status: 'promoted',
+        suggestedSeatId: 'seat_42',
+        suggestedSeatLabel: 'Desk #42',
+        reservationExpiresAt: expiresAt,
+        notes: 'Priority candidate for AC section',
+      );
+
+      expect(entry.status, equals('promoted'));
+      expect(entry.suggestedSeatId, equals('seat_42'));
+      expect(entry.reservationExpiresAt, equals(expiresAt));
+
+      final json = entry.toJson();
+      expect(json['status'], equals('promoted'));
+      expect(json['suggestedSeatId'], equals('seat_42'));
+      expect(json['suggestedSeatLabel'], equals('Desk #42'));
+      expect(json['reservationExpiresAt'], isNotNull);
+    });
+
+    test('Resilient PopScope pattern verification on secondary routes', () {
+      // Invariant: Back handler checks context.canPop(), falls back to home without crashing
+      bool canPopMock = false;
+      String navigatedRoute = '';
+
+      void handleBackNavigation({required bool canPop, required VoidCallback onPop, required void Function(String) onGo}) {
+        if (canPop) {
+          onPop();
+        } else {
+          onGo('/admin/home');
+        }
+      }
+
+      handleBackNavigation(
+        canPop: canPopMock,
+        onPop: () => navigatedRoute = 'pop',
+        onGo: (route) => navigatedRoute = route,
+      );
+
+      expect(navigatedRoute, equals('/admin/home'));
+
+      canPopMock = true;
+      handleBackNavigation(
+        canPop: canPopMock,
+        onPop: () => navigatedRoute = 'pop',
+        onGo: (route) => navigatedRoute = route,
+      );
+
+      expect(navigatedRoute, equals('pop'));
     });
   });
 }

@@ -16,7 +16,6 @@ class RemoteConfigService {
 
       // Default values — used if fetch fails or first launch
       await _rc.setDefaults({
-        'grace_period_days': 7,
         'max_seats_per_section': 2500,
         'renewal_reminder_days': 3,
         'enable_revenue_dashboard': true,
@@ -42,7 +41,12 @@ class RemoteConfigService {
   }
 
   // ─── Getters ────────────────────────────────────────────
-  static int get gracePeriodDays => _rc.getInt('grace_period_days');
+  /// Grace period is governed primarily by Firestore settings/grace_period.
+  /// This getter provides a safe fallback of 3 days.
+  static int get gracePeriodDays {
+    final v = _rc.getInt('grace_period_days');
+    return v > 0 ? v : 3;
+  }
   static int get maxSeatsPerSection => _rc.getInt('max_seats_per_section');
   static int get renewalReminderDays => _rc.getInt('renewal_reminder_days');
   static bool get enableRevenueDashboard => _rc.getBool('enable_revenue_dashboard');

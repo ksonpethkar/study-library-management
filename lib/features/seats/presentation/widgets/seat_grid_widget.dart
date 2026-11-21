@@ -176,6 +176,29 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
     final Map<String, StudentModel> studentMap = {
       for (final s in studentList) s.id: s,
     };
+    final Map<String, StudentModel> studentBySeat = {};
+    for (final s in studentList) {
+      if (s.membershipStatus == MembershipStatus.active && s.seatId != null && s.seatId!.isNotEmpty) {
+        studentBySeat[s.seatId!] = s;
+      }
+    }
+
+    StudentModel? findStudentForSeat(SeatModel seat) {
+      if (seat.studentId != null && studentMap.containsKey(seat.studentId)) {
+        return studentMap[seat.studentId];
+      }
+      if (studentBySeat.containsKey(seat.id)) {
+        return studentBySeat[seat.id];
+      }
+      if (studentBySeat.containsKey(seat.label)) {
+        return studentBySeat[seat.label];
+      }
+      return null;
+    }
+
+    bool isSeatOccupied(SeatModel s) {
+      return s.isOccupied || findStudentForSeat(s) != null;
+    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasSelection = selectedSeats.isNotEmpty;
@@ -256,7 +279,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                   _buildFilterChip(
                     'available',
                     'Vacant',
-                    sectionSeats.where((s) => s.status == SeatStatus.available).length,
+                    sectionSeats.where((s) => !isSeatOccupied(s) && !s.hasActiveSoftLock && s.status != SeatStatus.maintenance).length,
                     const Color(0xFF10B981),
                     Icons.event_seat_rounded,
                   ),
@@ -264,7 +287,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                   _buildFilterChip(
                     'occupied',
                     'Occupied',
-                    sectionSeats.where((s) => s.status == SeatStatus.occupied).length,
+                    sectionSeats.where((s) => isSeatOccupied(s)).length,
                     const Color(0xFFEF4444),
                     Icons.person_rounded,
                   ),
@@ -681,13 +704,14 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                             itemBuilder: (context, index) {
                               final seat = sortedSeats[index];
                               final isSelected = selectedSeats.containsKey(seat.id);
-                              final student = seat.studentId != null ? studentMap[seat.studentId] : null;
+                              final student = findStudentForSeat(seat);
+                              final isOccupied = isSeatOccupied(seat);
 
                               bool isDimmed = false;
                               if (_activeFilter == 'available') {
-                                isDimmed = seat.status != SeatStatus.available;
+                                isDimmed = isOccupied || seat.hasActiveSoftLock || seat.status == SeatStatus.maintenance;
                               } else if (_activeFilter == 'occupied') {
-                                isDimmed = seat.status != SeatStatus.occupied;
+                                isDimmed = !isOccupied;
                               } else if (_activeFilter == 'boys') {
                                 isDimmed = seat.genderRestriction != GenderRestriction.male;
                               } else if (_activeFilter == 'girls') {

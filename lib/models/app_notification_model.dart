@@ -6,6 +6,7 @@ class AppNotificationModel {
   final String body;
   final String type; // 'payment', 'admission', 'seat', 'expiry', 'announcement', 'general'
   final bool read;
+  bool get isRead => read;
   final DateTime createdAt;
   final String targetRole; // 'admin', 'student', 'all'
   final String? targetUserId;

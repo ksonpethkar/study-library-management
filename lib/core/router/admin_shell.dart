@@ -16,6 +16,8 @@ import 'package:study_library/features/requests/presentation/providers/request_p
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/in_app_notification_toast.dart';
+import 'package:study_library/services/quick_actions_service.dart';
+import 'package:study_library/services/backup_service.dart';
 import 'package:study_library/core/widgets/pulsing_glow_container.dart';
 
 /// Stream provider for pending request count shown in the bottom nav badge.
@@ -49,6 +51,23 @@ class _AdminShellState extends ConsumerState<AdminShell> with WidgetsBindingObse
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    QuickActionsService.initializeForAdmin(context, (shortcut) {
+      if (!mounted) return;
+      switch (shortcut) {
+        case 'add_student':
+          context.push(Routes.adminStudentAdd);
+          break;
+        case 'record_payment':
+          context.push(Routes.adminRecordPayment);
+          break;
+        case 'scan_qr':
+          context.push(Routes.adminQrScanner);
+          break;
+        case 'announcements':
+          context.push(Routes.adminAnnouncements);
+          break;
+      }
+    });
     InactivityLockService.initialize(
       onLock: () async {
         if (!mounted) return;
@@ -63,6 +82,14 @@ class _AdminShellState extends ConsumerState<AdminShell> with WidgetsBindingObse
       },
       checkLockEnabled: () => BiometricService.isLockEnabled(isAdmin: true),
     );
+
+    // Automated rolling daily cloud backup snapshot check
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final libId = ref.read(currentLibraryIdProvider);
+      if (libId != null && libId.isNotEmpty) {
+        ref.read(backupServiceProvider).checkAndRunRollingBackup(libId);
+      }
+    });
   }
 
   @override

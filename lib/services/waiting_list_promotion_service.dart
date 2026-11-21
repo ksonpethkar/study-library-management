@@ -137,6 +137,13 @@ class WaitingListPromotionService {
 
       tx.delete(waitRef);
 
+      final requestRef = libRef.collection('requests').doc('wl_hold_${entry.id}');
+      tx.set(requestRef, {
+        'status': 'approved',
+        'resolvedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
       tx.set(auditRef, {
         'action': 'waiting_list_promoted',
         'entityType': 'seat',
@@ -208,6 +215,23 @@ class WaitingListPromotionService {
         'offeredSeatLabel': seatLabel,
         'reservationExpiresAt': Timestamp.fromDate(expiresAt),
         'notifiedAt': FieldValue.serverTimestamp(),
+      });
+
+      final requestRef = libRef.collection('requests').doc('wl_hold_${entry.id}');
+      tx.set(requestRef, {
+        'id': 'wl_hold_${entry.id}',
+        'type': 'waiting_list_promotion',
+        'status': 'pending',
+        'studentName': entry.studentName,
+        'studentPhone': entry.studentPhone,
+        'studentId': entry.studentId,
+        'targetSeatId': seatId,
+        'targetSeatLabel': seatLabel,
+        'targetSectionId': sectionId,
+        'message': 'Seat $seatLabel held for ${entry.studentName} from Waiting List. Offer expires in $holdHours hours.',
+        'reservationExpiresAt': Timestamp.fromDate(expiresAt),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       tx.set(auditRef, {
@@ -282,6 +306,12 @@ class WaitingListPromotionService {
             'status': 'offer_expired',
             'updatedAt': FieldValue.serverTimestamp(),
           });
+
+          final oldRequestRef = libRef.collection('requests').doc('wl_hold_${doc.id}');
+          await oldRequestRef.set({
+            'status': 'expired',
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
           // Cascade to candidate #2
           if (sectionId != null && seatId != null) {

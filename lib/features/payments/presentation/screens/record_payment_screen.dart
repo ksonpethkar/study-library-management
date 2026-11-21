@@ -590,7 +590,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
 
       // 3. Atomically Generate Official Receipt (if enabled)
       String? createdReceiptId;
-      String receiptNumber = 'REC-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+      String receiptNumber = 'CC-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
       if (_generateReceipt) {
         final receiptRepo = ReceiptRepository();
         receiptNumber = await receiptRepo.getNextReceiptNumber(libraryId);

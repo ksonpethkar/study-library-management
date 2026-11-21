@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:study_library/core/utils/permission_utils.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 /// Top-level background message handler (must be top-level function)
 @pragma('vm:entry-point')
@@ -50,7 +51,15 @@ class NotificationService {
     const androidSettings = AndroidInitializationSettings('@drawable/ic_stat_notification');
     const iosSettings = DarwinInitializationSettings();
     const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
-    await _localNotifications.initialize(settings: settings);
+    await _localNotifications.initialize(
+      settings: settings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) {
+          navigateViaRoot(payload);
+        }
+      },
+    );
 
     // Create Notification Channels for Android 8.0+
     if (!kIsWeb && Platform.isAndroid) {

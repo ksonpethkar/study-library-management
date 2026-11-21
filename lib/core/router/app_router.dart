@@ -173,6 +173,15 @@ class Routes {
 }
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
+GlobalKey<NavigatorState> get rootNavigatorKey => _rootNavigatorKey;
+
+/// Deep-link helper for notification tap routing directly to designated screen
+void navigateViaRoot(String route) {
+  final ctx = _rootNavigatorKey.currentContext;
+  if (ctx != null && ctx.mounted) {
+    ctx.push(route);
+  }
+}
 final _adminShellNavigatorKey = GlobalKey<NavigatorState>();
 final _studentShellNavigatorKey = GlobalKey<NavigatorState>();
 

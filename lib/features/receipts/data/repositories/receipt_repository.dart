@@ -15,6 +15,11 @@ class ReceiptRepository {
     return _firestore.collection('libraries').doc(effectiveLibId).collection('receipts');
   }
 
+  static String formatReceiptNumber({required String prefix, required int count, int? year}) {
+    final y = year ?? DateTime.now().year;
+    return '$prefix-$y-${count.toString().padLeft(4, '0')}';
+  }
+
   Future<String> getNextReceiptNumber(String libraryId) async {
     final effectiveLibId = libraryId.isNotEmpty ? libraryId : RemoteConfigService.defaultLibraryId;
     final counterRef = _firestore
@@ -23,7 +28,7 @@ class ReceiptRepository {
         .collection('metadata')
         .doc('receiptCounter');
 
-    String prefix = 'REC';
+    String prefix = 'CC';
     try {
       final templateDoc = await _firestore
           .collection('libraries')
@@ -35,6 +40,12 @@ class ReceiptRepository {
         final customPrefix = templateDoc.data()?['prefix'] as String?;
         if (customPrefix != null && customPrefix.trim().isNotEmpty) {
           prefix = customPrefix.trim().replaceAll(RegExp(r'[-/]+$'), '');
+        }
+      } else {
+        final libDoc = await _firestore.collection('libraries').doc(effectiveLibId).get();
+        final libPrefix = libDoc.data()?['membershipPrefix'] as String?;
+        if (libPrefix != null && libPrefix.trim().isNotEmpty) {
+          prefix = libPrefix.trim();
         }
       }
     } catch (_) { /* intentionally silent */ }

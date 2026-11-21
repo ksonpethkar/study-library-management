@@ -4,6 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/models/student_model.dart';
+import 'package:study_library/services/image_service.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 
 class StudentHistoryScreen extends ConsumerWidget {
   final String studentId;
@@ -28,87 +31,202 @@ class StudentHistoryScreen extends ConsumerWidget {
         if (didPop) return;
         handleBack();
       },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: handleBack,
-          ),
-          title: const Text('History'),
-        ),
-      body: libraryId == null || libraryId.isEmpty
-          ? const Center(child: Text('No library selected'))
-          : StreamBuilder<QuerySnapshot>(
+      child: libraryId == null || libraryId.isEmpty
+          ? Scaffold(
+              appBar: AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: handleBack,
+                ),
+                title: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('Student History'),
+                ),
+              ),
+              body: const Center(child: Text('No library selected')),
+            )
+          : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
                   .collection('libraries')
                   .doc(libraryId)
-                  .collection('audit_log')
-                  .where('studentId', isEqualTo: studentId)
-                  .limit(50)
+                  .collection('students')
+                  .doc(studentId)
                   .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+              builder: (context, studentSnap) {
+                StudentModel? student;
+                if (studentSnap.hasData && studentSnap.data!.exists) {
+                  final sData = studentSnap.data!.data() ?? {};
+                  student = StudentModel.fromJson({'id': studentSnap.data!.id, ...sData});
                 }
 
-                final docs = List.of(snapshot.data?.docs ?? []);
-                docs.sort((a, b) {
-                  final aData = a.data() as Map<String, dynamic>?;
-                  final bData = b.data() as Map<String, dynamic>?;
-                  final aTime = aData?['timestamp'] ?? aData?['createdAt'];
-                  final bTime = bData?['timestamp'] ?? bData?['createdAt'];
-                  if (aTime is Timestamp && bTime is Timestamp) {
-                    return bTime.compareTo(aTime);
-                  }
-                  return 0;
-                });
-                
-                if (docs.isEmpty) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(48),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.history_rounded, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text('No history yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          SizedBox(height: 8),
-                          Text('Activity will appear here as changes are made.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-                        ],
-                      ),
+                return Scaffold(
+                  appBar: AppBar(
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: handleBack,
                     ),
-                  );
-                }
+                    title: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(student != null ? '${student.name} — History' : 'Student History'),
+                    ),
+                  ),
+                  body: Column(
+                    children: [
+                      if (student != null)
+                        Container(
+                          margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                                backgroundImage: student.photoUrl.isNotEmpty
+                                    ? ImageService.getImageProvider(student.photoUrl)
+                                    : null,
+                                child: student.photoUrl.isEmpty
+                                    ? Text(
+                                        student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      student.name,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        if (student.seatId != null && student.seatId!.isNotEmpty) ...[
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              SeatHelper.formatDeskLabel(seatId: student.seatId!),
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.green,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                        ],
+                                        if (student.membershipNumber != null)
+                                          Text(
+                                            'ID: ${student.membershipNumber}',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(libraryId)
+                              .collection('audit_log')
+                              .where('studentId', isEqualTo: studentId)
+                              .limit(50)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return Center(child: Text('Error: ${snapshot.error}'));
+                            }
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
 
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
-                    final title = data['action'] ?? data['type'] ?? 'Unknown Action';
-                    final subtitle = data['description'] ?? data['details']?.toString() ?? 'No description';
-                    final timestamp = data['timestamp'] ?? data['createdAt'];
-                    String dateStr = '';
-                    if (timestamp is Timestamp) {
-                      dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(timestamp.toDate());
-                    } else if (timestamp != null) {
-                      dateStr = timestamp.toString();
-                    }
+                            final docs = List.of(snapshot.data?.docs ?? []);
+                            docs.sort((a, b) {
+                              final aData = a.data() as Map<String, dynamic>?;
+                              final bData = b.data() as Map<String, dynamic>?;
+                              final aTime = aData?['timestamp'] ?? aData?['createdAt'];
+                              final bTime = bData?['timestamp'] ?? bData?['createdAt'];
+                              if (aTime is Timestamp && bTime is Timestamp) {
+                                return bTime.compareTo(aTime);
+                              }
+                              return 0;
+                            });
 
-                    return ListTile(
-                      leading: const Icon(Icons.history),
-                      title: Text(title.toString().toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(subtitle),
-                      trailing: Text(dateStr, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    );
-                  },
+                            if (docs.isEmpty) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(48),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.history_rounded, size: 64, color: Colors.grey),
+                                      SizedBox(height: 16),
+                                      Text('No history yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                      SizedBox(height: 8),
+                                      Text('Activity will appear here as changes are made.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return ListView.builder(
+                              itemCount: docs.length,
+                              itemBuilder: (context, index) {
+                                final data = docs[index].data() as Map<String, dynamic>;
+                                final title = data['action'] ?? data['type'] ?? 'Unknown Action';
+                                final subtitle = data['description'] ?? data['details']?.toString() ?? 'No description';
+                                final timestamp = data['timestamp'] ?? data['createdAt'];
+                                String dateStr = '';
+                                if (timestamp is Timestamp) {
+                                  dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(timestamp.toDate());
+                                } else if (timestamp != null) {
+                                  dateStr = timestamp.toString();
+                                }
+
+                                return ListTile(
+                                  leading: const Icon(Icons.history),
+                                  title: Text(title.toString().toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  subtitle: Text(subtitle),
+                                  trailing: Text(dateStr, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
-      ),
     );
   }
 }

@@ -94,6 +94,13 @@ final adminNotificationsStreamProvider = StreamProvider<List<AppNotificationMode
       });
 });
 
+/// Unread admin notifications count for badges
+final unreadAdminNotificationsCountProvider = Provider<int>((ref) {
+  final notifsAsync = ref.watch(adminNotificationsStreamProvider);
+  final notifs = notifsAsync.value ?? [];
+  return notifs.where((n) => !n.isRead).length;
+});
+
 /// Stream of student-targeted notifications for the current student
 final studentNotificationsStreamProvider =
     StreamProvider.family<List<AppNotificationModel>, String?>((ref, studentId) {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/services/data_export_service.dart';
@@ -185,27 +187,48 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
 
     // Permission guard
     if (!canExport) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Export Data & Reports')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.lock_person_rounded, size: 64, color: Colors.orange.shade700),
-                const SizedBox(height: 16),
-                Text(
-                  'Access Restricted',
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'You do not have permission to export library data. Please contact the library owner or administrator.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600, height: 1.4),
-                ),
-              ],
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go(Routes.adminHome);
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Back',
+              onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+            ),
+            title: const FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text('Export Data & Reports'),
+            ),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_person_rounded, size: 64, color: Colors.orange.shade700),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Access Restricted',
+                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'You do not have permission to export library data. Please contact the library owner or administrator.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade600, height: 1.4),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -214,10 +237,28 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
 
     final isAnyBusy = _activeExportKey != null || _activePreviewKey != null;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Export Data & Reports'),
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.adminHome);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+          ),
+          title: const FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('Export Data & Reports'),
+          ),
+        ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 820),
@@ -691,6 +732,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
       ),
     ),
   ),
+),
 );
   }
 

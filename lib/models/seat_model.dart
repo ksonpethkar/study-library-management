@@ -53,9 +53,13 @@ class SeatModel {
 
   /// Dynamic effective status: If a seat was marked 'reserved' but its reservation expired,
   /// it automatically behaves as 'available' in memory and UI.
+  /// If a seat has a student attached, it automatically behaves as 'occupied'.
   SeatStatus get effectiveStatus {
     if (status == SeatStatus.reserved && !isCurrentlyReserved) {
       return SeatStatus.available;
+    }
+    if (status == SeatStatus.available && studentId != null && studentId!.trim().isNotEmpty) {
+      return SeatStatus.occupied;
     }
     return status;
   }

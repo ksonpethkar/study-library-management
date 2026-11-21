@@ -336,6 +336,86 @@ class SentinelInvariantEngine {
     }
   }
 
+  /// Autonomously heals a desynchronized desk binding where a desk references a student
+  /// but the student references a different desk or none.
+  Future<bool> autoHealDesyncedSeatBinding({
+    required String libraryId,
+    required String sectionId,
+    required String seatId,
+    required String studentId,
+  }) async {
+    try {
+      final seatRef = _db
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .doc(sectionId)
+          .collection(FirestorePaths.seats)
+          .doc(seatId);
+
+      final studentRef = _db
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.students)
+          .doc(studentId);
+
+      final studentDoc = await studentRef.get();
+      if (!studentDoc.exists) {
+        await seatRef.update({
+          'status': 'available',
+          'studentId': FieldValue.delete(),
+          'assignedAt': FieldValue.delete(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        return true;
+      }
+
+      final studentData = studentDoc.data() ?? {};
+      final studentSeatId = studentData['seatId'] as String?;
+
+      if (studentSeatId == null || studentSeatId.isEmpty) {
+        final seatDoc = await seatRef.get();
+        final seatLabel = seatDoc.data()?['label']?.toString() ?? seatId;
+        await studentRef.update({
+          'seatId': seatId,
+          'sectionId': sectionId,
+          'seatLabel': seatLabel,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        await seatRef.update({
+          'status': 'occupied',
+          'studentId': studentId,
+          'studentName': studentData['name'] ?? '',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else if (studentSeatId != seatId) {
+        await seatRef.update({
+          'status': 'available',
+          'studentId': FieldValue.delete(),
+          'assignedAt': FieldValue.delete(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await _auditLogger?.log(
+        action: AuditAction.updated,
+        entityType: AuditEntity.seat,
+        libraryId: libraryId,
+        entityId: seatId,
+        entityName: 'Desk $seatId',
+        details: {
+          'action': 'sentinel_auto_heal_desynced_binding',
+          'studentId': studentId,
+        },
+      );
+
+      return true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Sentinel Invariant Engine] Auto-heal desynced binding failed: $e');
+      return false;
+    }
+  }
+
   /// Autonomously resets negative dues balance back to ₹0.00.
   Future<bool> autoHealNegativeDueBalance({
     required String libraryId,

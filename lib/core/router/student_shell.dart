@@ -10,6 +10,7 @@ import 'package:study_library/features/students/presentation/providers/student_p
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/in_app_notification_toast.dart';
+import 'package:study_library/services/quick_actions_service.dart';
 import 'package:study_library/services/inactivity_lock_service.dart';
 import 'package:study_library/services/biometric_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,6 +35,17 @@ class _StudentShellState extends ConsumerState<StudentShell> with WidgetsBinding
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    QuickActionsService.initializeForStudent(context, (shortcut) {
+      if (!mounted) return;
+      switch (shortcut) {
+        case 'my_membership':
+          context.push(Routes.studentMembership);
+          break;
+        case 'my_id_card':
+          context.push(Routes.studentIdCard);
+          break;
+      }
+    });
     InactivityLockService.initialize(
       onLock: () async {
         if (!mounted) return;

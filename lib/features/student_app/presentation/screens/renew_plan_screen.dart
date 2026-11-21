@@ -22,6 +22,7 @@ import 'package:study_library/core/widgets/pressable_scale.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/core/utils/file_download_helper.dart';
 
@@ -431,6 +432,17 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
 
       // Cancel local expiry reminders until renewed cycle begins
       ExpirySchedulerService.cancelExpiryReminders().ignore();
+
+      // Soundbox counter melodic chime & announcement
+      try {
+        final lib = ref.read(currentLibraryProvider).value;
+        ref.read(soundboxServiceProvider).announcePayment(
+          amount: amount,
+          studentName: student.name,
+          seatLabel: student.seatId != null ? SeatHelper.formatSeatLabel(seatId: student.seatId) : null,
+          libraryName: lib?.name ?? 'Study Library',
+        );
+      } catch (_) {}
 
       if (mounted) {
         HapticFeedback.heavyImpact();

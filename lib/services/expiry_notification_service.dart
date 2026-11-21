@@ -15,12 +15,36 @@ class ExpiryNotificationService {
     _initialized = true;
   }
 
-  /// Check for plans expiring within the next 3 days and show notifications
-  static Future<void> checkExpiringPlans(String libraryId) async {
+  /// Check for plans expiring within the configured reminder window and show notifications
+  static Future<void> checkExpiringPlans(String libraryId, {int? customReminderDays}) async {
     await initialize();
 
     final now = DateTime.now();
-    final threeDaysLater = now.add(const Duration(days: 3));
+    int reminderDays = customReminderDays ?? 3;
+
+    try {
+      final libRef = FirebaseFirestore.instance.collection('libraries').doc(libraryId);
+      final commDoc = await libRef.collection('settings').doc('communications').get();
+      if (commDoc.exists && commDoc.data() != null) {
+        final d = commDoc.data()!;
+        if (d['reminderDays'] is num) {
+          reminderDays = (d['reminderDays'] as num).toInt();
+        }
+      } else {
+        final graceDoc = await libRef.collection('settings').doc('grace_period').get();
+        if (graceDoc.exists && graceDoc.data() != null) {
+          final d = graceDoc.data()!;
+          if (d['defaultDays'] is num) {
+            reminderDays = (d['defaultDays'] as num).toInt();
+          }
+        }
+      }
+    } catch (_) {
+      // Fallback safely to reminderDays default
+    }
+
+    if (reminderDays < 1) reminderDays = 1;
+    final windowLimit = now.add(Duration(days: reminderDays));
 
     try {
       final snap = await FirebaseFirestore.instance
@@ -51,7 +75,7 @@ class ExpiryNotificationService {
 
         if (endDate == null) continue;
 
-        if (endDate.isAfter(now.subtract(const Duration(days: 1))) && endDate.isBefore(threeDaysLater)) {
+        if (endDate.isAfter(now.subtract(const Duration(days: 1))) && endDate.isBefore(windowLimit)) {
           final daysLeft = endDate.difference(now).inDays;
           String message;
 
@@ -79,6 +103,7 @@ class ExpiryNotificationService {
     required String studentName,
     required DateTime? planEndDate,
     required String seatLabel,
+    int reminderDays = 3,
   }) async {
     if (planEndDate == null) return;
     await initialize();
@@ -102,7 +127,7 @@ class ExpiryNotificationService {
         title: '⚠️ Membership Expires Today',
         body: 'Today is your last day for $seatText. Renew today to retain your seat!',
       );
-    } else if (daysLeft <= 3) {
+    } else if (daysLeft <= reminderDays) {
       await _showNotification(
         id: 99,
         title: '📅 Renewal Reminder',

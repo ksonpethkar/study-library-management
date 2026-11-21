@@ -204,6 +204,7 @@ class StudentProvisioningService {
               ...extractedCustomFields,
             },
             userId: studentUserId.isNotEmpty ? studentUserId : existingStudent.userId,
+            clearRemindedStages: isPaid,
             updatedAt: DateTime.now(),
           );
           await _studentRepo.updateStudent(libraryId, updatedStudent);
@@ -613,6 +614,7 @@ class StudentProvisioningService {
               'status': 'active',
               'planStartDate': Timestamp.fromDate(newStartDate),
               'planEndDate': Timestamp.fromDate(newEndDate),
+              'remindedStages': <String>[],
               'updatedAt': FieldValue.serverTimestamp(),
             };
             if (data['clearedDue'] == true || (data['pendingDueAmount'] as num?)?.toDouble() != null) {

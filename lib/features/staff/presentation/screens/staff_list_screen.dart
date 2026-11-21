@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/staff_model.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
@@ -435,10 +437,28 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
     final isOwner = library != null && library.ownerId == currentUser?.uid;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Staff & Admin Access'),
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.adminHome);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+          ),
+          title: const FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('Staff & Admin Access'),
+          ),
+        ),
       floatingActionButton: (isOwner && (staffAsync.value?.isNotEmpty ?? false))
           ? FloatingActionButton.extended(
               onPressed: () => _showStaffDialog(),
@@ -739,7 +759,8 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _permChip(String label) {

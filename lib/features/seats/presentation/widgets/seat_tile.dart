@@ -85,7 +85,11 @@ class SeatTile extends StatelessWidget {
       return buffer.toString().trim();
     }
 
-    switch (seat.status) {
+    final effectiveStatus = (student != null || (studentName != null && studentName!.trim().isNotEmpty))
+        ? SeatStatus.occupied
+        : seat.effectiveStatus;
+
+    switch (effectiveStatus) {
       case SeatStatus.available:
         buffer.write('Status: 🟢 Available (Ready for assignment)');
         break;
@@ -136,12 +140,16 @@ class SeatTile extends StatelessWidget {
     Color borderColor;
     Color textColor;
 
+    final effectiveStatus = (student != null || (studentName != null && studentName!.trim().isNotEmpty))
+        ? SeatStatus.occupied
+        : seat.effectiveStatus;
+
     if (isOnLeave) {
       bgColor = isDark ? const Color(0xFF382405) : const Color(0xFFFEF3C7);
       borderColor = isDark ? const Color(0xFFB45309) : const Color(0xFFF59E0B);
       textColor = isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E);
     } else {
-      switch (seat.status) {
+      switch (effectiveStatus) {
         case SeatStatus.available:
           bgColor = isDark ? const Color(0xFF1B382B) : const Color(0xFFE8F5E9);
           borderColor = isDark ? const Color(0xFF2E7D32) : const Color(0xFF81C784);
@@ -198,7 +206,7 @@ class SeatTile extends StatelessWidget {
                       offset: const Offset(0, 2),
                     ),
                   ]
-                : (seat.status == SeatStatus.available)
+                : (effectiveStatus == SeatStatus.available)
                     ? [
                         BoxShadow(
                           color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.25 : 0.16),
@@ -206,7 +214,7 @@ class SeatTile extends StatelessWidget {
                           offset: const Offset(0, 1.5),
                         ),
                       ]
-                    : (seat.status == SeatStatus.reserved)
+                    : (effectiveStatus == SeatStatus.reserved)
                         ? [
                             BoxShadow(
                               color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.25 : 0.16),
@@ -607,8 +615,8 @@ class SeatTile extends StatelessWidget {
     // -------------------------------------------------------------
     // LEVEL 0: 10 COLUMNS (PHYSICAL ROOM OVERVIEW - EXACT 10 COLUMNS)
     // -------------------------------------------------------------
-    final isOccupied = seat.status == SeatStatus.occupied;
-    final isReserved = seat.status == SeatStatus.reserved;
+    final isOccupied = seat.isOccupied || (student != null) || (studentName != null && studentName!.trim().isNotEmpty);
+    final isReserved = seat.hasActiveSoftLock || seat.status == SeatStatus.reserved;
     final displayName = _formatShortName(studentName ?? student?.name);
 
     return Stack(

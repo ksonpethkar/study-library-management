@@ -164,6 +164,7 @@ class StudentModel {
   final DateTime? paymentDueSince;
   final DateTime? lastAcceptedPolicyAt;
   final String? acceptedPolicyVersion;
+  final List<String> remindedStages;
 
   /// Evaluates whether the student is currently on an active study vacation / membership freeze
   bool get isCurrentlyFrozen {
@@ -324,6 +325,7 @@ class StudentModel {
     this.paymentDueSince,
     this.lastAcceptedPolicyAt,
     this.acceptedPolicyVersion,
+    this.remindedStages = const [],
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
@@ -425,6 +427,10 @@ class StudentModel {
       paymentDueSince: _parseDate(json['paymentDueSince']),
       lastAcceptedPolicyAt: _parseDate(json['lastAcceptedPolicyAt'] ?? (json['customFields'] as Map?)?['lastAcceptedPolicyAt']),
       acceptedPolicyVersion: json['acceptedPolicyVersion'] as String? ?? (json['customFields'] as Map?)?['acceptedPolicyVersion'] as String?,
+      remindedStages: (json['remindedStages'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
     );
   }
 
@@ -496,6 +502,7 @@ class StudentModel {
       if (paymentDueSince != null) 'paymentDueSince': paymentDueSince!.toIso8601String(),
       if (lastAcceptedPolicyAt != null) 'lastAcceptedPolicyAt': lastAcceptedPolicyAt!.toIso8601String(),
       if (acceptedPolicyVersion != null) 'acceptedPolicyVersion': acceptedPolicyVersion,
+      if (remindedStages.isNotEmpty) 'remindedStages': remindedStages,
     };
   }
 
@@ -570,6 +577,8 @@ class StudentModel {
     DateTime? lastAcceptedPolicyAt,
     String? acceptedPolicyVersion,
     bool clearPolicyAccepted = false,
+    List<String>? remindedStages,
+    bool clearRemindedStages = false,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -638,6 +647,7 @@ class StudentModel {
       paymentDueSince: paymentDueSince ?? this.paymentDueSince,
       lastAcceptedPolicyAt: clearPolicyAccepted ? null : (lastAcceptedPolicyAt ?? this.lastAcceptedPolicyAt),
       acceptedPolicyVersion: clearPolicyAccepted ? null : (acceptedPolicyVersion ?? this.acceptedPolicyVersion),
+      remindedStages: clearRemindedStages ? const [] : (remindedStages ?? this.remindedStages),
     );
   }
 

@@ -429,14 +429,27 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
       filteredEntries = filteredEntries.where((e) => e.preferredSectionId == _selectedSectionFilter).toList();
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
-        ),
-        title: const Text('Waiting List & Capacity Hub'),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.adminHome);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+          ),
+          title: const FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('Waiting List & Capacity Hub'),
+          ),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -1105,6 +1118,7 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
               label: const Text('Add Candidate'),
             )
           : null,
+      ),
     );
   }
 

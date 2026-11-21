@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:study_library/core/router/app_router.dart';
 
 /// Schedules local notifications to remind students before membership expiry.
 /// Works OFFLINE — does not require FCM or internet connection.
@@ -27,7 +28,15 @@ class ExpirySchedulerService {
 
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const settings = InitializationSettings(android: androidSettings);
-      await _plugin.initialize(settings: settings);
+      await _plugin.initialize(
+        settings: settings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          final payload = response.payload;
+          if (payload != null && payload.isNotEmpty) {
+            navigateViaRoot(payload);
+          }
+        },
+      );
       _initialized = true;
     } catch (e) {
       if (kDebugMode) debugPrint('ExpiryScheduler init failed: $e');
@@ -76,6 +85,7 @@ class ExpirySchedulerService {
           body: 'Your $libraryName membership expires on ${_formatDate(expiryDate)}. Renew now to keep your seat!',
           scheduledDate: tz.TZDateTime.from(threeDaysBefore, tz.local),
           notificationDetails: details,
+          payload: Routes.studentRenew,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
       } catch (e) {
@@ -93,6 +103,7 @@ class ExpirySchedulerService {
           body: 'Your $libraryName membership expires tomorrow. Renew today to avoid losing your seat.',
           scheduledDate: tz.TZDateTime.from(oneDayBefore, tz.local),
           notificationDetails: details,
+          payload: Routes.studentRenew,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
       } catch (e) {
@@ -110,6 +121,7 @@ class ExpirySchedulerService {
           body: 'Your $libraryName membership has expired. Visit the library to renew and keep your seat.',
           scheduledDate: tz.TZDateTime.from(expiryDayNotif, tz.local),
           notificationDetails: details,
+          payload: Routes.studentRenew,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
       } catch (e) {

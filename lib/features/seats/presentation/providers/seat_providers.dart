@@ -56,18 +56,26 @@ final occupancyProvider = StreamProvider<Map<String, int>>((ref) async* {
 
   final sections = ref.watch(sectionsProvider).value ?? [];
   final students = ref.watch(studentsStreamProvider).value ?? [];
+  final allSeats = ref.watch(allSeatsProvider);
 
   if (sections.isNotEmpty) {
     final totalCapacity = sections
         .where((s) => s.isActive)
         .fold<int>(0, (sum, s) => sum + s.capacity);
 
-    final occupiedSeats = students
-        .where((s) => s.membershipStatus == MembershipStatus.active && s.seatId != null && s.seatId!.isNotEmpty)
-        .map((s) => s.seatId!)
-        .toSet()
-        .length;
+    final occupiedSeatKeys = <String>{};
+    for (final s in students) {
+      if (s.membershipStatus == MembershipStatus.active && s.seatId != null && s.seatId!.isNotEmpty) {
+        occupiedSeatKeys.add(s.seatId!);
+      }
+    }
+    for (final seat in allSeats) {
+      if (seat.isOccupied) {
+        occupiedSeatKeys.add(seat.id);
+      }
+    }
 
+    final occupiedSeats = occupiedSeatKeys.length;
     final availableSeats = (totalCapacity - occupiedSeats).clamp(0, totalCapacity).toInt();
 
     yield {

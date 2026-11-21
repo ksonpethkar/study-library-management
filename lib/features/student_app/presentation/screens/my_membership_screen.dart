@@ -17,6 +17,8 @@ import 'package:study_library/models/library_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/features/student_app/presentation/widgets/silent_reception_help_sheet.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:study_library/features/settings/presentation/providers/settings_provider.dart';
 
 class MyMembershipScreen extends ConsumerWidget {
   const MyMembershipScreen({super.key});
@@ -141,6 +143,18 @@ class MyMembershipScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
               children: [
+                // Outstanding Fee Balance Warning Card with 1-Tap UPI
+                if ((student.pendingDueBalance ?? 0) > 0) ...[
+                  _buildPendingDueWarningCard(
+                    context: context,
+                    ref: ref,
+                    student: student,
+                    library: library,
+                    theme: theme,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // 1. Executive Pro Scholar Tier Pass Card
                 Container(
                   decoration: BoxDecoration(
@@ -912,6 +926,199 @@ class MyMembershipScreen extends ConsumerWidget {
           }).toList(),
         );
       },
+    );
+  }
+  Widget _buildPendingDueWarningCard({
+    required BuildContext context,
+    required WidgetRef ref,
+    required StudentModel student,
+    required LibraryModel? library,
+    required ThemeData theme,
+  }) {
+    final due = (student.pendingDueBalance ?? 0).toDouble();
+    final isDark = theme.brightness == Brightness.dark;
+    final libraryName = library?.name ?? 'Study Library';
+
+    final paymentSettings = ref.watch(paymentMethodsStreamProvider).value;
+    final methods = (paymentSettings?['methods'] as List?)?.whereType<Map>().toList();
+    final libMethods = library?.enabledPaymentMethods;
+    final bool isUpiEnabled = methods != null && methods.isNotEmpty
+        ? methods.any((m) => m['id'] == 'upi' && m['active'] == true)
+        : (libMethods != null && libMethods.isNotEmpty ? libMethods.contains('upi') : true);
+    final upiId = (paymentSettings?['upiId'] ?? library?.upiId ?? '').toString().trim();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF291E0B) : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.6 : 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Color(0xFFD97706),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Outstanding Fee Balance',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                    Text(
+                      'Please clear dues to keep your desk reserved',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD97706),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '₹${due.toInt()}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              if (isUpiEnabled && upiId.isNotEmpty)
+                FilledButton.icon(
+                  onPressed: () async {
+                    final cleanName = Uri.encodeComponent(libraryName);
+                    final cleanNote = Uri.encodeComponent('Due Fee Payment - ${student.name}');
+                    final uri = Uri.parse(
+                      'upi://pay?pa=$upiId&pn=$cleanName&am=${due.toStringAsFixed(2)}&cu=INR&tn=$cleanNote',
+                    );
+                    try {
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } else {
+                        if (context.mounted) {
+                          _showUpiCopyDialog(context, upiId, due);
+                        }
+                      }
+                    } catch (_) {
+                      if (context.mounted) {
+                        _showUpiCopyDialog(context, upiId, due);
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.flash_on_rounded, size: 16),
+                  label: const Text('Pay via UPI'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFD97706),
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              OutlinedButton.icon(
+                onPressed: () => context.push(Routes.studentRenew),
+                icon: const Icon(Icons.upload_file_rounded, size: 16),
+                label: const Text('Submit UTR / Pay at Desk'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFD97706),
+                  side: const BorderSide(color: Color(0xFFD97706)),
+                  visualDensity: VisualDensity.compact,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUpiCopyDialog(BuildContext context, String upiId, double amount) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.qr_code_rounded, color: Color(0xFFD97706)),
+            SizedBox(width: 8),
+            Text('Pay Outstanding Due'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Amount Due: ₹${amount.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            const Text('UPI ID:'),
+            const SizedBox(height: 4),
+            SelectableText(
+              upiId,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFD97706)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: upiId));
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('UPI ID copied to clipboard')),
+              );
+            },
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Copy UPI ID'),
+          ),
+        ],
+      ),
     );
   }
 }

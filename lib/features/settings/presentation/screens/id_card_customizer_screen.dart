@@ -575,6 +575,8 @@ class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen>
     }
 
     final libraryName = ref.watch(currentLibraryProvider).value?.name ?? 'Study Library';
+    final headerTextColor = primaryColor.computeLuminance() > 0.55 ? Colors.black87 : Colors.white;
+    final headerBadgeBg = headerTextColor == Colors.white ? Colors.white.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.12);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -606,13 +608,13 @@ class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen>
             ),
             child: Row(
               children: [
-                const Icon(Icons.verified_user_rounded, color: Colors.white, size: 16),
+                Icon(Icons.verified_user_rounded, color: headerTextColor, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     libraryName.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: headerTextColor,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.8,
@@ -624,12 +626,12 @@ class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.25),
+                    color: headerBadgeBg,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     themeDisplayName,
-                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: headerTextColor, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],

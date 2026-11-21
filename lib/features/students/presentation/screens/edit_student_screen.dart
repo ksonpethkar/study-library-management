@@ -749,80 +749,85 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     ),
                   ],
 
-                  const SizedBox(height: 24),
+                  if (FormConfigService.isFieldVisible(fieldsList, 'govId')) ...[
+                    const SizedBox(height: 24),
 
-                  // Section 3: Identity & Education
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildSectionHeader(context, 'Identity & Education', Icons.school_outlined),
-                      TextButton.icon(
-                        onPressed: _openOcrScanner,
-                        icon: const Icon(Icons.document_scanner_outlined, size: 18),
-                        label: const Text('Scan ID Card'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<GovIdType>(
-                          isExpanded: true,
-                          initialValue: _govIdType,
-                          decoration: const InputDecoration(labelText: 'ID Type', border: OutlineInputBorder()),
-                          items: GovIdType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.displayName))).toList(),
-                          onChanged: (v) {
-                            if (v != null) {
-                              setState(() {
-                                _govIdType = v;
-                                _govIdNumberController.text = GovIdValidator.format(v, _govIdNumberController.text);
-                              });
-                            }
-                          },
+                    // Section 3: Identity & Verification
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildSectionHeader(context, 'Identity Verification', Icons.school_outlined),
+                        TextButton.icon(
+                          onPressed: _openOcrScanner,
+                          icon: const Icon(Icons.document_scanner_outlined, size: 18),
+                          label: const Text('Scan ID Card'),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 3,
-                        child: ValueListenableBuilder<TextEditingValue>(
-                          valueListenable: _govIdNumberController,
-                          builder: (context, val, child) {
-                            final rawText = val.text.trim();
-                            final isValid = rawText.isNotEmpty &&
-                                GovIdValidator.isValid(_govIdType, rawText);
-                            final showWarning = rawText.isNotEmpty && !isValid;
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: DropdownButtonFormField<GovIdType>(
+                            isExpanded: true,
+                            initialValue: _govIdType,
+                            decoration: InputDecoration(
+                              labelText: FormConfigService.getFieldLabel(fieldsList, 'govIdType', 'ID Type'),
+                              border: const OutlineInputBorder(),
+                            ),
+                            items: GovIdType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.displayName))).toList(),
+                            onChanged: (v) {
+                              if (v != null) {
+                                setState(() {
+                                  _govIdType = v;
+                                  _govIdNumberController.text = GovIdValidator.format(v, _govIdNumberController.text);
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 3,
+                          child: ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: _govIdNumberController,
+                            builder: (context, val, child) {
+                              final rawText = val.text.trim();
+                              final isValid = rawText.isNotEmpty &&
+                                  GovIdValidator.isValid(_govIdType, rawText);
+                              final showWarning = rawText.isNotEmpty && !isValid;
 
-                            return TextFormField(
-                              controller: _govIdNumberController,
-                              keyboardType: GovIdValidator.keyboardType(_govIdType),
-                              inputFormatters: GovIdValidator.inputFormatters(_govIdType),
-                              decoration: InputDecoration(
-                                labelText: 'ID Number',
-                                hintText: _govIdType.placeholder,
-                                border: const OutlineInputBorder(),
-                                suffixIcon: rawText.isEmpty
-                                    ? null
-                                    : isValid
-                                        ? const Tooltip(
-                                            message: 'Valid Checksum / Format Verified',
-                                            child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 20),
-                                          )
-                                        : showWarning
-                                            ? const Tooltip(
-                                                message: 'Invalid format or checksum mismatch',
-                                                child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 20),
-                                              )
-                                            : null,
-                              ),
-                            );
-                          },
+                              return TextFormField(
+                                controller: _govIdNumberController,
+                                keyboardType: GovIdValidator.keyboardType(_govIdType),
+                                inputFormatters: GovIdValidator.inputFormatters(_govIdType),
+                                decoration: InputDecoration(
+                                  labelText: FormConfigService.getFieldLabel(fieldsList, 'govIdNumber', 'ID Number'),
+                                  hintText: _govIdType.placeholder,
+                                  border: const OutlineInputBorder(),
+                                  suffixIcon: rawText.isEmpty
+                                      ? null
+                                      : isValid
+                                          ? const Tooltip(
+                                              message: 'Valid Checksum / Format Verified',
+                                              child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 20),
+                                            )
+                                          : showWarning
+                                              ? const Tooltip(
+                                                  message: 'Invalid format or checksum mismatch',
+                                                  child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 20),
+                                                )
+                                              : null,
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                   if (FormConfigService.isFieldVisible(fieldsList, 'college')) ...[
                     const SizedBox(height: 12),
                     TextFormField(
@@ -904,19 +909,21 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     ),
                   ],
 
-                  const SizedBox(height: 24),
+                  if (FormConfigService.isFieldVisible(fieldsList, 'notes')) ...[
+                    const SizedBox(height: 24),
 
-                  // Section 4: Remarks
-                  _buildSectionHeader(context, 'Remarks & Notes', Icons.notes_rounded),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _notesController,
-                    decoration: const InputDecoration(
-                      labelText: 'Notes & Remarks',
-                      border: OutlineInputBorder(),
+                    // Section 4: Remarks
+                    _buildSectionHeader(context, 'Remarks & Notes', Icons.notes_rounded),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _notesController,
+                      decoration: InputDecoration(
+                        labelText: FormConfigService.getFieldLabel(fieldsList, 'notes', 'Notes & Remarks'),
+                        border: const OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
                     ),
-                    maxLines: 2,
-                  ),
+                  ],
 
                   Builder(
                     builder: (context) {

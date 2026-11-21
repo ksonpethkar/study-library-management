@@ -234,6 +234,18 @@ class SentinelService {
             seatId: seatId,
           );
         }
+      } else if (anomaly.id.contains('mismatch_seat_') && anomaly.metadata.containsKey('studentId')) {
+        final seatId = anomaly.metadata['seatId'] as String? ?? anomaly.entityId;
+        final sectionId = anomaly.metadata['sectionId'] as String?;
+        final studentId = anomaly.metadata['studentId'] as String?;
+        if (seatId != null && sectionId != null && studentId != null) {
+          success = await _invariantEngine.autoHealDesyncedSeatBinding(
+            libraryId: libraryId,
+            sectionId: sectionId,
+            seatId: seatId,
+            studentId: studentId,
+          );
+        }
       } else if (anomaly.id.startsWith('negative_due_')) {
         final studentId = anomaly.metadata['studentId'] as String? ?? anomaly.entityId;
         if (studentId != null) {
