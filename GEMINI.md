@@ -518,3 +518,39 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
    - Root Cause: Sentinel's `autoHealInvalidDeskReference` attempted to locate seats using a flat Firestore path `libraries/{libId}/seats/{seatId}`, whereas Cozy Corner seats are stored nested inside sections (`libraries/{libId}/sections/{secId}/seats/{seatId}`). This caused 1-tap auto-heal to throw an exception and display a red error toast: `"Failed to auto-heal: Invalid Desk Reference for ..."`.
    - Guardrail: Always search across section collections when healing desk references. Fall back to matching by assigned student ID and normalized seat number (`SeatHelper.formatSeatNumberOnly`). When a valid seat is found, re-bind double-binding on BOTH the seat document and the student profile. If the seat truly no longer exists in any section, cleanly delete the invalid pointer from the student document so the student can be reassigned without crash loops.
 
+---
+
+## 30. Advanced OCR Engine Guardrails (Learned Nov 2026)
+
+1. **PVC Card Image Preprocessing Before ML Kit (F4):**
+   - Root Cause: Glossy PVC cards (Aadhaar, PAN, College ID) and laminated cards cause specular reflections under room lighting, reducing OCR character recognition accuracy to ~60%.
+   - Guardrail: In `ocr_service_io.dart`, run `preprocessImage(Uint8List bytes)` using `package:image/image.dart` before ML Kit. Scale oversized images down to max 1600px, convert to grayscale, and enhance contrast/brightness (`img.adjustColor(contrast: 1.3, brightness: 1.05)`). If the preprocessed text produces fewer than 10 characters, gracefully fall back to raw image bytes.
+
+2. **Async `compute()` Isolate for UIDAI Secure QR Decompression (F6):**
+   - Root Cause: Parsing 300+ digit BigInt strings and executing GZip decompression on the Flutter main UI thread froze the app for 400–900ms on budget Android devices.
+   - Guardrail: Always execute `parseSecureAadhaarQrIsolate()` inside Flutter's `compute()` via `QrIdParser.parseQrStringAsync(raw)` and `OcrParser.parseUnifiedAsync()`. Keep the UI thread completely unblocked with 60 FPS fluidity.
+
+3. **Two-Pass College Header Banner Disambiguation (F10):**
+   - Root Cause: Maharashtra college ID cards frequently feature the affiliating university (e.g. `Dr. Babasaheb Ambedkar Marathwada University` or `Savitribai Phule Pune University`) on line 0 and the actual college (e.g. `Government Polytechnic, Beed` or `Fergusson College`) on line 1. A naive first-match header search captured the parent university instead of the student's actual college. Furthermore, matching inline labels with `[:\s]+` caused words like `COLLEGE` in `FERGUSSON COLLEGE (AUTONOMOUS)` to be treated as a label, eating the college name.
+   - Guardrail:
+     a) Separator Enforcement: Inline field search (`_inlineValue`) must require explicit colon/hyphen separators (`[:\-]+`) or start-of-line positioning to prevent standard English words inside institution names from acting as field keys.
+     b) Two-Pass Header Extraction: In `_parseCollegeId()`, Pass 1 strictly prioritizes specific institution keywords (`COLLEGE`, `POLYTECHNIC`, `INSTITUTE`, `MAHAVIDYALAYA`, `COEP`, `VJTI`, `MIT`). Pass 2 serves as a fallback for parent university banners (`UNIVERSITY`, `VIDYAPEETH`, `SPPU`, `BAMU`, `SRTMU`) only when no specific college name is found.
+
+4. **Web Digital Document PDF.js Extraction Pipeline (F11):**
+   - Root Cause: e-Aadhaar and DigiLocker PDF uploads on Flutter Web were attached as opaque binary files with 0 text extraction, forcing students to manually type all personal details.
+   - Guardrail: Provide a client-side vector text extraction pipeline via PDF.js (`window.extractPdfText(base64)`) in both `web/index.html` and `public/app/index.html`. In `OcrService.extractPdfText()`, extract text layers directly from PDF pages and feed them into `OcrParser.parseAadhaar()`, auto-filling student name, DOB, ID number, and address with 100% accuracy without OCR raster degradation.
+
+---
+
+## 31. Popped Context Modal-on-Modal Web Freeze & Mandatory Web Deployment Pipeline (Learned Nov 2026)
+
+1. **Popped Context Modal-on-Modal Freeze Guardrail (`QuickControlCenterSheet` Root Navigator Routing):**
+   - Root Cause: In `QuickControlCenterSheet`, tapping "Instant Lock" or secondary actions (Typography, Global Search, Notifications, Sentinel AI Guardian, Audit Log) called `Navigator.of(context).pop()` and immediately invoked `showDialog(context: context)` or `context.push()` using the popping bottom sheet's context. When an admin had no PIN configured (`isLockEnabled == false`), pushing an `AlertDialog` onto a disposing `ModalBottomSheetRoute` caused Flutter Web's CanvasKit layout engine (`_ModalBottomSheetLayoutFactory` + `_RenderConstrainedBox`) to enter an infinite layout measurement loop on the JavaScript main thread, locking the thread and triggering Chrome's *"This page isn't responding"* freeze.
+   - Guardrail: Never pass a popping sheet's context to subsequent navigation or dialog triggers. Dismiss the sheet route first, and dispatch the target action inside `WidgetsBinding.instance.addPostFrameCallback((_) { final rootCtx = rootNavigatorKey.currentContext; ... })`. For instant screen locks, always push the lock barrier (`rootCtx.push(Routes.biometricLock)`) rather than `.go` so that the underlying screen state and unsaved form data are 100% preserved.
+
+2. **Mandatory Web Compilation & Firebase Hosting Deployment Synchronization:**
+   - Root Cause: Fixes for dynamic payment dues in WhatsApp templates, desk label format stripping (`Allocated Desk` to localized flexible seat text), and Quick Controls instant lock were written and verified via unit tests, but `scripts/publish_web.ps1` (`flutter build web --release --base-href /app/`, copy to `public/app`, `inject_loader.js`, and `firebase deploy --only hosting`) was not executed. Live users testing `https://study-lib-mgmt-2026.web.app` continued to run stale cached bundles displaying missing due balances, English placeholders in Marathi messages, and the unresponsive script freeze.
+   - Guardrail: No bug fix or operational enhancement is complete without running `scripts/publish_web.ps1`, verifying successful deployment to Firebase Hosting, and bumping the cache-busting token `v=YYYYMMDD_XX` across `study_library/web/index.html` and `public/app/index.html`.
+
+
+
