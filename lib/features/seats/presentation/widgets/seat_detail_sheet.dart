@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
+import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/waiting_list_model.dart';
 import 'package:study_library/services/waiting_list_promotion_service.dart';
 import 'package:study_library/core/providers/library_provider.dart';
@@ -140,12 +141,32 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
     if (libraryId == null) return;
 
     try {
-      final updates = <String, dynamic>{'status': newStatus.name};
+      final updates = <String, dynamic>{
+        'status': newStatus.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (newStatus == SeatStatus.available) {
+        updates['studentId'] = null;
+        updates['assignedAt'] = FieldValue.delete();
+        updates['vacatedAt'] = FieldValue.serverTimestamp();
+        updates['reservationType'] = FieldValue.delete();
+        updates['reservedCandidateId'] = FieldValue.delete();
+        updates['reservedCandidateName'] = FieldValue.delete();
+        updates['reservationExpiresAt'] = FieldValue.delete();
+      } else if (newStatus == SeatStatus.maintenance) {
+        updates['reservationType'] = FieldValue.delete();
+        updates['reservedCandidateId'] = FieldValue.delete();
+        updates['reservedCandidateName'] = FieldValue.delete();
+        updates['reservationExpiresAt'] = FieldValue.delete();
+      }
 
       // If changing from occupied to anything else, clear studentId & preserve previousSeatId
       if (widget.seat.status == SeatStatus.occupied &&
           newStatus != SeatStatus.occupied) {
         updates['studentId'] = null;
+        updates['assignedAt'] = FieldValue.delete();
+        updates['vacatedAt'] = FieldValue.serverTimestamp();
 
         // Also clear the student's seatId and preserve previousSeatId for seamless recovery
         if (widget.seat.studentId != null) {
@@ -441,6 +462,26 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
     );
   }
 
+  void _showAssignStudentSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _SeatAssignStudentSheet(
+        seat: widget.seat,
+        sectionId: widget.sectionId,
+        onAssigned: () {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -635,14 +676,11 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
 
                 if (widget.seat.status == SeatStatus.available)
                   ListTile(
-                    leading: const Icon(Icons.person_add_rounded),
+                    leading: const Icon(Icons.person_add_rounded, color: Color(0xFF10B981)),
                     title: const Text('Assign Student'),
+                    subtitle: const Text('Pick and allocate an active student to this desk'),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () {
-                      Navigator.pop(context);
-                      // Navigate to students list — user picks a student and assigns from detail
-                      context.go('/admin/students');
-                    },
+                    onTap: _showAssignStudentSheet,
                   ),
 
                 const SizedBox(height: 24),
@@ -656,7 +694,9 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
       context: context,
       builder: (ctx) => SimpleDialog(
         title: const Text('Change Status'),
-        children: SeatStatus.values.map((status) {
+        children: SeatStatus.values
+            .where((status) => status != SeatStatus.occupied)
+            .map((status) {
           final isCurrentStatus = status == widget.seat.status;
           return SimpleDialogOption(
             onPressed: isCurrentStatus
@@ -762,49 +802,14 @@ class _SeatTransferSheetState extends ConsumerState<_SeatTransferSheet> {
 
     setState(() => _isTransferring = true);
     try {
-      final batch = FirebaseFirestore.instance.batch();
-
-      final sourceSeatRef = FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('sections')
-          .doc(widget.sourceSectionId)
-          .collection('seats')
-          .doc(widget.sourceSeat.id);
-
-      final targetSeatRef = FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('sections')
-          .doc(targetSection.id)
-          .collection('seats')
-          .doc(targetSeat.id);
-
-      final studentRef = FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('students')
-          .doc(widget.sourceSeat.studentId!);
-
-      batch.update(sourceSeatRef, {
-        'status': SeatStatus.available.name,
-        'studentId': null,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      batch.update(targetSeatRef, {
-        'status': SeatStatus.occupied.name,
-        'studentId': widget.sourceSeat.studentId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      batch.update(studentRef, {
-        'seatId': targetSeat.id,
-        'sectionId': targetSection.id,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      await batch.commit();
+      await ref.read(seatRepositoryProvider).transferStudent(
+        libraryId,
+        widget.sourceSectionId,
+        widget.sourceSeat.id,
+        targetSection.id,
+        targetSeat.id,
+        widget.sourceSeat.studentId!,
+      );
 
       if (mounted) {
         Navigator.pop(context);
@@ -1291,4 +1296,256 @@ class _SwapSectionTile extends ConsumerWidget {
     );
   }
 }
+
+class _SeatAssignStudentSheet extends ConsumerStatefulWidget {
+  final SeatModel seat;
+  final String sectionId;
+  final VoidCallback onAssigned;
+
+  const _SeatAssignStudentSheet({
+    required this.seat,
+    required this.sectionId,
+    required this.onAssigned,
+  });
+
+  @override
+  ConsumerState<_SeatAssignStudentSheet> createState() => _SeatAssignStudentSheetState();
+}
+
+class _SeatAssignStudentSheetState extends ConsumerState<_SeatAssignStudentSheet> {
+  String _searchQuery = '';
+  bool _onlyUnassigned = true;
+  bool _isAssigning = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final libraryId = ref.watch(currentLibraryIdProvider);
+    final studentsAsync = ref.watch(studentsStreamProvider);
+    final theme = Theme.of(context);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.45,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_add_rounded, color: Color(0xFF10B981)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Assign Student to Desk #${widget.seat.label}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Pick an enrolled student to allocate this seat',
+                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search student by name or phone...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                ),
+                onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _onlyUnassigned ? 'Showing unassigned students' : 'Showing all students',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  FilterChip(
+                    label: const Text('Unassigned Only', style: TextStyle(fontSize: 11)),
+                    selected: _onlyUnassigned,
+                    onSelected: (val) => setState(() => _onlyUnassigned = val),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 12),
+            Expanded(
+              child: studentsAsync.when(
+                data: (allStudents) {
+                  final filtered = allStudents.where((s) {
+                    if (s.membershipStatus == MembershipStatus.archived ||
+                        s.membershipStatus == MembershipStatus.blocked) {
+                      return false;
+                    }
+                    if (_onlyUnassigned && (s.seatId != null && s.seatId!.isNotEmpty)) {
+                      return false;
+                    }
+                    if (_searchQuery.isNotEmpty) {
+                      final nameMatch = s.name.toLowerCase().contains(_searchQuery);
+                      final phoneMatch = s.phone.contains(_searchQuery);
+                      return nameMatch || phoneMatch;
+                    }
+                    return true;
+                  }).toList();
+
+                  if (filtered.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Text(
+                          _searchQuery.isNotEmpty
+                              ? 'No students found matching "$_searchQuery".'
+                              : 'No unassigned students found. Toggle filter to reassign existing students.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    controller: scrollController,
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (ctx, idx) {
+                      final student = filtered[idx];
+                      final hasSeat = student.seatId != null && student.seatId!.isNotEmpty;
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: student.gender == Gender.female
+                              ? Colors.pink.shade100
+                              : Colors.blue.shade100,
+                          child: Text(
+                            student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                            style: TextStyle(
+                              color: student.gender == Gender.female
+                                  ? Colors.pink.shade800
+                                  : Colors.blue.shade800,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        title: Text(student.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                          '${student.phone} • ${hasSeat ? "Currently Desk #${student.seatId}" : "No desk"}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: hasSeat ? Colors.amber.shade800 : Colors.green.shade700,
+                          ),
+                        ),
+                        trailing: _isAssigning
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : FilledButton.tonal(
+                                onPressed: () => _assignToStudent(libraryId, student),
+                                child: const Text('Assign'),
+                              ),
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('Error loading students: $e')),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _assignToStudent(String? libraryId, StudentModel student) async {
+    if (libraryId == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm Seat Assignment'),
+        content: Text(
+          'Assign ${student.name} to Desk #${widget.seat.label}?\n\n'
+          '${(student.seatId != null && student.seatId!.isNotEmpty) ? "Note: Student will be moved from previous Desk #${student.seatId}." : ""}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm Assignment'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isAssigning = true);
+    try {
+      await ref.read(seatRepositoryProvider).assignStudent(
+        libraryId,
+        widget.sectionId,
+        widget.seat.id,
+        student.id,
+        studentUserId: student.userId,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onAssigned();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${student.name} assigned to Desk #${widget.seat.label}!'),
+            backgroundColor: const Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'seat');
+      }
+    } finally {
+      if (mounted) setState(() => _isAssigning = false);
+    }
+  }
+}
+
 

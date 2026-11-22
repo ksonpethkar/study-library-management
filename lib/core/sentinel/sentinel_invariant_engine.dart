@@ -479,29 +479,75 @@ class SentinelInvariantEngine {
           .get();
 
       DocumentReference? foundSeatRef;
+      String? foundSectionId;
+      String? foundSeatLabel;
+
       for (final secDoc in sectionsSnapshot.docs) {
-        final seatDoc = await secDoc.reference
+        // 1. Direct ID lookup
+        final directSeatDoc = await secDoc.reference
             .collection(FirestorePaths.seats)
             .doc(targetSeatId)
             .get();
-        if (seatDoc.exists) {
-          foundSeatRef = seatDoc.reference;
+        if (directSeatDoc.exists) {
+          foundSeatRef = directSeatDoc.reference;
+          foundSectionId = secDoc.id;
+          foundSeatLabel = directSeatDoc.data()?['label']?.toString();
           break;
+        }
+
+        // 2. Fallback: match by student ID already recorded on seat
+        final studentSeats = await secDoc.reference
+            .collection(FirestorePaths.seats)
+            .where('studentId', isEqualTo: studentId)
+            .limit(1)
+            .get();
+        if (studentSeats.docs.isNotEmpty) {
+          final sDoc = studentSeats.docs.first;
+          foundSeatRef = sDoc.reference;
+          foundSectionId = secDoc.id;
+          foundSeatLabel = sDoc.data()['label']?.toString();
+          break;
+        }
+
+        // 3. Fallback: match by seat number / label if targetSeatId encodes row/col or number
+        final numOnly = SeatHelper.formatSeatNumberOnly(seatId: targetSeatId);
+        if (numOnly.isNotEmpty) {
+          final labelSeats = await secDoc.reference
+              .collection(FirestorePaths.seats)
+              .where('label', isEqualTo: numOnly)
+              .limit(1)
+              .get();
+          if (labelSeats.docs.isNotEmpty) {
+            final sDoc = labelSeats.docs.first;
+            foundSeatRef = sDoc.reference;
+            foundSectionId = secDoc.id;
+            foundSeatLabel = sDoc.data()['label']?.toString() ?? numOnly;
+            break;
+          }
         }
       }
 
       if (foundSeatRef != null) {
-        // Seat exists! Re-bind double-binding
+        // Seat exists! Re-bind double-binding on BOTH seat and student
+        final resolvedLabel = foundSeatLabel ?? SeatHelper.formatSeatNumberOnly(seatId: foundSeatRef.id);
         await foundSeatRef.update({
           'status': SeatStatus.occupied.name,
           'studentId': studentId,
           'studentName': studentData['name'] ?? '',
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        await studentRef.update({
+          'seatId': foundSeatRef.id,
+          'sectionId': foundSectionId,
+          'seatLabel': resolvedLabel,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       } else {
-        // Seat does not exist in any section: safely clear invalid pointer
+        // Seat does not exist in any section: safely clear invalid pointer so student can be reassigned
         await studentRef.update({
           'seatId': FieldValue.delete(),
+          'sectionId': FieldValue.delete(),
+          'seatLabel': FieldValue.delete(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
       }

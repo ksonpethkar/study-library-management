@@ -162,6 +162,7 @@ class SeatMapScreen extends ConsumerWidget {
                           ),
                   ),
                   child: ExpansionTile(
+                    key: PageStorageKey('admin_section_tile_${section.id}'),
                     initiallyExpanded: index == 0,
                     leading: Container(
                       width: 28,

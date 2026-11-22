@@ -230,7 +230,16 @@ class SeatTile extends StatelessWidget {
                             ),
                           ],
           ),
-          child: _buildTileContent(context, isDark, textColor, genderColor, isMaleOnly, isFemaleOnly, isOnLeave: isOnLeave),
+          child: _buildTileContent(
+            context,
+            isDark,
+            textColor,
+            genderColor,
+            isMaleOnly,
+            isFemaleOnly,
+            effectiveStatus: effectiveStatus,
+            isOnLeave: isOnLeave,
+          ),
         ),
       ),
     );
@@ -269,6 +278,7 @@ class SeatTile extends StatelessWidget {
     Color genderColor,
     bool isMaleOnly,
     bool isFemaleOnly, {
+    required SeatStatus effectiveStatus,
     bool isOnLeave = false,
   }) {
     // -------------------------------------------------------------
@@ -336,7 +346,7 @@ class SeatTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    isOnLeave ? 'ON LEAVE' : seat.status.name.toUpperCase(),
+                    isOnLeave ? 'ON LEAVE' : effectiveStatus.name.toUpperCase(),
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w900,
@@ -356,11 +366,11 @@ class SeatTile extends StatelessWidget {
                   Text(
                     studentName != null && studentName!.isNotEmpty
                         ? studentName!
-                        : (seat.status == SeatStatus.occupied
+                        : (effectiveStatus == SeatStatus.occupied
                             ? 'Occupied'
-                            : (seat.status == SeatStatus.reserved
+                            : (effectiveStatus == SeatStatus.reserved
                                 ? 'Reserved'
-                                : (seat.status == SeatStatus.maintenance ? 'Under Maintenance' : 'Vacant Seat'))),
+                                : (effectiveStatus == SeatStatus.maintenance ? 'Under Maintenance' : 'Vacant Seat'))),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -459,11 +469,11 @@ class SeatTile extends StatelessWidget {
                   ? (isOnLeave ? '${_formatShortName(studentName)} (Leave)' : _formatShortName(studentName))
                   : (isOnLeave
                       ? 'On Leave'
-                      : (seat.status == SeatStatus.occupied
+                      : (effectiveStatus == SeatStatus.occupied
                           ? 'Occupied'
-                          : (seat.status == SeatStatus.reserved
+                          : (effectiveStatus == SeatStatus.reserved
                               ? 'Reserved'
-                              : (seat.status == SeatStatus.maintenance ? 'Service' : 'Vacant')))),
+                              : (effectiveStatus == SeatStatus.maintenance ? 'Service' : 'Vacant')))),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -496,8 +506,8 @@ class SeatTile extends StatelessWidget {
     // LEVEL 1: 6-8 COLUMNS (STANDARD MOBILE & LAPTOP COMFORT VIEW)
     // -------------------------------------------------------------
     if (columns < 10) {
-      final isOccupied = seat.status == SeatStatus.occupied;
-      final isReserved = seat.status == SeatStatus.reserved;
+      final isOccupied = effectiveStatus == SeatStatus.occupied;
+      final isReserved = effectiveStatus == SeatStatus.reserved;
       final displayName = _formatShortName(studentName ?? student?.name);
 
       return Stack(
@@ -615,8 +625,8 @@ class SeatTile extends StatelessWidget {
     // -------------------------------------------------------------
     // LEVEL 0: 10 COLUMNS (PHYSICAL ROOM OVERVIEW - EXACT 10 COLUMNS)
     // -------------------------------------------------------------
-    final isOccupied = seat.isOccupied || (student != null) || (studentName != null && studentName!.trim().isNotEmpty);
-    final isReserved = seat.hasActiveSoftLock || seat.status == SeatStatus.reserved;
+    final isOccupied = effectiveStatus == SeatStatus.occupied;
+    final isReserved = effectiveStatus == SeatStatus.reserved;
     final displayName = _formatShortName(studentName ?? student?.name);
 
     return Stack(

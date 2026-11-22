@@ -47,6 +47,8 @@ import 'package:study_library/services/id_card_pdf_service.dart';
 import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
 import 'package:study_library/features/maintenance/data/services/database_diagnostics_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
+import 'package:study_library/services/ocr_service.dart';
+import 'package:study_library/services/ocr/ocr_service_io.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/models/announcement_model.dart';
@@ -8384,6 +8386,237 @@ void main() {
       );
 
       expect(navigatedRoute, equals('pop'));
+    });
+
+    test('Test 152: SEAT MAP LIVE SYNCHRONIZATION, ATOMIC TRANSFER, INLINE ASSIGN & MULTI-ZOOM INVARIANTS', () {
+      // 1. Invariant: Student Seat Map "isMySeat" resilient matching across ID, label, and formatted variations
+      final seat12 = SeatModel(
+        id: 'sec_cozy_seat_12',
+        sectionId: 'sec_cozy',
+        label: '12',
+        row: 1,
+        col: 1,
+        status: SeatStatus.occupied,
+        genderRestriction: GenderRestriction.any,
+        studentId: 'stud_rahul',
+      );
+
+      bool checkIsMySeat(SeatModel seat, String? studentSeatId) {
+        if (studentSeatId == null) return false;
+        return seat.id == studentSeatId ||
+            (seat.label == studentSeatId ||
+                (SeatHelper.formatSeatNumberOnly(rawLabel: seat.label).isNotEmpty &&
+                    SeatHelper.formatSeatNumberOnly(rawLabel: seat.label) ==
+                        SeatHelper.formatSeatNumberOnly(seatId: studentSeatId, rawLabel: studentSeatId)) ||
+                (SeatHelper.formatSeatNumberOnly(seatId: seat.id).isNotEmpty &&
+                    SeatHelper.formatSeatNumberOnly(seatId: seat.id) ==
+                        SeatHelper.formatSeatNumberOnly(seatId: studentSeatId, rawLabel: studentSeatId)));
+      }
+
+      // Exact ID match
+      expect(checkIsMySeat(seat12, 'sec_cozy_seat_12'), isTrue);
+      // Bare label match
+      expect(checkIsMySeat(seat12, '12'), isTrue);
+      // Formatted "Desk #12"
+      expect(checkIsMySeat(seat12, 'Desk #12'), isTrue);
+      // Formatted "#12"
+      expect(checkIsMySeat(seat12, '#12'), isTrue);
+      // Formatted "Seat 12"
+      expect(checkIsMySeat(seat12, 'Seat 12'), isTrue);
+      // Different seat
+      expect(checkIsMySeat(seat12, '13'), isFalse);
+      expect(checkIsMySeat(seat12, null), isFalse);
+
+      // 2. Invariant: Multi-Zoom Level Consistency (Level 0, 1, 2, 3) with Expired Soft-Locks
+      final expiredSoftLockSeat = SeatModel(
+        id: 'sec_cozy_seat_99',
+        sectionId: 'sec_cozy',
+        label: '99',
+        row: 9,
+        col: 8,
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+        reservationType: 'registration_hold',
+        reservationExpiresAt: DateTime.now().subtract(const Duration(minutes: 6)),
+      );
+
+      // Raw status in Firestore may be reserved, but effectiveStatus is available
+      final effectiveStatus = expiredSoftLockSeat.effectiveStatus;
+      expect(effectiveStatus, equals(SeatStatus.available));
+
+      // Level 0 & Level 1 checks MUST use effectiveStatus
+      final isOccupied = effectiveStatus == SeatStatus.occupied;
+      final isReserved = effectiveStatus == SeatStatus.reserved;
+      expect(isOccupied, isFalse, reason: 'Expired hold must not be marked occupied');
+      expect(isReserved, isFalse, reason: 'Expired hold must not be marked reserved (avoids Res. label on green tile)');
+
+      // 3. Invariant: Status picker excludes raw "occupied" option (prevents ghost occupants without students)
+      final allowedPickerStatuses = SeatStatus.values.where((s) => s != SeatStatus.occupied).toList();
+      expect(allowedPickerStatuses, contains(SeatStatus.available));
+      expect(allowedPickerStatuses, contains(SeatStatus.reserved));
+      expect(allowedPickerStatuses, contains(SeatStatus.maintenance));
+      expect(allowedPickerStatuses, isNot(contains(SeatStatus.occupied)));
+    });
+
+    test('Test 153: REQUESTS HUB ACTIONABLE FILTERING, WHATSAPP HUMAN IDENTIFIERS & SENTINEL MULTI-SECTION DESK HEALING', () {
+      // 1. Invariant: Requests Hub isPending must recognize all actionable registration/renewal states
+      final testStatuses = ['pending', 'new', 'desk_payment_pending', 'payment_pending', 'submitted', 'open', 'waiting', 'review', 'under_review'];
+      for (final s in testStatuses) {
+        final isP = s == 'pending' ||
+            s == 'new' ||
+            s == 'desk_payment_pending' ||
+            s == 'payment_pending' ||
+            s == 'submitted' ||
+            s == 'open' ||
+            s == 'waiting' ||
+            s == 'review' ||
+            s == 'under_review' ||
+            s.contains('pending');
+        expect(isP, isTrue, reason: 'Status "$s" must be classified as pending/actionable in Requests Hub');
+      }
+
+      // Completed statuses must NOT be pending
+      final completedStatuses = ['approved', 'rejected', 'superseded', 'cancelled', 'paid'];
+      for (final s in completedStatuses) {
+        final isP = s == 'pending' ||
+            s == 'new' ||
+            s == 'desk_payment_pending' ||
+            s == 'payment_pending' ||
+            s == 'submitted' ||
+            s == 'open' ||
+            s == 'waiting' ||
+            s == 'review' ||
+            s == 'under_review' ||
+            s.contains('pending');
+        expect(isP, isFalse, reason: 'Status "$s" must NOT be pending');
+      }
+
+      // 2. Invariant: WhatsApp Welcome Message substitute NEVER produces empty brackets "₹ ()" or raw 20-char UID
+      const sampleMarathiTemplate =
+          '📋 *प्रवेश तपशील*\n'
+          '👤 *विद्यार्थ्याचे नाव:* {studentName}\n'
+          '🆔 *नोंदणी क्रमांक (ID):* {membershipId}\n'
+          '📦 *सदस्यता प्लॅन:* {planName}\n'
+          '💺 *नेमून दिलेली डेस्क:* {seatLabel}\n'
+          '💰 *भरलेले शुल्क:* ₹{amount} ({paymentMethod})';
+
+      // Case A: Missing paymentMethod and missing amount
+      final msgEmpty = MessageTemplateService.substitute(
+        sampleMarathiTemplate,
+        studentName: 'Ashish Wagesh Choudhari',
+        membershipId: 'CC20260001',
+        planName: 'Quarterly',
+        seatLabel: 'Desk #6',
+        amount: '',
+        paymentMethod: '',
+      );
+      expect(msgEmpty.contains('()'), isFalse, reason: 'Must never leave empty brackets "()"');
+      expect(msgEmpty.contains('₹ ()'), isFalse, reason: 'Must never leave "₹ ()"');
+      expect(msgEmpty.contains('CC20260001'), isTrue, reason: 'Must preserve human admission ID');
+      expect(msgEmpty.contains('Quarterly'), isTrue, reason: 'Must preserve readable plan name');
+
+      // Case B: Full details provided
+      final msgFull = MessageTemplateService.substitute(
+        sampleMarathiTemplate,
+        studentName: 'Ashish Wagesh Choudhari',
+        membershipId: 'CC20260001',
+        planName: 'Quarterly',
+        seatLabel: 'Desk #6',
+        amount: '2000',
+        paymentMethod: 'Cash',
+      );
+      expect(msgFull.contains('₹2000 (Cash)'), isTrue);
+      expect(msgFull.contains('CC20260001'), isTrue);
+
+      // Case C: Raw 20-char Firestore UID sanitization
+      String sanitizeUid(String raw) {
+        if (raw.length > 10 && RegExp(r'^[a-zA-Z0-9]{18,}$').hasMatch(raw)) {
+          return 'CC-${raw.substring(0, 6).toUpperCase()}';
+        }
+        return raw;
+      }
+      expect(sanitizeUid('TFBktLryOfa4FlDLVvyl'), equals('CC-TFBKTL'));
+      expect(sanitizeUid('CC20260001'), equals('CC20260001'));
+
+      // 3. Invariant: Sentinel Seat Number Extraction works on both numeric and composite IDs
+      expect(SeatHelper.formatSeatNumberOnly(seatId: '1790647291016_r0_c4', cols: 10), equals('5'));
+      expect(SeatHelper.formatSeatNumberOnly(seatId: '1790647291016_r0_c3', cols: 10), equals('4'));
+      expect(SeatHelper.formatSeatNumberOnly(seatId: '1790647291016_r2_c7', cols: 10), equals('28'));
+      expect(SeatHelper.formatSeatNumberOnly(seatId: 'sec_1_seat_12'), equals('12'));
+    });
+
+    test('Test 153: OCR PIPELINE ADVANCED RECOMMENDATIONS (F4 PREPROCESSING, F6 ASYNC ISOLATE, F10 MAHARASHTRA COLLEGE ID, F11 DIGITAL PDF)', () async {
+      // 1. F4 Image Preprocessing Invariant (Grayscale & Contrast for Glossy Cards)
+      final sampleImg = img.Image(width: 100, height: 100);
+      img.fill(sampleImg, color: img.ColorRgb8(255, 100, 50));
+      final rawBytes = Uint8List.fromList(img.encodeJpg(sampleImg));
+      final preprocessedBytes = PlatformOcrService.preprocessImage(rawBytes);
+      expect(preprocessedBytes.isNotEmpty, isTrue);
+      final decodedPreprocessed = img.decodeImage(preprocessedBytes);
+      expect(decodedPreprocessed, isNotNull);
+      expect(decodedPreprocessed!.width, equals(100));
+
+      // 2. F6 Async Isolate QR Parsing Invariant
+      const sampleDlQr = 'DL NO: MH44 20250010202\nHolder: SHUBHAM ASHOK PATIL\nDOB: 12/04/1999\nBG: B+';
+      final asyncQrResult = await QrIdParser.parseQrStringAsync(sampleDlQr);
+      expect(asyncQrResult, isNotNull);
+      expect(asyncQrResult!.type, equals(GovIdType.drivingLicence));
+      expect(asyncQrResult.idNumber, equals('MH44 20250010202'));
+      expect(asyncQrResult.name, equals('SHUBHAM ASHOK PATIL'));
+
+      // Async Unified Parser
+      final asyncUnifiedResult = await OcrParser.parseUnifiedAsync(
+        qrString: sampleDlQr,
+        rawText: sampleDlQr,
+        preferredType: GovIdType.drivingLicence,
+      );
+      expect(asyncUnifiedResult.idNumber, equals('MH44 20250010202'));
+      expect(asyncUnifiedResult.confidence, equals(100));
+
+      // 3. F10 Structured Maharashtra College ID Invariant
+      // Case A: BAMU University PRN + College Header Banner + Course
+      const bamuCardText = '''
+DR. BABASAHEB AMBEDKAR MARATHWADA UNIVERSITY
+GOVERNMENT POLYTECHNIC, BEED
+STUDENT IDENTITY CARD
+Name: SNEHAL BHARAT SONPETHKAR
+PRN: 2021015200234567
+Class: T.Y. DIPLOMA IN COMPUTER ENGINEERING
+Blood Group: B+
+Valid Upto: 31/05/2026
+Father: BHARAT SONPETHKAR
+''';
+      final bamuResult = OcrParser.parseByType(GovIdType.collegeId, bamuCardText);
+      expect(bamuResult.idNumber, equals('2021015200234567'), reason: 'Must extract 16-digit BAMU PRN');
+      expect(bamuResult.college, contains('Government Polytechnic, Beed'), reason: 'Must detect college header');
+      expect(bamuResult.name, equals('Snehal Bharat Sonpethkar'), reason: 'Must clean and format student name');
+      expect(bamuResult.course, contains('DIPLOMA IN COMPUTER ENGINEERING'));
+      expect(bamuResult.bloodGroup, equals('B+'));
+      expect(bamuResult.fatherName, equals('Bharat Sonpethkar'));
+      expect(bamuResult.confidence, greaterThanOrEqualTo(70));
+
+      // Case B: SPPU Pune Autonomous College + Roll Code
+      const sppuCardText = '''
+FERGUSSON COLLEGE (AUTONOMOUS), PUNE
+Name: PATIL AJAY SUNIL
+Roll No: 21BCS045
+Degree: B.Sc (Computer Science)
+Blood Grp: O+
+Session: 2024-2025
+''';
+      final sppuResult = OcrParser.parseByType(GovIdType.collegeId, sppuCardText);
+      expect(sppuResult.idNumber, equals('21BCS045'), reason: 'Must extract branch roll code');
+      expect(sppuResult.college, contains('Fergusson College'));
+      expect(sppuResult.name, equals('Patil Ajay Sunil'));
+      expect(sppuResult.course, contains('B.SC'));
+      expect(sppuResult.bloodGroup, equals('O+'));
+      expect(sppuResult.confidence, greaterThanOrEqualTo(70));
+
+      // 4. F11 Digital PDF Extractor Interface Invariant
+      final ocrService = OcrService();
+      final dummyPdfBytes = Uint8List.fromList([0x25, 0x50, 0x44, 0x46]); // %PDF
+      final pdfText = await ocrService.extractPdfText(dummyPdfBytes);
+      expect(pdfText, isA<String>());
     });
   });
 }

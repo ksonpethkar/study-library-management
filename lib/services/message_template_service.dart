@@ -234,13 +234,12 @@ class MessageTemplateService {
     // Clean up empty parentheses e.g. "₹2000 ()" or "₹ ()" -> "₹2000"
     result = result.replaceAll(RegExp(r'\s*\(\s*\)'), '');
 
-    // Eliminate dangling currency symbol before parentheses e.g. "₹ (Cash)" -> "₹0 (Cash)" or "(Cash)"
-    result = result.replaceAll(RegExp(r'₹\s*(?=\()'), hasDue ? '₹0 ' : '');
+    // Eliminate dangling currency symbol or empty fee bracket e.g. "₹ ()" or "₹ "
+    result = result.replaceAll(RegExp(r'₹\s*\(\s*\)'), hasDue ? '₹0' : (cleanAmount.isNotEmpty ? '₹$cleanAmount' : ''));
+    result = result.replaceAll(RegExp(r'₹\s*(?=\n|$)'), cleanAmount.isNotEmpty ? '₹$cleanAmount' : (hasDue ? '₹0' : ''));
 
-    // If amount is empty, cleanly format or replace dangling currency symbols
-    if (amount == null || amount.trim().isEmpty || amount.trim() == '0') {
-      result = result.replaceAll(RegExp(r'₹\s*(?=\n|$)'), 'As per selected plan');
-    }
+    // Eliminate dangling currency symbol before parentheses e.g. "₹ (Cash)" -> "₹0 (Cash)" or "(Cash)"
+    result = result.replaceAll(RegExp(r'₹\s*(?=\()'), hasDue ? '₹0 ' : (cleanAmount.isNotEmpty ? '₹$cleanAmount ' : ''));
 
     return result.trim();
   }

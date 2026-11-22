@@ -1,9 +1,15 @@
 import 'dart:convert';
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:study_library/core/validators/aadhaar_validator.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/models/student_model.dart';
 export 'package:study_library/models/student_model.dart' show GovIdType, GovIdTypeExtension;
+
+/// Top-level isolate worker for parsing UIDAI Secure QR BigInt in the background
+QrIdResult? parseSecureAadhaarQrIsolate(String text) {
+  return QrIdParser.parseSecureAadhaarQrSync(text);
+}
 
 /// Government ID OCR & QR parser — extracts ALL available fields from each Indian ID type.
 /// Supported IDs: Aadhaar, PAN, Driving Licence, Voter ID, Passport, College/Student ID, Other.
@@ -179,6 +185,33 @@ class QrIdResult {
 }
 
 class QrIdParser {
+  static QrIdResult? parseSecureAadhaarQrSync(String text) {
+    return _parseSecureAadhaarQr(text);
+  }
+
+  /// Asynchronous QR parser that offloads heavy UIDAI Secure QR BigInt parse
+  /// & decompression to a background isolate via compute(), preventing 400-900ms UI jank.
+  static Future<QrIdResult?> parseQrStringAsync(String? raw) async {
+    if (raw == null) return null;
+    final text = raw.trim();
+    if (text.isEmpty) return null;
+
+    // 1. Modern UIDAI Secure QR: 300+ numeric digits.
+    // Offload BigInt parsing and GZip decompression to a background isolate.
+    if (RegExp(r'^\d{300,}$').hasMatch(text)) {
+      try {
+        final result = await compute(parseSecureAadhaarQrIsolate, text);
+        if (result != null) return result;
+      } catch (_) {
+        final fallback = _parseSecureAadhaarQr(text);
+        if (fallback != null) return fallback;
+      }
+    }
+
+    // 2. Synchronous check for all other lightweight QR formats (XML, JSON, DL, PAN)
+    return parseQrString(raw);
+  }
+
   /// Parse raw decoded QR string from Indian Gov ID
   static QrIdResult? parseQrString(String? raw) {
     if (raw == null) return null;
@@ -313,20 +346,25 @@ class QrIdParser {
 
       if (fields.length < 5) return null;
 
-      final refId = fields.length > 1 ? fields[1] : '';
-      final name = fields.length > 2 && fields[2].isNotEmpty ? fields[2] : null;
-      final rawDob = fields.length > 3 && fields[3].isNotEmpty ? fields[3] : null;
-      final rawGender = fields.length > 4 ? fields[4].toUpperCase() : null;
-      final careOf = fields.length > 5 && fields[5].isNotEmpty ? fields[5] : null;
+      // UIDAI Secure QR format evolved: v2 (2024 PVC Aadhaar) has a numeric version
+      // token at field[0], shifting all subsequent indices by +1.
+      // Detect version byte: a short 1-2 digit numeric field at position 0.
+      final int offset = (fields[0].isNotEmpty && RegExp(r'^\d{1,2}$').hasMatch(fields[0])) ? 1 : 0;
 
-      final district = fields.length > 6 ? fields[6] : null;
-      final landmark = fields.length > 7 ? fields[7] : null;
-      final house = fields.length > 8 ? fields[8] : null;
-      final location = fields.length > 9 ? fields[9] : null;
-      final pincode = fields.length > 10 ? fields[10] : null;
-      final state = fields.length > 12 ? fields[12] : null;
-      final street = fields.length > 13 ? fields[13] : null;
-      final vtc = fields.length > 15 ? fields[15] : null;
+      final refId = fields.length > 1 + offset ? fields[1 + offset] : '';
+      final name = fields.length > 2 + offset && fields[2 + offset].isNotEmpty ? fields[2 + offset] : null;
+      final rawDob = fields.length > 3 + offset && fields[3 + offset].isNotEmpty ? fields[3 + offset] : null;
+      final rawGender = fields.length > 4 + offset ? fields[4 + offset].toUpperCase() : null;
+      final careOf = fields.length > 5 + offset && fields[5 + offset].isNotEmpty ? fields[5 + offset] : null;
+
+      final district = fields.length > 6 + offset ? fields[6 + offset] : null;
+      final landmark = fields.length > 7 + offset ? fields[7 + offset] : null;
+      final house = fields.length > 8 + offset ? fields[8 + offset] : null;
+      final location = fields.length > 9 + offset ? fields[9 + offset] : null;
+      final pincode = fields.length > 10 + offset ? fields[10 + offset] : null;
+      final state = fields.length > 12 + offset ? fields[12 + offset] : null;
+      final street = fields.length > 13 + offset ? fields[13 + offset] : null;
+      final vtc = fields.length > 15 + offset ? fields[15 + offset] : null;
 
       String? gender;
       if (rawGender == 'M' || rawGender == 'MALE') gender = 'male';
@@ -528,6 +566,28 @@ class PassportMrzParser {
 
 // ── Main OCR Parser ──────────────────────────────────────────────────────────
 class OcrParser {
+  /// Asynchronous unified entry point: decodes Secure QR in background isolate,
+  /// then parses OCR text and seamlessly merges both.
+  static Future<OcrResult> parseUnifiedAsync({
+    String? qrString,
+    required String rawText,
+    GovIdType? preferredType,
+  }) async {
+    // 1. Try QR parsing first (using compute isolate for heavy BigInt if present)
+    final qrParsed = await QrIdParser.parseQrStringAsync(qrString);
+    final effectiveType = preferredType ?? qrParsed?.type ?? detectGovIdType(rawText);
+
+    // 2. Parse OCR text
+    final textParsed = parseByType(effectiveType, rawText);
+
+    // 3. If QR data is available, merge text fields with 100% confidence QR fields!
+    if (qrParsed != null) {
+      return qrParsed.toOcrResult().mergeWith(textParsed);
+    }
+
+    return textParsed;
+  }
+
   /// Unified entry point: checks QR code first, then OCR text, and seamlessly combines both!
   static OcrResult parseUnified({
     String? qrString,
@@ -1286,64 +1346,209 @@ class OcrParser {
     return null;
   }
 
-  // ── College / Student ID ───────────────────────────────────────────────────
+  // ── College / Student ID (Maharashtra University & College Formats) ────────
   static OcrResult _parseCollegeId(String rawText) {
     final text = _clean(rawText);
     final lines = _lines(rawText);
     int confidence = 0;
 
+    // 1. Extract Roll Number / PRN / Enrollment ID
     String? rollNumber;
-    for (final keyword in ['roll', 'enrollment', 'enroll', 'reg', 'registration', 'student id', 'id no']) {
+    // (a) Labeled search
+    for (final keyword in [
+      'prn no', 'prn number', 'prn', 'p.r.n.',
+      'roll no', 'roll number', 'roll',
+      'enrollment no', 'enrolment no', 'enrollment', 'enroll',
+      'reg no', 'registration no', 'reg.',
+      'student id', 'id no', 'seat no', 'uid', 'hall ticket'
+    ]) {
       final val = _valueAfterLabel(lines, keyword) ?? _inlineValue(text, keyword);
-      if (val != null && RegExp(r'^[A-Z0-9/\-]{3,20}$', caseSensitive: false).hasMatch(val.trim())) {
+      if (val != null && RegExp(r'^[A-Z0-9/\-]{2,25}$', caseSensitive: false).hasMatch(val.trim())) {
         rollNumber = val.trim().toUpperCase();
         confidence += 35;
         break;
       }
     }
 
-    String? name = _valueAfterLabel(lines, 'name') ?? _inlineValue(text, 'name');
-    if (name != null && _isValidEnglishName(name)) {
-      name = _toTitleCase(name);
-      confidence += 20;
+    // (b) Maharashtra 16-digit university PRN pattern (e.g. BAMU, SPPU, SRTMU: 2021015200234567)
+    if (rollNumber == null) {
+      final prnMatch = RegExp(r'\b(20[12]\d{13,14})\b').firstMatch(text);
+      if (prnMatch != null) {
+        rollNumber = prnMatch.group(1);
+        confidence += 35;
+      }
     }
 
+    // (c) Common college roll code pattern (e.g. 21BCS045, BE-COMP-2023-14, FYBCA-042)
+    if (rollNumber == null) {
+      final rollCodeMatch = RegExp(r'\b([0-9]{2}[A-Z]{2,4}[0-9]{2,4})\b').firstMatch(text) ??
+          RegExp(r'\b([A-Z]{2,4}[-\s/]?[0-9]{2,4}[-\s/]?[0-9]{2,4})\b').firstMatch(text);
+      if (rollCodeMatch != null) {
+        final code = rollCodeMatch.group(1)!.trim().toUpperCase();
+        if (!code.startsWith('20') || code.length <= 8) {
+          rollNumber = code;
+          confidence += 25;
+        }
+      }
+    }
+
+    // 2. Extract Student Name
+    String? name;
+    for (final label in [
+      'student name', 'candidate name', 'name of student',
+      'name of candidate', 'holder name', 'holder', 'name'
+    ]) {
+      final val = _valueAfterLabel(lines, label) ?? _inlineValue(text, label);
+      if (val != null && _isValidEnglishName(val)) {
+        name = _toTitleCase(val);
+        confidence += 25;
+        break;
+      }
+    }
+
+    // Unlabeled name fallback: inspect lines 1 to 4 for a valid person name
+    if (name == null) {
+      for (final l in lines.skip(1).take(4)) {
+        final upper = l.toUpperCase();
+        if (upper.contains('COLLEGE') ||
+            upper.contains('UNIVERSITY') ||
+            upper.contains('INSTITUTE') ||
+            upper.contains('IDENTITY') ||
+            upper.contains('STUDENT') ||
+            upper.contains('CARD') ||
+            upper.contains('MAHAVIDYALAYA')) {
+          continue;
+        }
+        if (_isValidEnglishName(l)) {
+          name = _toTitleCase(l);
+          confidence += 15;
+          break;
+        }
+      }
+    }
+
+    // 3. Extract College / Institute / University Name
     String? college;
-    for (final keyword in ['college', 'institute', 'university', 'polytechnic', 'school']) {
+    // (a) Labeled search
+    for (final keyword in ['college', 'institute', 'university', 'polytechnic', 'school', 'academy', 'vidyapeeth']) {
       final val = _valueAfterLabel(lines, keyword) ?? _inlineValue(text, keyword);
       if (val != null && val.trim().length >= 4) {
-        college = val.trim();
+        college = _toTitleCase(val.trim());
         confidence += 20;
         break;
       }
     }
 
+    // (b) Header line detection (first 4 lines often have the college banner without label)
+    if (college == null) {
+      for (final l in lines.take(4)) {
+        final upper = l.toUpperCase();
+        if (upper.contains('IDENTITY CARD') || upper.contains('STUDENT ID') || upper.contains('ID CARD')) continue;
+        if (upper.contains('COLLEGE') ||
+            upper.contains('INSTITUTE') ||
+            upper.contains('UNIVERSITY') ||
+            upper.contains('POLYTECHNIC') ||
+            upper.contains('MAHAVIDYALAYA') ||
+            upper.contains('VIDYAPEETH') ||
+            upper.contains('ACADEMY') ||
+            upper.contains('ENGINEERING') ||
+            upper.contains('TECHNOLOGY') ||
+            upper.contains('SPPU') ||
+            upper.contains('BAMU') ||
+            upper.contains('SRTMU') ||
+            upper.contains('COEP') ||
+            upper.contains('VJTI') ||
+            upper.contains('DY PATIL') ||
+            upper.contains('MIT')) {
+          final cleaned = l.replaceAll(RegExp(r'(?:STUDENT\s*ID\s*CARD|IDENTITY\s*CARD|ID\s*CARD)', caseSensitive: false), '').trim();
+          if (cleaned.length >= 6 && cleaned.length <= 80) {
+            college = _toTitleCase(cleaned);
+            confidence += 20;
+            break;
+          }
+        }
+      }
+    }
+
+    // 4. Extract Course / Degree / Branch
     String? course;
-    for (final keyword in ['course', 'programme', 'program', 'degree', 'branch', 'class']) {
+    // (a) Labeled search
+    for (final keyword in ['course', 'programme', 'program', 'degree', 'branch', 'class', 'stream', 'dept', 'department']) {
       final val = _valueAfterLabel(lines, keyword) ?? _inlineValue(text, keyword);
       if (val != null && val.trim().length >= 2) {
-        course = val.trim();
-        confidence += 10;
+        course = val.trim().toUpperCase();
+        confidence += 15;
         break;
       }
+    }
+
+    // (b) Acronym & degree pattern matching (e.g. B.Tech, B.Sc, BCA, FYBCA, TY B.Com, M.Sc)
+    if (course == null) {
+      final degreeMatch = RegExp(
+        r'\b((?:F\.?Y\.?|S\.?Y\.?|T\.?Y\.?|First\s*Year|Second\s*Year|Third\s*Year|Final\s*Year|Part[-\s]?[12]|Sem(?:ester)?[-\s]?[IVX1-8]+)?\s*'
+        r'(?:B\.?E\.?|B\.?Tech\.?|M\.?E\.?|M\.?Tech\.?|B\.?Sc\.?|M\.?Sc\.?|B\.?Com\.?|M\.?Com\.?|B\.?A\.?|M\.?A\.?|BCA|MCA|BBA|MBA|B\.?Pharm\.?|D\.?Pharm\.?|M\.?Pharm\.?|MBBS|BAMS|BHMS|LLB|LLM|Diploma|Polytechnic|Ph\.?D\.?)'
+        r'(?:\s*\(?[A-Za-z\s.&/\-]+\)?)?)\b',
+        caseSensitive: false,
+      ).firstMatch(text);
+      if (degreeMatch != null) {
+        final c = degreeMatch.group(1)?.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+        if (c != null && c.length >= 2 && c.length <= 40) {
+          course = c.toUpperCase();
+          confidence += 15;
+        }
+      }
+    }
+
+    // 5. Blood Group
+    String? bloodGroup;
+    final bgMatch = RegExp(
+      r'\b(?:Blood\s*(?:Group|Grp)?[:\s\-]*)?(A1B\+|A2B\+|A1\+|A2\+|AB\+|A\+|B\+|O\+|AB\-|A\-|B\-|O\-)\b',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (bgMatch != null) {
+      bloodGroup = bgMatch.group(1)?.toUpperCase();
+      confidence += 5;
+    }
+
+    // 6. Validity / Expiry / Academic Session
+    String? expiryDate;
+    final expMatch = RegExp(
+      r'(?:Valid\s*(?:Upto|Till|Up\s*to)?|Expiry|Session|Batch|Valid\s*Through)[:\s\-]*(\d{2}[/\-.]\d{2}[/\-.]\d{4}|[12]\d{3}[-\s/][12]?\d{2,4})',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (expMatch != null) {
+      expiryDate = expMatch.group(1)?.replaceAll('-', '/');
+    }
+
+    // 7. Father's Name
+    String? fatherName;
+    final fatherMatch = RegExp(
+      r'(?:Father(?:\x27s)?(?:\s*Name)?|S/O|D/O|W/O|Care\s*of|Guardian)[:\s\-]+([^\n\r,]+)',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (fatherMatch != null && _isValidEnglishName(fatherMatch.group(1)!)) {
+      fatherName = _cleanPersonName(fatherMatch.group(1)!);
     }
 
     final dob = _extractDob(text);
     final phone = _extractPhone(text);
 
-    // If no meaningful ID or college was found, zero the confidence
+    // If no meaningful ID or college was found, clamp confidence to 0
     if (rollNumber == null && college == null) {
       confidence = 0;
     }
 
     return OcrResult(
       name: name,
+      fatherName: fatherName,
       dob: dob,
       idNumber: rollNumber,
       college: college,
       course: course,
+      bloodGroup: bloodGroup,
       phone: phone,
       rollNumber: rollNumber,
+      expiryDate: expiryDate,
       confidence: confidence.clamp(0, 100),
       rawText: text,
     );

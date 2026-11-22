@@ -1031,10 +1031,51 @@ class SeatRepository {
             .collection(FirestorePaths.seats)
             .doc(seatId);
 
-        batch.update(seatRef, {
+        final updateData = <String, dynamic>{
           'status': status.name,
           'updatedAt': FieldValue.serverTimestamp(),
-        });
+        };
+
+        if (status == SeatStatus.available) {
+          updateData['studentId'] = null;
+          updateData['assignedAt'] = FieldValue.delete();
+          updateData['vacatedAt'] = FieldValue.serverTimestamp();
+          updateData['reservationType'] = FieldValue.delete();
+          updateData['reservedCandidateId'] = FieldValue.delete();
+          updateData['reservedCandidateName'] = FieldValue.delete();
+          updateData['reservationExpiresAt'] = FieldValue.delete();
+        } else if (status == SeatStatus.maintenance) {
+          updateData['reservationType'] = FieldValue.delete();
+          updateData['reservedCandidateId'] = FieldValue.delete();
+          updateData['reservedCandidateName'] = FieldValue.delete();
+          updateData['reservationExpiresAt'] = FieldValue.delete();
+        }
+
+        batch.update(seatRef, updateData);
+      }
+
+      if (status == SeatStatus.available) {
+        // Clear seat links on students who occupied any of these seats
+        try {
+          final studentsSnap = await _firestore
+              .collection(FirestorePaths.libraries)
+              .doc(libraryId)
+              .collection(FirestorePaths.students)
+              .where('sectionId', isEqualTo: sectionId)
+              .get();
+
+          for (final doc in studentsSnap.docs) {
+            final sSeatId = doc.data()['seatId'] as String?;
+            if (sSeatId != null && seatIds.contains(sSeatId)) {
+              batch.update(doc.reference, {
+                'seatId': null,
+                'sectionId': null,
+                'previousSeatId': sSeatId,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        } catch (_) {}
       }
 
       await batch.commit();

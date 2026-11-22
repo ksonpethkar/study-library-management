@@ -331,18 +331,42 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     final isExpiringSoon = !isExpired && (daysLeft != null && daysLeft <= 7);
     final isMarathi = (library?.templateLanguage ?? 'mr') == 'mr';
 
-    final friendlyMemberId = s.membershipNumber?.isNotEmpty == true
-        ? s.membershipNumber!
-        : (s.customFields['admissionNo']?.toString().isNotEmpty == true
-            ? s.customFields['admissionNo'].toString()
-            : s.id);
-    final friendlyPlanName = planName.isNotEmpty
-        ? planName
-        : (s.customPlanName?.isNotEmpty == true
-            ? s.customPlanName!
-            : (s.planId != null && s.planId!.length < 20 ? s.planId! : 'Standard Plan'));
+    // 1. Resolve Human-Friendly Admission / Member ID (never raw 20-char Firestore UIDs)
+    final rawMemberId = s.membershipNumber?.trim() ?? '';
+    final friendlyMemberId = rawMemberId.isNotEmpty
+        ? rawMemberId
+        : (s.rollNumber?.trim().isNotEmpty == true
+            ? s.rollNumber!.trim()
+            : (s.customFields['admissionNo']?.toString().trim().isNotEmpty == true
+                ? s.customFields['admissionNo'].toString().trim()
+                : (s.customFields['admissionId']?.toString().trim().isNotEmpty == true
+                    ? s.customFields['admissionId'].toString().trim()
+                    : (s.customFields['membershipNo']?.toString().trim().isNotEmpty == true
+                        ? s.customFields['membershipNo'].toString().trim()
+                        : (s.id.length > 10 ? 'CC-${s.id.substring(0, 6).toUpperCase()}' : s.id)))));
+
+    // 2. Resolve Human-Friendly Plan Name (never raw 20-char Firestore Plan doc IDs)
+    String resolvedPlan = planName.trim();
+    if (resolvedPlan.isEmpty && s.planId != null && s.planId!.isNotEmpty) {
+      if (s.customPlanName?.trim().isNotEmpty == true) {
+        resolvedPlan = s.customPlanName!.trim();
+      } else {
+        final plans = ref.read(plansStreamProvider).value ?? [];
+        final matched = plans.where((p) => p.id == s.planId).firstOrNull;
+        if (matched != null) {
+          resolvedPlan = matched.name;
+        }
+      }
+    }
+    final friendlyPlanName = (resolvedPlan.isNotEmpty && resolvedPlan.length < 25 && !RegExp(r'^[a-zA-Z0-9]{18,}$').hasMatch(resolvedPlan))
+        ? resolvedPlan
+        : (s.customPlanName?.trim().isNotEmpty == true && !RegExp(r'^[a-zA-Z0-9]{18,}$').hasMatch(s.customPlanName!)
+            ? s.customPlanName!.trim()
+            : (planPrice > 0 ? '₹${planPrice.toStringAsFixed(0)} Plan' : 'Quarterly'));
+
+    // 3. Resolve Human-Friendly Seat Label
     final friendlySeat = (s.seatId != null && s.seatId!.isNotEmpty)
-        ? SeatHelper.formatSeatLabel(seatId: s.seatId, rawLabel: seatLabel)
+        ? SeatHelper.formatDeskLabel(seatId: s.seatId, rawLabel: seatLabel)
         : (isMarathi ? 'फ्लेक्सिबल / जनरल सीट (रिसेप्शनवर संपर्क साधा)' : 'Flexible / General Access');
 
     final effectivePlanCost = planPrice > 0
@@ -361,7 +385,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
 
     final friendlyAmount = paidCalc > 0
         ? paidCalc.toStringAsFixed(0)
-        : (s.customFields['paidAmount']?.toString() ?? (effectivePlanCost > 0 ? effectivePlanCost.toStringAsFixed(0) : '0'));
+        : (effectivePlanCost > 0
+            ? effectivePlanCost.toStringAsFixed(0)
+            : (s.customFields['paidAmount']?.toString() ?? (hasDue ? '0' : '2000')));
 
     final friendlyPaymentMethod = lastPaymentMethod.isNotEmpty
         ? lastPaymentMethod
@@ -369,7 +395,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             ? s.customFields['paymentMethod'].toString()
             : (s.customFields['paymentMode']?.toString().isNotEmpty == true
                 ? s.customFields['paymentMode'].toString()
-                : 'Cash / Pay at Reception'));
+                : (isMarathi ? 'रोख / रिसेप्शनवर जमा' : 'Cash / Pay at Reception')));
 
     final expiryFormatted = s.planEndDate != null ? DateFormat('dd MMM yyyy').format(s.planEndDate!) : '';
     final validFromFormatted = s.planStartDate != null ? DateFormat('dd MMM yyyy').format(s.planStartDate!) : '';

@@ -1354,7 +1354,15 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                 final seat = seats[sIndex];
 
                 final isMySeat = seat.id == student.seatId ||
-                    (student.seatId != null && seat.label == student.seatId);
+                    (student.seatId != null && (
+                      seat.label == student.seatId ||
+                      (SeatHelper.formatSeatNumberOnly(rawLabel: seat.label).isNotEmpty &&
+                          SeatHelper.formatSeatNumberOnly(rawLabel: seat.label) ==
+                              SeatHelper.formatSeatNumberOnly(seatId: student.seatId, rawLabel: student.seatId)) ||
+                      (SeatHelper.formatSeatNumberOnly(seatId: seat.id).isNotEmpty &&
+                          SeatHelper.formatSeatNumberOnly(seatId: seat.id) ==
+                              SeatHelper.formatSeatNumberOnly(seatId: student.seatId, rawLabel: student.seatId))
+                    ));
 
                 final seatFormatted = SeatHelper.formatSeatLabel(
                   seatId: seat.id,

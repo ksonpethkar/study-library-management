@@ -97,21 +97,35 @@ class ExpenseOcrParser {
     }
 
     // 2. Extract Total Amount
+    // Priority: use the LAST occurrence of a "Total/Grand Total/Net Payable" labelled amount
+    // to avoid picking sub-totals, meter readings, or GST components that appear earlier.
     double? amount;
     final amountPatterns = [
       RegExp(r'(?:Total\s*Amount|Grand\s*Total|Net\s*Payable|Total\s*Due|Invoice\s*Amount|Amount\s*Due|Bill\s*Amount)[:\s\-#]*(?:₹|Rs\.?|INR)?\s*([0-9,]+(?:\.[0-9]{2})?)', caseSensitive: false),
       RegExp(r'(?:₹|Rs\.?|INR)\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)'),
     ];
 
-    for (final pattern in amountPatterns) {
-      final match = pattern.firstMatch(rawText);
-      if (match != null) {
-        final cleanAmt = match.group(1)?.replaceAll(',', '');
+    // Try primary pattern: take the LAST labelled total (not the first) to skip sub-totals
+    final primaryMatches = amountPatterns[0].allMatches(rawText).toList();
+    if (primaryMatches.isNotEmpty) {
+      final lastMatch = primaryMatches.last;
+      final cleanAmt = lastMatch.group(1)?.replaceAll(',', '');
+      final parsed = double.tryParse(cleanAmt ?? '');
+      if (parsed != null && parsed > 0 && parsed <= 500000) {
+        amount = parsed;
+        confidence += 35;
+      }
+    }
+
+    // Fallback: first ₹ symbol occurrence if no labelled total found
+    if (amount == null) {
+      final fallbackMatch = amountPatterns[1].firstMatch(rawText);
+      if (fallbackMatch != null) {
+        final cleanAmt = fallbackMatch.group(1)?.replaceAll(',', '');
         final parsed = double.tryParse(cleanAmt ?? '');
         if (parsed != null && parsed > 0 && parsed <= 500000) {
           amount = parsed;
-          confidence += 35;
-          break;
+          confidence += 20; // lower confidence for ₹ fallback
         }
       }
     }

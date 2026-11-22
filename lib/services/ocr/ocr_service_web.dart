@@ -8,6 +8,9 @@ external JSPromise<JSString>? _recognizeOcrText(JSString base64Image);
 @JS('decodeQrCodeFromImage')
 external JSPromise<JSString?>? _decodeQrCodeFromImage(JSString base64Image);
 
+@JS('extractPdfText')
+external JSPromise<JSString?>? _extractPdfText(JSString base64Pdf);
+
 class PlatformOcrService {
   static Future<String> processPath(String imagePath) async {
     return '';
@@ -34,6 +37,18 @@ class PlatformOcrService {
       return jsResult?.toDart;
     } catch (_) {
       return null;
+    }
+  }
+
+  static Future<String> extractPdfText(Uint8List bytes) async {
+    try {
+      final base64Str = 'data:application/pdf;base64,${base64Encode(bytes)}';
+      final promise = _extractPdfText(base64Str.toJS);
+      if (promise == null) return '';
+      final jsResult = await promise.toDart;
+      return jsResult?.toDart ?? '';
+    } catch (_) {
+      return '';
     }
   }
 }

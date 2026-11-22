@@ -509,7 +509,7 @@ class _RegistrationFormScreenState
 
     try {
       if (doc.isPdf) {
-        // PDF Document directly attached
+        // Digital PDF Document attached
         final updates = <String, dynamic>{
           if (isBackSide) ...{
             'govIdBackDataUrl': dataUrl,
@@ -524,6 +524,88 @@ class _RegistrationFormScreenState
             'govIdFileName': doc.fileName,
           },
         };
+
+        // Attempt instant digital text extraction from PDF (e.g. e-Aadhaar, DigiLocker certificates)
+        final ocrService = OcrService();
+        final pdfText = await ocrService.extractPdfText(doc.bytes);
+
+        if (pdfText.trim().isNotEmpty) {
+          final detectedType = OcrParser.detectGovIdType(pdfText);
+          final finalType = detectedType != GovIdType.other ? detectedType : _selectedGovIdType;
+          final result = await OcrParser.parseUnifiedAsync(
+            rawText: pdfText,
+            preferredType: finalType,
+          );
+
+          updates['govIdType'] = finalType.name;
+          setState(() {
+            _selectedGovIdType = finalType;
+            if (result.idNumber != null && result.idNumber!.trim().isNotEmpty) {
+              final formatted = GovIdValidator.format(finalType, result.idNumber!.trim());
+              _idNumberController.text = formatted;
+              _autoFilledKeys.add('govIdNumber');
+              updates['govIdNumber'] = formatted;
+            }
+            if (result.name != null && result.name!.trim().isNotEmpty) {
+              _nameController.text = result.name!.trim();
+              _autoFilledKeys.add('name');
+              updates['name'] = result.name!.trim();
+            }
+            if (result.fatherName != null && result.fatherName!.trim().isNotEmpty) {
+              _fatherNameController.text = result.fatherName!.trim();
+              _autoFilledKeys.add('fatherName');
+              updates['fatherName'] = result.fatherName!.trim();
+            }
+            if (result.dob != null && result.dob!.trim().isNotEmpty) {
+              _dobController.text = result.dob!.trim();
+              _autoFilledKeys.add('dob');
+              updates['dob'] = result.dob!.trim();
+            }
+            if (result.gender != null && result.gender!.trim().isNotEmpty) {
+              final g = result.gender!.toLowerCase();
+              if (g.contains('female')) {
+                _gender = 'female';
+              } else if (g.contains('male')) {
+                _gender = 'male';
+              }
+              updates['gender'] = _gender;
+            }
+            if (result.address != null && result.address!.trim().isNotEmpty) {
+              _addressController.text = result.address!.trim();
+              _autoFilledKeys.add('address');
+              updates['address'] = result.address!.trim();
+              updates['govIdBackDataUrl'] = dataUrl;
+              updates['govIdBackImageUrl'] = dataUrl;
+            }
+            if (result.pinCode != null && result.pinCode!.trim().isNotEmpty) {
+              _pinCodeController.text = result.pinCode!.trim();
+              _autoFilledKeys.add('pinCode');
+              updates['pinCode'] = result.pinCode!.trim();
+            }
+          });
+
+          ref.read(registrationNotifierProvider.notifier).updateFields(updates);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.verified_rounded, color: Colors.greenAccent),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('✓ Digital PDF (${doc.fileName}) scanned & details auto-filled!'),
+                    ),
+                  ],
+                ),
+                backgroundColor: const Color(0xFF1E293B),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return;
+        }
+
         ref.read(registrationNotifierProvider.notifier).updateFields(updates);
 
         if (mounted) {
@@ -571,10 +653,10 @@ class _RegistrationFormScreenState
         }
         ref.read(registrationNotifierProvider.notifier).updateFields(updates);
       } else {
-        final qrParsed = QrIdParser.parseQrString(qrString);
+        final qrParsed = await QrIdParser.parseQrStringAsync(qrString);
         final detectedType = qrParsed?.type ?? OcrParser.detectGovIdType(rawText);
         final finalType = detectedType != GovIdType.other ? detectedType : _selectedGovIdType;
-        final result = OcrParser.parseUnified(
+        final result = await OcrParser.parseUnifiedAsync(
           qrString: qrString,
           rawText: rawText,
           preferredType: finalType,
@@ -697,8 +779,9 @@ class _RegistrationFormScreenState
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
       // Even if OCR failed to read, the document is STILL validly attached!
+      debugPrint('[OCR] _scanOrAttachGovId error: $e');
       final fallbackUpdates = <String, dynamic>{
         if (isBackSide) ...{
           'govIdBackDataUrl': dataUrl,
@@ -714,10 +797,11 @@ class _RegistrationFormScreenState
       ref.read(registrationNotifierProvider.notifier).updateFields(fallbackUpdates);
 
       if (mounted) {
+        final hint = _ocrErrorHint(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ID document attached! Please confirm or enter your ID number below.'),
-            backgroundColor: Color(0xFF1E293B),
+          SnackBar(
+            content: Text('ID document attached! $hint'),
+            backgroundColor: const Color(0xFF1E293B),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -727,6 +811,21 @@ class _RegistrationFormScreenState
         setState(() => _isScanningId = false);
       }
     }
+  }
+
+  /// Returns a user-friendly hint based on the OCR error type.
+  String _ocrErrorHint(Object e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('permission')) {
+      return 'Camera permission was denied — please grant access in device Settings.';
+    }
+    if (msg.contains('format') || msg.contains('decode') || msg.contains('codec')) {
+      return 'Unsupported image format. Try JPG or PNG.';
+    }
+    if (msg.contains('memory') || msg.contains('oom')) {
+      return 'Image is too large — please use a smaller photo.';
+    }
+    return 'Please manually enter your ID number in the field below.';
   }
 
   void _handleBack(bool isGovIdVisible) {

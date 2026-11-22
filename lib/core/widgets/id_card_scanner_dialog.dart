@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:study_library/features/registration/data/ocr_parser.dart';
@@ -170,11 +171,30 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
         }
       });
 
-      // 1. Instant client-side QR Code decoding
-      final qrString = await _ocrService.decodeQrBytes(bytes);
+      // 1. Digital PDF extraction vs Image OCR
+      String rawText = '';
+      String? qrString;
+      if (doc.isPdf) {
+        rawText = await _ocrService.extractPdfText(bytes);
+      }
+      if (rawText.isEmpty) {
+        // Instant client-side QR Code decoding
+        qrString = await _ocrService.decodeQrBytes(bytes);
+        // High-accuracy OCR (with contrast & grayscale preprocessing on IO)
+        rawText = await _ocrService.processImageBytes(bytes);
+      }
 
-      // 2. High-accuracy OCR
-      final rawText = await _ocrService.processImageBytes(bytes);
+      // 2. Compute aspect ratio from actual image dimensions for layout classifier
+      double? aspectRatio;
+      try {
+        final codec = await ui.instantiateImageCodec(bytes);
+        final frame = await codec.getNextFrame();
+        final w = frame.image.width.toDouble();
+        final h = frame.image.height.toDouble();
+        if (h > 0) aspectRatio = w / h;
+        frame.image.dispose();
+        codec.dispose();
+      } catch (_) { /* non-fatal — layout classifier degrades gracefully without it */ }
 
       if (!mounted) return;
 
@@ -184,7 +204,7 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
       if (isBack) {
         // Back side parsing
         final typeToUse = _selectedType ?? _detectedType;
-        final parsed = OcrParser.parseUnified(
+        final parsed = await OcrParser.parseUnifiedAsync(
           qrString: qrString,
           rawText: rawText,
           preferredType: typeToUse,
@@ -192,6 +212,7 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
         final layout = DocumentLayoutClassifier.classify(
           rawText: rawText,
           preferredType: typeToUse,
+          aspectRatio: aspectRatio,
         );
         setState(() {
           _backResult = parsed;
@@ -206,10 +227,10 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
         });
       } else {
         // Front side parsing & intelligent orientation classification
-        final qrParsed = QrIdParser.parseQrString(qrString);
+        final qrParsed = await QrIdParser.parseQrStringAsync(qrString);
         final autoDetected = qrParsed?.type ?? OcrParser.detectGovIdType(rawText);
         final effectiveType = _isAutoDetect ? autoDetected : (_selectedType ?? autoDetected);
-        final parsed = OcrParser.parseUnified(
+        final parsed = await OcrParser.parseUnifiedAsync(
           qrString: qrString,
           rawText: rawText,
           preferredType: effectiveType,
@@ -218,6 +239,7 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
         final layout = DocumentLayoutClassifier.classify(
           rawText: rawText,
           preferredType: effectiveType,
+          aspectRatio: aspectRatio,
         );
 
         setState(() {
@@ -702,9 +724,10 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
     final b = _backResult;
     final hasAddress = (b?.address != null && b!.address!.isNotEmpty) ||
         (f?.address != null && f!.address!.isNotEmpty);
+    // Require a valid ID number OR a genuinely valid name — confidence fallback removed
+    // as it was too low (26%) and could show garbled government headers as extracted data.
     final hasExtractedData = (f?.idNumber != null && f!.idNumber!.trim().isNotEmpty) ||
-        (f?.name != null && f!.name!.trim().isNotEmpty) ||
-        (f != null && f.confidence > 25);
+        (f?.name != null && f!.name!.trim().isNotEmpty && GovIdValidator.isValidName(f.name));
 
     final isIdValid = GovIdValidator.isValid(_detectedType, f?.idNumber);
     final isNameValid = GovIdValidator.isValidName(f?.name);

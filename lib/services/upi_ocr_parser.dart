@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:study_library/core/validators/aadhaar_validator.dart';
 
 class UpiScanResult {
   final String? utr;
@@ -76,14 +77,20 @@ class UpiPaymentOcrParser {
     }
 
     // Fallback search for 12 contiguous digits in lines
+    // Guard: exclude 12-digit numbers that pass Aadhaar Verhoeff checksum
+    // (they are Aadhaar IDs, not UTR numbers — prevents false UTR extraction).
     if (utr == null) {
       final lines = rawText.split('\n');
       for (final line in lines) {
         final match = RegExp(r'\b([0-9]{12})\b').firstMatch(line);
         if (match != null) {
-          utr = match.group(1);
-          confidence += 25;
-          break;
+          final candidate = match.group(1)!;
+          // Skip if it looks like an Aadhaar number (Verhoeff checksum passes)
+          if (!AadhaarValidator.validateVerhoeff(candidate)) {
+            utr = candidate;
+            confidence += 25;
+            break;
+          }
         }
       }
     }

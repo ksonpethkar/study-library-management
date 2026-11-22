@@ -86,13 +86,13 @@ final requestModuleCountsProvider = Provider<RequestModuleCounts>((ref) {
 
   for (final r in pending) {
     final t = r.type.toLowerCase().trim();
-    if (t == 'registration' || t == 'newregistration') {
+    if (t == 'registration' || t == 'newregistration' || t == 'new_registration' || t == 'admission') {
       admissions++;
-    } else if (t == 'seat_change' || t == 'seatchange') {
+    } else if (t == 'seat_change' || t == 'seatchange' || t == 'seat_shift' || t == 'desk_change') {
       seatChanges++;
-    } else if (t == 'renewal' || t == 'plan_renewal') {
+    } else if (t == 'renewal' || t == 'plan_renewal' || t == 'planrenewal' || t == 'renewmembership') {
       renewals++;
-    } else if (t == 'profile_update') {
+    } else if (t == 'profile_update' || t == 'profileupdate') {
       profileUpdates++;
     } else {
       other++;

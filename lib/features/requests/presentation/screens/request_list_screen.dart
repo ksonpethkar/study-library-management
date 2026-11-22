@@ -47,10 +47,14 @@ class StudentRequestItem {
   bool get isPending {
     final s = status.toLowerCase().trim();
     return s == 'pending' ||
+        s == 'new' ||
         s == 'desk_payment_pending' ||
         s == 'payment_pending' ||
         s == 'submitted' ||
         s == 'open' ||
+        s == 'waiting' ||
+        s == 'review' ||
+        s == 'under_review' ||
         s.contains('pending');
   }
 
@@ -237,19 +241,31 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
       switch (_selectedCategory) {
         case 'registration':
         case 'admissions':
-          return t == 'registration' || t == 'newregistration';
+          return t == 'registration' ||
+              t == 'newregistration' ||
+              t == 'new_registration' ||
+              t == 'admission';
         case 'seat_change':
         case 'seats':
-          return t == 'seat_change' || t == 'seatchange';
+          return t == 'seat_change' ||
+              t == 'seatchange' ||
+              t == 'seat_shift' ||
+              t == 'desk_change';
         case 'renewal':
         case 'renewals':
-          return t == 'renewal' || t == 'plan_renewal';
+          return t == 'renewal' ||
+              t == 'plan_renewal' ||
+              t == 'planrenewal' ||
+              t == 'renewmembership';
         case 'due_payment':
         case 'dues':
-          return t == 'due_payment' || t == 'due_clearance';
+          return t == 'due_payment' ||
+              t == 'due_clearance' ||
+              t == 'duepayment' ||
+              t == 'fee_due';
         case 'profile_update':
         case 'profile':
-          return t == 'profile_update';
+          return t == 'profile_update' || t == 'profileupdate';
         default:
           return true;
       }
@@ -867,53 +883,17 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                     ),
                   ),
 
-                // 3. Tab Contents
+                // 3. Tab Contents — use IndexedStack to avoid stale cached renders
+                // that occur when TabBarView pre-builds all 4 children and category
+                // filter state doesn't re-trigger child rebuilds reliably.
                 Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildRequestList(
-                        context,
-                        ref,
-                        libraryId,
-                        pending,
-                        isPendingTab: true,
-                        moduleCounts: moduleCounts,
-                        emptyTitle: 'All caught up! 🎉',
-                        emptySubtitle: 'There are no pending requests for this filter.',
-                        emptyIcon: Icons.check_circle_outline_rounded,
-                      ),
-                      _buildRequestList(
-                        context,
-                        ref,
-                        libraryId,
-                        approved,
-                        moduleCounts: moduleCounts,
-                        emptyTitle: 'No approved requests',
-                        emptySubtitle: 'Approved requests will appear here.',
-                        emptyIcon: Icons.task_alt_rounded,
-                      ),
-                      _buildRequestList(
-                        context,
-                        ref,
-                        libraryId,
-                        rejected,
-                        moduleCounts: moduleCounts,
-                        emptyTitle: 'No rejected requests',
-                        emptySubtitle: 'Rejected requests will appear here.',
-                        emptyIcon: Icons.cancel_outlined,
-                      ),
-                      _buildRequestList(
-                        context,
-                        ref,
-                        libraryId,
-                        requests,
-                        moduleCounts: moduleCounts,
-                        emptyTitle: 'No requests yet',
-                        emptySubtitle: 'Student requests across modules will appear here.',
-                        emptyIcon: Icons.inbox_outlined,
-                      ),
-                    ],
+                  child: _buildActiveTabList(
+                    context, ref, libraryId,
+                    pending: pending,
+                    approved: approved,
+                    rejected: rejected,
+                    all: requests,
+                    moduleCounts: moduleCounts,
                   ),
                 ),
               ],
@@ -922,6 +902,60 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
         );
       },
     );
+  }
+
+  Widget _buildActiveTabList(
+    BuildContext context,
+    WidgetRef ref,
+    String? libraryId, {
+    required List<StudentRequestItem> pending,
+    required List<StudentRequestItem> approved,
+    required List<StudentRequestItem> rejected,
+    required List<StudentRequestItem> all,
+    required RequestModuleCounts moduleCounts,
+  }) {
+    // Determine which list to show based on current tab index.
+    // Using a direct switch + single widget build avoids the stale state bug
+    // where TabBarView pre-renders all 4 children and category filter changes
+    // don't re-trigger child rebuilds reliably across tab transitions.
+    switch (_tabController.index) {
+      case 0:
+        return _buildRequestList(
+          context, ref, libraryId, pending,
+          isPendingTab: true,
+          moduleCounts: moduleCounts,
+          emptyTitle: 'All caught up! 🎉',
+          emptySubtitle: pending.isEmpty
+              ? 'No pending requests right now. Great work!'
+              : 'No requests match the selected filter.',
+          emptyIcon: Icons.check_circle_outline_rounded,
+        );
+      case 1:
+        return _buildRequestList(
+          context, ref, libraryId, approved,
+          moduleCounts: moduleCounts,
+          emptyTitle: 'No approved requests',
+          emptySubtitle: 'Approved requests will appear here.',
+          emptyIcon: Icons.task_alt_rounded,
+        );
+      case 2:
+        return _buildRequestList(
+          context, ref, libraryId, rejected,
+          moduleCounts: moduleCounts,
+          emptyTitle: 'No rejected requests',
+          emptySubtitle: 'Rejected requests will appear here.',
+          emptyIcon: Icons.cancel_outlined,
+        );
+      case 3:
+      default:
+        return _buildRequestList(
+          context, ref, libraryId, all,
+          moduleCounts: moduleCounts,
+          emptyTitle: 'No requests yet',
+          emptySubtitle: 'Student requests across all modules will appear here.',
+          emptyIcon: Icons.inbox_outlined,
+        );
+    }
   }
 
   Widget _buildRequestList(
