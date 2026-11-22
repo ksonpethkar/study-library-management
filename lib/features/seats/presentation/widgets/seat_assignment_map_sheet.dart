@@ -478,8 +478,8 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
       sortedSeats = [...sectionSeats]..sort(SeatHelper.compareSeats);
     }
 
-    final availableCount = sortedSeats.where((s) => s.status == SeatStatus.available).length;
-    final occupiedCount = sortedSeats.where((s) => s.status == SeatStatus.occupied).length;
+    final availableCount = sortedSeats.where((s) => s.effectiveStatus == SeatStatus.available).length;
+    final occupiedCount = sortedSeats.where((s) => s.effectiveStatus == SeatStatus.occupied).length;
 
     return Column(
       children: [
@@ -804,9 +804,9 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
                     letterSpacing: 0.5,
                   ),
                 )
-              else if (isOccupied && occupant != null)
+              else if (isOccupied && (occupant != null || (seat.studentName != null && seat.studentName!.isNotEmpty)))
                 Text(
-                  occupant.name.split(' ').first,
+                  (occupant?.name ?? seat.studentName ?? '').split(' ').first,
                   style: TextStyle(
                     fontSize: 7.5,
                     fontWeight: FontWeight.w600,
@@ -885,7 +885,9 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
                                     : 'Available for immediate allocation')
                                 : (occupant != null
                                     ? 'Occupied by ${occupant.name} (${occupant.phone})'
-                                    : 'Desk is currently occupied / reserved')),
+                                    : (targetSeat.studentName != null && targetSeat.studentName!.isNotEmpty
+                                        ? 'Occupied by ${targetSeat.studentName}'
+                                        : 'Desk is currently occupied / reserved'))),
                         style: TextStyle(
                           fontSize: 12,
                           color: isDark ? Colors.white60 : Colors.grey.shade600,

@@ -8946,5 +8946,56 @@ Session: 2024-2025
       final displayLabelShubham = '${SeatHelper.formatDeskLabel(seatId: studentShubham.seatId)} • ${secMap[studentShubham.sectionId]}';
       expect(displayLabelShubham, equals('Desk #16 • Cozy Hall'));
     });
+
+    test('Test 170: SeatModel effectiveStatus, studentName persistence & ribbon counter consistency', () {
+      // 1. Seat with status: available but studentName present (legacy residual)
+      final residualSeat = SeatModel.fromJson({
+        'id': 'seat_3',
+        'sectionId': 'sec_cozy',
+        'label': '3',
+        'row': 0,
+        'col': 2,
+        'status': 'available',
+        'studentName': 'Srikrishnadatta Bharat Sonpethkar',
+      });
+      // Invariant: effectiveStatus must report occupied
+      expect(residualSeat.effectiveStatus, equals(SeatStatus.occupied));
+      expect(residualSeat.isOccupied, isTrue);
+      expect(residualSeat.studentName, equals('Srikrishnadatta Bharat Sonpethkar'));
+
+      // 2. Seat properly occupied with both studentId and studentName
+      final occupiedSeat = SeatModel.fromJson({
+        'id': 'seat_6',
+        'sectionId': 'sec_cozy',
+        'label': '6',
+        'row': 0,
+        'col': 5,
+        'status': 'occupied',
+        'studentId': 'student_ashish',
+        'studentName': 'Ashish Wagesh Choudhari',
+      });
+      expect(occupiedSeat.effectiveStatus, equals(SeatStatus.occupied));
+      expect(occupiedSeat.isOccupied, isTrue);
+
+      // 3. Clean available seat
+      final availableSeat = SeatModel.fromJson({
+        'id': 'seat_1',
+        'sectionId': 'sec_cozy',
+        'label': '1',
+        'row': 0,
+        'col': 0,
+        'status': 'available',
+      });
+      expect(availableSeat.effectiveStatus, equals(SeatStatus.available));
+      expect(availableSeat.isOccupied, isFalse);
+      expect(availableSeat.studentName, isNull);
+
+      // 4. Ribbon count consistency
+      final allSeats = [residualSeat, occupiedSeat, availableSeat];
+      final occupiedCount = allSeats.where((s) => s.effectiveStatus == SeatStatus.occupied).length;
+      final availableCount = allSeats.where((s) => s.effectiveStatus == SeatStatus.available).length;
+      expect(occupiedCount, equals(2));
+      expect(availableCount, equals(1));
+    });
   });
 }

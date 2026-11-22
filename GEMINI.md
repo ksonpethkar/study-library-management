@@ -554,28 +554,81 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
 
 ---
 
-## 32. Real-Time Dynamic Seat Map Synchronization, Cross-Section Auto-Healing & Spatial Parity (Learned Nov 2026)
+## 32. Restore Desk 1-Tap Optimistic State Mutation, Column Calculation & Double-Prefix Guardrails (Learned Nov 2026)
 
-1. **Cross-Section Row & Col Coordinate Healing (`SentinelInvariantEngine.autoHealInvalidDeskReference`):**
-   - Root Cause: When study hall sections are recreated, renamed, or migrated, student records retained legacy seat pointer prefixes (e.g. `1790047281016_r0_c4` with timestamp `179004...`) while the active section in Firestore used a new section ID (e.g. `1790647291016`). Sentinel's auto-heal checked direct string equality `doc(targetSeatId).get()`, failed to locate the seat in the active section, and threw an exception / failed to heal.
-   - Guardrail: In `autoHealInvalidDeskReference`, inspect `targetSeatId` for spatial coordinates using `RegExp(r'_r(\d+)_c(\d+)$')`. If present, query the corresponding coordinate in the active section `${secDoc.id}_r${r}_c$c`. Also fetch section seat inventory in memory to match by `studentId` or normalized number (`SeatHelper.formatSeatNumberOnly`) without triggering composite Firestore index exceptions. When matched, establish double-binding on BOTH the seat document (`status: 'occupied'`, `studentId`, `studentName`) and the student profile (`seatId`, `sectionId`, `seatLabel`). If the desk truly no longer exists in any section, cleanly delete the invalid pointer so the student is marked as unassigned.
+1. **1-Tap Optimistic State Mutation (0ms UI Latency vs 2-Tap User Confusion):**
+   - Root Cause: Tapping "Restore Desk" in `student_detail_screen.dart` executed `await seatRepo.assignStudent(...)` and showed a green snackbar immediately, but `_loadStudent()` took several seconds across multiple sequential Firestore network calls. Without optimistic state mutation in memory, `student.seatId` stayed null and the "Seat Info" card continued showing "No seat assigned yet" + "Restore Desk". Users saw the green success toast but thought the UI was unresponsive or broken, prompting them to tap a second time.
+   - Guardrail: When "Restore Desk" is tapped, immediately mutate local state in memory with `student = s.copyWith(seatId: targetSeat, sectionId: targetSec)`, `seatLabel = restoredSeatNumber`, and `sectionName = restoredSectionName` with 0ms latency. The UI instantly transitions to the active seat card. If the network transaction fails, gracefully revert state and display an error snackbar.
 
-2. **Public Live Seat Map Dynamic Reflection & Real-Time Sync (`public/seats/index.html`):**
-   - Root Cause: In `public/seats/index.html`, `resolveEffectiveStatus` evaluated only raw `seat.status`, ignoring attached `studentId`, `studentName`, and `isOccupied` flags. Furthermore, `updateStats` did not properly account for maintenance and expired soft-locks. As a result, prospective students visiting `https://study-lib-mgmt-2026.web.app/seats/?lib=...` saw 100% available desks (60 of 60 available) even when desks were actively assigned and occupied.
-   - Guardrail: In `public/seats/index.html`, `resolveEffectiveStatus` must check `if (rawStatus === 'occupied' || seat.isOccupied === true || (seat.studentId && String(seat.studentId).trim().length > 0) || (seat.studentName && String(seat.studentName).trim().length > 0)) return 'occupied'`. If held under an active 5-minute soft-lock, return `'reserved'`. If the reservation timestamp has expired, dynamically return `'available'`. Tapping an occupied seat must update the bottom drawer to display "🔴 Currently Occupied by Student" and replace the WhatsApp booking button with "💬 Inquire on WhatsApp for Next Renewal".
-
-3. **Facility Occupancy Radar & Admin Seat Map Parity (`occupancyProvider` & `SeatGridWidget`):**
-   - Root Cause: In `occupancyProvider` and `SeatGridWidget`, occupancy was strictly filtered by `s.membershipStatus == MembershipStatus.active`. Students in `grace` status (whose memberships were within the 3-day grace period) were excluded, showing 0 occupied desks on the Admin Dashboard Radar. Furthermore, `findStudentForSeat` did not normalize composite seat IDs.
+2. **Section Column Math Accuracy & Fallback Floor (Seat 16 vs Seat 20):**
+   - Root Cause: `SeatHelper.formatSeatLabel` on composite seat coordinates `_r{row}_c{col}` (e.g. `sec_r1_c9` for Shubham Dixit in Cozy Hall) defaulted to `totalCols = 6` when `cols` was null. Row 1, Column 9 calculated as `1 * 6 + 9 + 1 = 16` (`Seat #16`). In Cozy Hall, the actual section width is 10 columns (`1 * 10 + 9 + 1 = 20`, Seat 20). When `_loadStudent()` subsequently finished fetching the real seat document from Firestore, the label updated from `Seat #16` to `Seat 20`, causing users to think a different seat was assigned.
    - Guardrail:
-     a) Both `MembershipStatus.active` and `MembershipStatus.grace` students with assigned desks must be counted toward occupied seats.
-     b) `occupancyProvider` must index occupied seats by normalized keys (`seat_num_$numOnly`) so that legacy pointers (`179004..._r0_c4`) and new seat IDs (`179064..._r0_c4`) map to the exact same desk without double-counting.
-     c) In `SeatGridWidget`, construct `studentByNum` mapping normalized seat numbers to students so that Admin Seat Map immediately highlights desks in red with full student details.
+     a) Default Section Columns: `SeatHelper.formatSeatLabel` fallback column width for `_r{row}_c{col}` must match the application standard default section columns of `10` (`_colsController = TextEditingController(text: '10')`), NOT 6.
+     b) Section & Seat Resolution: In `_loadStudent()`, safely query both `previousSectionId` and `previousSeatId` so `previousSeatLabel` and `previousSectionName` are resolved directly from Firestore seat documents (`label: '20'`) and section names (`name: 'Cozy Hall'`), never relying on blind coordinate math.
+     c) Real-Time Stream Synchronization: In `_startLiveStudentSubscription`, update both `seatLabel` and `sectionName` when snapshot data emits.
 
-4. **Leading Apps Benchmarking Invariants (BookMyShow, Airlines, Co-Working Platforms):**
-   - Benchmarking:
-     a) **BookMyShow Style Cart Locking**: 5-minute atomic soft-locks (`reservationExpiresAt`) prevent collision while prospective candidates fill registration forms.
-     b) **Airline Style Single-Passenger-Single-Seat**: One student can never hold multiple desks simultaneously. Assigning a student to Desk 8 must automatically release Desks 2 and 6.
-     c) **Co-Working Spatial Navigation**: Strict dual-portal visibility — public viewers see real-time availability without student PII (GDPR / DPDP compliance), while admin staff see student names, phone numbers, and plan expiry dates directly on the floor plan.
+3. **Universal Single-Prefix Discipline (Elimination of `Seat Seat #XX`):**
+   - Root Cause: `SeatHelper.formatSeatLabel` automatically includes the `'Seat #'` prefix when `includePrefix: true`. `student_detail_screen.dart` concatenated `'Seat ' + SeatHelper.formatSeatLabel(...)`, `'Previously Allocated: Seat ' + ...`, and `'Restored Seat ' + ...`, producing recursive double prefixes (`Seat Seat #16`, `Previously Allocated: Seat Seat #33`, `Restored Seat Seat #33`).
+   - Guardrail: Never prepend `'Seat '` outside `SeatHelper`. Always invoke `SeatHelper.formatSeatLabel(...)` directly, which handles prefixing and deduplication internally, or use `SeatHelper.formatDeskLabel(...)` or `SeatHelper.formatSeatNumberOnly(...)`.
+
+---
+
+## 33. Zero-Index Lookups, Responsive Update Banners, Digital Pass Geometry & OTA Discipline (Learned Nov 2026)
+
+1. **Zero-Index Direct Primary-Key Lookups & Resilient Error Absorption (`currentStudentProvider`):**
+   - Root Cause: `currentStudentProvider` executed `.where('userId', isEqualTo: uid)` queries on `libraries/{libraryId}/students`. When a single-field index exemption existed on Firestore, the query threw `failed-precondition: COLLECTION_ASC index for collection students and field userId not ready`, causing the Riverpod stream to crash and display raw Firebase console error URLs on both "My Membership" and "My Receipts" screens.
+   - Guardrail: Always prioritize direct `.doc(knownDocId).snapshots()` lookups using cached IDs from `SharedPreferences`, `users/{uid}.studentId`, and direct `students/{uid}` existence checks. These require ZERO composite indexes. Wrap all Firestore query streams in error-absorbing handlers that fall back to offline cache and NEVER emit raw database exception URLs to the user interface.
+
+2. **Elimination of `Filter.or(...)` on Student Document Collections:**
+   - Root Cause: `my_receipts_screen.dart` and `my_membership_screen.dart` queried `receipts` and `payments` using `Filter.or(Filter('studentUserId', isEqualTo: uid), Filter('studentId', isEqualTo: student.id))`. In Firestore, multi-field OR queries require specialized composite indexes that fail with `failed-precondition` when unbuilt.
+   - Guardrail: Use simple single-field queries on `studentId` (`where('studentId', isEqualTo: student.id)`). Perform multi-key resolution (`studentUserId`, `membershipNumber`) in Dart memory on the preloaded snapshots.
+
+3. **Update Banner Responsive Flow & Vertical Squishing Guardrail (`effectiveWidth < 768`):**
+   - Root Cause: In `AppUpdateBanner`, an unconstrained horizontal `Row` holding both the text section and action buttons (`What's New`, `Later`, `Reload`) was placed inside a mobile `ListView`. Action buttons took available width first, squishing the text container to <20px and forcing each character to wrap vertically into a 1-letter-wide column.
+   - Guardrail: Safe compact detection must check `effectiveWidth < 768` (handling unbounded constraints via `MediaQuery.sizeOf(context).width`). Mobile viewports must strictly render a `Column`: full-width title/subtitle on top, and action buttons aligned cleanly underneath.
+
+4. **Digital Pass 1:1 Height Geometry Parity & Clean Summary Rules:**
+   - Root Cause: The front side of the student ID card occupied ~236px, while the back side expanded to >285px due to separate rows for guardian and blood group, large QR barcodes, and raw markdown headers (`# LIBRARY RULES & REGULATIONS`), causing an unseemly height jump when flipped.
+   - Guardrail: Front and back faces must share the identical `minHeight: 236`. On the back face, combine Guardian and Blood Group into a single compact row, resize the QR barcode to 60x60 with tap-to-zoom, and format rules using `IdCardTemplateSettings.resolveSummaryRules(...)` (strictly 2 clean summary bullets stripped of markdown `#` headers).
+
+5. **OTA Keystore Identity Discipline (Elimination of "App not installed"):**
+   - Root Cause: When users previously installed the app via USB debugging (`flutter run` using Android SDK's `debug.keystore`) and then attempted to install an in-app OTA update signed with the permanent release keystore (`upload-keystore.jks`), Android PackageInstaller rejected the APK with `"App not installed"`.
+   - Guardrail: Production OTA updates must strictly match the signature of the installed application. Users migrating from development/debug builds must perform a one-time uninstall of the debug version before installing the production release APK. Ensure `update.json` defaults to the high-performance 54.5 MB 64-bit ARM binary (`StudyLibrary-arm64-v8a.apk`).
+
+---
+
+## 34. Strict Occupancy Invariants, Zero-Collision Seat Allocation & Stale Pointer Eviction (Learned Nov 2026)
+
+1. **Strict Occupancy vs Temporary Soft-Lock Invariant (`overrideSoftLock` Decoupling):**
+   - Root Cause: In `SeatRepository.assignStudent`, `bool overrideSoftLock = true` was passed by default from desk allocation dialogs. The occupancy collision guard was wrapped in `if (!overrideSoftLock)`, which unintentionally allowed active occupied desks to be overwritten as if they were merely expired 5-minute registration soft-locks.
+   - Guardrail: Permanent occupancy is strictly decoupled from temporary soft-locks. If a desk has `status == 'occupied'` and `currentOccupant.isNotEmpty`, verify if the occupant is an active enrolled student. If active, strictly reject reassignment with `Exception('Desk #X is already assigned to active student "Y"...')`. The `overrideSoftLock` flag must strictly apply ONLY to temporary cart soft-locks (`SeatStatus.reserved`), NEVER to active occupied desks.
+
+2. **Atomic Double-Binding Sweep (`staleStudentRefs`):**
+   - Root Cause: When a desk was reassigned, `assignStudent` only updated the physical seat and cleared the new student's previous seat references. Any other student records in Firestore that pointed to `seatId` (e.g. `shubham dixit` when `sk` was assigned) remained untouched, leaving multiple student documents pointing to the same `seatId`.
+   - Guardrail: Before executing the assignment transaction, sweep Firestore for all student documents where `seatId == targetSeatId`. Inside the atomic transaction, execute `tx.update(staleRef, {'seatId': FieldValue.delete(), 'previousSeatId': seatId})` on all non-matching student records so orphan or duplicate pointers are eliminated in the exact same transaction.
+
+3. **Sentinel Anomaly Audit & Autonomous Auto-Healing (Invariant 1c):**
+   - Root Cause: Neither `SentinelInvariantEngine` nor `DatabaseDiagnosticsService` audited whether multiple active students had identical `seatId` values.
+   - Guardrail: Implement Invariant 1c across both engines:
+     a) Audit: Group all active students by `seatId`. Flag any group with `length > 1` as a Critical Anomaly (`duplicate_allocation_seat_X` / `duplicate_seat_allocation`).
+     b) Auto-Heal: Resolve against the physical seat document (`seat.studentId`). The verified occupant keeps the seat; all other conflicting student documents have their `seatId` cleared and moved to `previousSeatId`.
+
+4. **Multi-Section Visual Disambiguation (`_formatDeskWithSection`):**
+   - Root Cause: If multiple sections each had a desk numbered 16 (e.g., Section A Desk 16 and Section B Desk 16), the student card only displayed `Desk #16`, making distinct desks appear like a single conflicting desk.
+   - Guardrail: When multiple active sections exist in the library, format desk tags dynamically as `Desk #16 • SectionName` across all student rosters and search listings.
+
+---
+
+## 35. Bidirectional Seat-Student Synchronization & Public Map Auto-Healing (Learned Nov 2026)
+
+1. **First-Class `studentName` Serialization & Dual Invalidation:**
+   - Root Cause: Unassignment, bulk updates, and membership expiration operations set `status: 'available'` and `studentId: null`, but omitted `studentName: FieldValue.delete()`. This left residual names on available seats. Admin Seat Map evaluated `(seat.studentName.isNotEmpty) => occupied` rendering them pink, while public seat map checked `seat.status == 'occupied'` rendering them green, and student documents had `seatId: null` rendering "No Desk".
+   - Guardrail: `SeatModel` must serialize and deserialize `studentName` as a first-class field. Every seat status modification (unassign, bulk update, expiration) must delete `studentName` alongside `studentId`. `SeatTile`, seat assignment sheets, and count ribbons must strictly evaluate `effectiveStatus`.
+
+2. **Public Live Seat Map Typo Auto-Healing & Realtime Resolution:**
+   - Root Cause: When users opened the public seat map with a library ID typo (e.g. character 17 typed as '1' or 'l' instead of capital 'T'), Firestore returned 404, causing the web view to fall back to hardcoded client defaults (60 total, 60 available, 0 occupied).
+   - Guardrail: Public seat map `public/seats/index.html` must implement fuzzy typo auto-healing and 404 fallback to `DEFAULT_LIBRARY_ID`. In `resolveEffectiveStatus`, evaluate `status === 'occupied' || Boolean(seat.studentId) || Boolean(seat.studentName)`.
+
 
 
 
