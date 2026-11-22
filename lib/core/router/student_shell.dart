@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/utils/app_haptics.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
+import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
+import 'package:study_library/features/settings/presentation/providers/settings_provider.dart';
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/in_app_notification_toast.dart';
@@ -104,6 +106,10 @@ class _StudentShellState extends ConsumerState<StudentShell> with WidgetsBinding
     final isMainTab = _isMainTab(context);
     final libraryId = ref.watch(currentLibraryIdProvider);
     final student = ref.watch(currentStudentProvider).value;
+
+    // Pre-warm plans & template settings for 0ms instant tab switching
+    ref.watch(plansStreamProvider);
+    ref.watch(idCardTemplateStreamProvider);
     final authUid = FirebaseAuth.instance.currentUser?.uid;
     final effectiveId = (student?.id != null && student!.id.isNotEmpty)
         ? student.id

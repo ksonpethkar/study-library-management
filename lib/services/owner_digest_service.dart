@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:study_library/core/constants/firestore_paths.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/telegram_service.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class OwnerDigestSummary {
   final String title;
@@ -294,7 +295,7 @@ class OwnerDigestService {
         body: summary.plainText.substring(0, summary.plainText.length > 250 ? 250 : summary.plainText.length),
         type: 'digest',
         targetRole: 'admin',
-        actionRoute: '/admin/dashboard',
+        actionRoute: Routes.adminHome,
       );
 
       // Fetch telegram credentials

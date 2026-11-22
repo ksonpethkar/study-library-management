@@ -10,6 +10,7 @@ import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/core/security/audit_logger.dart';
+import 'package:study_library/services/message_template_service.dart';
 
 /// Full-fidelity visual Seat Map assignment and desk-change bottom sheet.
 /// Renders true 2D room floor plans according to section grid columns and rows,
@@ -205,7 +206,7 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          '${occupant.name} ➔ Desk #${SeatHelper.formatSeatLabel(seatId: widget.currentSeatId)}',
+                          '${MessageTemplateService.toTitleCase(occupant.name)} ➔ ${SeatHelper.formatDeskLabel(seatId: widget.currentSeatId)}',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                       ),
@@ -345,7 +346,7 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
                           Row(
                             children: [
                               Text(
-                                widget.studentName,
+                                MessageTemplateService.toTitleCase(widget.studentName),
                                 style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w600,
@@ -365,7 +366,7 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
                               Expanded(
                                 child: Text(
                                   widget.currentSeatId != null && widget.currentSeatId!.isNotEmpty
-                                      ? 'Current: Desk #${SeatHelper.formatSeatLabel(seatId: widget.currentSeatId)}'
+                                      ? 'Current: ${SeatHelper.formatDeskLabel(seatId: widget.currentSeatId)}'
                                       : 'No desk allocated',
                                   style: TextStyle(
                                     fontSize: 12,
@@ -478,8 +479,23 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
       sortedSeats = [...sectionSeats]..sort(SeatHelper.compareSeats);
     }
 
-    final availableCount = sortedSeats.where((s) => s.effectiveStatus == SeatStatus.available).length;
-    final occupiedCount = sortedSeats.where((s) => s.effectiveStatus == SeatStatus.occupied).length;
+    int availableCount = 0;
+    int occupiedCount = 0;
+    int holdCount = 0;
+    for (final s in sortedSeats) {
+      final isCurrent = s.id == widget.currentSeatId;
+      if (isCurrent) continue;
+      final occupant = s.studentId != null ? studentMap[s.studentId] : null;
+      final status = s.effectiveStatus;
+      final isOccupied = status == SeatStatus.occupied || (occupant != null);
+      if (isOccupied) {
+        occupiedCount++;
+      } else if (status == SeatStatus.reserved || status == SeatStatus.maintenance) {
+        holdCount++;
+      } else if (status == SeatStatus.available) {
+        availableCount++;
+      }
+    }
 
     return Column(
       children: [
@@ -525,9 +541,9 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
                 children: [
                   _buildLegendItem(const Color(0xFF10B981), 'Vacant ($availableCount)'),
                   _buildLegendItem(const Color(0xFFEF4444), 'Occupied ($occupiedCount)'),
-                  if (widget.currentSeatId != null)
+                  if (widget.currentSeatId != null && widget.currentSeatId!.isNotEmpty)
                     _buildLegendItem(const Color(0xFF8B5CF6), 'Current Desk'),
-                  _buildLegendItem(const Color(0xFFF59E0B), 'Hold / Maint.'),
+                  _buildLegendItem(const Color(0xFFF59E0B), holdCount > 0 ? 'Hold / Maint. ($holdCount)' : 'Hold / Maint.'),
                 ],
               ),
             ],
@@ -695,6 +711,14 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
     );
   }
 
+  static String _formatTileName(String fullName) {
+    final clean = MessageTemplateService.toTitleCase(fullName).trim();
+    if (clean.isEmpty) return '';
+    final parts = clean.split(RegExp(r'\s+'));
+    if (parts.length == 1) return parts[0];
+    return '${parts[0]} ${parts[1][0]}.';
+  }
+
   Widget _buildSeatMapTile({
     required SeatModel seat,
     required bool isCurrent,
@@ -796,9 +820,9 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
               ),
               if (isCurrent)
                 const Text(
-                  'MINE',
+                  'CURRENT',
                   style: TextStyle(
-                    fontSize: 7.5,
+                    fontSize: 7.0,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF8B5CF6),
                     letterSpacing: 0.5,
@@ -806,7 +830,7 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
                 )
               else if (isOccupied && (occupant != null || (seat.studentName != null && seat.studentName!.isNotEmpty)))
                 Text(
-                  (occupant?.name ?? seat.studentName ?? '').split(' ').first,
+                  _formatTileName(occupant?.name ?? seat.studentName ?? ''),
                   style: TextStyle(
                     fontSize: 7.5,
                     fontWeight: FontWeight.w600,
@@ -878,15 +902,15 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
                       const SizedBox(height: 2),
                       Text(
                         isCurrent
-                            ? 'Currently assigned to ${widget.studentName}'
+                            ? 'Currently assigned to ${MessageTemplateService.toTitleCase(widget.studentName)}'
                             : (isAvailable
-                                ? (widget.currentSeatId != null
-                                    ? 'Moving from Desk #${SeatHelper.formatSeatLabel(seatId: widget.currentSeatId)} ➔ ${SeatHelper.formatDeskLabel(rawLabel: targetSeat.label)}'
+                                ? (widget.currentSeatId != null && widget.currentSeatId!.isNotEmpty
+                                    ? 'Moving from ${SeatHelper.formatDeskLabel(seatId: widget.currentSeatId)} ➔ ${SeatHelper.formatDeskLabel(rawLabel: targetSeat.label)}'
                                     : 'Available for immediate allocation')
                                 : (occupant != null
-                                    ? 'Occupied by ${occupant.name} (${occupant.phone})'
+                                    ? 'Occupied by ${MessageTemplateService.toTitleCase(occupant.name)} (${occupant.phone})'
                                     : (targetSeat.studentName != null && targetSeat.studentName!.isNotEmpty
-                                        ? 'Occupied by ${targetSeat.studentName}'
+                                        ? 'Occupied by ${MessageTemplateService.toTitleCase(targetSeat.studentName!)}'
                                         : 'Desk is currently occupied / reserved'))),
                         style: TextStyle(
                           fontSize: 12,

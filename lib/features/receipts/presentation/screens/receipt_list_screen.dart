@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/receipt_model.dart';
@@ -43,7 +44,7 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/admin/dashboard');
+      context.go(Routes.adminHome);
     }
   }
 

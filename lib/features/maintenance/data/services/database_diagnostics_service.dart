@@ -318,6 +318,7 @@ class DatabaseDiagnosticsService {
         } else {
           final sData = studentMap[assignedStudentId]!;
           final sStatus = (sData['membershipStatus'] ?? 'active').toString().toLowerCase();
+          final sSeatId = (sData['seatId'] ?? '').toString().trim();
           if (sStatus == 'expired' || sStatus == 'inactive' || sStatus == 'archived') {
             issues.add(IntegrityIssue(
               id: 'expired_holding_seat_${seat['_docId']}',
@@ -325,6 +326,16 @@ class DatabaseDiagnosticsService {
               severity: IssueSeverity.warning,
               title: 'Desk #$seatLabel Held by $sStatus Student',
               description: '${sData['name'] ?? "Student"} is $sStatus, but desk was not released.',
+              entityId: seat['_docId'] as String?,
+              details: {'seat': seat, 'student': sData},
+            ));
+          } else if (sSeatId.isNotEmpty && sSeatId != seat['_docId'] && sSeatId != seat['id'] && sSeatId != seatLabel.toString()) {
+            issues.add(IntegrityIssue(
+              id: 'stale_seat_pointer_${seat['_docId']}',
+              type: 'stale_seat_pointer',
+              severity: IssueSeverity.error,
+              title: 'Stale Occupancy on Desk #$seatLabel',
+              description: '${sData['name'] ?? "Student"} has moved to Desk #$sSeatId, but Desk #$seatLabel still retains an orphaned occupant pointer.',
               entityId: seat['_docId'] as String?,
               details: {'seat': seat, 'student': sData},
             ));
@@ -489,6 +500,18 @@ class DatabaseDiagnosticsService {
           });
           clearedGhosts++;
           healedDescriptions.add('${issue.title} -> Ghost ID Cleared');
+        }
+      } else if (issue.type == 'stale_seat_pointer') {
+        final seat = issue.details['seat'] as Map<String, dynamic>?;
+        final ref = seat?['_ref'] as DocumentReference<Map<String, dynamic>>?;
+        if (ref != null) {
+          batch.update(ref, {
+            'status': SeatStatus.available.name,
+            'studentId': null,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          healedSeats++;
+          healedDescriptions.add('${issue.title} -> Cleared stale occupant pointer, seat restored to Available');
         }
       } else if (issue.type == 'duplicate_seat_allocation') {
         final seatId = issue.details['seatId'] as String?;

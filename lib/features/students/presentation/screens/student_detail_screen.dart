@@ -866,7 +866,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     final libraryId = ref.read(currentLibraryIdProvider);
     if (libraryId == null || libraryId.isEmpty) return;
     final s = student ?? widget.preloadedStudent;
-    final studentName = s?.name ?? 'Student';
+    final studentName = MessageTemplateService.toTitleCase(s?.name ?? 'Student');
 
     SeatAssignmentMapSheet.show(
       context,
@@ -4280,7 +4280,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                widget.isEmbeddedInSplitView ? s.name : 'Student Details',
+                widget.isEmbeddedInSplitView ? MessageTemplateService.toTitleCase(s.name) : 'Student Details',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.5),
               ),
               if (widget.isEmbeddedInSplitView)
@@ -4652,7 +4652,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        s.name,
+                        MessageTemplateService.toTitleCase(s.name),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                         maxLines: 2,
                         softWrap: true,

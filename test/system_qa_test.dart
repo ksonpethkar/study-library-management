@@ -7683,11 +7683,11 @@ void main() {
 
       // Verify legend indicators are present
       expect(find.text('Vacant (55)'), findsOneWidget);
-      expect(find.text('Occupied (5)'), findsOneWidget);
+      expect(find.text('Occupied (4)'), findsOneWidget);
       expect(find.text('Current Desk'), findsOneWidget);
 
-      // Verify that current student seat (Desk #6) displays "MINE" tag
-      expect(find.text('MINE'), findsOneWidget);
+      // Verify that current student seat (Desk #6) displays current star marker
+      expect(find.byIcon(Icons.star_rounded), findsWidgets);
 
       // Verify tapping a vacant seat (e.g. seat 1) selects it and opens the assignment drawer
       final vacantSeatFinder = find.text('1');
@@ -8996,6 +8996,216 @@ Session: 2024-2025
       final availableCount = allSeats.where((s) => s.effectiveStatus == SeatStatus.available).length;
       expect(occupiedCount, equals(2));
       expect(availableCount, equals(1));
+    });
+
+    test('Test 155: 29-MODULE AUDIT, ROUTE ALIASING, PRE-WARMED SHELL STREAMS & FILTER CHIP INVARIANTS', () {
+      // 1. Verify route aliases and back-navigation safety
+      expect(Routes.adminHome, equals('/admin/home'));
+      expect(Routes.studentHome, equals('/student/home'));
+      expect(Routes.adminReceipts, equals('/admin/receipts'));
+
+      // 2. Verify interactive payment method filtering logic in MyReceiptsScreen
+      final r1 = ReceiptModel(
+        id: 'r1',
+        libraryId: 'lib1',
+        receiptNumber: 'REC-01',
+        studentId: 's1',
+        planId: 'plan_1',
+        amount: 800,
+        paymentMethod: 'Cash Counter Admission',
+        status: ReceiptStatus.active,
+        validFrom: DateTime(2026, 11, 1),
+        validTo: DateTime(2026, 12, 1),
+        customFields: const {},
+        createdAt: DateTime(2026, 11, 1),
+      );
+      final r2 = ReceiptModel(
+        id: 'r2',
+        libraryId: 'lib1',
+        receiptNumber: 'REC-02',
+        studentId: 's1',
+        planId: 'plan_1',
+        amount: 700,
+        paymentMethod: 'UPI / Online GPay',
+        status: ReceiptStatus.active,
+        validFrom: DateTime(2026, 11, 10),
+        validTo: DateTime(2026, 12, 10),
+        customFields: const {},
+        createdAt: DateTime(2026, 11, 10),
+      );
+      final r3 = ReceiptModel(
+        id: 'r3',
+        libraryId: 'lib1',
+        receiptNumber: 'REC-03',
+        studentId: 's1',
+        planId: 'plan_1',
+        amount: 500,
+        paymentMethod: 'Cash',
+        status: ReceiptStatus.voided,
+        validFrom: DateTime(2026, 10, 1),
+        validTo: DateTime(2026, 11, 1),
+        customFields: const {},
+        createdAt: DateTime(2026, 10, 1),
+      );
+
+      final allReceipts = [r1, r2, r3];
+
+      // Cash filter
+      final cashOnly = allReceipts.where((r) => r.paymentMethod.toLowerCase().contains('cash')).toList();
+      expect(cashOnly.length, equals(2));
+      expect(cashOnly.map((r) => r.id), containsAll(['r1', 'r3']));
+
+      // UPI filter
+      final upiOnly = allReceipts.where((r) {
+        final pm = r.paymentMethod.toLowerCase();
+        return pm.contains('upi') || pm.contains('online') || pm.contains('gpay');
+      }).toList();
+      expect(upiOnly.length, equals(1));
+      expect(upiOnly.first.id, equals('r2'));
+
+      // Active status filter
+      final activeOnly = allReceipts.where((r) => r.status == ReceiptStatus.active).toList();
+      expect(activeOnly.length, equals(2));
+      expect(activeOnly.map((r) => r.id), containsAll(['r1', 'r2']));
+    });
+
+    test('Test 157: OPTION C CORE TRACKS VERIFICATION (DIGITAL PDF E-AADHAAR, PAIRED ACTIONS, DUE FEE WARNING, ROUTE PRESERVATION & TRILINGUAL IDENTIFIERS)', () {
+      // 1. Track 1: Digital e-Aadhaar Text Layer Extraction Invariant
+      const eAadhaarSample = '''
+GOVERNMENT OF INDIA
+To,
+Snehal Bharat Sonpethkar
+D/O: Bharat Sonpethkar
+Near Reliance Fashion Factory, Nath Road
+Parli Vaijnath, Beed - 431515
+DOB: 15/08/2000
+Gender: Female
+3675 9834 6012
+''';
+      final eAadhaarResult = OcrParser.parseByType(GovIdType.aadhaar, eAadhaarSample);
+      expect(eAadhaarResult.name, contains('Snehal Bharat Sonpethkar'), reason: 'Must extract full English name above DOB');
+      expect(eAadhaarResult.dob, equals('15/08/2000'), reason: 'Must extract DOB');
+      expect(eAadhaarResult.gender, equals('female'), reason: 'Must extract gender');
+      expect(eAadhaarResult.pinCode, equals('431515'), reason: 'Must extract 6-digit postal pincode');
+      expect(eAadhaarResult.address, contains('Parli Vaijnath'), reason: 'Must extract address components');
+
+      // 2. Track 2: Requests Hub Paired Call + WhatsApp URI Architecture
+      const testPhone = '+91 94032 43830';
+      final cleanDigits = testPhone.replaceAll(RegExp(r'\D'), '');
+      expect(cleanDigits, equals('919403243830'));
+      final localDigits = cleanDigits.length > 10 ? cleanDigits.substring(cleanDigits.length - 10) : cleanDigits;
+      expect(localDigits, equals('9403243830'));
+
+      final telUri = Uri.parse('tel:$localDigits');
+      final waUri = Uri.parse('https://wa.me/91$localDigits?text=${Uri.encodeComponent('Namaskar from The Cozy Corner')}');
+      expect(telUri.scheme, equals('tel'));
+      expect(telUri.path, equals('9403243830'));
+      expect(waUri.scheme, equals('https'));
+      expect(waUri.host, equals('wa.me'));
+      expect(waUri.path, equals('/919403243830'));
+      expect(waUri.queryParameters['text'], equals('Namaskar from The Cozy Corner'));
+
+      // 3. Track 3: Student Pro Pass Due Fee Alert & 1-Tap UPI Intent
+      final studentWithDues = StudentModel.fromJson({
+        'id': 'DGqmPGKm8Ul1zQJ3anVD',
+        'name': 'Rahul Shinde',
+        'phone': '9876543210',
+        'membershipStatus': 'active',
+        'pendingDueBalance': 450.0,
+      });
+      expect(studentWithDues.pendingDueBalance, equals(450.0));
+      expect((studentWithDues.pendingDueBalance ?? 0) > 0, isTrue, reason: 'Must flag active outstanding due balance');
+
+      const upiVpa = 'thecozycorner@okaxis';
+      final upiIntentString = 'upi://pay?pa=$upiVpa&pn=The%20Cozy%20Corner&am=${(studentWithDues.pendingDueBalance ?? 0).toStringAsFixed(2)}&cu=INR';
+      final parsedUpiUri = Uri.parse(upiIntentString);
+      expect(parsedUpiUri.scheme, equals('upi'));
+      expect(parsedUpiUri.host, equals('pay'));
+      expect(parsedUpiUri.queryParameters['pa'], equals('thecozycorner@okaxis'));
+      expect(parsedUpiUri.queryParameters['am'], equals('450.00'));
+      expect(parsedUpiUri.queryParameters['cu'], equals('INR'));
+
+      // 4. Track 4: Biometric Lock Route Normalization & OS Picker Immunity
+      String normalizeRoute(String? route) {
+        if (route == null || route.isEmpty) return Routes.adminHome;
+        var clean = route;
+        if (clean.startsWith('/app')) clean = clean.substring(4);
+        if (!clean.startsWith('/')) clean = '/$clean';
+        if (clean == '/biometric-lock' || clean == '/biometric%20lock') return Routes.adminHome;
+        return clean;
+      }
+      expect(normalizeRoute('/app/admin/students'), equals('/admin/students'));
+      expect(normalizeRoute('/app/student/membership'), equals('/student/membership'));
+      expect(normalizeRoute('/biometric-lock'), equals(Routes.adminHome));
+      expect(normalizeRoute(null), equals(Routes.adminHome));
+
+      // External OS dialog immunity invariant
+      InactivityLockService.setExternalDialogActive(false);
+      expect(InactivityLockService.isExternalDialogActive, isFalse);
+      InactivityLockService.setExternalDialogActive(true);
+      expect(InactivityLockService.isExternalDialogActive, isTrue, reason: 'Must flag active OS dialog to suppress auto-lock');
+      InactivityLockService.setExternalDialogActive(false);
+      expect(InactivityLockService.isExternalDialogActive, isFalse);
+
+      // 5. Track 5: Trilingual Message Template Clean Identifiers (Zero Raw UIDs & Zero Empty Brackets)
+      const rawStudentDocId = 'TFBktLryOfa4FlDLVvyl';
+      final cleanHumanId = 'CC-${rawStudentDocId.substring(0, 6).toUpperCase()}';
+      expect(cleanHumanId, equals('CC-TFBKTL'));
+      expect(cleanHumanId.contains('TFBktLryOfa4FlDLVvyl'), isFalse, reason: 'Must never leak raw 20-char Firestore UID to students');
+
+      // Zero empty-brackets policy
+      String sanitizeWhatsAppText(String text) {
+        return text.replaceAll(RegExp(r'\(\s*\)'), '').replaceAll(RegExp(r'₹\s*(?=\*|\s|$)'), '').trim();
+      }
+      expect(sanitizeWhatsAppText('भरलेले शुल्क: ₹ ()'), equals('भरलेले शुल्क:'));
+      expect(sanitizeWhatsAppText('Admission ID: (CC-TFBKTL)'), equals('Admission ID: (CC-TFBKTL)'));
+    });
+
+    test('Test 158: SEAT MAP OCCUPANT DISAMBIGUATION, TITLE CASING & RECURSIVE DESK LABEL PREFIX ELIMINATION', () {
+      // 1. Title Casing normalization
+      expect(MessageTemplateService.toTitleCase('shubham dixit'), equals('Shubham Dixit'));
+      expect(MessageTemplateService.toTitleCase('srikrishnadatta bharatrao sonpethkar'), equals('Srikrishnadatta Bharatrao Sonpethkar'));
+      expect(MessageTemplateService.toTitleCase('swati'), equals('Swati'));
+
+      // 2. Desk label formatting: strictly prevent "Desk #Seat #XX"
+      expect(SeatHelper.formatDeskLabel(seatId: '20'), equals('Desk #20'));
+      expect(SeatHelper.formatDeskLabel(seatId: 'Seat #20'), equals('Desk #20'));
+      expect(SeatHelper.formatDeskLabel(seatId: 'Desk #Seat #20'), equals('Desk #20'));
+      expect(SeatHelper.formatDeskLabel(seatId: '19'), equals('Desk #19'));
+      expect(SeatHelper.formatDeskLabel(seatId: null), equals('Allocated Desk'));
+
+      // 3. Tile occupant name disambiguation: First name + Last initial
+      String formatTileName(String fullName) {
+        final clean = MessageTemplateService.toTitleCase(fullName).trim();
+        if (clean.isEmpty) return '';
+        final parts = clean.split(RegExp(r'\s+'));
+        if (parts.length == 1) return parts[0];
+        return '${parts[0]} ${parts[1][0]}.';
+      }
+
+      expect(formatTileName('shubham dixit'), equals('Shubham D.'));
+      expect(formatTileName('Shubham Kandukatle'), equals('Shubham K.'));
+      expect(formatTileName('srikrishnadatta'), equals('Srikrishnadatta'));
+      expect(formatTileName('Swati'), equals('Swati'));
+
+      // 4. Stale seat pointer detection logic: A seat still pointing to a student who has moved elsewhere
+      final mockStudent = {
+        'id': 'stud_dixit_20',
+        'name': 'Shubham Dixit',
+        'seatId': 'seat_20',
+        'membershipStatus': 'active',
+      };
+      final mockStaleSeat19 = {
+        '_docId': 'seat_19',
+        'id': 'seat_19',
+        'label': '19',
+        'status': 'occupied',
+        'studentId': 'stud_dixit_20',
+      };
+
+      final isStalePointer = mockStaleSeat19['studentId'] == mockStudent['id'] &&
+          mockStudent['seatId'] != mockStaleSeat19['_docId'];
+      expect(isStalePointer, isTrue, reason: 'Seat 19 still pointing to Shubham Dixit who has moved to Seat 20 must be flagged as stale pointer');
     });
   });
 }

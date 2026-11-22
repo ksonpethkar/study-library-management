@@ -27,6 +27,7 @@ class MyReceiptsScreen extends ConsumerStatefulWidget {
 
 class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
   bool _isGenerating = false;
+  String _activePaymentFilter = 'all';
 
   Future<void> _generateActiveEnrollmentReceipt({
     required String libraryId,
@@ -311,37 +312,59 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            ActionChip(
+                            FilterChip(
+                              selected: _activePaymentFilter == 'all',
                               label: Text('All (${receipts.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
-                              side: BorderSide(color: theme.colorScheme.primary),
-                              onPressed: () {},
+                              selectedColor: theme.colorScheme.primary.withValues(alpha: 0.18),
+                              checkmarkColor: theme.colorScheme.primary,
+                              onSelected: (_) => setState(() => _activePaymentFilter = 'all'),
                             ),
                             const SizedBox(width: 8),
-                            ActionChip(
+                            FilterChip(
+                              selected: _activePaymentFilter == 'cash',
                               avatar: const Icon(Icons.payments_outlined, size: 14),
                               label: const Text('Cash', style: TextStyle(fontSize: 12)),
-                              onPressed: () {},
+                              selectedColor: theme.colorScheme.primary.withValues(alpha: 0.18),
+                              checkmarkColor: theme.colorScheme.primary,
+                              onSelected: (_) => setState(() => _activePaymentFilter = 'cash'),
                             ),
                             const SizedBox(width: 8),
-                            ActionChip(
+                            FilterChip(
+                              selected: _activePaymentFilter == 'upi',
                               avatar: const Icon(Icons.qr_code_2_rounded, size: 14),
                               label: const Text('UPI / Online', style: TextStyle(fontSize: 12)),
-                              onPressed: () {},
+                              selectedColor: theme.colorScheme.primary.withValues(alpha: 0.18),
+                              checkmarkColor: theme.colorScheme.primary,
+                              onSelected: (_) => setState(() => _activePaymentFilter = 'upi'),
                             ),
                             const SizedBox(width: 8),
-                            ActionChip(
+                            FilterChip(
+                              selected: _activePaymentFilter == 'active',
                               avatar: const Icon(Icons.verified_outlined, size: 14),
-                              label: const Text('Tax Compliant', style: TextStyle(fontSize: 12)),
-                              onPressed: () {},
+                              label: const Text('Active Passes', style: TextStyle(fontSize: 12)),
+                              selectedColor: theme.colorScheme.primary.withValues(alpha: 0.18),
+                              checkmarkColor: theme.colorScheme.primary,
+                              onSelected: (_) => setState(() => _activePaymentFilter = 'active'),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 14),
 
-                      // 3. Ticket-Style Receipt Cards
-                      ...receipts.map((receipt) {
+                      // 3. Ticket-Style Receipt Cards (filtered)
+                      ...receipts.where((r) {
+                        if (_activePaymentFilter == 'cash') {
+                          return r.paymentMethod.toLowerCase().contains('cash');
+                        }
+                        if (_activePaymentFilter == 'upi') {
+                          final pm = r.paymentMethod.toLowerCase();
+                          return pm.contains('upi') || pm.contains('online') || pm.contains('gpay');
+                        }
+                        if (_activePaymentFilter == 'active') {
+                          return r.status == ReceiptStatus.active;
+                        }
+                        return true;
+                      }).map((receipt) {
                         final createdDate = receipt.createdAt ?? DateTime.now();
                         final matchingPlan = plansAsync.value?.where((p) => p.id == receipt.planId).firstOrNull;
 

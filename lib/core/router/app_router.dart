@@ -397,6 +397,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
+      GoRoute(
+        path: '/admin/dashboard',
+        redirect: (context, state) => Routes.adminHome,
+      ),
+
       // Admin Routes
       ShellRoute(
         navigatorKey: _adminShellNavigatorKey,
