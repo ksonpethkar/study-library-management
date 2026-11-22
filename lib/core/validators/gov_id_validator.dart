@@ -191,7 +191,7 @@ class GovIdValidator {
       'INDIA',
       'AUTHORITY',
       'UIDAI',
-      'BHARAT',
+      'BHARAT SARKAR',
       'SARKAR',
       'INCOME TAX',
       'INCOMETAX',

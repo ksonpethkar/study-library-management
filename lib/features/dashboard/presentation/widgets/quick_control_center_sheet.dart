@@ -79,8 +79,9 @@ class QuickControlCenterSheet extends ConsumerWidget {
     final effectiveLibId = (libraryId != null && libraryId.isNotEmpty)
         ? libraryId
         : ref.read(currentLibraryIdProvider) ?? '';
-    final effectiveAuthUid = (authUid != null && authUid.isNotEmpty)
-        ? authUid
+    final uid = authUid;
+    final effectiveAuthUid = (uid != null && uid.isNotEmpty)
+        ? uid
         : FirebaseAuth.instance.currentUser?.uid;
 
     final isLockEnabled = await BiometricService.isLockEnabled(
@@ -90,76 +91,140 @@ class QuickControlCenterSheet extends ConsumerWidget {
       libraryId: effectiveLibId,
     );
 
-    if (!context.mounted) return;
+    final safeContext = rootNavigatorKey.currentContext ?? context;
+    if (!safeContext.mounted) return;
 
     if (isLockEnabled) {
-      final currentUri = GoRouterState.of(context).uri.path;
-      SharedPreferences.getInstance().then((prefs) {
+      try {
+        final currentUri = GoRouterState.of(safeContext).uri.path;
         if (currentUri.isNotEmpty && currentUri != Routes.biometricLock) {
-          prefs.setString('last_active_route', currentUri);
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.setString('last_active_route', currentUri);
+          }).catchError((_) {});
         }
-      }).catchError((_) {});
+      } catch (_) {}
 
       InactivityLockService.setLocked(true);
-      context.go(Routes.biometricLock);
+      safeContext.push(Routes.biometricLock);
     } else {
-      showDialog(
-        context: context,
-        builder: (dialogCtx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
-            children: [
-              Icon(Icons.lock_outline_rounded, color: Color(0xFFEF4444), size: 26),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Set Up Quick App Lock',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            isStudent
-                ? 'Your student account does not have a 4-digit PIN configured yet. Set up a PIN or Fingerprint to lock your screen with 1 tap anytime.'
-                : 'The counter terminal does not have an Admin PIN configured yet. Set up an Admin PIN to lock the reception screen with 1 tap.',
-            style: const TextStyle(fontSize: 14, height: 1.45),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogCtx).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton.icon(
-              icon: const Icon(Icons.key_rounded, size: 18),
-              label: const Text('Set Up PIN Now'),
-              onPressed: () {
-                Navigator.of(dialogCtx).pop();
-                SecuritySettingsDialog.show(
-                  context,
-                  isStudent: isStudent,
-                  authUid: effectiveAuthUid,
-                  studentId: studentId,
-                  libraryId: effectiveLibId,
-                );
-              },
-            ),
-          ],
-        ),
+      _showPinSetupPrompt(
+        safeContext,
+        isStudent: isStudent,
+        effectiveAuthUid: effectiveAuthUid,
+        studentId: studentId,
+        effectiveLibId: effectiveLibId,
       );
     }
   }
 
-  Future<void> _handleInstantLock(BuildContext context, WidgetRef ref) async {
-    Navigator.of(context).pop(); // Close bottom sheet
-    await triggerInstantLock(
-      context,
-      ref,
-      isStudent: isStudent,
-      studentId: studentId,
-      authUid: authUid,
-      libraryId: libraryId,
+  static void _showPinSetupPrompt(
+    BuildContext context, {
+    required bool isStudent,
+    String? effectiveAuthUid,
+    String? studentId,
+    required String effectiveLibId,
+  }) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_outline_rounded, color: Color(0xFFEF4444), size: 26),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Set Up Quick App Lock',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          isStudent
+              ? 'Your student account does not have a 4-digit PIN configured yet. Set up a PIN or Fingerprint to lock your screen with 1 tap anytime.'
+              : 'The counter terminal does not have an Admin PIN configured yet. Set up an Admin PIN to lock the reception screen with 1 tap.',
+          style: const TextStyle(fontSize: 14, height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.key_rounded, size: 18),
+            label: const Text('Set Up PIN Now'),
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final rootCtx = rootNavigatorKey.currentContext;
+                if (rootCtx != null && rootCtx.mounted) {
+                  SecuritySettingsDialog.show(
+                    rootCtx,
+                    isStudent: isStudent,
+                    authUid: effectiveAuthUid,
+                    studentId: studentId,
+                    libraryId: effectiveLibId,
+                  );
+                }
+              });
+            },
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _handleInstantLock(BuildContext context, WidgetRef ref) async {
+    HapticFeedback.heavyImpact();
+
+    final effectiveLibId = (libraryId.isNotEmpty)
+        ? libraryId
+        : ref.read(currentLibraryIdProvider) ?? '';
+    final uid = authUid;
+    final effectiveAuthUid = (uid != null && uid.isNotEmpty)
+        ? uid
+        : FirebaseAuth.instance.currentUser?.uid;
+
+    final isLockEnabled = await BiometricService.isLockEnabled(
+      isAdmin: !isStudent,
+      userId: studentId,
+      authUid: effectiveAuthUid,
+      libraryId: effectiveLibId,
+    );
+
+    // 1. Pop the bottom sheet first so the overlay cleanly unmounts
+    if (context.mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+
+    // 2. Dispatch the lock screen or setup prompt cleanly on the next frame via root navigator
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final rootCtx = rootNavigatorKey.currentContext;
+      if (rootCtx == null || !rootCtx.mounted) return;
+
+      if (isLockEnabled) {
+        try {
+          final currentUri = GoRouterState.of(rootCtx).uri.path;
+          if (currentUri.isNotEmpty && currentUri != Routes.biometricLock) {
+            SharedPreferences.getInstance().then((prefs) {
+              prefs.setString('last_active_route', currentUri);
+            }).catchError((_) {});
+          }
+        } catch (_) {}
+
+        InactivityLockService.setLocked(true);
+        rootCtx.push(Routes.biometricLock);
+      } else {
+        _showPinSetupPrompt(
+          rootCtx,
+          isStudent: isStudent,
+          effectiveAuthUid: effectiveAuthUid,
+          studentId: studentId,
+          effectiveLibId: effectiveLibId,
+        );
+      }
+    });
   }
 
   void _handleDataSync(BuildContext context, WidgetRef ref) {
@@ -346,7 +411,12 @@ class QuickControlCenterSheet extends ConsumerWidget {
                             subtitle: 'Text size & font styles',
                             onTap: () {
                               Navigator.of(context).pop();
-                              TypographySettingsSheet.show(context);
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                final rootCtx = rootNavigatorKey.currentContext;
+                                if (rootCtx != null && rootCtx.mounted) {
+                                  TypographySettingsSheet.show(rootCtx);
+                                }
+                              });
                             },
                           ),
                         ),
@@ -368,9 +438,14 @@ class QuickControlCenterSheet extends ConsumerWidget {
                                   subtitle: 'Students, desks & plans',
                                   onTap: () {
                                     Navigator.of(context).pop();
-                                    Navigator.of(context, rootNavigator: true).push(
-                                      MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
-                                    );
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      final rootCtx = rootNavigatorKey.currentContext;
+                                      if (rootCtx != null && rootCtx.mounted) {
+                                        Navigator.of(rootCtx, rootNavigator: true).push(
+                                          MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+                                        );
+                                      }
+                                    });
                                   },
                                 )
                               : _buildControlTile(
@@ -382,7 +457,12 @@ class QuickControlCenterSheet extends ConsumerWidget {
                                   subtitle: 'Digital pass & barcode',
                                   onTap: () {
                                     Navigator.of(context).pop();
-                                    context.push(Routes.studentIdCard);
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      final rootCtx = rootNavigatorKey.currentContext;
+                                      if (rootCtx != null && rootCtx.mounted) {
+                                        rootCtx.push(Routes.studentIdCard);
+                                      }
+                                    });
                                   },
                                 ),
                         ),
@@ -398,14 +478,19 @@ class QuickControlCenterSheet extends ConsumerWidget {
                             subtitle: totalUnread > 0 ? '$totalUnread actionable items' : 'View history & updates',
                             onTap: () {
                               Navigator.of(context).pop();
-                              NotificationCenterSheet.show(
-                                context,
-                                libraryId: libraryId,
-                                role: isStudent ? 'student' : 'admin',
-                                studentId: studentId,
-                                pendingRequestsCount: pendingRequestsCount,
-                                renewalsDueCount: renewalsDueCount,
-                              );
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                final rootCtx = rootNavigatorKey.currentContext;
+                                if (rootCtx != null && rootCtx.mounted) {
+                                  NotificationCenterSheet.show(
+                                    rootCtx,
+                                    libraryId: libraryId,
+                                    role: isStudent ? 'student' : 'admin',
+                                    studentId: studentId,
+                                    pendingRequestsCount: pendingRequestsCount,
+                                    renewalsDueCount: renewalsDueCount,
+                                  );
+                                }
+                              });
                             },
                           ),
                         ),
@@ -427,7 +512,12 @@ class QuickControlCenterSheet extends ConsumerWidget {
                               subtitle: 'Health & integrity audit',
                               onTap: () {
                                 Navigator.of(context).pop();
-                                context.push(Routes.sentinelDiagnostics);
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  final rootCtx = rootNavigatorKey.currentContext;
+                                  if (rootCtx != null && rootCtx.mounted) {
+                                    rootCtx.push(Routes.sentinelDiagnostics);
+                                  }
+                                });
                               },
                             ),
                           ),
@@ -442,7 +532,12 @@ class QuickControlCenterSheet extends ConsumerWidget {
                               subtitle: 'Staff activity & events',
                               onTap: () {
                                 Navigator.of(context).pop();
-                                context.push(Routes.adminAuditLog);
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  final rootCtx = rootNavigatorKey.currentContext;
+                                  if (rootCtx != null && rootCtx.mounted) {
+                                    rootCtx.push(Routes.adminAuditLog);
+                                  }
+                                });
                               },
                             ),
                           ),
@@ -481,13 +576,18 @@ class QuickControlCenterSheet extends ConsumerWidget {
                             ),
                             onPressed: () {
                               Navigator.of(context).pop();
-                              SecuritySettingsDialog.show(
-                                context,
-                                isStudent: isStudent,
-                                authUid: authUid,
-                                studentId: studentId,
-                                libraryId: libraryId,
-                              );
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                final rootCtx = rootNavigatorKey.currentContext;
+                                if (rootCtx != null && rootCtx.mounted) {
+                                  SecuritySettingsDialog.show(
+                                    rootCtx,
+                                    isStudent: isStudent,
+                                    authUid: authUid,
+                                    studentId: studentId,
+                                    libraryId: libraryId,
+                                  );
+                                }
+                              });
                             },
                             child: const Text('Security', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
                           ),

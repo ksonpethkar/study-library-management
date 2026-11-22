@@ -1354,7 +1354,7 @@ class OcrParser {
 
     // 1. Extract Roll Number / PRN / Enrollment ID
     String? rollNumber;
-    // (a) Labeled search
+    // (a) Labeled search (inline on same line first, then next line)
     for (final keyword in [
       'prn no', 'prn number', 'prn', 'p.r.n.',
       'roll no', 'roll number', 'roll',
@@ -1362,7 +1362,7 @@ class OcrParser {
       'reg no', 'registration no', 'reg.',
       'student id', 'id no', 'seat no', 'uid', 'hall ticket'
     ]) {
-      final val = _valueAfterLabel(lines, keyword) ?? _inlineValue(text, keyword);
+      final val = _inlineValue(text, keyword) ?? _valueAfterLabel(lines, keyword);
       if (val != null && RegExp(r'^[A-Z0-9/\-]{2,25}$', caseSensitive: false).hasMatch(val.trim())) {
         rollNumber = val.trim().toUpperCase();
         confidence += 35;
@@ -1392,13 +1392,13 @@ class OcrParser {
       }
     }
 
-    // 2. Extract Student Name
+    // 2. Extract Student Name (inline on same line first, then next line)
     String? name;
     for (final label in [
       'student name', 'candidate name', 'name of student',
       'name of candidate', 'holder name', 'holder', 'name'
     ]) {
-      final val = _valueAfterLabel(lines, label) ?? _inlineValue(text, label);
+      final val = _inlineValue(text, label) ?? _valueAfterLabel(lines, label);
       if (val != null && _isValidEnglishName(val)) {
         name = _toTitleCase(val);
         confidence += 25;
@@ -1427,11 +1427,11 @@ class OcrParser {
       }
     }
 
-    // 3. Extract College / Institute / University Name
+    // 3. Extract College / Institute / University Name (inline first, then next line)
     String? college;
     // (a) Labeled search
     for (final keyword in ['college', 'institute', 'university', 'polytechnic', 'school', 'academy', 'vidyapeeth']) {
-      final val = _valueAfterLabel(lines, keyword) ?? _inlineValue(text, keyword);
+      final val = _inlineValue(text, keyword) ?? _valueAfterLabel(lines, keyword);
       if (val != null && val.trim().length >= 4) {
         college = _toTitleCase(val.trim());
         confidence += 20;
@@ -1441,21 +1441,15 @@ class OcrParser {
 
     // (b) Header line detection (first 4 lines often have the college banner without label)
     if (college == null) {
+      // Pass 1: Prefer specific College / Polytechnic / Institute / Mahavidyalaya
       for (final l in lines.take(4)) {
         final upper = l.toUpperCase();
         if (upper.contains('IDENTITY CARD') || upper.contains('STUDENT ID') || upper.contains('ID CARD')) continue;
         if (upper.contains('COLLEGE') ||
-            upper.contains('INSTITUTE') ||
-            upper.contains('UNIVERSITY') ||
             upper.contains('POLYTECHNIC') ||
+            upper.contains('INSTITUTE') ||
             upper.contains('MAHAVIDYALAYA') ||
-            upper.contains('VIDYAPEETH') ||
             upper.contains('ACADEMY') ||
-            upper.contains('ENGINEERING') ||
-            upper.contains('TECHNOLOGY') ||
-            upper.contains('SPPU') ||
-            upper.contains('BAMU') ||
-            upper.contains('SRTMU') ||
             upper.contains('COEP') ||
             upper.contains('VJTI') ||
             upper.contains('DY PATIL') ||
@@ -1468,13 +1462,34 @@ class OcrParser {
           }
         }
       }
+      // Pass 2: University / Vidyapeeth fallback if no specific college line
+      if (college == null) {
+        for (final l in lines.take(4)) {
+          final upper = l.toUpperCase();
+          if (upper.contains('IDENTITY CARD') || upper.contains('STUDENT ID') || upper.contains('ID CARD')) continue;
+          if (upper.contains('UNIVERSITY') ||
+              upper.contains('VIDYAPEETH') ||
+              upper.contains('ENGINEERING') ||
+              upper.contains('TECHNOLOGY') ||
+              upper.contains('SPPU') ||
+              upper.contains('BAMU') ||
+              upper.contains('SRTMU')) {
+            final cleaned = l.replaceAll(RegExp(r'(?:STUDENT\s*ID\s*CARD|IDENTITY\s*CARD|ID\s*CARD)', caseSensitive: false), '').trim();
+            if (cleaned.length >= 6 && cleaned.length <= 80) {
+              college = _toTitleCase(cleaned);
+              confidence += 20;
+              break;
+            }
+          }
+        }
+      }
     }
 
-    // 4. Extract Course / Degree / Branch
+    // 4. Extract Course / Degree / Branch (inline first, then next line)
     String? course;
     // (a) Labeled search
     for (final keyword in ['course', 'programme', 'program', 'degree', 'branch', 'class', 'stream', 'dept', 'department']) {
-      final val = _valueAfterLabel(lines, keyword) ?? _inlineValue(text, keyword);
+      final val = _inlineValue(text, keyword) ?? _valueAfterLabel(lines, keyword);
       if (val != null && val.trim().length >= 2) {
         course = val.trim().toUpperCase();
         confidence += 15;
@@ -1502,7 +1517,10 @@ class OcrParser {
     // 5. Blood Group
     String? bloodGroup;
     final bgMatch = RegExp(
-      r'\b(?:Blood\s*(?:Group|Grp)?[:\s\-]*)?(A1B\+|A2B\+|A1\+|A2\+|AB\+|A\+|B\+|O\+|AB\-|A\-|B\-|O\-)\b',
+      r'(?:Blood\s*(?:Group|Grp)?[:\s\-]+)\s*(A1B\+|A2B\+|A1\+|A2\+|AB\+|A\+|B\+|O\+|AB\-|A\-|B\-|O\-|A1B|A2B|AB|A|B|O)',
+      caseSensitive: false,
+    ).firstMatch(text) ?? RegExp(
+      r'\b(A1B\+|A2B\+|A1\+|A2\+|AB\+|A\+|B\+|O\+|AB\-|A\-|B\-|O\-)(?:\s|$)',
       caseSensitive: false,
     ).firstMatch(text);
     if (bgMatch != null) {
@@ -1641,7 +1659,11 @@ class OcrParser {
   static String? _valueAfterLabel(List<String> lines, String keyword) {
     final kLower = keyword.toLowerCase();
     for (int i = 0; i < lines.length - 1; i++) {
-      if (lines[i].toLowerCase().contains(kLower)) {
+      final lineLower = lines[i].toLowerCase().trim();
+      if (lineLower == kLower ||
+          lineLower == '$kLower:' ||
+          lineLower == '$kLower-' ||
+          (lineLower.endsWith(':') && lineLower.contains(kLower))) {
         final next = lines[i + 1].trim();
         if (next.isNotEmpty && next.length > 1) return next;
       }
@@ -1651,7 +1673,10 @@ class OcrParser {
 
   static String? _inlineValue(String text, String label) {
     final match = RegExp(
-      '${RegExp.escape(label)}[:\\s]+([^\\n]+)',
+      r'(?:^|[\r\n])\s*' + RegExp.escape(label) + r'(?:\s*[:\-]+\s*|\s{2,}|\t+)([^\r\n]+)',
+      caseSensitive: false,
+    ).firstMatch(text) ?? RegExp(
+      r'\b' + RegExp.escape(label) + r'\s*[:\-]+\s*([^\r\n]+)',
       caseSensitive: false,
     ).firstMatch(text);
     return match?.group(1)?.trim();

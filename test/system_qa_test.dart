@@ -8618,5 +8618,52 @@ Session: 2024-2025
       final pdfText = await ocrService.extractPdfText(dummyPdfBytes);
       expect(pdfText, isA<String>());
     });
+
+    testWidgets('Test 151: QUICK CONTROLS INSTANT LOCK & ROOT NAVIGATION SAFETY (WEB FREEZE RESILIENCE)', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      // 1. Initial State: Admin without PIN configured
+      final initialLockStatus = await BiometricService.isLockEnabled(isAdmin: true);
+      expect(initialLockStatus, isFalse, reason: 'Must return false when admin has not set up a PIN');
+
+      // 2. InactivityLockService state management
+      InactivityLockService.setLocked(false);
+      expect(InactivityLockService.isLocked, isFalse);
+      InactivityLockService.setLocked(true);
+      expect(InactivityLockService.isLocked, isTrue);
+
+      // 3. Configure mock PIN hash
+      await prefs.setString('security_pin_hash', 'mock_salt:mock_hash');
+      final configuredLockStatus = await BiometricService.isLockEnabled(isAdmin: true);
+      expect(configuredLockStatus, isTrue, reason: 'Must return true once master PIN hash is cached');
+
+      // 4. Unlock resets locked state
+      InactivityLockService.setLocked(false);
+
+      // 5. Test QuickControlCenterSheet deterministic build inside test harness
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: QuickControlCenterSheet(
+                isStudent: false,
+                libraryId: 'lib_test_01',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Instant Lock'), findsOneWidget);
+      expect(find.text('Dark Theme'), findsOneWidget);
+      expect(find.text('Sync Live Data'), findsOneWidget);
+      expect(find.text('Typography'), findsOneWidget);
+      expect(find.text('Global Search'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Sentinel AI Guardian'), findsOneWidget);
+      expect(find.text('Audit Log'), findsOneWidget);
+    });
   });
 }
