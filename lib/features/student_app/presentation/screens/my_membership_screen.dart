@@ -438,15 +438,15 @@ class MyMembershipScreen extends ConsumerWidget {
                             child: const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Study Shift', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                                Text('Study Access', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
                                 SizedBox(height: 2),
                                 Row(
                                   children: [
-                                    Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF818CF8)),
+                                    Icon(Icons.all_inclusive_rounded, size: 12, color: Color(0xFF818CF8)),
                                     SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
-                                        'Full Day Access',
+                                        'Dedicated 24x7 Desk',
                                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -1139,29 +1139,18 @@ class _StudentTransactionsSection extends StatelessWidget {
     final theme = Theme.of(context);
     final dateFormat = DateFormat('dd MMM yyyy');
 
-    final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final effectiveUid = student.userId?.isNotEmpty == true ? student.userId! : authUid;
-
-    final studentFilter = effectiveUid.isNotEmpty
-        ? Filter.or(
-            Filter('studentId', isEqualTo: student.id),
-            Filter('studentUserId', isEqualTo: effectiveUid),
-            Filter('studentId', isEqualTo: effectiveUid),
-          )
-        : Filter('studentId', isEqualTo: student.id);
-
-    // Resilient queries matching either studentId or studentUserId so all receipts/payments appear
+    // Zero-Index Single-Field Queries for instant loading without composite indexes
     final receiptQuery = FirebaseFirestore.instance
         .collection('libraries')
         .doc(libraryId)
         .collection('receipts')
-        .where(studentFilter);
+        .where('studentId', isEqualTo: student.id);
 
     final paymentQuery = FirebaseFirestore.instance
         .collection('libraries')
         .doc(libraryId)
         .collection('payments')
-        .where(studentFilter);
+        .where('studentId', isEqualTo: student.id);
 
     // Stream both receipts and payments for the student
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -1248,7 +1237,7 @@ class _StudentTransactionsSection extends StatelessWidget {
                 libraryId: libraryId,
                 receiptNumber: 'REC-${startDate.year}-$uniqueSuffix',
                 studentId: student.id,
-                studentUserId: effectiveUid,
+                studentUserId: student.userId,
                 planId: student.planId ?? 'membership_enrollment',
                 amount: planPrice > 0 ? planPrice : 2000.0,
                 totalFee: planPrice > 0 ? planPrice : 2000.0,

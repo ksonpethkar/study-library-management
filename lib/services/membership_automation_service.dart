@@ -270,6 +270,7 @@ class MembershipAutomationService {
             batch.update(seatRef, {
               'status': SeatStatus.available.name,
               'studentId': null,
+              'studentName': FieldValue.delete(),
             });
 
             studentUpdate['seatId'] = null;

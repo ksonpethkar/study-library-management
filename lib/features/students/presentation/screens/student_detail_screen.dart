@@ -67,6 +67,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
   bool _isGovIdVisible = false;
   String seatLabel = '';
   String sectionName = '';
+  String previousSeatLabel = '';
+  String previousSectionName = '';
+  int? sectionCols;
   String planName = '';
   double planPrice = 0;
   double lastPaidAmount = 0.0;
@@ -81,7 +84,10 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
       student = widget.preloadedStudent;
       isLoading = false;
       if (student!.seatId != null && student!.seatId!.isNotEmpty) {
-        seatLabel = SeatHelper.formatSeatLabel(seatId: student!.seatId);
+        seatLabel = SeatHelper.formatSeatNumberOnly(seatId: student!.seatId);
+      }
+      if (student!.previousSeatId != null && student!.previousSeatId!.isNotEmpty) {
+        previousSeatLabel = SeatHelper.formatSeatNumberOnly(seatId: student!.previousSeatId);
       }
     }
     final initialLibId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
@@ -155,8 +161,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
         });
         
         // Load seat + section names safely
-        String loadedSeatLabel = '';
-        String loadedSectionName = '';
+        String loadedSeatLabel = data['seatLabel']?.toString() ?? '';
+        String loadedSectionName = data['sectionName']?.toString() ?? '';
+        int? loadedSectionCols;
         if (s.seatId != null && s.seatId!.isNotEmpty) {
           String? effectiveSectionId = s.sectionId;
           if (effectiveSectionId == null || effectiveSectionId.isEmpty) {
@@ -170,7 +177,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   effectiveSectionId = sec.id;
                   loadedSectionName = sec.data()['name'] ?? 'Section';
                   loadedSeatLabel = seatDoc.data()?['label'] ?? 'Seat';
-                  studentDoc.reference.update({'sectionId': effectiveSectionId}).ignore();
+                  loadedSectionCols = (sec.data()['cols'] ?? sec.data()['columns']) as int?;
+                  studentDoc.reference.update({
+                    'sectionId': effectiveSectionId,
+                    'seatLabel': loadedSeatLabel,
+                    'sectionName': loadedSectionName,
+                  }).ignore();
                   break;
                 }
               }
@@ -183,6 +195,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   .get();
               if (sectionDoc.exists) {
                 loadedSectionName = sectionDoc.data()?['name'] ?? 'Unknown Section';
+                loadedSectionCols = (sectionDoc.data()?['cols'] ?? sectionDoc.data()?['columns']) as int?;
               }
             } catch (_) {}
             
@@ -194,6 +207,61 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   .get();
               if (seatDoc.exists) {
                 loadedSeatLabel = seatDoc.data()?['label'] ?? 'Unknown Seat';
+              }
+            } catch (_) {}
+          }
+        } else {
+          // Resilient Lookup: Check if any seat in the library is bound to this student
+          try {
+            final secSnap = await FirebaseFirestore.instance
+                .collection('libraries').doc(libraryId)
+                .collection('sections').get();
+            for (final sec in secSnap.docs) {
+              final occupiedSeatsSnap = await sec.reference
+                  .collection('seats')
+                  .where('studentId', isEqualTo: s.id)
+                  .get();
+              if (occupiedSeatsSnap.docs.isNotEmpty) {
+                final seatDoc = occupiedSeatsSnap.docs.first;
+                final seatData = seatDoc.data();
+                loadedSeatLabel = seatData['label']?.toString() ?? seatData['seatNumber']?.toString() ?? seatDoc.id;
+                loadedSectionName = sec.data()['name'] ?? 'Section';
+                loadedSectionCols = (sec.data()['cols'] ?? sec.data()['columns']) as int?;
+                studentDoc.reference.update({
+                  'seatId': seatDoc.id,
+                  'sectionId': sec.id,
+                  'seatLabel': loadedSeatLabel,
+                  'sectionName': loadedSectionName,
+                  'previousSeatId': seatDoc.id,
+                  'previousSectionId': sec.id,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                }).ignore();
+                break;
+              }
+            }
+          } catch (_) {}
+        }
+
+        // Load previous seat + section names safely (for Restore Desk accuracy)
+        String loadedPreviousSeatLabel = data['previousSeatLabel']?.toString() ?? '';
+        String loadedPreviousSectionName = data['previousSectionName']?.toString() ?? '';
+        if (s.previousSeatId != null && s.previousSeatId!.isNotEmpty) {
+          final prevSecId = s.previousSectionId;
+          if (prevSecId != null && prevSecId.isNotEmpty) {
+            try {
+              final prevSecDoc = await FirebaseFirestore.instance
+                  .collection('libraries').doc(libraryId)
+                  .collection('sections').doc(prevSecId)
+                  .get();
+              if (prevSecDoc.exists) {
+                loadedPreviousSectionName = prevSecDoc.data()?['name'] ?? '';
+                final prevCols = (prevSecDoc.data()?['cols'] ?? prevSecDoc.data()?['columns']) as int?;
+                final prevSeatDoc = await prevSecDoc.reference.collection('seats').doc(s.previousSeatId).get();
+                if (prevSeatDoc.exists) {
+                  loadedPreviousSeatLabel = prevSeatDoc.data()?['label']?.toString() ?? '';
+                } else if (prevCols != null && prevCols > 0) {
+                  loadedPreviousSeatLabel = SeatHelper.formatSeatNumberOnly(seatId: s.previousSeatId, cols: prevCols);
+                }
               }
             } catch (_) {}
           }
@@ -257,6 +325,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             student = s;
             seatLabel = loadedSeatLabel;
             sectionName = loadedSectionName;
+            previousSeatLabel = loadedPreviousSeatLabel;
+            previousSectionName = loadedPreviousSectionName;
+            sectionCols = loadedSectionCols;
             planName = loadedPlanName;
             planPrice = effectivePrice;
             lastPaidAmount = loadedLastPaid;
@@ -297,6 +368,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
       if (mounted) {
         setState(() {
           student = s;
+          if (data['seatLabel'] != null && data['seatLabel'].toString().isNotEmpty) {
+            seatLabel = data['seatLabel'].toString();
+          }
+          if (data['sectionName'] != null && data['sectionName'].toString().isNotEmpty) {
+            sectionName = data['sectionName'].toString();
+          }
+          if (data['previousSeatLabel'] != null && data['previousSeatLabel'].toString().isNotEmpty) {
+            previousSeatLabel = data['previousSeatLabel'].toString();
+          }
+          if (data['previousSectionName'] != null && data['previousSectionName'].toString().isNotEmpty) {
+            previousSectionName = data['previousSectionName'].toString();
+          }
         });
       }
     });
@@ -5549,7 +5632,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  seatLabel.isNotEmpty ? 'Seat $seatLabel' : 'Seat ${SeatHelper.formatSeatLabel(seatId: s.seatId)}',
+                                  SeatHelper.formatSeatLabel(
+                                    seatId: s.seatId,
+                                    rawLabel: seatLabel.isNotEmpty ? seatLabel : null,
+                                    cols: sectionCols ?? 10,
+                                  ),
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 4),
@@ -5593,7 +5680,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Previously Allocated: Seat ${SeatHelper.formatSeatLabel(seatId: s.previousSeatId)}',
+                                      'Previously Allocated: ${SeatHelper.formatSeatLabel(seatId: s.previousSeatId, rawLabel: previousSeatLabel.isNotEmpty ? previousSeatLabel : null, cols: sectionCols ?? 10)}',
                                       style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
                                     ),
                                   ),
@@ -5604,16 +5691,58 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                       final targetSec = s.previousSectionId;
                                       final targetSeat = s.previousSeatId;
                                       if (targetSec != null && targetSeat != null) {
-                                        final seatRepo = ref.read(seatRepositoryProvider);
-                                        await seatRepo.assignStudent(libraryId, targetSec, targetSeat, s.id);
+                                        // 1. Instant optimistic UI update on 1st tap (0ms latency)
+                                        final restoredSeatNumber = previousSeatLabel.isNotEmpty
+                                            ? previousSeatLabel
+                                            : SeatHelper.formatSeatNumberOnly(seatId: targetSeat, cols: sectionCols ?? 10);
+                                        final restoredSectionName = previousSectionName.isNotEmpty
+                                            ? previousSectionName
+                                            : (sectionName.isNotEmpty ? sectionName : 'Section assigned');
+
+                                        setState(() {
+                                          student = s.copyWith(
+                                            seatId: targetSeat,
+                                            sectionId: targetSec,
+                                          );
+                                          seatLabel = restoredSeatNumber;
+                                          sectionName = restoredSectionName;
+                                        });
+
+                                        final friendlyDesk = SeatHelper.formatSeatLabel(
+                                          seatId: targetSeat,
+                                          rawLabel: restoredSeatNumber,
+                                          cols: sectionCols ?? 10,
+                                        );
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: Text('Restored Seat ${SeatHelper.formatSeatLabel(seatId: targetSeat)} for ${s.name} ✓'),
+                                              content: Text('Restored $friendlyDesk for ${s.name} ✓'),
                                               backgroundColor: Colors.green,
                                             ),
                                           );
-                                          _loadStudent();
+                                        }
+
+                                        try {
+                                          final seatRepo = ref.read(seatRepositoryProvider);
+                                          await seatRepo.assignStudent(libraryId, targetSec, targetSeat, s.id);
+                                          if (mounted) {
+                                            _loadStudent();
+                                          }
+                                        } catch (e) {
+                                          if (mounted && context.mounted) {
+                                            // Revert optimistic state on failure
+                                            setState(() {
+                                              student = s;
+                                              seatLabel = '';
+                                              sectionName = '';
+                                            });
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Failed to restore desk: $e'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
                                         }
                                       } else {
                                         _showAssignSeatSheet();

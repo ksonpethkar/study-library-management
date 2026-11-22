@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/features/seats/data/repositories/seat_repository.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/seat_model.dart';
@@ -65,13 +66,18 @@ final occupancyProvider = StreamProvider<Map<String, int>>((ref) async* {
 
     final occupiedSeatKeys = <String>{};
     for (final s in students) {
-      if (s.membershipStatus == MembershipStatus.active && s.seatId != null && s.seatId!.isNotEmpty) {
-        occupiedSeatKeys.add(s.seatId!);
+      if ((s.membershipStatus == MembershipStatus.active || s.membershipStatus == MembershipStatus.grace) &&
+          s.seatId != null &&
+          s.seatId!.isNotEmpty) {
+        // Normalize seat key using SeatHelper so legacy/composite keys map consistently
+        final numOnly = SeatHelper.formatSeatNumberOnly(seatId: s.seatId);
+        occupiedSeatKeys.add(numOnly.isNotEmpty ? 'seat_num_$numOnly' : s.seatId!);
       }
     }
     for (final seat in allSeats) {
-      if (seat.isOccupied) {
-        occupiedSeatKeys.add(seat.id);
+      if (seat.isOccupied || (seat.studentId != null && seat.studentId!.isNotEmpty)) {
+        final numOnly = SeatHelper.formatSeatNumberOnly(seatId: seat.id, rawLabel: seat.label);
+        occupiedSeatKeys.add(numOnly.isNotEmpty ? 'seat_num_$numOnly' : seat.id);
       }
     }
 

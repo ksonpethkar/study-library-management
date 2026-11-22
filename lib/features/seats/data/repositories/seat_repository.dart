@@ -453,6 +453,23 @@ class SeatRepository {
         }
       }
 
+      // 1b. Sweep any existing student records pointing to this same seatId (prevent double-binding)
+      final staleStudentRefs = <DocumentReference>[];
+      try {
+        final duplicateStudentsSnap = await _firestore
+            .collection(FirestorePaths.libraries)
+            .doc(libraryId)
+            .collection(FirestorePaths.students)
+            .where('seatId', isEqualTo: seatId)
+            .get();
+
+        for (final sDoc in duplicateStudentsSnap.docs) {
+          if (sDoc.id != studentId) {
+            staleStudentRefs.add(sDoc.reference);
+          }
+        }
+      } catch (_) {}
+
       final targetSeatRef = _firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
@@ -487,6 +504,10 @@ class SeatRepository {
           throw Exception('Target seat does not exist.');
         }
 
+        final studentSnap = await tx.get(studentRef);
+        final studentData = studentSnap.data() ?? {};
+        final assignedStudentName = (studentData['name'] as String?)?.trim();
+
         final targetData = targetSeatSnap.data() ?? {};
         final currentOccupant = targetData['studentId'] as String?;
         final currentStatus = targetData['status'] as String?;
@@ -505,45 +526,52 @@ class SeatRepository {
         final isSameStudent = currentOccupant == studentId ||
             (resolvedUserId != null && resolvedUserId.isNotEmpty && currentOccupant == resolvedUserId);
 
+        // Strict Occupancy Invariant: Never allow double-booking on an active occupied desk
         if (currentStatus == SeatStatus.occupied.name &&
             currentOccupant != null &&
             currentOccupant.isNotEmpty &&
             !isSameStudent) {
-          // If overrideSoftLock is requested (e.g. admin explicit desk allocation/approval), allow reassignment
-          if (!overrideSoftLock) {
-            // Verify occupant is still an active enrolled student assigned to THIS seat
-            bool isOccupantActive = false;
-            try {
-              final occRef = _firestore
-                  .collection(FirestorePaths.libraries)
-                  .doc(libraryId)
-                  .collection(FirestorePaths.students)
-                  .doc(currentOccupant);
-              final occSnap = await tx.get(occRef);
-              if (occSnap.exists) {
-                final occData = occSnap.data() ?? {};
-                final occStatus = (occData['membershipStatus'] as String?)?.toLowerCase();
-                final occSeatId = (occData['seatId'] ?? '').toString();
-                final occUid = (occData['userId'] ?? '').toString().trim();
+          bool isOccupantActive = false;
+          String occupantName = 'another student';
+          DocumentReference? occRef;
+          try {
+            occRef = _firestore
+                .collection(FirestorePaths.libraries)
+                .doc(libraryId)
+                .collection(FirestorePaths.students)
+                .doc(currentOccupant);
+            final occSnap = await tx.get(occRef);
+            if (occSnap.exists) {
+              final occData = (occSnap.data() is Map<String, dynamic>)
+                  ? (occSnap.data() as Map<String, dynamic>)
+                  : <String, dynamic>{};
+              final occStatus = (occData['membershipStatus'] as String?)?.toLowerCase();
+              final occSeatId = (occData['seatId'] ?? '').toString();
+              final occUid = (occData['userId'] ?? '').toString().trim();
+              occupantName = (occData['name'] ?? 'another student').toString();
 
-                final isActuallyInactive = occStatus == 'archived' ||
-                    occStatus == 'deleted' ||
-                    occStatus == 'inactive' ||
-                    occStatus == 'expired';
-                final isMovedToOtherSeat = occSeatId.isNotEmpty && occSeatId != seatId;
-                final isSamePerson = (resolvedUserId != null && resolvedUserId.isNotEmpty && occUid == resolvedUserId);
+              final isActuallyInactive = occStatus == 'archived' ||
+                  occStatus == 'deleted' ||
+                  occStatus == 'inactive' ||
+                  occStatus == 'expired';
+              final isMovedToOtherSeat = occSeatId.isNotEmpty && occSeatId != seatId;
+              final isSamePerson = (resolvedUserId != null && resolvedUserId.isNotEmpty && occUid == resolvedUserId);
 
-                if (!isActuallyInactive && !isMovedToOtherSeat && !isSamePerson) {
-                  isOccupantActive = true;
-                }
+              if (!isActuallyInactive && !isMovedToOtherSeat && !isSamePerson) {
+                isOccupantActive = true;
               }
-            } catch (_) {
-              // If lookup fails or tx read unavailable, do not falsely block assignment
-              isOccupantActive = false;
             }
+          } catch (_) {
+            isOccupantActive = false;
+          }
 
-            if (isOccupantActive) {
-              throw Exception('Seat is already occupied by another student.');
+          if (isOccupantActive) {
+            final readableSeat = SeatHelper.formatSeatNumberOnly(seatId: seatId, rawLabel: targetData['label']?.toString());
+            throw Exception('Desk #$readableSeat is already assigned to active student "$occupantName". A desk cannot be assigned to two students simultaneously.');
+          } else if (occRef != null) {
+            // Previous occupant is inactive or vacated: clear their stale student pointer atomically
+            if (!staleStudentRefs.any((r) => r.path == occRef!.path)) {
+              staleStudentRefs.add(occRef);
             }
           }
         }
@@ -553,21 +581,32 @@ class SeatRepository {
             (reservedCandidateId == studentId ||
                 (resolvedUserId != null && resolvedUserId.isNotEmpty && reservedCandidateId == resolvedUserId));
 
+        // Soft-lock hold only applies to temporary cart reservations
         if (isSoftLockActive && reservedCandidateId != null && !isReservedForThisStudent && !overrideSoftLock) {
-          throw Exception('Seat is temporarily held for another applicant (10-minute reservation).');
+          throw Exception('Seat is temporarily held for another applicant (5-minute reservation).');
         }
 
         final seatLabel = targetData['label'] ?? targetData['seatNumber']?.toString() ?? seatId;
         assignedLabel = seatLabel.toString();
 
         // WRITES
-        // Release previous seats if any
+        // Release previous seats of this student if any
         for (final oldRef in oldSeatRefs) {
           tx.update(oldRef, {
             'status': SeatStatus.available.name,
             'studentId': null,
+            'studentName': FieldValue.delete(),
             'assignedAt': FieldValue.delete(),
             'vacatedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        // Release stale seatId pointers from any other students
+        for (final staleRef in staleStudentRefs) {
+          tx.update(staleRef, {
+            'seatId': FieldValue.delete(),
+            'previousSeatId': seatId,
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }
@@ -576,6 +615,8 @@ class SeatRepository {
         tx.update(targetSeatRef, {
           'status': SeatStatus.occupied.name,
           'studentId': studentId,
+          if (assignedStudentName != null && assignedStudentName.isNotEmpty)
+            'studentName': assignedStudentName,
           'assignedAt': FieldValue.serverTimestamp(),
           'vacatedAt': FieldValue.delete(),
           'reservationType': FieldValue.delete(),
@@ -590,6 +631,8 @@ class SeatRepository {
           'seatId': seatId,
           'sectionId': sectionId,
           'seatLabel': seatLabel,
+          'previousSeatId': seatId,
+          'previousSectionId': sectionId,
           'updatedAt': FieldValue.serverTimestamp(),
         });
       });
@@ -644,6 +687,7 @@ class SeatRepository {
       batch.update(seatRef, {
         'status': SeatStatus.available.name,
         'studentId': null,
+        'studentName': FieldValue.delete(),
         'assignedAt': FieldValue.delete(),
         'vacatedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -658,6 +702,8 @@ class SeatRepository {
       batch.update(studentRef, {
         'seatId': null,
         'sectionId': null,
+        'previousSeatId': seatId,
+        'previousSectionId': sectionId,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -850,10 +896,14 @@ class SeatRepository {
         labelA = seatAData['label'] ?? seatAData['seatNumber']?.toString() ?? seatAId;
         labelB = seatBData['label'] ?? seatBData['seatNumber']?.toString() ?? seatBId;
 
+        final nameA = (studentASnap.data()?['name'] as String?)?.trim();
+        final nameB = (studentBSnap.data()?['name'] as String?)?.trim();
+
         // Seat A gets Student B
         tx.update(seatARef, {
           'status': SeatStatus.occupied.name,
           'studentId': studentBId,
+          if (nameB != null && nameB.isNotEmpty) 'studentName': nameB,
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
@@ -861,6 +911,7 @@ class SeatRepository {
         tx.update(seatBRef, {
           'status': SeatStatus.occupied.name,
           'studentId': studentAId,
+          if (nameA != null && nameA.isNotEmpty) 'studentName': nameA,
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
@@ -1038,6 +1089,7 @@ class SeatRepository {
 
         if (status == SeatStatus.available) {
           updateData['studentId'] = null;
+          updateData['studentName'] = FieldValue.delete();
           updateData['assignedAt'] = FieldValue.delete();
           updateData['vacatedAt'] = FieldValue.serverTimestamp();
           updateData['reservationType'] = FieldValue.delete();
@@ -1071,6 +1123,7 @@ class SeatRepository {
                 'seatId': null,
                 'sectionId': null,
                 'previousSeatId': sSeatId,
+                'previousSectionId': sectionId,
                 'updatedAt': FieldValue.serverTimestamp(),
               });
             }
@@ -1392,5 +1445,144 @@ class SeatRepository {
     } catch (e) {
       return {'total': 0, 'occupied': 0, 'available': 0};
     }
+  }
+
+  /// Completely reconciles and heals any desynchronization between seats and students.
+  /// 1. Double-checks active students: ensures their assigned seat has status: occupied and matching studentId/studentName.
+  /// 2. If an active student has seatId == null but a seat has their studentId: restores student.seatId!
+  /// 3. For all seats: if marked available, purges studentId and studentName so phantom occupants never display.
+  /// 4. If a seat is occupied by a student that doesn't exist or is archived: releases seat to available.
+  Future<Map<String, int>> reconcileSeatStudentBindings(String libraryId) async {
+    int healedSeats = 0;
+    int healedStudents = 0;
+
+    try {
+      final sectionsSnap = await _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .get();
+
+      final studentsSnap = await _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.students)
+          .get();
+
+      final activeStudents = <String, Map<String, dynamic>>{};
+      final studentDocs = <String, DocumentReference>{};
+
+      for (final doc in studentsSnap.docs) {
+        final data = doc.data();
+        studentDocs[doc.id] = doc.reference;
+        final status = (data['membershipStatus'] as String?)?.toLowerCase();
+        if (status == 'active' || status == 'grace') {
+          activeStudents[doc.id] = data;
+        }
+      }
+
+      final batch = _firestore.batch();
+      bool hasBatchOps = false;
+
+      for (final sec in sectionsSnap.docs) {
+        final seatsSnap = await sec.reference
+            .collection(FirestorePaths.seats)
+            .get();
+
+        for (final seatDoc in seatsSnap.docs) {
+          final seatData = seatDoc.data();
+          final seatId = seatDoc.id;
+          final status = (seatData['status'] as String?)?.toLowerCase() ?? 'available';
+          final studentId = seatData['studentId'] as String?;
+          final studentName = seatData['studentName'] as String?;
+          final seatLabel = seatData['label'] ?? seatData['seatNumber']?.toString() ?? seatId;
+
+          if (status == 'available') {
+            // Case A: Seat is marked available, but holds an active student's ID
+            if (studentId != null && activeStudents.containsKey(studentId)) {
+              final sData = activeStudents[studentId]!;
+              final sSeatId = sData['seatId'] as String?;
+              if (sSeatId == null || sSeatId.isEmpty || sSeatId == seatId) {
+                // Restore double-binding!
+                batch.update(seatDoc.reference, {
+                  'status': SeatStatus.occupied.name,
+                  'studentId': studentId,
+                  'studentName': sData['name'] ?? '',
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+                batch.update(studentDocs[studentId]!, {
+                  'seatId': seatId,
+                  'sectionId': sec.id,
+                  'seatLabel': seatLabel.toString(),
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+                healedSeats++;
+                healedStudents++;
+                hasBatchOps = true;
+                continue;
+              }
+            }
+            // If seat is available and not re-linked, purge residual studentName / studentId!
+            if (studentId != null || (studentName != null && studentName.isNotEmpty)) {
+              batch.update(seatDoc.reference, {
+                'studentId': null,
+                'studentName': FieldValue.delete(),
+                'assignedAt': FieldValue.delete(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+              healedSeats++;
+              hasBatchOps = true;
+            }
+          } else if (status == 'occupied') {
+            // Case B: Seat is marked occupied
+            if (studentId != null && activeStudents.containsKey(studentId)) {
+              final sData = activeStudents[studentId]!;
+              final sSeatId = sData['seatId'] as String?;
+
+              // Ensure student document has this seatId
+              if (sSeatId != seatId) {
+                batch.update(studentDocs[studentId]!, {
+                  'seatId': seatId,
+                  'sectionId': sec.id,
+                  'seatLabel': seatLabel.toString(),
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+                healedStudents++;
+                hasBatchOps = true;
+              }
+              // Ensure seat has student's proper name
+              if (studentName != sData['name']) {
+                batch.update(seatDoc.reference, {
+                  'studentName': sData['name'] ?? '',
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+                healedSeats++;
+                hasBatchOps = true;
+              }
+            } else {
+              // Ghost occupancy on occupied seat! No valid active student.
+              batch.update(seatDoc.reference, {
+                'status': SeatStatus.available.name,
+                'studentId': null,
+                'studentName': FieldValue.delete(),
+                'assignedAt': FieldValue.delete(),
+                'vacatedAt': FieldValue.serverTimestamp(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+              healedSeats++;
+              hasBatchOps = true;
+            }
+          }
+        }
+      }
+
+      if (hasBatchOps) {
+        await batch.commit();
+      }
+    } catch (e) {
+      debugPrint('[SeatRepository] Error during seat-student reconciliation: $e');
+    }
+
+    return {'healedSeats': healedSeats, 'healedStudents': healedStudents};
   }
 }

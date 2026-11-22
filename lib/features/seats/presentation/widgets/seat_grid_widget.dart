@@ -177,9 +177,14 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
       for (final s in studentList) s.id: s,
     };
     final Map<String, StudentModel> studentBySeat = {};
+    final Map<String, StudentModel> studentByNum = {};
     for (final s in studentList) {
-      if (s.membershipStatus == MembershipStatus.active && s.seatId != null && s.seatId!.isNotEmpty) {
+      if ((s.membershipStatus == MembershipStatus.active || s.membershipStatus == MembershipStatus.grace) &&
+          s.seatId != null &&
+          s.seatId!.isNotEmpty) {
         studentBySeat[s.seatId!] = s;
+        final num = SeatHelper.formatSeatNumberOnly(seatId: s.seatId);
+        if (num.isNotEmpty) studentByNum[num] = s;
       }
     }
 
@@ -192,6 +197,10 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
       }
       if (studentBySeat.containsKey(seat.label)) {
         return studentBySeat[seat.label];
+      }
+      final seatNum = SeatHelper.formatSeatNumberOnly(seatId: seat.id, rawLabel: seat.label);
+      if (seatNum.isNotEmpty && studentByNum.containsKey(seatNum)) {
+        return studentByNum[seatNum];
       }
       return null;
     }
@@ -727,7 +736,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                                   showGenderBadge: hasMixedRestrictions && seat.genderRestriction != GenderRestriction.any,
                                   columns: _columns,
                                   student: student,
-                                  studentName: student?.name,
+                                  studentName: student?.name ?? seat.studentName,
                                   shiftName: (student?.customFields['shift'] as String?) ??
                                       (student?.planId != null ? 'Active Plan' : null),
                                   sectionColor: widget.sectionColor != null ? Color(widget.sectionColor!) : null,

@@ -19,6 +19,8 @@ import 'package:study_library/core/utils/seat_helper.dart';
 import 'student_detail_screen.dart';
 import 'package:study_library/features/requests/presentation/screens/request_list_screen.dart';
 import 'package:study_library/features/requests/presentation/screens/request_detail_screen.dart';
+import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
+import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/core/router/app_router.dart';
 
 enum StudentSortOrder {
@@ -153,6 +155,39 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     super.dispose();
   }
 
+  final Set<String> _healedStudentIds = {};
+
+  String? _resolveStudentSeatId(StudentModel student, [List<SeatModel>? seats]) {
+    if (student.seatId != null && student.seatId!.isNotEmpty) {
+      return student.seatId;
+    }
+    final List<SeatModel> allSeats = seats ?? (mounted ? ref.read(allSeatsProvider) : const <SeatModel>[]);
+    final studentUid = student.userId;
+    for (final seat in allSeats) {
+      if (seat.studentId == student.id || (studentUid != null && studentUid.isNotEmpty && seat.studentId == studentUid)) {
+        if (!_healedStudentIds.contains(student.id)) {
+          _healedStudentIds.add(student.id);
+          final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+          FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libId)
+              .collection('students')
+              .doc(student.id)
+              .update({
+                'seatId': seat.id,
+                'sectionId': seat.sectionId,
+                'seatLabel': seat.label,
+                'previousSeatId': seat.id,
+                'previousSectionId': seat.sectionId,
+                'updatedAt': FieldValue.serverTimestamp(),
+              }).catchError((_) {});
+        }
+        return seat.id;
+      }
+    }
+    return null;
+  }
+
   List<StudentModel> _filteredStudents(List<StudentModel> all) {
     if (_searchQuery.isEmpty) return all;
     final q = _searchQuery.toLowerCase().trim();
@@ -162,8 +197,9 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
       final idMatch = s.membershipNumber?.toLowerCase().contains(q) ?? false;
       final emailMatch = s.email.toLowerCase().contains(q);
 
-      final seatRaw = s.seatId?.toLowerCase() ?? '';
-      final seatLabel = SeatHelper.formatSeatLabel(seatId: s.seatId, includePrefix: false).toLowerCase();
+      final effectiveSeat = _resolveStudentSeatId(s);
+      final seatRaw = effectiveSeat?.toLowerCase() ?? '';
+      final seatLabel = SeatHelper.formatSeatLabel(seatId: effectiveSeat, includePrefix: false).toLowerCase();
       final seatMatch = seatRaw.contains(q) ||
           seatLabel == q ||
           '#$seatLabel' == q ||
@@ -198,8 +234,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
         break;
       case StudentSortOrder.seatNumber:
         list.sort((a, b) {
-          final aSeat = (a.seatId ?? '').trim();
-          final bSeat = (b.seatId ?? '').trim();
+          final aSeat = (_resolveStudentSeatId(a) ?? '').trim();
+          final bSeat = (_resolveStudentSeatId(b) ?? '').trim();
           final aHasSeat = aSeat.isNotEmpty;
           final bHasSeat = bSeat.isNotEmpty;
           if (!aHasSeat && !bHasSeat) return 0;
@@ -317,6 +353,32 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
         });
       }
     }
+  }
+
+  String _formatDeskWithSection(StudentModel student) {
+    final effectiveSeatId = _resolveStudentSeatId(student);
+    final baseLabel = SeatHelper.formatDeskLabel(seatId: effectiveSeatId);
+    try {
+      final sections = ref.watch(sectionsProvider).value ?? [];
+      final effectiveSecId = student.sectionId ?? (effectiveSeatId != null ? _resolveSectionIdForSeat(effectiveSeatId) : null);
+      if (sections.length > 1 && effectiveSecId != null && effectiveSecId.isNotEmpty) {
+        final matches = sections.where((s) => s.id == effectiveSecId);
+        if (matches.isNotEmpty && matches.first.name.isNotEmpty) {
+          return '$baseLabel • ${matches.first.name}';
+        }
+      }
+    } catch (_) {}
+    return baseLabel;
+  }
+
+  String? _resolveSectionIdForSeat(String seatId) {
+    try {
+      final allSeats = ref.read(allSeatsProvider);
+      for (final s in allSeats) {
+        if (s.id == seatId) return s.sectionId;
+      }
+    } catch (_) {}
+    return null;
   }
 
   @override
@@ -1397,7 +1459,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                               ),
                               title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                               subtitle: Text(
-                                '${s.phone}${s.seatId != null ? ' • ${SeatHelper.formatDeskLabel(seatId: s.seatId)}' : ''}',
+                                '${s.phone}${_resolveStudentSeatId(s) != null ? ' • ${_formatDeskWithSection(s)}' : ''}',
                                 style: const TextStyle(fontSize: 12),
                               ),
                               trailing: isSent
@@ -1744,7 +1806,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                                if (student.seatId != null && student.seatId!.isNotEmpty)
+                                if (_resolveStudentSeatId(student) != null && _resolveStudentSeatId(student)!.isNotEmpty)
                                   Container(
                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                      decoration: BoxDecoration(
@@ -1758,7 +1820,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                          Icon(Icons.chair_rounded, size: 11, color: isDark ? theme.colorScheme.primary : const Color(0xFF0284C7)),
                                          const SizedBox(width: 3),
                                          Text(
-                                           SeatHelper.formatDeskLabel(seatId: student.seatId),
+                                           _formatDeskWithSection(student),
                                            style: TextStyle(
                                              fontSize: 10.5,
                                              fontWeight: FontWeight.bold,
@@ -2673,7 +2735,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                             const SizedBox(height: 2),
                             Row(
                               children: [
-                                if (student.seatId != null && student.seatId!.isNotEmpty) ...[
+                                if (_resolveStudentSeatId(student) != null && _resolveStudentSeatId(student)!.isNotEmpty) ...[
                                   Container(
                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                      decoration: BoxDecoration(
@@ -2682,7 +2744,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1), width: 0.8),
                                      ),
                                      child: Text(
-                                       SeatHelper.formatDeskLabel(seatId: student.seatId),
+                                       _formatDeskWithSection(student),
                                        style: TextStyle(
                                          fontSize: 9.5,
                                          fontWeight: FontWeight.bold,

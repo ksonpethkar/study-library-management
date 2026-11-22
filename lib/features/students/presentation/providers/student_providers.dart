@@ -69,10 +69,12 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
   } catch (_) { /* intentionally silent */ }
 
   // 2. Direct Document Snapshot Stream (0 indexes required, maximum speed & resilience)
-  // If the student docId is known, stream it directly!
+  // Check known doc ID sources in priority order:
+  // a) Cached doc ID in SharedPreferences
+  // b) Linked studentId in users/{uid}
+  // c) Direct students/{uid} document existence
   String? knownDocId = prefs.getString(docIdKey);
 
-  // If not cached locally, check users/{uid} document for pre-linked studentId
   if (knownDocId == null || knownDocId.isEmpty) {
     try {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
@@ -80,6 +82,25 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
       if (sId != null && sId.isNotEmpty) {
         knownDocId = sId;
         prefs.setString(docIdKey, sId).ignore();
+      }
+    } catch (_) {}
+  }
+
+  // If still unknown, check if students/{uid} directly exists (0 indexes required)
+  if (knownDocId == null || knownDocId.isEmpty) {
+    try {
+      final directDoc = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .doc(uid)
+          .get();
+      if (directDoc.exists && directDoc.data() != null) {
+        knownDocId = uid;
+        prefs.setString(docIdKey, uid).ignore();
+        FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'studentId': uid,
+        }, SetOptions(merge: true)).ignore();
       }
     } catch (_) {}
   }
@@ -93,10 +114,12 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
           .doc(knownDocId)
           .snapshots();
 
+      bool receivedDoc = false;
       await for (final docSnap in docStream.handleError((e) {
-        debugPrint('currentStudentProvider direct docStream error: $e');
+        debugPrint('currentStudentProvider direct docStream handled error: $e');
       })) {
         if (docSnap.exists && docSnap.data() != null) {
+          receivedDoc = true;
           final model = StudentModel.fromJson({...docSnap.data()!, 'id': docSnap.id});
           lastKnownModel = model;
           if (model.userId != uid) {
@@ -106,17 +129,18 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
             await prefs.setString(cacheKey, jsonEncode(model.toJson()));
           } catch (_) {}
           yield model;
-        } else {
-          // Document was migrated or not found at this key; break to query fallback
+        } else if (!receivedDoc) {
+          // Document not found at this key; break to fallback
           break;
         }
       }
+      if (receivedDoc) return;
     } catch (e) {
       debugPrint('currentStudentProvider direct docStream fallback: $e');
     }
   }
 
-  // 3. Query stream by userId with automatic index & offline fallback
+  // 3. Resilient Query Stream with Zero-Exception Absorption & Offline Fallback
   try {
     final stream = FirebaseFirestore.instance
         .collection('libraries')
@@ -126,11 +150,9 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
         .limit(1)
         .snapshots();
 
-    final safeStream = stream.handleError((dynamic error) {
+    await for (final snap in stream.handleError((dynamic error) {
       debugPrint('currentStudentProvider query stream handled error: $error');
-    });
-
-    await for (final snap in safeStream) {
+    })) {
       if (snap.docs.isNotEmpty) {
         final doc = snap.docs.first;
         final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
@@ -140,80 +162,57 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
           'studentId': doc.id,
         }, SetOptions(merge: true)).ignore();
 
-        // Backfill missing studentUserId on legacy receipts and payments for real-time visibility
         if (model.userId != null && model.userId!.isNotEmpty) {
           ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, model.userId!).ignore();
         }
-        // Update cache for next offline launch
         try {
           await prefs.setString(cacheKey, jsonEncode(model.toJson()));
-        } catch (_) { /* intentionally silent */ }
+        } catch (_) {}
         yield model;
-      } else if (email.isNotEmpty) {
-        // Fallback: match by email for admin-added students
-        try {
-          final emailSnap = await FirebaseFirestore.instance
-              .collection('libraries')
-              .doc(libraryId)
-              .collection('students')
-              .where('email', isEqualTo: email)
-              .limit(1)
-              .get();
-          if (emailSnap.docs.isNotEmpty) {
-            final doc = emailSnap.docs.first;
-            // Backfill userId for future speed
-            doc.reference.update({'userId': uid}).ignore();
-            prefs.setString(docIdKey, doc.id).ignore();
-            final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
-            lastKnownModel = model;
-            if (uid.isNotEmpty) {
-              ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, uid).ignore();
-            }
-            try {
-              await prefs.setString(cacheKey, jsonEncode(model.toJson()));
-            } catch (_) { /* intentionally silent */ }
-            yield model;
-          } else {
-            yield lastKnownModel;
-          }
-        } catch (_) {
-          yield lastKnownModel;
-        }
-      } else {
-        yield lastKnownModel;
+        return;
       }
+      break;
     }
   } catch (err) {
-    debugPrint('currentStudentProvider query error: $err');
-    // If query stream threw (e.g. index building), attempt direct email get fallback
-    if (email.isNotEmpty) {
-      try {
-        final emailSnap = await FirebaseFirestore.instance
-            .collection('libraries')
-            .doc(libraryId)
-            .collection('students')
-            .where('email', isEqualTo: email)
-            .limit(1)
-            .get();
-        if (emailSnap.docs.isNotEmpty) {
-          final doc = emailSnap.docs.first;
-          doc.reference.update({'userId': uid}).ignore();
-          prefs.setString(docIdKey, doc.id).ignore();
-          final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
-          try {
-            await prefs.setString(cacheKey, jsonEncode(model.toJson()));
-          } catch (_) {}
-          yield model;
-          return;
+    debugPrint('currentStudentProvider query error absorbed: $err');
+  }
+
+  // 4. Email fallback for admin-added students whose userId is not yet linked
+  if (email.isNotEmpty) {
+    try {
+      final emailSnap = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+      if (emailSnap.docs.isNotEmpty) {
+        final doc = emailSnap.docs.first;
+        doc.reference.update({'userId': uid}).ignore();
+        prefs.setString(docIdKey, doc.id).ignore();
+        FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'studentId': doc.id,
+        }, SetOptions(merge: true)).ignore();
+
+        final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
+        lastKnownModel = model;
+        if (uid.isNotEmpty) {
+          ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, uid).ignore();
         }
-      } catch (_) {}
-    }
-    if (lastKnownModel != null) {
-      yield lastKnownModel;
-    } else {
-      yield null;
+        try {
+          await prefs.setString(cacheKey, jsonEncode(model.toJson()));
+        } catch (_) {}
+        yield model;
+        return;
+      }
+    } catch (e) {
+      debugPrint('currentStudentProvider email fallback handled error: $e');
     }
   }
+
+  // 5. Final Graceful Fallback: Never crash the UI with an unhandled exception
+  yield lastKnownModel;
 });
 
 /// Stream of a specific student by studentId

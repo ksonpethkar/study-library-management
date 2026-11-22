@@ -235,6 +235,11 @@ class QuickControlCenterSheet extends ConsumerWidget {
     } else {
       ref.invalidate(studentsStreamProvider);
       ref.invalidate(occupancyProvider);
+      ref.invalidate(allSeatsProvider);
+      final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+      if (libId.isNotEmpty) {
+        ref.read(seatRepositoryProvider).reconcileSeatStudentBindings(libId).ignore();
+      }
     }
 
     ScaffoldMessenger.of(context).showSnackBar(

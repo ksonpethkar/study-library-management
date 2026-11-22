@@ -13,6 +13,7 @@ class SeatModel {
   final SeatStatus status;
   final GenderRestriction genderRestriction;
   final String? studentId;
+  final String? studentName;
   final String? reservationType;
   final String? reservedCandidateId;
   final String? reservedCandidateName;
@@ -31,6 +32,7 @@ class SeatModel {
     required this.status,
     required this.genderRestriction,
     this.studentId,
+    this.studentName,
     this.reservationType,
     this.reservedCandidateId,
     this.reservedCandidateName,
@@ -58,7 +60,9 @@ class SeatModel {
     if (status == SeatStatus.reserved && !isCurrentlyReserved) {
       return SeatStatus.available;
     }
-    if (status == SeatStatus.available && studentId != null && studentId!.trim().isNotEmpty) {
+    if (status == SeatStatus.available &&
+        ((studentId != null && studentId!.trim().isNotEmpty) ||
+         (studentName != null && studentName!.trim().isNotEmpty))) {
       return SeatStatus.occupied;
     }
     return status;
@@ -67,7 +71,8 @@ class SeatModel {
   /// True if the seat is occupied by an active student
   bool get isOccupied =>
       effectiveStatus == SeatStatus.occupied ||
-      (studentId != null && studentId!.isNotEmpty);
+      (studentId != null && studentId!.isNotEmpty) ||
+      (studentName != null && studentName!.trim().isNotEmpty);
 
   /// True if currently held under a live, non-expired soft-lock
   bool get hasActiveSoftLock =>
@@ -83,6 +88,7 @@ class SeatModel {
       status: _parseSeatStatus(json['status'] as String?),
       genderRestriction: _parseGenderRestriction(json['genderRestriction'] as String?),
       studentId: json['studentId'] as String?,
+      studentName: json['studentName'] as String?,
       reservationType: json['reservationType'] as String?,
       reservedCandidateId: json['reservedCandidateId'] as String?,
       reservedCandidateName: json['reservedCandidateName'] as String?,
@@ -104,6 +110,7 @@ class SeatModel {
       'status': status.name,
       'genderRestriction': genderRestriction.name,
       if (studentId != null) 'studentId': studentId,
+      if (studentName != null) 'studentName': studentName,
       if (reservationType != null) 'reservationType': reservationType,
       if (reservedCandidateId != null) 'reservedCandidateId': reservedCandidateId,
       if (reservedCandidateName != null) 'reservedCandidateName': reservedCandidateName,
@@ -124,7 +131,9 @@ class SeatModel {
     SeatStatus? status,
     GenderRestriction? genderRestriction,
     String? studentId,
+    String? studentName,
     bool clearStudent = false,
+    bool clearStudentName = false,
     String? reservationType,
     String? reservedCandidateId,
     String? reservedCandidateName,
@@ -145,6 +154,7 @@ class SeatModel {
       status: status ?? this.status,
       genderRestriction: genderRestriction ?? this.genderRestriction,
       studentId: clearStudent ? null : (studentId ?? this.studentId),
+      studentName: (clearStudent || clearStudentName) ? null : (studentName ?? this.studentName),
       reservationType: clearReservation ? null : (reservationType ?? this.reservationType),
       reservedCandidateId: clearReservation ? null : (reservedCandidateId ?? this.reservedCandidateId),
       reservedCandidateName: clearReservation ? null : (reservedCandidateName ?? this.reservedCandidateName),

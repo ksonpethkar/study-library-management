@@ -206,6 +206,7 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
         batch.update(seatRef, {
           status: 'available',
           studentId: null,
+          studentName: admin.firestore.FieldValue.delete(),
           updatedAt: nowTs,
         });
 

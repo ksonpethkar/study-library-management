@@ -552,5 +552,31 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
    - Root Cause: Fixes for dynamic payment dues in WhatsApp templates, desk label format stripping (`Allocated Desk` to localized flexible seat text), and Quick Controls instant lock were written and verified via unit tests, but `scripts/publish_web.ps1` (`flutter build web --release --base-href /app/`, copy to `public/app`, `inject_loader.js`, and `firebase deploy --only hosting`) was not executed. Live users testing `https://study-lib-mgmt-2026.web.app` continued to run stale cached bundles displaying missing due balances, English placeholders in Marathi messages, and the unresponsive script freeze.
    - Guardrail: No bug fix or operational enhancement is complete without running `scripts/publish_web.ps1`, verifying successful deployment to Firebase Hosting, and bumping the cache-busting token `v=YYYYMMDD_XX` across `study_library/web/index.html` and `public/app/index.html`.
 
+---
+
+## 32. Real-Time Dynamic Seat Map Synchronization, Cross-Section Auto-Healing & Spatial Parity (Learned Nov 2026)
+
+1. **Cross-Section Row & Col Coordinate Healing (`SentinelInvariantEngine.autoHealInvalidDeskReference`):**
+   - Root Cause: When study hall sections are recreated, renamed, or migrated, student records retained legacy seat pointer prefixes (e.g. `1790047281016_r0_c4` with timestamp `179004...`) while the active section in Firestore used a new section ID (e.g. `1790647291016`). Sentinel's auto-heal checked direct string equality `doc(targetSeatId).get()`, failed to locate the seat in the active section, and threw an exception / failed to heal.
+   - Guardrail: In `autoHealInvalidDeskReference`, inspect `targetSeatId` for spatial coordinates using `RegExp(r'_r(\d+)_c(\d+)$')`. If present, query the corresponding coordinate in the active section `${secDoc.id}_r${r}_c$c`. Also fetch section seat inventory in memory to match by `studentId` or normalized number (`SeatHelper.formatSeatNumberOnly`) without triggering composite Firestore index exceptions. When matched, establish double-binding on BOTH the seat document (`status: 'occupied'`, `studentId`, `studentName`) and the student profile (`seatId`, `sectionId`, `seatLabel`). If the desk truly no longer exists in any section, cleanly delete the invalid pointer so the student is marked as unassigned.
+
+2. **Public Live Seat Map Dynamic Reflection & Real-Time Sync (`public/seats/index.html`):**
+   - Root Cause: In `public/seats/index.html`, `resolveEffectiveStatus` evaluated only raw `seat.status`, ignoring attached `studentId`, `studentName`, and `isOccupied` flags. Furthermore, `updateStats` did not properly account for maintenance and expired soft-locks. As a result, prospective students visiting `https://study-lib-mgmt-2026.web.app/seats/?lib=...` saw 100% available desks (60 of 60 available) even when desks were actively assigned and occupied.
+   - Guardrail: In `public/seats/index.html`, `resolveEffectiveStatus` must check `if (rawStatus === 'occupied' || seat.isOccupied === true || (seat.studentId && String(seat.studentId).trim().length > 0) || (seat.studentName && String(seat.studentName).trim().length > 0)) return 'occupied'`. If held under an active 5-minute soft-lock, return `'reserved'`. If the reservation timestamp has expired, dynamically return `'available'`. Tapping an occupied seat must update the bottom drawer to display "🔴 Currently Occupied by Student" and replace the WhatsApp booking button with "💬 Inquire on WhatsApp for Next Renewal".
+
+3. **Facility Occupancy Radar & Admin Seat Map Parity (`occupancyProvider` & `SeatGridWidget`):**
+   - Root Cause: In `occupancyProvider` and `SeatGridWidget`, occupancy was strictly filtered by `s.membershipStatus == MembershipStatus.active`. Students in `grace` status (whose memberships were within the 3-day grace period) were excluded, showing 0 occupied desks on the Admin Dashboard Radar. Furthermore, `findStudentForSeat` did not normalize composite seat IDs.
+   - Guardrail:
+     a) Both `MembershipStatus.active` and `MembershipStatus.grace` students with assigned desks must be counted toward occupied seats.
+     b) `occupancyProvider` must index occupied seats by normalized keys (`seat_num_$numOnly`) so that legacy pointers (`179004..._r0_c4`) and new seat IDs (`179064..._r0_c4`) map to the exact same desk without double-counting.
+     c) In `SeatGridWidget`, construct `studentByNum` mapping normalized seat numbers to students so that Admin Seat Map immediately highlights desks in red with full student details.
+
+4. **Leading Apps Benchmarking Invariants (BookMyShow, Airlines, Co-Working Platforms):**
+   - Benchmarking:
+     a) **BookMyShow Style Cart Locking**: 5-minute atomic soft-locks (`reservationExpiresAt`) prevent collision while prospective candidates fill registration forms.
+     b) **Airline Style Single-Passenger-Single-Seat**: One student can never hold multiple desks simultaneously. Assigning a student to Desk 8 must automatically release Desks 2 and 6.
+     c) **Co-Working Spatial Navigation**: Strict dual-portal visibility — public viewers see real-time availability without student PII (GDPR / DPDP compliance), while admin staff see student names, phone numbers, and plan expiry dates directly on the floor plan.
+
+
 
 

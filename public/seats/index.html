@@ -1036,6 +1036,10 @@
       if (match) rawLib = match[1];
     }
     let libraryId = rawLib ? rawLib.replace(/^[\s\-_—–'"`]+|[\s\-_—–'"`]+$/g, '').trim() : '';
+    // Resilient typo auto-healing for Cozy Corner library ID (e.g. 1 or l mistaken for capital T: aPSMq8xSAjuZQh2f1tuY)
+    if (libraryId && libraryId.toLowerCase().startsWith('apsmq8x') && libraryId.toLowerCase().endsWith('tuy')) {
+      libraryId = DEFAULT_LIBRARY_ID;
+    }
     if (!libraryId || libraryId.length < 15 || libraryId.length > 25) {
       libraryId = DEFAULT_LIBRARY_ID;
     }
@@ -1186,6 +1190,13 @@
             if (recLink) recLink.href = 'tel:+91' + phone;
           }
           saveToCache(libId, { name: libName, address: libAddress, logoUrl: logoUrl, phone: phone });
+        } else if (libId !== DEFAULT_LIBRARY_ID) {
+          // Automatic 404 fallback to Cozy Corner default library ID
+          libraryId = DEFAULT_LIBRARY_ID;
+          if (window.history && window.history.replaceState) {
+            try { window.history.replaceState(null, '', window.location.pathname + '?lib=' + DEFAULT_LIBRARY_ID); } catch (_) {}
+          }
+          return fetchViaRestApi(DEFAULT_LIBRARY_ID, secId);
         }
 
         // 2. Process Live Seats Grid & Occupancy
@@ -1202,6 +1213,10 @@
                 seatNumber: f.seatNumber?.stringValue || '',
                 status: f.status?.stringValue || 'available',
                 genderRestriction: f.genderRestriction?.stringValue || 'any',
+                studentId: f.studentId?.stringValue || null,
+                studentName: f.studentName?.stringValue || null,
+                reservationType: f.reservationType?.stringValue || null,
+                reservationExpiresAt: f.reservationExpiresAt?.timestampValue || null,
                 row: parseInt(f.row?.integerValue || '0', 10),
                 col: parseInt(f.col?.integerValue || '0', 10),
               };
@@ -1228,7 +1243,15 @@
         if (!doc.exists) {
           if (libraryId !== DEFAULT_LIBRARY_ID) {
             libraryId = DEFAULT_LIBRARY_ID;
+            if (window.history && window.history.replaceState) {
+              try { window.history.replaceState(null, '', window.location.pathname + '?lib=' + DEFAULT_LIBRARY_ID); } catch (_) {}
+            }
             cleanupSubscriptions();
+            attachLiveListeners();
+            fetchViaRestApi(DEFAULT_LIBRARY_ID, activeSectionId);
+            return;
+          }
+        }
             attachLiveListeners();
             return;
           }
@@ -1337,20 +1360,48 @@
     }
 
     function resolveEffectiveStatus(seat) {
+      if (!seat) return 'available';
       const rawStatus = (seat.status || 'available').toLowerCase();
-      if (rawStatus === 'reserved') {
-        if (!seat.reservationExpiresAt) return 'available';
-        let expDate = null;
-        if (seat.reservationExpiresAt.seconds) {
-          expDate = new Date(seat.reservationExpiresAt.seconds * 1000);
+
+      // Check if soft-lock or reservation has expired
+      const resExpires = seat.reservationExpiresAt;
+      let isReservationActive = false;
+      if (rawStatus === 'reserved' || seat.hasActiveSoftLock === true) {
+        if (resExpires) {
+          let expDate = null;
+          if (resExpires.seconds) {
+            expDate = new Date(resExpires.seconds * 1000);
+          } else if (typeof resExpires.toDate === 'function') {
+            expDate = resExpires.toDate();
+          } else {
+            expDate = new Date(resExpires);
+          }
+          if (!isNaN(expDate.getTime()) && expDate > new Date()) {
+            isReservationActive = true;
+          }
         } else {
-          expDate = new Date(seat.reservationExpiresAt);
-        }
-        if (!isNaN(expDate.getTime()) && expDate < new Date()) {
-          return 'available';
+          isReservationActive = true;
         }
       }
-      return rawStatus;
+
+      // 1. Occupied check (explicit status, student pointer, or isOccupied flag)
+      const hasStudent = (seat.studentId && String(seat.studentId).trim().length > 0) ||
+                         (seat.studentName && String(seat.studentName).trim().length > 0);
+      if (rawStatus === 'occupied' || seat.isOccupied === true || hasStudent) {
+        return 'occupied';
+      }
+
+      // 2. Active Reservation
+      if (isReservationActive) {
+        return 'reserved';
+      }
+
+      // 3. Maintenance
+      if (rawStatus === 'maintenance' || rawStatus === 'disabled') {
+        return 'maintenance';
+      }
+
+      return 'available';
     }
 
     function renderSeats(seats, cols) {
@@ -1490,16 +1541,24 @@
       let total = seats.length;
       let available = 0;
       let occupied = 0;
+      let reserved = 0;
+      let maintenance = 0;
 
       seats.forEach(s => {
         const status = resolveEffectiveStatus(s);
         if (status === 'available') available++;
-        if (status === 'occupied' || status === 'reserved') occupied++;
+        else if (status === 'occupied') occupied++;
+        else if (status === 'reserved') reserved++;
+        else if (status === 'maintenance') maintenance++;
       });
 
-      document.getElementById('statTotal').innerText = total;
-      document.getElementById('statAvailable').innerText = available;
-      document.getElementById('statOccupied').innerText = occupied;
+      const statTotalEl = document.getElementById('statTotal');
+      const statAvailEl = document.getElementById('statAvailable');
+      const statOccEl = document.getElementById('statOccupied');
+
+      if (statTotalEl) statTotalEl.innerText = total;
+      if (statAvailEl) statAvailEl.innerText = available;
+      if (statOccEl) statOccEl.innerText = occupied;
 
       if (shouldSave && libraryId) {
         saveToCache(libraryId, { seats: seats });

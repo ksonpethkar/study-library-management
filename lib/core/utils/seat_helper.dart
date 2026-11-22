@@ -92,7 +92,8 @@ class SeatHelper {
     if (match != null) {
       final r = int.tryParse(match.group(1)!) ?? 0;
       final c = int.tryParse(match.group(2)!) ?? 0;
-      final totalCols = (cols != null && cols > 0) ? cols : (r > 0 ? 6 : 0);
+      // Default fallback grid column width is 10 (matching the library section standard default cols = 10)
+      final totalCols = (cols != null && cols > 0) ? cols : (r > 0 ? 10 : 0);
       final seatIndex = totalCols > 0 ? (r * totalCols + c + 1) : (c + 1);
       return includePrefix ? 'Seat #$seatIndex' : '#$seatIndex';
     }

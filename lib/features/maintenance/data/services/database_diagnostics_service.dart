@@ -3,6 +3,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/constants/firestore_paths.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
@@ -363,6 +364,50 @@ class DatabaseDiagnosticsService {
       }
     }
 
+    // Invariant Check C: Duplicate Seat Allocation (Multiple Students Pointing to the Same Desk)
+    final seatToStudentsMap = <String, List<Map<String, dynamic>>>{};
+    for (final entry in studentMap.entries) {
+      final s = entry.value;
+      final status = (s['membershipStatus'] ?? 'active').toString().toLowerCase();
+      final seatId = (s['seatId'] as String?)?.trim();
+      if ((status == 'active' || status == 'grace') && seatId != null && seatId.isNotEmpty) {
+        seatToStudentsMap.putIfAbsent(seatId, () => []).add({
+          'id': entry.key,
+          ...s,
+        });
+      }
+    }
+
+    for (final entry in seatToStudentsMap.entries) {
+      if (entry.value.length > 1) {
+        final seatId = entry.key;
+        final conflictingStudents = entry.value;
+        final studentNames = conflictingStudents.map((cs) => cs['name'] ?? cs['id']).join(', ');
+
+        final physicalSeat = seatsList.firstWhere(
+          (s) => s['_docId'] == seatId || s['label']?.toString() == seatId,
+          orElse: () => <String, dynamic>{},
+        );
+        final actualOccupantId = physicalSeat['studentId'] as String?;
+
+        issues.add(IntegrityIssue(
+          id: 'duplicate_seat_$seatId',
+          type: 'duplicate_seat_allocation',
+          severity: IssueSeverity.error,
+          title: 'Duplicate Allocation on Desk #${SeatHelper.formatSeatNumberOnly(seatId: seatId)}',
+          description: '${conflictingStudents.length} students ($studentNames) are linked to Desk #$seatId simultaneously.',
+          entityId: seatId,
+          details: {
+            'seatId': seatId,
+            'physicalSeat': physicalSeat,
+            'actualOccupantId': actualOccupantId,
+            'students': conflictingStudents,
+          },
+          canAutoHeal: true,
+        ));
+      }
+    }
+
     // 3. Stale Items Scans
     final now = DateTime.now();
     final thirtyDaysAgo = now.subtract(const Duration(days: 30));
@@ -410,11 +455,13 @@ class DatabaseDiagnosticsService {
     );
   }
 
-  /// Automatically heals repairable issues: resets orphaned desks and clears ghost student IDs.
+  /// Automatically heals repairable issues: resets orphaned desks, clears ghost student IDs, and resolves duplicate allocations.
   Future<AutoHealResult> autoHealIntegrityIssues(String libraryId, IntegrityReport report) async {
     final batch = _db.batch();
+    final libRef = _db.collection(FirestorePaths.libraries).doc(libraryId);
     int healedSeats = 0;
     int clearedGhosts = 0;
+    int syncedRecords = 0;
     final healedDescriptions = <String>[];
 
     for (final issue in report.issues) {
@@ -443,10 +490,38 @@ class DatabaseDiagnosticsService {
           clearedGhosts++;
           healedDescriptions.add('${issue.title} -> Ghost ID Cleared');
         }
+      } else if (issue.type == 'duplicate_seat_allocation') {
+        final seatId = issue.details['seatId'] as String?;
+        final actualOccupantId = issue.details['actualOccupantId'] as String?;
+        final students = (issue.details['students'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+        String? legitimateStudentId = actualOccupantId;
+        if (legitimateStudentId == null || !students.any((s) => s['id'] == legitimateStudentId)) {
+          students.sort((a, b) {
+            final aTime = a['updatedAt'] ?? a['admissionDate'] ?? '';
+            final bTime = b['updatedAt'] ?? b['admissionDate'] ?? '';
+            return bTime.toString().compareTo(aTime.toString());
+          });
+          legitimateStudentId = students.first['id'] as String?;
+        }
+
+        for (final s in students) {
+          final sId = s['id'] as String?;
+          if (sId != null && sId != legitimateStudentId) {
+            final sRef = libRef.collection(FirestorePaths.students).doc(sId);
+            batch.update(sRef, {
+              'seatId': FieldValue.delete(),
+              'previousSeatId': seatId,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+            syncedRecords++;
+            healedDescriptions.add('${issue.title} -> Cleared duplicate seat $seatId on ${s['name'] ?? sId}');
+          }
+        }
       }
     }
 
-    if (healedSeats > 0 || clearedGhosts > 0) {
+    if (healedSeats > 0 || clearedGhosts > 0 || syncedRecords > 0) {
       await batch.commit();
 
       AuditLogger().log(
@@ -457,6 +532,7 @@ class DatabaseDiagnosticsService {
           'type': 'auto_heal_integrity',
           'healedSeatsCount': healedSeats,
           'clearedGhostsCount': clearedGhosts,
+          'syncedRecordsCount': syncedRecords,
           'fixes': healedDescriptions,
         },
       ).ignore();
@@ -465,6 +541,7 @@ class DatabaseDiagnosticsService {
     return AutoHealResult(
       healedSeatsCount: healedSeats,
       clearedGhostIdsCount: clearedGhosts,
+      syncedRecordsCount: syncedRecords,
     );
   }
 

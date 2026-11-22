@@ -578,9 +578,10 @@ class FeedbackListScreen extends ConsumerWidget {
     }
 
     final studentName = feedback.studentName ?? 'Student';
-    final seatText = (feedback.seatNumber != null && feedback.seatNumber!.trim().isNotEmpty)
-        ? ' (Seat ${feedback.seatNumber})'
+    final deskFormatted = (feedback.seatNumber != null && feedback.seatNumber!.trim().isNotEmpty)
+        ? SeatHelper.formatDeskLabel(seatId: feedback.seatNumber, rawLabel: feedback.seatNumber)
         : '';
+    final seatText = deskFormatted.isNotEmpty ? ' ($deskFormatted)' : '';
     final message = 'Hello $studentName$seatText,\n\n'
         'We received your feedback regarding:\n'
         '*"${feedback.message}"*\n\n'
@@ -620,7 +621,7 @@ class FeedbackListScreen extends ConsumerWidget {
         AppNotificationService.sendNotification(
           libraryId: libraryId,
           title: 'Quiet Help Resolved ✅',
-          body: 'Floor supervisor attended to ${feedback.category ?? "your request"} at Seat ${feedback.seatNumber ?? "your desk"}. Thank you!',
+          body: 'Floor supervisor attended to ${feedback.category ?? "your request"} at ${SeatHelper.formatDeskLabel(seatId: feedback.seatNumber, rawLabel: feedback.seatNumber)}. Thank you!',
           type: 'silent_alert_resolved',
           targetRole: 'student',
           targetUserId: feedback.studentId,
@@ -747,7 +748,7 @@ class _FeedbackCard extends StatelessWidget {
                                   Icon(Icons.chair_outlined, size: 12, color: theme.colorScheme.onSecondaryContainer),
                                   const SizedBox(width: 3),
                                   Text(
-                                    SeatHelper.formatSeatLabel(seatId: feedback.seatNumber, rawLabel: feedback.seatNumber),
+                                    SeatHelper.formatDeskLabel(seatId: feedback.seatNumber, rawLabel: feedback.seatNumber),
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,

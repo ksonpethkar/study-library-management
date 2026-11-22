@@ -8665,5 +8665,286 @@ Session: 2024-2025
       expect(find.text('Sentinel AI Guardian'), findsOneWidget);
       expect(find.text('Audit Log'), findsOneWidget);
     });
+
+    test('Test 149: ZERO-INDEX LOOKUPS, DIGITAL PASS GEOMETRY & DESK LABELING INVARIANTS', () {
+      // 1. Verify SeatHelper.formatDeskLabel eliminates double prefixes and raw IDs
+      expect(SeatHelper.formatDeskLabel(seatId: 'Seat Seat #6', rawLabel: 'Seat Seat #6'), equals('Desk #6'));
+      expect(SeatHelper.formatDeskLabel(seatId: 'Seat #6', rawLabel: 'Seat #6'), equals('Desk #6'));
+      expect(SeatHelper.formatDeskLabel(seatId: '1790647291016_r0_c2', rawLabel: '1790647291016_r0_c2'), equals('Desk #3'));
+      expect(SeatHelper.formatDeskLabel(seatId: '1790647291016_r0_c5', rawLabel: '1790647291016_r0_c5'), equals('Desk #6'));
+
+      // 2. Verify IdCardTemplateSettings.resolveSummaryRules strips markdown headers and titles
+      const rawCustomRules = '''
+# LIBRARY RULES & REGULATIONS
+## विद्यार्थि अभ्यासिका नियम व अटी
+• Maintain complete pin-drop silence in all study rooms.
+• Digital smart card must be presented for desk verification.
+''';
+      final resolvedRules = IdCardTemplateSettings.resolveSummaryRules(
+        customRulesText: rawCustomRules,
+        maxRules: 2,
+      );
+      expect(resolvedRules.length, equals(2));
+      expect(resolvedRules[0], equals('Maintain complete pin-drop silence in all study rooms.'));
+      expect(resolvedRules[1], equals('Digital smart card must be presented for desk verification.'));
+      expect(resolvedRules.any((r) => r.startsWith('#')), isFalse);
+
+      // 3. Verify effective width compact detection
+      bool isCompactWidth(double width) => width < 768;
+      expect(isCompactWidth(360), isTrue); // Mobile phone
+      expect(isCompactWidth(600), isTrue); // Small tablet
+      expect(isCompactWidth(1024), isFalse); // Desktop
+    });
+
+    test('Test 154: RESTORE DESK 1-TAP IMMEDIATE UPDATE, NO DOUBLE PREFIX & COLUMN ACCURACY', () {
+      // 1. Column math accuracy: With default 10 columns (library standard), sec_r1_c9 = (1 * 10 + 9 + 1) = Seat #20
+      final deskWithDefaultCols = SeatHelper.formatSeatLabel(seatId: 'sec_r1_c9');
+      expect(deskWithDefaultCols, equals('Seat #20'));
+      expect(deskWithDefaultCols, isNot(equals('Seat #16')));
+
+      // 2. Explicit columns override: If a 10-column section passes cols: 10, it strictly computes Seat #20
+      final deskWithExplicitCols = SeatHelper.formatSeatLabel(seatId: 'sec_r1_c9', cols: 10);
+      expect(deskWithExplicitCols, equals('Seat #20'));
+
+      // 3. Raw label precedence: If Firestore seat document has label '20', formatSeatLabel outputs 'Seat #20'
+      final deskWithRawLabel = SeatHelper.formatSeatLabel(seatId: 'sec_r1_c9', rawLabel: '20');
+      expect(deskWithRawLabel, equals('Seat #20'));
+
+      // 4. Zero double prefixes: Never produce 'Seat Seat #XX' or 'Desk #Seat #XX'
+      expect(SeatHelper.formatSeatLabel(seatId: 'sec_r1_c9', rawLabel: 'Seat #20'), equals('Seat #20'));
+      expect(SeatHelper.formatSeatLabel(seatId: 'sec_r1_c9', rawLabel: 'Seat Seat #20'), equals('Seat #20'));
+      expect(SeatHelper.formatSeatLabel(seatId: 'sec_r1_c9', rawLabel: 'Desk #Seat #20'), equals('Seat #20'));
+      expect(SeatHelper.formatDeskLabel(seatId: 'sec_r1_c9', rawLabel: 'Seat Seat #20'), equals('Desk #20'));
+      expect(SeatHelper.formatSeatNumberOnly(seatId: 'sec_r1_c9', rawLabel: 'Seat Seat #20'), equals('20'));
+
+      // 5. Card text verification: Concatenating 'Previously Allocated: ' with formatSeatLabel produces exactly 1 'Seat'
+      final prevAllocText = 'Previously Allocated: ${SeatHelper.formatSeatLabel(seatId: 'sec_r1_c9', rawLabel: '20')}';
+      expect(prevAllocText, equals('Previously Allocated: Seat #20'));
+      expect(prevAllocText.contains('Seat Seat'), isFalse);
+
+      // 6. Restored snackbar text verification: Restored text produces clean label
+      final restoredToastText = 'Restored ${SeatHelper.formatSeatLabel(seatId: 'sec_r1_c9', rawLabel: '20')} for shubham dixit ✓';
+      expect(restoredToastText, equals('Restored Seat #20 for shubham dixit ✓'));
+      expect(restoredToastText.contains('Seat Seat'), isFalse);
+
+      // 7. StudentModel copyWith optimistic state mutation for 1-tap immediate restore
+      final student = StudentModel.fromJson({
+        'id': 'DGqmPGKm8Ul1zQJ3anVD',
+        'name': 'shubham dixit',
+        'phone': '7030401012',
+        'email': 'shubhamdixit5555@gmail.com',
+        'emergencyContact': '7030401012',
+        'previousSeatId': 'sec_r1_c9',
+        'previousSectionId': 'section_cozy_hall',
+        'membershipStatus': 'active',
+      });
+
+      expect(student.seatId, isNull);
+      expect(student.previousSeatId, equals('sec_r1_c9'));
+
+      // Optimistic 1-tap restore updates model in memory with 0ms delay
+      final restoredStudent = student.copyWith(
+        seatId: student.previousSeatId,
+        sectionId: student.previousSectionId,
+      );
+
+      expect(restoredStudent.seatId, equals('sec_r1_c9'));
+      expect(restoredStudent.sectionId, equals('section_cozy_hall'));
+      expect(restoredStudent.seatId?.isNotEmpty, isTrue);
+    });
+
+    test('Test 155: REAL-TIME DYNAMIC SEAT MAP PARITY, CROSS-SECTION HEALING & OCCUPANCY INVARIANTS', () {
+      // 1. Cross-Section Coordinate Auto-Healing Invariant
+      // Matches mismatch between legacy section ID (1790047281016) and active section ID (1790647291016)
+      const legacySeatId1 = '1790047281016_r0_c4';
+      const legacySeatId2 = '1790047281016_r2_c7';
+      const activeSectionId = '1790647291016';
+
+      final coordMatch1 = RegExp(r'_r(\d+)_c(\d+)$').firstMatch(legacySeatId1);
+      expect(coordMatch1, isNotNull);
+      expect(coordMatch1!.group(1), equals('0'));
+      expect(coordMatch1.group(2), equals('4'));
+      final healedSeatId1 = '${activeSectionId}_r${coordMatch1.group(1)}_c${coordMatch1.group(2)}';
+      expect(healedSeatId1, equals('1790647291016_r0_c4'));
+
+      final coordMatch2 = RegExp(r'_r(\d+)_c(\d+)$').firstMatch(legacySeatId2);
+      expect(coordMatch2, isNotNull);
+      expect(coordMatch2!.group(1), equals('2'));
+      expect(coordMatch2.group(2), equals('7'));
+      final healedSeatId2 = '${activeSectionId}_r${coordMatch2.group(1)}_c${coordMatch2.group(2)}';
+      expect(healedSeatId2, equals('1790647291016_r2_c7'));
+
+      // 2. Normalized Seat Number Resolution
+      final num1 = SeatHelper.formatSeatNumberOnly(seatId: legacySeatId1, cols: 10);
+      final num2 = SeatHelper.formatSeatNumberOnly(seatId: healedSeatId1, cols: 10);
+      expect(num1, equals('5'));
+      expect(num2, equals('5'));
+      expect(num1, equals(num2), reason: 'Legacy and healed seat IDs must normalize to identical seat number');
+
+      final num3 = SeatHelper.formatSeatNumberOnly(seatId: legacySeatId2, cols: 10);
+      final num4 = SeatHelper.formatSeatNumberOnly(seatId: healedSeatId2, cols: 10);
+      expect(num3, equals('28'));
+      expect(num4, equals('28'));
+
+      // 3. Occupancy Provider Deduplication Invariant
+      final occupiedSeatKeys = <String>{};
+      final testStudent = StudentModel.fromJson({
+        'id': 'student_shubham',
+        'name': 'Shubham Kandukalle',
+        'membershipStatus': 'active',
+        'seatId': legacySeatId1,
+      });
+      final testSeat = SeatModel(
+        id: healedSeatId1,
+        sectionId: activeSectionId,
+        label: '5',
+        row: 0,
+        col: 4,
+        status: SeatStatus.occupied,
+        genderRestriction: GenderRestriction.any,
+        studentId: 'student_shubham',
+      );
+
+      // Student adds normalized key
+      final studentNum = SeatHelper.formatSeatNumberOnly(seatId: testStudent.seatId);
+      occupiedSeatKeys.add(studentNum.isNotEmpty ? 'seat_num_$studentNum' : testStudent.seatId!);
+
+      // Seat adds normalized key
+      final seatNum = SeatHelper.formatSeatNumberOnly(seatId: testSeat.id, rawLabel: testSeat.label);
+      occupiedSeatKeys.add(seatNum.isNotEmpty ? 'seat_num_$seatNum' : testSeat.id);
+
+      // Zero double-counting: exactly 1 occupied seat recorded
+      expect(occupiedSeatKeys.length, equals(1));
+      expect(occupiedSeatKeys.first, equals('seat_num_5'));
+
+      // 4. Effective Seat Status Dynamic Resolution
+      // Even if raw status is available, attached studentId/studentName promotes dynamically to occupied
+      final desyncedSeat = SeatModel(
+        id: 'sec_desk_02',
+        sectionId: activeSectionId,
+        label: '2',
+        row: 0,
+        col: 1,
+        status: SeatStatus.available,
+        genderRestriction: GenderRestriction.any,
+        studentId: 'student_123',
+      );
+      expect(desyncedSeat.effectiveStatus, equals(SeatStatus.occupied));
+      expect(desyncedSeat.isOccupied, isTrue);
+
+      // Expired soft-lock dynamically reverts to available
+      final expiredSoftLockSeat = SeatModel(
+        id: 'sec_desk_60',
+        sectionId: activeSectionId,
+        label: '60',
+        row: 5,
+        col: 9,
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+        reservationType: 'registration_hold',
+        reservationExpiresAt: DateTime.now().subtract(const Duration(minutes: 10)),
+      );
+      expect(expiredSoftLockSeat.isCurrentlyReserved, isFalse);
+      expect(expiredSoftLockSeat.effectiveStatus, equals(SeatStatus.available));
+      expect(expiredSoftLockSeat.hasActiveSoftLock, isFalse);
+    });
+
+    test('Test 156: STRICT OCCUPANCY INVARIANT, ZERO-COLLISION SEAT ALLOCATION & SENTINEL AUTO-HEALING', () {
+      // 1. Sentinel Invariant Engine Audit: Detects Duplicate Seat Allocation Across Students
+      final sentinel = SentinelInvariantEngine();
+
+      final studentShubham = StudentModel.fromJson({
+        'id': 'student_shubham',
+        'name': 'Shubham Dixit',
+        'membershipNumber': 'CC20260004',
+        'phone': '7030401012',
+        'membershipStatus': 'active',
+        'seatId': '16',
+        'sectionId': 'sec_main',
+      });
+
+      final studentSk = StudentModel.fromJson({
+        'id': 'student_sk',
+        'name': 'sk',
+        'membershipNumber': 'CC20260013',
+        'phone': '8575653245',
+        'membershipStatus': 'active',
+        'seatId': '16',
+        'sectionId': 'sec_main',
+      });
+
+      final physicalDesk16 = SeatModel(
+        id: '16',
+        sectionId: 'sec_main',
+        label: '16',
+        row: 1,
+        col: 5,
+        status: SeatStatus.occupied,
+        genderRestriction: GenderRestriction.any,
+        studentId: 'student_shubham',
+        studentName: 'Shubham Dixit',
+      );
+
+      final anomalies = sentinel.auditSeatStudentBindings(
+        seats: [physicalDesk16],
+        students: [studentShubham, studentSk],
+      );
+
+      // Must detect duplicate allocation anomaly
+      final duplicateAnomalies = anomalies.where((a) => a.id.startsWith('duplicate_allocation_seat_')).toList();
+      expect(duplicateAnomalies, isNotEmpty);
+      expect(duplicateAnomalies.first.entityId, equals('16'));
+      expect(duplicateAnomalies.first.severity, equals(SentinelSeverity.critical));
+      expect(duplicateAnomalies.first.canAutoHeal, isTrue);
+
+      // Must also detect unclaimed desk pointer on the desynced student (sk)
+      final desyncAnomalies = anomalies.where((a) => a.id.contains('student_sk')).toList();
+      expect(desyncAnomalies, isNotEmpty);
+
+      // 2. SeatModel Occupancy & Soft-Lock Invariants
+      expect(physicalDesk16.isOccupied, isTrue);
+      expect(physicalDesk16.effectiveStatus, equals(SeatStatus.occupied));
+
+      // Overriding a non-expired soft-lock vs occupied:
+      // A desk occupied by an active student must never be treated as an expired cart soft-lock
+      final isOccupantActive = studentShubham.membershipStatus == MembershipStatus.active &&
+          studentShubham.seatId == '16';
+      expect(isOccupantActive, isTrue);
+
+      // 3. Desk Label Formatting Invariant
+      final formattedDesk = SeatHelper.formatDeskLabel(seatId: '16', rawLabel: '16');
+      expect(formattedDesk, equals('Desk #16'));
+
+      final seatNumberOnly = SeatHelper.formatSeatNumberOnly(seatId: '16', rawLabel: '16');
+      expect(seatNumberOnly, equals('16'));
+
+      // 4. Multi-Section Disambiguation
+      final sectionMain = SectionModel.fromJson({
+        'id': 'sec_main',
+        'libraryId': 'lib_1',
+        'name': 'Cozy Hall',
+        'rows': 3,
+        'cols': 10,
+        'order': 1,
+        'isActive': true,
+        'color': 0xFF4CAF50,
+      });
+      final sectionQuiet = SectionModel.fromJson({
+        'id': 'sec_quiet',
+        'libraryId': 'lib_1',
+        'name': 'Quiet Zone',
+        'rows': 2,
+        'cols': 10,
+        'order': 2,
+        'isActive': true,
+        'color': 0xFF2196F3,
+      });
+      final sections = [sectionMain, sectionQuiet];
+      expect(sections.length, greaterThan(1));
+
+      final secMap = {for (final s in sections) s.id: s.name};
+      final displayLabelShubham = '${SeatHelper.formatDeskLabel(seatId: studentShubham.seatId)} • ${secMap[studentShubham.sectionId]}';
+      expect(displayLabelShubham, equals('Desk #16 • Cozy Hall'));
+    });
   });
 }

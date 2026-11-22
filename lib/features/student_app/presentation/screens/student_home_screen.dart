@@ -1670,9 +1670,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
               ),
             ],
           ),
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Header Row
           Row(
@@ -1685,20 +1686,20 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Color(0xFF38BDF8),
-                    fontSize: 10.5,
+                    fontSize: 10,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.5,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 'Issued: ${student.createdAt != null ? DateFormat('dd MMM yyyy').format(student.createdAt!) : 'Active'}',
-                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9.5),
+                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           // Dynamic Clean Summary Rules from Settings or Library
           if (savedSettings.showRules) ...[
             ...IdCardTemplateSettings.resolveSummaryRules(
@@ -1710,57 +1711,52 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('• ', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10)),
+                      const Text('• ', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 9.5)),
                       Expanded(
                         child: Text(
                           rule,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10, height: 1.25),
+                          style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 9.5, height: 1.2),
                         ),
                       ),
                     ],
                   ),
                 )),
           ],
-          if (savedSettings.showEmergencyContact && savedSettings.showFatherName && student.fatherName.isNotEmpty)
+          // Guardian & Blood Group in unified single compact row to prevent height overflow
+          if ((savedSettings.showFatherName && student.fatherName.isNotEmpty) ||
+              (savedSettings.showBloodGroup && student.bloodGroup != null && student.bloodGroup!.isNotEmpty))
             Padding(
-              padding: const EdgeInsets.only(bottom: 2),
+              padding: const EdgeInsets.only(bottom: 4, top: 1),
               child: Row(
                 children: [
-                  const Text('• ', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10)),
-                  Expanded(
-                    child: Text('Guardian: ${student.fatherName}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10, height: 1.25)),
-                  ),
-                ],
-              ),
-            ),
-          if (savedSettings.showBloodGroup && student.bloodGroup != null && student.bloodGroup!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                children: [
-                  const Text('• ', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10)),
-                  Expanded(
-                    child: Text('Blood Group: ${student.bloodGroup}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10, height: 1.25)),
-                  ),
+                  if (savedSettings.showFatherName && student.fatherName.isNotEmpty) ...[
+                    const Text('• ', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 9.5)),
+                    Expanded(
+                      child: Text('Guardian: ${student.fatherName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 9.5)),
+                    ),
+                  ],
+                  if (savedSettings.showBloodGroup && student.bloodGroup != null && student.bloodGroup!.isNotEmpty) ...[
+                    if (savedSettings.showFatherName && student.fatherName.isNotEmpty) const SizedBox(width: 8),
+                    const Text('• ', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 9.5)),
+                    Text('Blood: ${student.bloodGroup}',
+                        style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 9.5)),
+                  ],
                 ],
               ),
             ),
           if (savedSettings.showEmergencyContact || savedSettings.showHelpline) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             // Emergency Red Strip
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFFEF4444).withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
               ),
               child: Row(
@@ -1773,13 +1769,13 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Color(0xFFFCA5A5),
-                          fontSize: 10,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                   if (savedSettings.showEmergencyContact && savedSettings.showHelpline)
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                   if (savedSettings.showHelpline)
                     Expanded(
                       child: Text(
@@ -1789,7 +1785,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                         textAlign: savedSettings.showEmergencyContact ? TextAlign.end : TextAlign.start,
                         style: const TextStyle(
                           color: Color(0xFFCBD5E1),
-                          fontSize: 9.5,
+                          fontSize: 9,
                         ),
                       ),
                     ),
@@ -1797,7 +1793,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           // QR Barcode & Seal Row
           Row(
             children: [
@@ -1816,10 +1812,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(5),
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                           boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
                         ),
                         child: QrImageView(
@@ -1836,17 +1832,17 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                             'expiry': student.planEndDate != null ? DateFormat('dd/MM/yyyy').format(student.planEndDate!) : 'Active',
                             'isFrozen': student.isCurrentlyFrozen,
                           }),
-                          size: 78,
+                          size: 60,
                           eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
                           dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       const Text(
                         '🔍 Tap to Zoom',
                         style: TextStyle(
                           color: Color(0xFF38BDF8),
-                          fontSize: 8.5,
+                          fontSize: 8,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1854,7 +1850,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1864,32 +1860,32 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                       style: const TextStyle(
                         fontFamily: 'monospace',
                         color: Colors.white,
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Official property of $libraryName. Card must be presented upon request.',
-                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9.5),
+                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           // Flip back hint
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.flip_to_front_rounded, size: 12, color: Colors.white.withValues(alpha: 0.6)),
-              const SizedBox(width: 6),
+              Icon(Icons.flip_to_front_rounded, size: 11, color: Colors.white.withValues(alpha: 0.6)),
+              const SizedBox(width: 5),
               Text(
                 'Tap card to flip back 🔄',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w500,
                 ),
               ),

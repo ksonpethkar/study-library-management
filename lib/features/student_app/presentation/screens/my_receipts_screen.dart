@@ -155,23 +155,12 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
           final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
           final effectiveUid = student.userId?.isNotEmpty == true ? student.userId! : authUid;
 
-          // Resilient student receipts query: match by studentUserId or studentId
-          Query<Map<String, dynamic>> receiptQuery = FirebaseFirestore.instance
+          // Zero-Index Single-Field Receipts Query (Zero composite indexes needed)
+          final receiptQuery = FirebaseFirestore.instance
               .collection('libraries')
               .doc(libraryId)
-              .collection('receipts');
-
-          if (effectiveUid.isNotEmpty) {
-            receiptQuery = receiptQuery.where(
-              Filter.or(
-                Filter('studentUserId', isEqualTo: effectiveUid),
-                Filter('studentId', isEqualTo: effectiveUid),
-                Filter('studentId', isEqualTo: student.id),
-              ),
-            );
-          } else {
-            receiptQuery = receiptQuery.where('studentId', isEqualTo: student.id);
-          }
+              .collection('receipts')
+              .where('studentId', isEqualTo: student.id);
 
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: receiptQuery.snapshots(),
@@ -569,24 +558,13 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                 );
               }
 
-              // Check if raw payment documents exist (filtered by student to satisfy Firestore security rules)
+              // Zero-Index Single-Field Payments Query
               final studentIdVal = student.id;
-              final studentUserIdVal = student.userId;
-              Query<Map<String, dynamic>> paymentQuery = FirebaseFirestore.instance
+              final paymentQuery = FirebaseFirestore.instance
                   .collection('libraries')
                   .doc(libraryId)
-                  .collection('payments');
-
-              if (studentUserIdVal != null && studentUserIdVal.isNotEmpty && studentUserIdVal != studentIdVal) {
-                paymentQuery = paymentQuery.where(
-                  Filter.or(
-                    Filter('studentId', isEqualTo: studentIdVal),
-                    Filter('studentUserId', isEqualTo: studentUserIdVal),
-                  ),
-                );
-              } else {
-                paymentQuery = paymentQuery.where('studentId', isEqualTo: studentIdVal);
-              }
+                  .collection('payments')
+                  .where('studentId', isEqualTo: studentIdVal);
 
               return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: paymentQuery.snapshots(),

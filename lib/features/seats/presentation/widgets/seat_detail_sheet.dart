@@ -148,6 +148,7 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
 
       if (newStatus == SeatStatus.available) {
         updates['studentId'] = null;
+        updates['studentName'] = FieldValue.delete();
         updates['assignedAt'] = FieldValue.delete();
         updates['vacatedAt'] = FieldValue.serverTimestamp();
         updates['reservationType'] = FieldValue.delete();
@@ -165,6 +166,7 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
       if (widget.seat.status == SeatStatus.occupied &&
           newStatus != SeatStatus.occupied) {
         updates['studentId'] = null;
+        updates['studentName'] = FieldValue.delete();
         updates['assignedAt'] = FieldValue.delete();
         updates['vacatedAt'] = FieldValue.serverTimestamp();
 

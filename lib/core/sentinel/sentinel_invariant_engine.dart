@@ -137,6 +137,46 @@ class SentinelInvariantEngine {
       }
     }
 
+    // Invariant 1c: Multiple Active Students Assigned to the Same Desk (Duplicate Allocation)
+    final seatToStudents = <String, List<StudentModel>>{};
+    for (final student in students) {
+      if (student.membershipStatus == MembershipStatus.active &&
+          student.seatId != null &&
+          student.seatId!.isNotEmpty) {
+        seatToStudents.putIfAbsent(student.seatId!, () => []).add(student);
+      }
+    }
+
+    for (final entry in seatToStudents.entries) {
+      if (entry.value.length > 1) {
+        final assignedSeatId = entry.key;
+        final conflictingStudents = entry.value;
+        final studentNames = conflictingStudents.map((s) => s.name).join(', ');
+        final seat = seatMap[assignedSeatId];
+
+        anomalies.add(
+          SentinelAnomaly(
+            id: 'duplicate_allocation_seat_$assignedSeatId',
+            title: 'Duplicate Desk Allocation: ${SeatHelper.formatDeskLabel(seatId: assignedSeatId, rawLabel: seat?.label)}',
+            description: '${conflictingStudents.length} students ($studentNames) are linked to the same desk simultaneously.',
+            severity: SentinelSeverity.critical,
+            domain: SentinelDomain.seats,
+            entityId: assignedSeatId,
+            detectedAt: DateTime.now(),
+            canAutoHeal: true,
+            rootCauseDiagnosis: 'Seat was assigned to a new student without releasing previous occupant pointer, or concurrent un-isolated assignment occurred.',
+            remediationSuggestion: 'Retain desk on actual verified occupant and clear duplicate desk pointer from secondary student.',
+            metadata: {
+              'seatId': assignedSeatId,
+              'sectionId': seat?.sectionId,
+              'conflictingStudentIds': conflictingStudents.map((s) => s.id).toList(),
+              'occupantStudentId': seat?.studentId,
+            },
+          ),
+        );
+      }
+    }
+
     return anomalies;
   }
 
@@ -364,6 +404,7 @@ class SentinelInvariantEngine {
         await seatRef.update({
           'status': 'available',
           'studentId': FieldValue.delete(),
+          'studentName': FieldValue.delete(),
           'assignedAt': FieldValue.delete(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
@@ -392,6 +433,7 @@ class SentinelInvariantEngine {
         await seatRef.update({
           'status': 'available',
           'studentId': FieldValue.delete(),
+          'studentName': FieldValue.delete(),
           'assignedAt': FieldValue.delete(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
@@ -568,6 +610,77 @@ class SentinelInvariantEngine {
       return true;
     } catch (e) {
       if (kDebugMode) debugPrint('[Sentinel Invariant Engine] Auto-heal invalid desk reference failed: $e');
+      return false;
+    }
+  }
+
+  /// Autonomously resolves duplicate seat allocation across multiple students.
+  Future<bool> autoHealDuplicateSeatAllocation({
+    required String libraryId,
+    required String seatId,
+    required List<String> conflictingStudentIds,
+    String? preferredOccupantId,
+    String? sectionId,
+  }) async {
+    try {
+      final libRef = _db.collection(FirestorePaths.libraries).doc(libraryId);
+
+      // Determine legitimate occupant from seat doc if not provided
+      String? actualOccupant = preferredOccupantId;
+      if (actualOccupant == null || actualOccupant.isEmpty) {
+        if (sectionId != null && sectionId.isNotEmpty) {
+          final seatDoc = await libRef
+              .collection(FirestorePaths.sections)
+              .doc(sectionId)
+              .collection(FirestorePaths.seats)
+              .doc(seatId)
+              .get();
+          if (seatDoc.exists) {
+            actualOccupant = seatDoc.data()?['studentId'] as String?;
+          }
+        }
+        if (actualOccupant == null) {
+          final rootSeatDoc = await libRef.collection(FirestorePaths.seats).doc(seatId).get();
+          if (rootSeatDoc.exists) {
+            actualOccupant = rootSeatDoc.data()?['studentId'] as String?;
+          }
+        }
+      }
+
+      // If still unknown, retain first student
+      actualOccupant ??= conflictingStudentIds.isNotEmpty ? conflictingStudentIds.first : null;
+
+      if (actualOccupant != null) {
+        final batch = _db.batch();
+        for (final sId in conflictingStudentIds) {
+          if (sId != actualOccupant) {
+            final sRef = libRef.collection(FirestorePaths.students).doc(sId);
+            batch.update(sRef, {
+              'seatId': FieldValue.delete(),
+              'previousSeatId': seatId,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+        await batch.commit();
+      }
+
+      await _auditLogger?.log(
+        action: AuditAction.updated,
+        entityType: AuditEntity.seat,
+        libraryId: libraryId,
+        entityId: seatId,
+        entityName: 'Desk $seatId',
+        details: {
+          'action': 'sentinel_auto_heal_duplicate_seat_allocation',
+          'retainedOccupant': actualOccupant,
+          'clearedStudentIds': conflictingStudentIds.where((id) => id != actualOccupant).toList(),
+        },
+      );
+
+      return true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Sentinel Invariant Engine] Auto-heal duplicate seat failed: $e');
       return false;
     }
   }

@@ -30,6 +30,7 @@ class AppUpdateBanner extends ConsumerWidget {
     // If a new web release is ready, show a slim, elegant reload prompt.
     if (kIsWeb) {
       if (updateState.status == UpdateStatus.optionalUpdate && info.isWebUpdate) {
+        final screenWidth = MediaQuery.sizeOf(context).width;
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
           elevation: isDark ? 2 : 1,
@@ -44,9 +45,14 @@ class AppUpdateBanner extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final isCompact = constraints.maxWidth < 620;
+                // Safe compact detection: handles both layout constraints and screen dimensions
+                final effectiveWidth = constraints.hasBoundedWidth && !constraints.maxWidth.isInfinite
+                    ? constraints.maxWidth
+                    : screenWidth;
+                final isCompact = effectiveWidth < 768;
 
                 final textSection = Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
@@ -65,11 +71,13 @@ class AppUpdateBanner extends ConsumerWidget {
                           Text(
                             isStudent ? '✨ Student Portal Updated' : '✨ Library Admin Portal Updated',
                             style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                            softWrap: true,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Version ${info.versionName} is ready with fresh updates and improvements.',
                             style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            softWrap: true,
                           ),
                         ],
                       ),
@@ -78,8 +86,8 @@ class AppUpdateBanner extends ConsumerWidget {
                 );
 
                 final actionButtons = Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: 8,
+                  runSpacing: 8,
                   alignment: isCompact ? WrapAlignment.end : WrapAlignment.start,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
@@ -120,7 +128,7 @@ class AppUpdateBanner extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       textSection,
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       actionButtons,
                     ],
                   );
@@ -129,7 +137,7 @@ class AppUpdateBanner extends ConsumerWidget {
                 return Row(
                   children: [
                     Expanded(child: textSection),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     actionButtons,
                   ],
                 );

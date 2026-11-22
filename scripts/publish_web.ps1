@@ -34,7 +34,7 @@ node scripts/inject_loader.js
 
 # 4. Deploy to Firebase Hosting
 Write-Host "`n[4/4] Deploying to Firebase Hosting (study-lib-mgmt-2026)..." -ForegroundColor Yellow
-firebase deploy --only hosting
+npx firebase deploy --only hosting --project study-lib-mgmt-2026
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`n==========================================================" -ForegroundColor Green
     Write-Host "  WEB APP DEPLOYED AND LIVE!" -ForegroundColor Green
