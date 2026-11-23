@@ -799,3 +799,69 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
 5. **Sentinel Invariant Engine Duplicate Seat Auto-Heal Resilience (`sentinel_invariant_engine.dart`):**
    - Root Cause: Sentinel Guardian flagged `CRITICAL: Duplicate Desk Allocation: Desk #20` (Srikrishnadatta & Shubham Dixit simultaneously linked to Desk #20), but 1-tap auto-heal failed with `"Failed to auto-heal: Duplicate Desk Allocation: Desk #20"` because `batch.update()` threw an exception if a conflicting student record was missing or archived, and audit logger throws were uncaught.
    - Guardrail: In `autoHealDuplicateSeatAllocation`, verify student snapshot existence (`sSnap.exists`, `retSnap.exists`), use `batch.set(..., SetOptions(merge: true))` for fault-tolerant upserts, and isolate audit logs in try/catch to guarantee 100% resilient auto-heal execution.
+
+---
+
+## 43. Row/Column Suppression, Hospitable Member Copywriting & Dynamic Text Streaming (Learned Nov 2026)
+
+1. **Complete Row & Column Suppression Across Entire System:**
+   - Root Cause: Physical study libraries operate on assigned desk numbers (`Desk #21`, `Desk #35`), but the public viewer generated spreadsheet coordinates (`C1..C10` column headers) and desk detail sheets showed `Row 1, Column 5`. This created a cold, Excel-like user experience.
+   - Guardrails:
+     a) **Public Viewer (`public/seats/index.html`):** Remove all `column-headers-row` and `col-header` (`C1..C10`) DOM generation. Maintain clean architectural floor plans oriented by room landmarks (e.g. `MAIN ENTRANCE & RECEPTION DESK` and `ROAD-FACING QUIET STUDY ZONE`).
+     b) **Desk Details Sheet (`seat_detail_sheet.dart`):** Replace `'Row ${seat.row + 1}, Column ${seat.col + 1}'` with `'Dedicated Study Desk • Quiet Zone'`. Desk titles must always invoke `SeatHelper.formatDeskLabel(seatId: seat.id, rawLabel: seat.label)`.
+     c) **Admin Section Creator (`add_section_screen.dart`, `seat_map_screen.dart`):** Replace technical `'Rows'` and `'Columns'` form labels with architectural room terms: `'Desk Rows (Hall Depth)'` and `'Desks per Row (Hall Width)'`.
+
+2. **Polite, Hospitable & Courteous Member Copywriting:**
+   - Root Cause: Robotic developer terminology (`VERIFYING UTR`, `PAY AT DESK`, `Reason: fake`, `Request Rejected ❌`, `Maintenance`) caused student confusion and felt blunt or unfriendly.
+   - Guardrails:
+     a) **Payment Badges:** Replace `VERIFYING UTR` with `PAYMENT UNDER REVIEW 🙏` and `PAY AT DESK` with `PAY CASH AT RECEPTION`.
+     b) **Action Required Notifications:** When an admin rejects or flags an application, notifications must use courteous framing: `$reqTitle Update • Action Required ℹ️` with body `"...requires an update: $reason. Kindly visit reception or contact WhatsApp for assistance. 🙏"`.
+     c) **Reason Labels:** Replace blunt developer labels like `Reason: "fake"` with empathetic service labels: `Note from Reception: "...""`.
+     d) **Legend Labels:** Use `Facility Care 🧹` or `Sanitization` instead of technical `Maintenance`.
+
+3. **Dual-Stage Financial Reconciliation vs Real-Time Soundbox Announcement:**
+   - Root Cause: When students scan the library's dynamic UPI QR code (`7276969070@upi`), real funds hit the library's bank account in 2 seconds, causing the counter's physical merchant Soundbox (Paytm/PhonePe) to verbally announce: *"Payment of ₹3,800 received"*. However, inside the app, the student's pass is not yet active because the renewal request is pending counter approval.
+   - Guardrails:
+     a) Clearly communicate the two distinct financial stages to both student and admin.
+     b) For Student: Render a calming status banner: *"Payment received at bank • Pass activating shortly 🙏"*.
+     c) For Admin: In Requests Hub, elevate incoming UPI submissions with a prominent 1-tap "Collect & Approve" action so the counter staff can match the spoken Soundbox announcement with the on-screen student in 1 click.
+     d) In `SoundboxService.formatAnnouncement`, check both `seat` and `desk` prefixes to prevent double-prefix synthesis (`Seat Desk #21`).
+
+4. **Dynamic Administrator Text Configuration Streaming:**
+   - Root Cause: Hardcoded library slogans, guidelines, payment instructions, and helpline numbers required code recompilation and redeployment whenever library policies changed.
+   - Guardrail: All public and student texts (Welcome slogan, WiFi notes, Reception timings, WhatsApp helpline, UPI ID, and Notice Board rules) must stream dynamically from Firestore settings (`libraries/{libraryId}/settings/communications` and `library_profile`) with resilient fallbacks, reflecting changes across all devices in real time without app updates.
+
+---
+
+## 44. Admin PIN Reset Dedicated Dialog & Route Popping Immunity (Learned Nov 2026)
+
+1. **Dedicated PIN Setup Dialog vs Generic Settings Conflation:**
+   - Root Cause: When an admin remotely reset a student's PIN or when a student verified their identity via Google OAuth, the success dialog offered `"Set New PIN Now"`. However, clicking this button invoked `_unlockApp()` asynchronously while simultaneously calling `SecuritySettingsDialog.show()`. `_unlockApp()` popped the active route or triggered navigation away to `/student/home`, instantly closing the settings dialog before it could open. Furthermore, `SecuritySettingsDialog` is a multi-option settings panel (biometrics, timeouts, screenshot protection), NOT a focused 4-digit PIN setup window. This left the user stranded back on the lock screen with an empty PIN keypad and no way to set their PIN.
+   - Guardrails:
+     a) **Dedicated PIN Dialog (`SecuritySettingsDialog.showSetPinDialog`):** Provide a focused, direct 4-digit PIN dialog with numeric keypad input, confirmation matching, and clear error banners.
+     b) **Sequential Navigation (Never Unlock Before Setting PIN):** Never call `_unlockApp()` prior to showing `showSetPinDialog`. Await the dialog's completion: if the PIN is configured, sync to Firestore and local storage, show confirmation feedback, and then call `_unlockApp()`.
+     c) **Admin Flag Cleanup (`BiometricService.clearAdminPinResetFlag`):** Whenever the user completes or skips PIN setup or taps "Go to Dashboard", immediately delete `pinResetByAdmin` and `pinResetMessage` from both `students/{studentId}` and `users/{authUid}` to prevent infinite notification loops on subsequent snapshot streams.
+     d) **Keypad Infinite Loop Immunity:** If a student without an active PIN attempts to enter digits on the lock keypad, do not loop into raw reset dialogs. Offer direct PIN configuration or unlock to prevent blocking students from accessing their passes.
+
+
+
+
+---
+
+## 45. Test Version Invariant Synchronization & Binary Build Pipeline Discipline (Learned Nov 2026)
+
+1. **System QA Test Suite Version Invariants (`test/system_qa_test.dart`):**
+   - Root Cause: Version bumps in `pubspec.yaml`, `app_constants.dart`, and `whats_new_service.dart` triggered test assertion failures in Tests 67, 109, and 126 because tests asserted against hardcoded version strings (`'1.5.58'` and `2075`).
+   - Guardrail: Whenever a new version is released, synchronize the assertions in `test/system_qa_test.dart` (Tests 67, 109, 126) to match the new `AppConstants.appVersion` and `AppConstants.buildNumber` before running regression tests. Verify all 193+ automated QA tests pass with 0 failures (`flutter test test/system_qa_test.dart`).
+
+2. **JDK 17 Toolchain & Release Binary Packaging Protocol:**
+   - Root Cause: Flutter Android builds fail if `JAVA_HOME` is unset or points to an incompatible Java version.
+   - Guardrails:
+     a) Ensure `JAVA_HOME` points to Temurin JDK 17 (`C:\Users\ksonp\.bubblewrap\jdk\jdk-17.0.19+10`) and Flutter is configured via `flutter config --jdk-dir`.
+     b) Always generate all 4 production artifacts signed with the permanent release keystore:
+        - `StudyLibrary-arm64-v8a.apk` (Lean 64-bit ARM, default download)
+        - `StudyLibrary-armeabi-v7a.apk` (Legacy 32-bit ARM)
+        - `StudyLibrary.apk` (Universal FAT APK)
+        - `StudyLibrary.aab` (Google Play App Bundle)
+     c) Stage all assets in `release_assets/v<version>/` and create the GitHub Release with all 4 binaries uploaded via `gh release create`.
+     d) Perform byte-range health checks (`curl -s -L -r 0-10 -o NUL -w "%{http_code}"`) to verify all assets return `206 Partial Content` (or `200 OK`) before deploying hosting.
