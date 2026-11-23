@@ -625,43 +625,136 @@ class SentinelInvariantEngine {
     try {
       final libRef = _db.collection(FirestorePaths.libraries).doc(libraryId);
 
-      // Determine legitimate occupant from seat doc if not provided
+      DocumentReference? targetSeatRef;
+      String? targetSectionId = sectionId;
       String? actualOccupant = preferredOccupantId;
-      if (actualOccupant == null || actualOccupant.isEmpty) {
-        if (sectionId != null && sectionId.isNotEmpty) {
-          final seatDoc = await libRef
-              .collection(FirestorePaths.sections)
-              .doc(sectionId)
-              .collection(FirestorePaths.seats)
-              .doc(seatId)
-              .get();
-          if (seatDoc.exists) {
-            actualOccupant = seatDoc.data()?['studentId'] as String?;
-          }
+      String? actualOccupantName;
+
+      // 1. Locate physical seat in designated section
+      if (targetSectionId != null && targetSectionId.isNotEmpty) {
+        final seatDoc = await libRef
+            .collection(FirestorePaths.sections)
+            .doc(targetSectionId)
+            .collection(FirestorePaths.seats)
+            .doc(seatId)
+            .get();
+        if (seatDoc.exists) {
+          targetSeatRef = seatDoc.reference;
+          actualOccupant ??= seatDoc.data()?['studentId'] as String?;
+          actualOccupantName ??= seatDoc.data()?['studentName'] as String?;
         }
-        if (actualOccupant == null) {
-          final rootSeatDoc = await libRef.collection(FirestorePaths.seats).doc(seatId).get();
-          if (rootSeatDoc.exists) {
-            actualOccupant = rootSeatDoc.data()?['studentId'] as String?;
+      }
+
+      // 2. Multi-section fallback search (when sectionId is null or seat not found)
+      if (targetSeatRef == null) {
+        final sectionsSnap = await libRef.collection(FirestorePaths.sections).get();
+        for (final secDoc in sectionsSnap.docs) {
+          // Direct ID lookup
+          final sDoc = await secDoc.reference.collection(FirestorePaths.seats).doc(seatId).get();
+          if (sDoc.exists) {
+            targetSeatRef = sDoc.reference;
+            targetSectionId = secDoc.id;
+            actualOccupant ??= sDoc.data()?['studentId'] as String?;
+            actualOccupantName ??= sDoc.data()?['studentName'] as String?;
+            break;
+          }
+
+          // Match by seat number/label (e.g. '20')
+          final numOnly = SeatHelper.formatSeatNumberOnly(seatId: seatId);
+          if (numOnly.isNotEmpty) {
+            final labelMatches = await secDoc.reference
+                .collection(FirestorePaths.seats)
+                .where('label', isEqualTo: numOnly)
+                .limit(1)
+                .get();
+            if (labelMatches.docs.isNotEmpty) {
+              final matched = labelMatches.docs.first;
+              targetSeatRef = matched.reference;
+              targetSectionId = secDoc.id;
+              actualOccupant ??= matched.data()['studentId'] as String?;
+              actualOccupantName ??= matched.data()['studentName'] as String?;
+              break;
+            }
           }
         }
       }
 
-      // If still unknown, retain first student
-      actualOccupant ??= conflictingStudentIds.isNotEmpty ? conflictingStudentIds.first : null;
+      // 3. Fallback to root seats collection if vintage single-section
+      if (targetSeatRef == null) {
+        final rootSeatDoc = await libRef.collection(FirestorePaths.seats).doc(seatId).get();
+        if (rootSeatDoc.exists) {
+          targetSeatRef = rootSeatDoc.reference;
+          actualOccupant ??= rootSeatDoc.data()?['studentId'] as String?;
+          actualOccupantName ??= rootSeatDoc.data()?['studentName'] as String?;
+        }
+      }
+
+      // 4. Resolve legitimate occupant if still undetermined
+      if (actualOccupant == null || !conflictingStudentIds.contains(actualOccupant)) {
+        StudentModel? bestStudent;
+        for (final sId in conflictingStudentIds) {
+          final sDoc = await libRef.collection(FirestorePaths.students).doc(sId).get();
+          if (sDoc.exists) {
+            final student = StudentModel.fromJson({'id': sDoc.id, ...sDoc.data() ?? {}});
+            if (bestStudent == null) {
+              bestStudent = student;
+            } else if (student.membershipStatus == MembershipStatus.active &&
+                bestStudent.membershipStatus != MembershipStatus.active) {
+              bestStudent = student;
+            }
+          }
+        }
+        if (bestStudent != null) {
+          actualOccupant = bestStudent.id;
+          actualOccupantName = bestStudent.name;
+        } else if (conflictingStudentIds.isNotEmpty) {
+          actualOccupant = conflictingStudentIds.first;
+        }
+      }
+
+      // If name is still missing, fetch it from student doc
+      if (actualOccupant != null && (actualOccupantName == null || actualOccupantName.isEmpty)) {
+        final studentDoc = await libRef.collection(FirestorePaths.students).doc(actualOccupant).get();
+        if (studentDoc.exists) {
+          actualOccupantName = studentDoc.data()?['name'] as String?;
+        }
+      }
 
       if (actualOccupant != null) {
         final batch = _db.batch();
+
+        // (a) Clear duplicate seat references from all other students
         for (final sId in conflictingStudentIds) {
           if (sId != actualOccupant) {
             final sRef = libRef.collection(FirestorePaths.students).doc(sId);
             batch.update(sRef, {
               'seatId': FieldValue.delete(),
               'previousSeatId': seatId,
+              'previousSectionId': ?targetSectionId,
               'updatedAt': FieldValue.serverTimestamp(),
             });
           }
         }
+
+        // (b) Confirm double-binding on legitimate retained student
+        final retainedRef = libRef.collection(FirestorePaths.students).doc(actualOccupant);
+        batch.update(retainedRef, {
+          'seatId': targetSeatRef != null ? targetSeatRef.id : seatId,
+          'sectionId': ?targetSectionId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // (c) Update physical seat document to reflect legitimate occupant
+        if (targetSeatRef != null) {
+          batch.update(targetSeatRef, {
+            'studentId': actualOccupant,
+            if (actualOccupantName != null && actualOccupantName.isNotEmpty)
+              'studentName': actualOccupantName,
+            'status': 'occupied',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+
         await batch.commit();
       }
 

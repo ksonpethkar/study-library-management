@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
 import '../providers/student_providers.dart';
-import '../../../../core/providers/library_provider.dart';
+import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/models/student_model.dart';
 import 'dart:async';
@@ -22,6 +22,7 @@ import 'package:study_library/features/requests/presentation/screens/request_det
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum StudentSortOrder {
   recent,
@@ -124,6 +125,17 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     if (widget.initialFilter != null && widget.initialFilter!.isNotEmpty) {
       _selectedFilter = _normalizeFilter(widget.initialFilter);
     }
+    SharedPreferences.getInstance().then((prefs) {
+      final savedSort = prefs.getString('admin_students_sort_order');
+      if (savedSort != null && savedSort.isNotEmpty && mounted) {
+        for (final val in StudentSortOrder.values) {
+          if (val.name == savedSort) {
+            setState(() => _selectedSortOrder = val);
+            break;
+          }
+        }
+      }
+    }).catchError((_) {});
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
   }
@@ -155,8 +167,6 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     super.dispose();
   }
 
-  final Set<String> _healedStudentIds = {};
-
   String? _resolveStudentSeatId(StudentModel student, [List<SeatModel>? seats]) {
     if (student.seatId != null && student.seatId!.isNotEmpty) {
       return student.seatId;
@@ -165,23 +175,6 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     final studentUid = student.userId;
     for (final seat in allSeats) {
       if (seat.studentId == student.id || (studentUid != null && studentUid.isNotEmpty && seat.studentId == studentUid)) {
-        if (!_healedStudentIds.contains(student.id)) {
-          _healedStudentIds.add(student.id);
-          final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
-          FirebaseFirestore.instance
-              .collection('libraries')
-              .doc(libId)
-              .collection('students')
-              .doc(student.id)
-              .update({
-                'seatId': seat.id,
-                'sectionId': seat.sectionId,
-                'seatLabel': seat.label,
-                'previousSeatId': seat.id,
-                'previousSectionId': seat.sectionId,
-                'updatedAt': FieldValue.serverTimestamp(),
-              }).catchError((_) {});
-        }
         return seat.id;
       }
     }
@@ -214,16 +207,10 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     switch (_selectedSortOrder) {
       case StudentSortOrder.recent:
         list.sort((a, b) {
-          final aDate = a.admissionDate ?? a.createdAt;
-          final bDate = b.admissionDate ?? b.createdAt;
-          if (aDate != null && bDate != null) {
-            final cmp = bDate.compareTo(aDate); // Recent admissions first
-            if (cmp != 0) return cmp;
-          } else if (aDate == null && bDate != null) {
-            return 1;
-          } else if (aDate != null && bDate == null) {
-            return -1;
-          }
+          final aDate = a.effectiveAdmissionDate;
+          final bDate = b.effectiveAdmissionDate;
+          final cmp = bDate.compareTo(aDate); // Recent admissions first
+          if (cmp != 0) return cmp;
           final aId = a.membershipNumber ?? a.id;
           final bId = b.membershipNumber ?? b.id;
           return bId.compareTo(aId);
@@ -269,10 +256,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           final aDue = a.pendingDueBalance ?? 0.0;
           final bDue = b.pendingDueBalance ?? 0.0;
           if (aDue != bDue) return bDue.compareTo(aDue);
-          final aDate = a.admissionDate ?? a.createdAt;
-          final bDate = b.admissionDate ?? b.createdAt;
-          if (aDate != null && bDate != null) return bDate.compareTo(aDate);
-          return 0;
+          return b.effectiveAdmissionDate.compareTo(a.effectiveAdmissionDate);
         });
         break;
     }
@@ -539,9 +523,23 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                               '${filtered.length} Scholars',
                               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: theme.colorScheme.onSurface),
                             ),
-                            Text(
-                              'Sort: ${_getSortLabel(_selectedSortOrder)}',
-                              style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                            InkWell(
+                              onTap: () => _showSortBottomSheet(context, theme),
+                              borderRadius: BorderRadius.circular(4),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Sort: ${_getSortLabel(_selectedSortOrder)}',
+                                      style: TextStyle(fontSize: 11.5, color: theme.colorScheme.primary, fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Icon(Icons.arrow_drop_down_rounded, size: 14, color: theme.colorScheme.primary),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -659,23 +657,29 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                         '${filtered.length} Scholars',
                         style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: theme.colorScheme.onSurface),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.25)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(_getSortIcon(_selectedSortOrder), size: 12, color: theme.colorScheme.primary),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Sort: ${_getSortLabel(_selectedSortOrder)}',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
-                            ),
-                          ],
+                      InkWell(
+                        onTap: () => _showSortBottomSheet(context, theme),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.25)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(_getSortIcon(_selectedSortOrder), size: 12, color: theme.colorScheme.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Sort: ${_getSortLabel(_selectedSortOrder)}',
+                                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(Icons.arrow_drop_down_rounded, size: 14, color: theme.colorScheme.primary),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -2020,7 +2024,14 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               ),
               child: Icon(Icons.sort_rounded, size: 20, color: theme.colorScheme.primary),
             ),
-            onSelected: (order) => setState(() => _selectedSortOrder = order),
+            initialValue: _selectedSortOrder,
+            constraints: const BoxConstraints(minWidth: 260),
+            onSelected: (order) {
+              setState(() => _selectedSortOrder = order);
+              SharedPreferences.getInstance().then((prefs) {
+                prefs.setString('admin_students_sort_order', order.name);
+              }).catchError((_) {});
+            },
             itemBuilder: (ctx) => [
               PopupMenuItem(
                 value: StudentSortOrder.recent,
@@ -2625,6 +2636,76 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
       case StudentSortOrder.highestDue:
         return Icons.money_off_rounded;
     }
+  }
+
+  String _getSortMenuTitle(StudentSortOrder order) {
+    switch (order) {
+      case StudentSortOrder.recent:
+        return 'Recent Admissions First';
+      case StudentSortOrder.seatNumber:
+        return 'Desk Number (1 → 100)';
+      case StudentSortOrder.nameAsc:
+        return 'Name (A → Z)';
+      case StudentSortOrder.expirySoon:
+        return 'Expiring Soonest First';
+      case StudentSortOrder.highestDue:
+        return 'Highest Dues / Defaulters';
+    }
+  }
+
+  void _showSortBottomSheet(BuildContext context, ThemeData theme) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                child: Text(
+                  'Sort Scholars List',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...StudentSortOrder.values.map((order) {
+                final isSelected = _selectedSortOrder == order;
+                return ListTile(
+                  leading: Icon(
+                    _getSortIcon(order),
+                    color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                  ),
+                  title: Text(
+                    _getSortMenuTitle(order),
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? theme.colorScheme.primary : null,
+                    ),
+                  ),
+                  trailing: isSelected ? Icon(Icons.check_rounded, color: theme.colorScheme.primary) : null,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  selected: isSelected,
+                  selectedTileColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _selectedSortOrder = order);
+                    SharedPreferences.getInstance().then((prefs) {
+                      prefs.setString('admin_students_sort_order', order.name);
+                    }).catchError((_) {});
+                  },
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildDesktopRosterCard({

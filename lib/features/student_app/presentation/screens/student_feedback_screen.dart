@@ -10,6 +10,7 @@ import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/models/feedback_model.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/features/student_app/presentation/widgets/silent_reception_help_sheet.dart';
 
 class StudentFeedbackScreen extends ConsumerStatefulWidget {
@@ -131,7 +132,9 @@ class _StudentFeedbackScreenState extends ConsumerState<StudentFeedbackScreen>
         'studentEmail': authUser?.email ?? student?.email ?? '',
         'studentName': student?.name ?? authUser?.displayName ?? 'Student',
         'studentPhone': student?.phone ?? '',
-        'seatNumber': student?.seatId ?? '',
+        'seatNumber': (student?.seatId != null && student!.seatId!.trim().isNotEmpty)
+            ? SeatHelper.formatDeskLabel(seatId: student.seatId)
+            : '',
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });

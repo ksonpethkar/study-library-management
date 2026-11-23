@@ -264,6 +264,25 @@ class SentinelService {
             invalidSeatId: invalidSeatId,
           );
         }
+      } else if (anomaly.id.startsWith('duplicate_allocation_seat_') ||
+          anomaly.id.contains('duplicate_allocation')) {
+        final seatId = anomaly.metadata['seatId'] as String? ?? anomaly.entityId;
+        final sectionId = anomaly.metadata['sectionId'] as String?;
+        final conflictingIds = (anomaly.metadata['conflictingStudentIds'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            <String>[];
+        final occupantId = anomaly.metadata['occupantStudentId'] as String?;
+
+        if (seatId != null && seatId.isNotEmpty && conflictingIds.isNotEmpty) {
+          success = await _invariantEngine.autoHealDuplicateSeatAllocation(
+            libraryId: libraryId,
+            seatId: seatId,
+            conflictingStudentIds: conflictingIds,
+            preferredOccupantId: occupantId,
+            sectionId: sectionId,
+          );
+        }
       }
 
       if (success) {
