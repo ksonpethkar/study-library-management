@@ -1,7 +1,7 @@
 name: study_library
 description: "Smart Study Library Management - Manage seats, students, memberships & more"
 publish_to: 'none'
-version: 1.5.58+2075
+version: 1.5.59+2076
 
 environment:
   sdk: ^3.13.3

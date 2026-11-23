@@ -59,3 +59,5 @@ keystore_credentials.md
 functions/node_modules/
 node_modules/
 scratch/
+
+/release_assets/
