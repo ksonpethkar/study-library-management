@@ -765,6 +765,7 @@ class BiometricService {
   static Future<void> clearAdminPinResetFlag({
     required String libraryId,
     required String studentId,
+    String? authUid,
   }) async {
     if (libraryId.isEmpty || studentId.isEmpty) return;
     try {
@@ -777,6 +778,14 @@ class BiometricService {
         'pinResetByAdmin': FieldValue.delete(),
         'pinResetMessage': FieldValue.delete(),
       });
+
+      final currentUid = authUid ?? FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid != null && currentUid.isNotEmpty) {
+        await FirebaseFirestore.instance.collection('users').doc(currentUid).update({
+          'pinResetByAdmin': FieldValue.delete(),
+          'pinResetMessage': FieldValue.delete(),
+        }).catchError((_) {});
+      }
     } catch (_) { /* intentionally silent */ }
   }
 

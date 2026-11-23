@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/core/providers/library_provider.dart';
-import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SecuritySettingsDialog extends ConsumerStatefulWidget {
@@ -37,6 +36,208 @@ class SecuritySettingsDialog extends ConsumerStatefulWidget {
         libraryId: libraryId,
       ),
     );
+  }
+
+  static Future<bool> showSetPinDialog(
+    BuildContext context, {
+    required bool isStudent,
+    String? studentId,
+    String? authUid,
+    String? libraryId,
+    List<String>? candidateIds,
+    bool isChanging = false,
+  }) async {
+    final pinController = TextEditingController();
+    final confirmController = TextEditingController();
+    String? dialogError;
+    bool isDialogSaving = false;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Icon(
+                isChanging ? Icons.lock_reset_rounded : Icons.pin_rounded,
+                color: isStudent ? const Color(0xFF059669) : const Color(0xFFD97706),
+                size: 26,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  isStudent
+                      ? (isChanging ? 'Change 4-Digit PIN' : 'Set Personal 4-Digit PIN')
+                      : (isChanging ? 'Change Master PIN' : 'Set Admin Master PIN'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isStudent
+                    ? 'Enter a 4-digit PIN to securely protect your student pass on this device.'
+                    : 'Enter a 4-digit master PIN to secure library management data.',
+                style: const TextStyle(fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              if (dialogError != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFEF4444), width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          dialogError!,
+                          style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              TextField(
+                controller: pinController,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 4,
+                textAlign: TextAlign.center,
+                autofocus: true,
+                style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.bold),
+                onChanged: (_) {
+                  if (dialogError != null) setDialogState(() => dialogError = null);
+                },
+                decoration: InputDecoration(
+                  labelText: isChanging ? 'Enter New 4-Digit PIN' : 'Enter 4-Digit PIN',
+                  counterText: '',
+                  prefixIcon: const Icon(Icons.pin_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmController,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 4,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.bold),
+                onChanged: (_) {
+                  if (dialogError != null) setDialogState(() => dialogError = null);
+                },
+                decoration: InputDecoration(
+                  labelText: isChanging ? 'Confirm New 4-Digit PIN' : 'Confirm 4-Digit PIN',
+                  counterText: '',
+                  prefixIcon: const Icon(Icons.check_circle_outline),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isDialogSaving ? null : () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              icon: isDialogSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.lock_rounded, size: 16),
+              label: Text(isDialogSaving ? 'Saving...' : (isChanging ? 'Update PIN' : 'Save PIN')),
+              style: FilledButton.styleFrom(
+                backgroundColor: isStudent ? const Color(0xFF059669) : const Color(0xFFD97706),
+              ),
+              onPressed: isDialogSaving
+                  ? null
+                  : () async {
+                      final pin = pinController.text.trim();
+                      final confirm = confirmController.text.trim();
+                      if (pin.length != 4 || !RegExp(r'^\d{4}$').hasMatch(pin)) {
+                        setDialogState(() => dialogError = 'PIN must be exactly 4 numeric digits (0-9)');
+                        return;
+                      }
+                      if (pin != confirm) {
+                        setDialogState(() => dialogError = 'PINs do not match. Please re-enter.');
+                        return;
+                      }
+
+                      setDialogState(() {
+                        isDialogSaving = true;
+                        dialogError = null;
+                      });
+
+                      try {
+                        final ids = <String>{};
+                        if (studentId != null && studentId.isNotEmpty) ids.add(studentId);
+                        if (authUid != null && authUid.isNotEmpty) ids.add(authUid);
+                        if (candidateIds != null) ids.addAll(candidateIds);
+                        final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                        if (currentUid != null && currentUid.isNotEmpty) ids.add(currentUid);
+                        final allCandidates = ids.toList();
+
+                        await BiometricService.setPin(
+                          pin,
+                          userId: isStudent ? studentId : null,
+                          authUid: authUid,
+                          candidateIds: allCandidates,
+                        );
+
+                        final effectiveLibId = libraryId ?? '';
+                        if (!isStudent) {
+                          if (effectiveLibId.isNotEmpty) {
+                            await BiometricService.syncSecuritySettingsToFirestore(effectiveLibId);
+                          }
+                        } else if (studentId != null && studentId.isNotEmpty && effectiveLibId.isNotEmpty) {
+                          await BiometricService.syncStudentSecurityToFirestore(
+                            libraryId: effectiveLibId,
+                            studentId: studentId,
+                            pin: pin,
+                            authUid: authUid,
+                            candidateIds: allCandidates,
+                            biometricEnabled: false,
+                          );
+                          await BiometricService.clearAdminPinResetFlag(
+                            libraryId: effectiveLibId,
+                            studentId: studentId,
+                          );
+                        }
+
+                        if (!ctx.mounted) return;
+                        Navigator.of(ctx).pop(true);
+                      } catch (err) {
+                        if (ctx.mounted) {
+                          setDialogState(() {
+                            isDialogSaving = false;
+                            dialogError = 'Failed to save PIN: $err';
+                          });
+                        }
+                      }
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return result ?? false;
   }
 
   @override
@@ -176,172 +377,31 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
   }
 
   Future<void> _showSetPinDialog() async {
-    final isChanging = _hasPin;
-    final pinController = TextEditingController();
-    final confirmController = TextEditingController();
-    String? dialogError;
-    bool isDialogSaving = false;
-
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            widget.isStudent
-                ? (isChanging ? 'Change Personal 4-Digit PIN' : 'Set Personal 4-Digit PIN')
-                : (isChanging ? 'Change Admin 4-Digit PIN' : 'Set Admin 4-Digit PIN'),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (dialogError != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFEF4444), width: 1),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          dialogError!,
-                          style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              TextField(
-                controller: pinController,
-                keyboardType: TextInputType.number,
-                obscureText: true,
-                maxLength: 4,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.bold),
-                onChanged: (_) {
-                  if (dialogError != null) setDialogState(() => dialogError = null);
-                },
-                decoration: InputDecoration(
-                  labelText: isChanging ? 'Enter New 4-Digit PIN' : 'Enter 4-Digit PIN',
-                  counterText: '',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: confirmController,
-                keyboardType: TextInputType.number,
-                obscureText: true,
-                maxLength: 4,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.bold),
-                onChanged: (_) {
-                  if (dialogError != null) setDialogState(() => dialogError = null);
-                },
-                decoration: InputDecoration(
-                  labelText: isChanging ? 'Confirm New 4-Digit PIN' : 'Confirm 4-Digit PIN',
-                  counterText: '',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: isDialogSaving ? null : () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: isDialogSaving
-                  ? null
-                  : () async {
-                      final pin = pinController.text.trim();
-                      final confirm = confirmController.text.trim();
-                      if (pin.length != 4) {
-                        setDialogState(() => dialogError = 'PIN must be exactly 4 digits');
-                        return;
-                      }
-                      if (pin != confirm) {
-                        setDialogState(() => dialogError = 'PINs do not match. Please re-enter.');
-                        return;
-                      }
-
-                      setDialogState(() {
-                        isDialogSaving = true;
-                        dialogError = null;
-                      });
-
-                      try {
-                        await BiometricService.setPin(
-                          pin,
-                          userId: _effectiveUserId,
-                          authUid: widget.authUid,
-                          candidateIds: _candidateIds,
-                        );
-
-                        final libraryId = widget.libraryId ?? ref.read(currentLibraryIdProvider);
-                        if (!widget.isStudent) {
-                          if (libraryId != null && libraryId.isNotEmpty) {
-                            await BiometricService.syncSecuritySettingsToFirestore(libraryId);
-                          }
-                        } else if (widget.studentId != null && libraryId != null && libraryId.isNotEmpty) {
-                          await BiometricService.syncStudentSecurityToFirestore(
-                            libraryId: libraryId,
-                            studentId: widget.studentId!,
-                            pin: pin,
-                            authUid: widget.authUid,
-                            candidateIds: _candidateIds,
-                            biometricEnabled: _biometricEnabled,
-                          );
-                          ref.invalidate(currentStudentProvider);
-                        }
-
-                        if (!ctx.mounted) return;
-                        Navigator.of(ctx).pop();
-
-                        if (!mounted) return;
-                        setState(() {
-                          _hasPin = true;
-                          _successBannerMessage = isChanging
-                              ? 'Security PIN updated and active! 🔒'
-                              : 'Security PIN configured and active! 🔒';
-                        });
-
-                        Future.delayed(const Duration(seconds: 4), () {
-                          if (mounted) setState(() => _successBannerMessage = null);
-                        });
-
-                        await _loadState();
-                      } catch (err) {
-                        if (ctx.mounted) {
-                          setDialogState(() {
-                            isDialogSaving = false;
-                            dialogError = 'Failed to save PIN: $err';
-                          });
-                        }
-                      }
-                    },
-              child: isDialogSaving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text(isChanging ? 'Update PIN' : 'Save PIN'),
-            ),
-          ],
-        ),
-      ),
+    final libraryId = widget.libraryId ?? ref.read(currentLibraryIdProvider);
+    final pinSet = await SecuritySettingsDialog.showSetPinDialog(
+      context,
+      isStudent: widget.isStudent,
+      studentId: widget.studentId,
+      authUid: widget.authUid,
+      libraryId: libraryId,
+      candidateIds: _candidateIds,
+      isChanging: _hasPin,
     );
+
+    if (pinSet && mounted) {
+      setState(() {
+        _hasPin = true;
+        _successBannerMessage = _hasPin
+            ? 'Security PIN configured and active! 🔒'
+            : 'Security PIN updated and active! 🔒';
+      });
+
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _successBannerMessage = null);
+      });
+
+      await _loadState();
+    }
   }
 
   Future<void> _removePin() async {

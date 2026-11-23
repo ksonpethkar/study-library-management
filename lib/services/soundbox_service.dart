@@ -81,9 +81,12 @@ class SoundboxService {
         String seatPart = '';
         if (seatLabel != null && seatLabel.trim().isNotEmpty) {
           final trimmedSeat = seatLabel.trim();
-          seatPart = trimmedSeat.toLowerCase().startsWith('seat')
-              ? ' $trimmedSeat'
-              : ' Seat $trimmedSeat';
+          if (trimmedSeat.toLowerCase().startsWith('seat') ||
+              trimmedSeat.toLowerCase().startsWith('desk')) {
+            seatPart = ' $trimmedSeat';
+          } else {
+            seatPart = ' Seat $trimmedSeat';
+          }
         }
         final detail = (studentPart.isNotEmpty || seatPart.isNotEmpty)
             ? '$studentPart$seatPart'

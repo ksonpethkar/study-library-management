@@ -227,86 +227,135 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
     if (_isHandlingReset) return;
     _isHandlingReset = true;
 
-    _countdownTimer?.cancel();
-    _enteredPin = '';
-    _pinController.clear();
+    try {
+      _countdownTimer?.cancel();
+      _enteredPin = '';
+      _pinController.clear();
 
-    final isAdmin = _isAdminLock;
-    final authUid = FirebaseAuth.instance.currentUser?.uid;
-    final candidates = _candidateStudentIds;
-    final studentId = _resolvedStudentDocId ?? _studentId;
+      final isAdmin = _isAdminLock;
+      final authUid = FirebaseAuth.instance.currentUser?.uid;
+      final candidates = _candidateStudentIds;
+      final studentId = _resolvedStudentDocId ?? _studentId;
 
-    await BiometricService.resetFailedAttempts(
-      userId: isAdmin ? null : studentId,
-      authUid: isAdmin ? null : authUid,
-      candidateIds: isAdmin ? null : candidates,
-      isAdmin: isAdmin,
-    );
-    await BiometricService.clearPin(
-      userId: isAdmin ? null : studentId,
-      authUid: isAdmin ? null : authUid,
-      candidateIds: isAdmin ? null : candidates,
-    );
+      await BiometricService.resetFailedAttempts(
+        userId: isAdmin ? null : studentId,
+        authUid: isAdmin ? null : authUid,
+        candidateIds: isAdmin ? null : candidates,
+        isAdmin: isAdmin,
+      );
+      await BiometricService.clearPin(
+        userId: isAdmin ? null : studentId,
+        authUid: isAdmin ? null : authUid,
+        candidateIds: isAdmin ? null : candidates,
+      );
 
-    if (mounted) {
-      setState(() {
-        _lockoutUntil = null;
-        _remainingSeconds = 0;
-        _failedAttempts = 0;
-        _hasPin = false;
-        _errorMessage = null;
-      });
+      if (mounted) {
+        setState(() {
+          _lockoutUntil = null;
+          _remainingSeconds = 0;
+          _failedAttempts = 0;
+          _hasPin = false;
+          _errorMessage = null;
+        });
+      }
+
+      if (!mounted) return;
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          icon: const Icon(Icons.lock_reset_rounded, size: 40, color: Colors.orange),
+          title: const Text(
+            'Security PIN Reset by Admin',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Your library administrator has reset your 4-digit security PIN and biometric lock.\n\n'
+            'Your pass is now unlocked. You can configure a fresh PIN now, or proceed to your dashboard.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, height: 1.4),
+          ),
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
+          actions: [
+            OutlinedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final sId = _resolvedStudentDocId ?? _studentId;
+                final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+                if (sId != null && sId.isNotEmpty) {
+                  await BiometricService.clearAdminPinResetFlag(
+                    libraryId: libId,
+                    studentId: sId,
+                    authUid: authUid,
+                  );
+                }
+                if (mounted) {
+                  _unlockApp();
+                }
+              },
+              child: const Text('Go to Dashboard'),
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.pin_rounded, size: 16),
+              label: const Text('Set New PIN Now'),
+              style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade800),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final sId = _resolvedStudentDocId ?? _studentId;
+                final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+
+                if (sId != null && sId.isNotEmpty && mounted) {
+                  final pinSet = await SecuritySettingsDialog.showSetPinDialog(
+                    context,
+                    isStudent: true,
+                    studentId: sId,
+                    authUid: authUid,
+                    libraryId: libId,
+                    candidateIds: _candidateStudentIds,
+                    isChanging: false,
+                  );
+
+                  if (pinSet) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                              SizedBox(width: 8),
+                              Expanded(child: Text('New 4-digit PIN configured successfully! Pass unlocked 🔒')),
+                            ],
+                          ),
+                          backgroundColor: Color(0xFF059669),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                      _unlockApp();
+                    }
+                  } else {
+                    await BiometricService.clearAdminPinResetFlag(
+                      libraryId: libId,
+                      studentId: sId,
+                      authUid: authUid,
+                    );
+                    if (mounted) {
+                      _unlockApp();
+                    }
+                  }
+                } else {
+                  _unlockApp();
+                }
+              },
+            ),
+          ],
+        ),
+      );
+    } finally {
+      _isHandlingReset = false;
     }
-
-    if (!mounted) return;
-
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        icon: const Icon(Icons.lock_reset_rounded, size: 40, color: Colors.orange),
-        title: const Text(
-          'Security PIN Reset by Admin',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: const Text(
-          'Your library administrator has reset your 4-digit security PIN and biometric lock.\n\n'
-          'Your pass is now unlocked. You can configure a fresh PIN now, or proceed to your dashboard.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, height: 1.4),
-        ),
-        actionsAlignment: MainAxisAlignment.spaceEvenly,
-        actions: [
-          OutlinedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _unlockApp();
-            },
-            child: const Text('Go to Dashboard'),
-          ),
-          FilledButton.icon(
-            icon: const Icon(Icons.pin_rounded, size: 16),
-            label: const Text('Set New PIN Now'),
-            style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade800),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _unlockApp();
-              final sId = _resolvedStudentDocId ?? _studentId;
-              if (sId != null && sId.isNotEmpty && mounted) {
-                SecuritySettingsDialog.show(
-                  context,
-                  isStudent: true,
-                  studentId: sId,
-                  authUid: FirebaseAuth.instance.currentUser?.uid,
-                );
-              }
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _checkLockout() async {
@@ -751,15 +800,33 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                 icon: const Icon(Icons.pin_rounded, size: 16),
                 label: const Text('Set New Master PIN'),
                 style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD97706)),
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(ctx);
-                  _unlockApp();
+                  final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
                   if (mounted) {
-                    SecuritySettingsDialog.show(
+                    final pinSet = await SecuritySettingsDialog.showSetPinDialog(
                       context,
                       isStudent: false,
                       authUid: verifiedUser.uid,
+                      libraryId: libId,
+                      isChanging: false,
                     );
+                    if (pinSet && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                              SizedBox(width: 8),
+                              Expanded(child: Text('New Master PIN configured successfully! Console unlocked 🔒')),
+                            ],
+                          ),
+                          backgroundColor: Color(0xFF059669),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                    _unlockApp();
                   }
                 },
               ),
@@ -987,9 +1054,19 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(ctx);
-                  _unlockApp();
+                  final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+                  if (sId != null && sId.isNotEmpty) {
+                    await BiometricService.clearAdminPinResetFlag(
+                      libraryId: libId,
+                      studentId: sId,
+                      authUid: authUid,
+                    );
+                  }
+                  if (mounted) {
+                    _unlockApp();
+                  }
                 },
                 child: const Text('Proceed to Dashboard'),
               ),
@@ -997,16 +1074,49 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                 icon: const Icon(Icons.pin_rounded, size: 16),
                 label: const Text('Set New PIN Now'),
                 style: FilledButton.styleFrom(backgroundColor: const Color(0xFF059669)),
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(ctx);
-                  _unlockApp();
+                  final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
                   if (sId != null && sId.isNotEmpty && mounted) {
-                    SecuritySettingsDialog.show(
+                    final pinSet = await SecuritySettingsDialog.showSetPinDialog(
                       context,
                       isStudent: true,
                       studentId: sId,
                       authUid: authUid,
+                      libraryId: libId,
+                      candidateIds: _candidateStudentIds,
+                      isChanging: false,
                     );
+
+                    if (pinSet) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                SizedBox(width: 8),
+                                Expanded(child: Text('New 4-digit PIN configured successfully! Pass unlocked 🔒')),
+                              ],
+                            ),
+                            backgroundColor: Color(0xFF059669),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        _unlockApp();
+                      }
+                    } else {
+                      await BiometricService.clearAdminPinResetFlag(
+                        libraryId: libId,
+                        studentId: sId,
+                        authUid: authUid,
+                      );
+                      if (mounted) {
+                        _unlockApp();
+                      }
+                    }
+                  } else {
+                    _unlockApp();
                   }
                 },
               ),

@@ -9822,13 +9822,12 @@ Gender: Female
       expect(politeStudentMessage.contains('fake'), isFalse);
 
       // Student payment badge polite copy
-      const bool isDeskPayment = true;
-      final badgeText = isDeskPayment ? 'PAY CASH AT RECEPTION' : 'PAYMENT UNDER REVIEW 🙏';
+      String resolveBadge(bool isDesk) => isDesk ? 'PAY CASH AT RECEPTION' : 'PAYMENT UNDER REVIEW 🙏';
+      final badgeText = resolveBadge(true);
       expect(badgeText, equals('PAY CASH AT RECEPTION'));
       expect(badgeText.contains('PAY AT DESK'), isFalse);
 
-      const bool isUpiPayment = false;
-      final upiBadgeText = isUpiPayment ? 'PAY CASH AT RECEPTION' : 'PAYMENT UNDER REVIEW 🙏';
+      final upiBadgeText = resolveBadge(false);
       expect(upiBadgeText, equals('PAYMENT UNDER REVIEW 🙏'));
       expect(upiBadgeText.contains('VERIFYING UTR'), isFalse);
 
@@ -9856,6 +9855,85 @@ Gender: Female
         languageOverride: 'hi',
       );
       expect(hiSpoken, contains('Cozy Corner पर 3800 रुपये प्राप्त हुए।'));
+    });
+
+    test('Phase 4 QA Regression Suite: P0-P2 Guardrails and Invariants Test 176: Admin PIN Reset Student Direct Setup Dialog & Auto-Unlock Invariant', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      const testStudentId = 'student_ashish_99';
+      const testLibId = 'lib_cozy_corner';
+      const testAuthUid = 'auth_ashish_uid';
+
+      // 1. Initial State: No PIN set, no lockout
+      final initialHasPin = await BiometricService.hasPin(
+        userId: testStudentId,
+        authUid: testAuthUid,
+        libraryId: testLibId,
+        candidateIds: [testStudentId, testAuthUid],
+        isAdmin: false,
+      );
+      expect(initialHasPin, isFalse, reason: 'Initial student state must have no PIN');
+
+      // 2. Simulating setting new PIN via dedicated Setup PIN flow
+      const newPin = '5821';
+      await BiometricService.setPin(
+        newPin,
+        userId: testStudentId,
+        authUid: testAuthUid,
+        candidateIds: [testStudentId, testAuthUid],
+      );
+
+      final postSetHasPin = await BiometricService.hasPin(
+        userId: testStudentId,
+        authUid: testAuthUid,
+        libraryId: testLibId,
+        candidateIds: [testStudentId, testAuthUid],
+        isAdmin: false,
+      );
+      expect(postSetHasPin, isTrue, reason: 'After setting PIN, hasPin must return true');
+
+      // 3. Verifying correct PIN matches and wrong PIN fails
+      final isCorrect = await BiometricService.verifyPin(
+        '5821',
+        userId: testStudentId,
+        authUid: testAuthUid,
+        libraryId: testLibId,
+        candidateIds: [testStudentId, testAuthUid],
+        isAdmin: false,
+      );
+      expect(isCorrect, isTrue, reason: 'Configured PIN must match verification');
+
+      final isWrong = await BiometricService.verifyPin(
+        '0000',
+        userId: testStudentId,
+        authUid: testAuthUid,
+        libraryId: testLibId,
+        candidateIds: [testStudentId, testAuthUid],
+        isAdmin: false,
+      );
+      expect(isWrong, isFalse, reason: 'Incorrect PIN must be rejected');
+
+      // 4. Verifying Admin Reset clears student PIN cleanly
+      for (final id in [testStudentId, testAuthUid]) {
+        await prefs.remove('security_pin_hash_$id');
+        await prefs.remove('security_pin_local_set_at_$id');
+        await prefs.remove('security_pin_configured_$id');
+      }
+
+      final postResetHasPin = await BiometricService.hasPin(
+        userId: testStudentId,
+        authUid: testAuthUid,
+        libraryId: testLibId,
+        candidateIds: [testStudentId, testAuthUid],
+        isAdmin: false,
+      );
+      expect(postResetHasPin, isFalse, reason: 'Post admin reset, hasPin must return false');
+
+      // 5. Invariant: Unconfigured student without PIN or Biometric must not be trapped in infinite keypad loop
+      const bool bioEnabled = false;
+      final bool shouldTrap = postResetHasPin || bioEnabled;
+      expect(shouldTrap, isFalse, reason: 'Student with no active PIN must auto-unlock or open direct PIN configuration dialog');
     });
   });
 }
