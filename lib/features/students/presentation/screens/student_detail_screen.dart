@@ -38,6 +38,7 @@ import 'package:study_library/services/messaging_hub_service.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
+import 'package:study_library/core/widgets/cozy_pressable.dart';
 import 'package:study_library/features/seats/presentation/widgets/seat_assignment_map_sheet.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/features/requests/presentation/widgets/admin_document_studio_dialog.dart';
@@ -5047,15 +5048,22 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     required VoidCallback onTap,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return InkWell(
+    return CozyPressable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      pressScale: 0.95,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: color.withValues(alpha: isDark ? 0.18 : 0.08),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: color.withValues(alpha: isDark ? 0.35 : 0.25)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: isDark ? 0.12 : 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 1.5),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -5684,10 +5692,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                       style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
                                     ),
                                   ),
-                                  TextButton.icon(
-                                    icon: const Icon(Icons.restore_rounded, size: 16),
-                                    label: const Text('Restore Desk'),
-                                    onPressed: () async {
+                                  CozyPressable(
+                                    pressScale: 0.94,
+                                    onTap: () async {
                                       final targetSec = s.previousSectionId;
                                       final targetSeat = s.previousSeatId;
                                       if (targetSec != null && targetSeat != null) {
@@ -5748,6 +5755,28 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                         _showAssignSeatSheet();
                                       }
                                     },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.restore_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Restore Desk',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Theme.of(context).colorScheme.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),

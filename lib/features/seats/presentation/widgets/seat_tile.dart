@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
+import 'package:study_library/core/widgets/live_radar_pulse.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/student_model.dart';
 
@@ -200,35 +201,46 @@ class SeatTile extends StatelessWidget {
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.45),
-                      blurRadius: 8,
-                      spreadRadius: 1.5,
-                      offset: const Offset(0, 2),
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.50),
+                      blurRadius: 10,
+                      spreadRadius: 2.0,
+                      offset: const Offset(0, 3),
                     ),
                   ]
-                : (effectiveStatus == SeatStatus.available)
+                : (seat.hasActiveSoftLock || effectiveStatus == SeatStatus.reserved)
                     ? [
                         BoxShadow(
-                          color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.25 : 0.16),
-                          blurRadius: 6,
+                          color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.35 : 0.22),
+                          blurRadius: 7,
+                          spreadRadius: 1.0,
+                          offset: const Offset(0, 2),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.08),
+                          blurRadius: 3,
                           offset: const Offset(0, 1.5),
                         ),
                       ]
-                    : (effectiveStatus == SeatStatus.reserved)
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.25 : 0.16),
-                              blurRadius: 5,
-                              offset: const Offset(0, 1.5),
-                            ),
-                          ]
-                        : [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
-                              blurRadius: 2,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
+                : (effectiveStatus == SeatStatus.available)
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.28 : 0.18),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
+                          blurRadius: 2,
+                          offset: const Offset(0, 1),
+                        ),
+                      ]
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.10),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1.5),
+                        ),
+                      ],
           ),
           child: _buildTileContent(
             context,
@@ -527,6 +539,17 @@ class SeatTile extends StatelessWidget {
               ),
             ),
 
+          // Live Radar Pulse on Soft-Locked or Reserved Desks
+          if (!isSelected && (seat.hasActiveSoftLock || isReserved))
+            const Positioned(
+              top: 2,
+              left: 2,
+              child: LiveRadarPulse(
+                color: Color(0xFFF59E0B),
+                size: 7,
+              ),
+            ),
+
           // High-Visibility Gender Badge
           if (isMaleOnly || isFemaleOnly)
             Positioned(
@@ -643,6 +666,17 @@ class SeatTile extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.check, size: 6, color: Colors.white),
+            ),
+          ),
+
+        // Live Radar Pulse on Soft-Locked or Reserved Desks
+        if (!isSelected && (seat.hasActiveSoftLock || isReserved))
+          const Positioned(
+            top: 1,
+            left: 1,
+            child: LiveRadarPulse(
+              color: Color(0xFFF59E0B),
+              size: 5,
             ),
           ),
 

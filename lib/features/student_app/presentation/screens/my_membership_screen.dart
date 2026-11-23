@@ -1061,7 +1061,7 @@ class MyMembershipScreen extends ConsumerWidget {
               OutlinedButton.icon(
                 onPressed: () => context.push(Routes.studentRenew),
                 icon: const Icon(Icons.upload_file_rounded, size: 16),
-                label: const Text('Submit UTR / Pay at Desk'),
+                label: const Text('Submit Payment Proof / Pay at Reception'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFD97706),
                   side: const BorderSide(color: Color(0xFFD97706)),

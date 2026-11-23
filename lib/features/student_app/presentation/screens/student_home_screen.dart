@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +28,7 @@ import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/theme/app_decorations.dart';
 import 'package:study_library/core/widgets/cozy_pressable.dart';
+import 'package:study_library/core/widgets/holographic_card_3d.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/expiry_scheduler_service.dart';
 import 'package:study_library/services/expiry_notification_service.dart';
@@ -75,7 +75,6 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     with TickerProviderStateMixin {
   late final AnimationController _refreshAnimController;
   late final AnimationController _cardFlipController;
-  late final Animation<double> _cardFlipAnimation;
   bool _birthdayDismissed = false;
   bool _hasCheckedStartupDialogs = false;
   final Set<String> _dismissedRejectedRequests = {};
@@ -108,9 +107,6 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     _cardFlipController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
-    );
-    _cardFlipAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _cardFlipController, curve: Curves.easeInOutCubic),
     );
 
     QuickActionsService.initializeForStudent(context, (shortcutType) {
@@ -1115,45 +1111,29 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     );
 
     return RepaintBoundary(
-      child: GestureDetector(
-        onTap: _toggleCardFlip,
-        child: AnimatedBuilder(
-          animation: _cardFlipAnimation,
-          builder: (context, child) {
-            final angle = _cardFlipAnimation.value * pi;
-            final isFront = angle < (pi / 2);
-            return Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..setEntry(3, 2, 0.001)
-                ..rotateY(angle),
-              child: isFront
-                  ? _buildPassFront(
-                      student,
-                      plan,
-                      seatLabel,
-                      sectionName,
-                      library,
-                      libraryName,
-                      theme,
-                      gradientColors: gradientColors,
-                      savedSettings: savedSettings,
-                    )
-                  : Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.identity()..rotateY(pi),
-                      child: _buildPassBack(
-                        student,
-                        library,
-                        libraryName,
-                        theme,
-                        seatLabel: seatLabel,
-                        gradientColors: gradientColors,
-                        savedSettings: savedSettings,
-                      ),
-                    ),
-            );
-          },
+      child: HolographicCard3D(
+        isFlipped: _cardFlipController.status == AnimationStatus.completed,
+        onFlipTap: _toggleCardFlip,
+        borderRadius: BorderRadius.circular(20),
+        front: _buildPassFront(
+          student,
+          plan,
+          seatLabel,
+          sectionName,
+          library,
+          libraryName,
+          theme,
+          gradientColors: gradientColors,
+          savedSettings: savedSettings,
+        ),
+        back: _buildPassBack(
+          student,
+          library,
+          libraryName,
+          theme,
+          seatLabel: seatLabel,
+          gradientColors: gradientColors,
+          savedSettings: savedSettings,
         ),
       ),
     );
@@ -2378,7 +2358,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '$reqTitle Rejected',
+                      '$reqTitle Update • Action Required',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
@@ -2437,7 +2417,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                       ),
                       children: [
                         const TextSpan(
-                          text: 'Reason: ',
+                          text: 'Note from Reception: ',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         TextSpan(
@@ -2594,7 +2574,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  isDeskPayment ? 'PAY AT DESK' : 'VERIFYING UTR',
+                  isDeskPayment ? 'PAY CASH AT RECEPTION' : 'PAYMENT UNDER REVIEW 🙏',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w900,
@@ -2625,8 +2605,8 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                       isDeskPayment
                           ? 'Please deposit fee at reception to activate pass'
                           : (refNumber.isNotEmpty && !refNumber.startsWith('Desk')
-                              ? 'Submitted UTR: $refNumber'
-                              : 'Online payment submitted for verification'),
+                              ? 'Payment Reference: $refNumber • Under Review'
+                              : 'Payment received at bank • Pass activating shortly'),
                       style: TextStyle(
                         fontSize: 12,
                         color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
@@ -2935,7 +2915,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   );
                 },
                 icon: const Icon(Icons.upload_file_rounded, size: 16),
-                label: const Text('Submit UTR / Pay at Desk'),
+                label: const Text('Submit Payment Proof / Pay at Reception'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFD97706),
                   side: const BorderSide(color: Color(0xFFD97706)),
@@ -2997,7 +2977,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             ),
             const SizedBox(height: 12),
             const Text(
-              'Copy the UPI ID above and pay via any UPI app (GPay, PhonePe, Paytm). Then tap "Submit UTR / Pay at Desk" to notify the admin.',
+              'Please copy the UPI ID above and complete the payment using any UPI app (GPay, PhonePe, Paytm). Once done, tap "Submit Payment Proof" or visit reception so our team can immediately activate your pass. 🙏',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],

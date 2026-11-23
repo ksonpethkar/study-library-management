@@ -764,3 +764,38 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
      c) 1-tap WhatsApp deep link (`https://wa.me/...`) to contact reception.
      d) 1-tap "Re-apply / Change Plan" button routing to `Routes.studentRenew`.
      e) Dismiss button persisting `dismissed_rejected_<requestId>` in `SharedPreferences`.
+
+---
+
+## 42. Counter Renewal Approval Protocol, Sequential Receipt Invariants & Payment Deduplication (Learned Nov 2026)
+
+1. **Sequential Receipt Generation & Double-Collection Linkage (`student_provisioning_service.dart`):**
+   - Root Cause: In `StudentProvisioningService.approveRenewalPayment`, receipt numbers were synthesized using random document ID substrings (`'REC-${DateTime.now().year}-${recRef.id.substring(0, 6)}'`), resulting in non-sequential identifiers like `REC-2026-RE1S9V`. Furthermore, the generated `payments` document omitted `'receiptId'` and `'receiptNumber'`, preventing bidirectional cross-referencing between payments and receipts.
+   - Guardrails:
+     a) All renewal approvals must generate standardized sequential receipt numbers exclusively through `ReceiptRepository.getNextReceiptNumber(libraryId)` (`REC-YYYY-XXXX`).
+     b) The `payments` document must explicitly store `receiptId: recRef.id`, `receiptNumber: recNum`, `paidAmount`, `totalFee`, `remainingDue`, and `referenceNumber`.
+     c) The `receipts` document must explicitly store `paymentId: payRef.id`, `receiptNumber: recNum`, `paidAmount`, `totalFee`, `remainingDue`, and `referenceNumber`.
+     d) If partial payment is collected (`remainingDue > 0`), the student record must atomically update `studentUpdates['pendingDueBalance'] = remainingDue`.
+
+2. **Student Payment History Stream Deduplication & Accurate Ledger Sums (`my_payment_history_screen.dart`):**
+   - Root Cause: Because the `payments` collection lacked a populated `receiptId`, `MyPaymentHistoryScreen` (which streams both `receipts` and `payments` to support legacy records) treated the renewal as two separate payments (`REC-2026-RE1S9V` and `Payment #ZZQOF6`), displaying duplicate ?3,800 entries and inflating Ashish's Total Paid Fees from ?8,500 to ?12,300 (5 records instead of 4).
+   - Guardrails:
+     a) Implement multi-key deduplication tracking across both streams: `seenReceiptIds`, `seenPaymentIds`, `seenReceiptNumbers`, and `seenRequestIds`.
+     b) For legacy unlinked payments, apply a 15-minute fuzzy time window check: if a payment has the same amount as an existing receipt within 15 minutes, it is deduplicated as a mirror entry.
+     c) The Total Paid Fees calculation (`totalPaid`) must sum only unique deduplicated transactions, guaranteeing exact ledger reconciliation.
+
+3. **Renewal Approval Modal UX & Multi-Factor Information Hierarchy (`request_list_screen.dart`):**
+   - Root Cause: The previous "Collect Payment & Approve Renewal" dialog displayed only Student Name, Plan Name, and Amount, with a hardcoded dropdown defaulting to "Other". Admins had no visibility into assigned desk, validity cycle, remaining dues, or payment reference IDs.
+   - Guardrails:
+     a) **Desk & Cycle Context:** Display the student's assigned desk badge (`Desk #6 • Cozy Hall`) and cycle preview (`23 Nov 2026 ? 23 May 2027`).
+     b) **Editable Amount & Real-Time Due Math:** Provide an editable Collected Fee Amount field with live helper text calculating remaining due balance in real time.
+     c) **Payment Method & Reference:** Default to 'UPI', dynamically surfacing a UPI UTR / Bank Reference Number field with a 1-tap clipboard paste button.
+     d) **Receipt Dispatch & Soundbox:** Include a pre-checked WhatsApp receipt toggle and trigger real-time voice announcement via `SoundboxService.announcePayment(amount: paidAmt, studentName: studentName)`.
+
+4. **Soft-Lock Immediate Release on Request Rejection (`request_list_screen.dart`):**
+   - Root Cause: Rejecting an admission or seat shift request in `RequestListScreen` updated request status and sent notifications, but failed to call `releaseSoftLock` on the candidate desk. The desk remained trapped in `reserved` soft-lock status until cache expiry.
+   - Guardrail: In `RequestListScreen._updateRequestStatus`, when `newStatus == 'rejected'`, immediately call `ref.read(seatRepositoryProvider).releaseSoftLock(libraryId, targetSectionId, targetSeatId)` to return the seat to available pool with zero latency.
+
+5. **Sentinel Invariant Engine Duplicate Seat Auto-Heal Resilience (`sentinel_invariant_engine.dart`):**
+   - Root Cause: Sentinel Guardian flagged `CRITICAL: Duplicate Desk Allocation: Desk #20` (Srikrishnadatta & Shubham Dixit simultaneously linked to Desk #20), but 1-tap auto-heal failed with `"Failed to auto-heal: Duplicate Desk Allocation: Desk #20"` because `batch.update()` threw an exception if a conflicting student record was missing or archived, and audit logger throws were uncaught.
+   - Guardrail: In `autoHealDuplicateSeatAllocation`, verify student snapshot existence (`sSnap.exists`, `retSnap.exists`), use `batch.set(..., SetOptions(merge: true))` for fault-tolerant upserts, and isolate audit logs in try/catch to guarantee 100% resilient auto-heal execution.

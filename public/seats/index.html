@@ -484,7 +484,7 @@
     }
 
     .column-headers-row {
-      display: grid;
+      display: none !important;
       gap: 10px;
       width: fit-content;
       margin-bottom: 6px;
@@ -1423,15 +1423,9 @@
       const safeCols = Math.max(1, cols || DEFAULT_COLS);
 
       grid.style.gridTemplateColumns = `repeat(${safeCols}, 52px)`;
-      colHeaders.style.gridTemplateColumns = `repeat(${safeCols}, 52px)`;
-
-      // Build column numbers: 1, 2, 3...
-      colHeaders.innerHTML = '';
-      for (let c = 1; c <= safeCols; c++) {
-        const colDiv = document.createElement('div');
-        colDiv.className = 'col-header';
-        colDiv.innerText = 'C' + c;
-        colHeaders.appendChild(colDiv);
+      if (colHeaders) {
+        colHeaders.style.display = 'none';
+        colHeaders.innerHTML = '';
       }
 
       // Sort by row, then col, then label

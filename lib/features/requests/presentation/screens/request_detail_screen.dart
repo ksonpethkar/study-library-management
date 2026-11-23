@@ -1051,8 +1051,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
         AppNotificationService.sendNotification(
           libraryId: libraryId,
-          title: '$reqTitle Rejected ❌',
-          body: 'Hello $studentName! Your $reqTitle could not be approved: "$reason". Please visit the reception desk.',
+          title: '$reqTitle Update • Action Required ℹ️',
+          body: 'Hello $studentName! Your $reqTitle requires an update: "$reason". Kindly visit the reception counter or contact us on WhatsApp so our team can assist you right away. 🙏',
           type: notifType,
           targetRole: 'student',
           targetUserId: primaryTarget,
@@ -1683,7 +1683,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Application Rejected',
+                  'Application Update • Note from Reception',
                   style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
                 ),
                 const SizedBox(height: 2),

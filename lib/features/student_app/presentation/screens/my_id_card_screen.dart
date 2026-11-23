@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -21,6 +20,7 @@ import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/error/error_handler.dart';
+import 'package:study_library/core/widgets/holographic_card_3d.dart';
 
 class MyIdCardScreen extends ConsumerStatefulWidget {
   const MyIdCardScreen({super.key});
@@ -280,56 +280,38 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                     ),
                     const SizedBox(height: 14),
 
-                    // 3D Flip Card Container (No choices for student, styles follow admin settings)
-                    GestureDetector(
-                      onTap: _toggleFlip,
-                      child: AnimatedBuilder(
-                        animation: _flipAnimation,
-                        builder: (context, child) {
-                          final angle = _flipAnimation.value * math.pi;
-                          final transform = Matrix4.identity()
-                            ..setEntry(3, 2, 0.001) // perspective
-                            ..rotateY(angle);
-                          final isFlipping = _flipController.isAnimating;
-
-                          return Transform(
-                            transform: transform,
-                            alignment: Alignment.center,
-                            child: _showBack
-                                ? Transform(
-                                    transform: Matrix4.identity()..rotateY(math.pi),
-                                    alignment: Alignment.center,
-                                    child: RepaintBoundary(
-                                      child: _buildCardBack(
-                                        student: student,
-                                        library: library,
-                                        gradientColors: gradientColors,
-                                        activeTheme: activeTheme,
-                                        dynamicId: dynamicId,
-                                        seatText: '$seatText$secText',
-                                        dateFormat: dateFormat,
-                                        settings: savedSettings,
-                                        isFlipping: isFlipping,
-                                      ),
-                                    ),
-                                  )
-                                : RepaintBoundary(
-                                    child: _buildCardFront(
-                                      student: student,
-                                      library: library,
-                                      libraryName: libraryName,
-                                      gradientColors: gradientColors,
-                                      dynamicId: dynamicId,
-                                      seatText: '$seatText$secText',
-                                      planName: planName,
-                                      hasPhoto: hasPhoto,
-                                      dateFormat: dateFormat,
-                                      settings: savedSettings,
-                                      isFlipping: isFlipping,
-                                    ),
-                                  ),
-                          );
-                        },
+                    // 3D Flip Card Container with Specular Holographic Sheen
+                    HolographicCard3D(
+                      isFlipped: _showBack,
+                      onFlipTap: _toggleFlip,
+                      borderRadius: BorderRadius.circular(20),
+                      front: RepaintBoundary(
+                        child: _buildCardFront(
+                          student: student,
+                          library: library,
+                          libraryName: libraryName,
+                          gradientColors: gradientColors,
+                          dynamicId: dynamicId,
+                          seatText: '$seatText$secText',
+                          planName: planName,
+                          hasPhoto: hasPhoto,
+                          dateFormat: dateFormat,
+                          settings: savedSettings,
+                          isFlipping: _flipController.isAnimating,
+                        ),
+                      ),
+                      back: RepaintBoundary(
+                        child: _buildCardBack(
+                          student: student,
+                          library: library,
+                          gradientColors: gradientColors,
+                          activeTheme: activeTheme,
+                          dynamicId: dynamicId,
+                          seatText: '$seatText$secText',
+                          dateFormat: dateFormat,
+                          settings: savedSettings,
+                          isFlipping: _flipController.isAnimating,
+                        ),
                       ),
                     ),
 

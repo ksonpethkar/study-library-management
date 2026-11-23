@@ -373,7 +373,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
           ? 'UPI / QR Code'
           : (mode == RenewalPaymentMode.bank
               ? 'Direct Bank Transfer (NEFT/IMPS)'
-              : 'Pay at Desk / Reception');
+              : 'Pay Cash at Reception');
       final statusStr = mode == RenewalPaymentMode.deskCash
           ? 'desk_payment_pending'
           : 'pending';
@@ -1988,7 +1988,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> with WidgetsB
                                   const ButtonSegment(
                                     value: RenewalPaymentMode.deskCash,
                                     icon: Icon(Icons.storefront_rounded),
-                                    label: Text('Pay at Desk'),
+                                    label: Text('Pay Cash at Reception'),
                                   ),
                               ],
                               selected: {activeMode},

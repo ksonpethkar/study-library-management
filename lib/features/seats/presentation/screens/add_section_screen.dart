@@ -502,8 +502,9 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
                 controller: _rowsController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Rows',
+                  labelText: 'Desk Rows',
                   hintText: '5',
+                  helperText: 'Hall Depth',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.table_rows_rounded),
                 ),
@@ -536,8 +537,9 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
                 controller: _colsController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Columns',
+                  labelText: 'Desks per Row',
                   hintText: '10',
+                  helperText: 'Hall Width',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.view_column_rounded),
                 ),

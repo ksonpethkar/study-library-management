@@ -496,7 +496,7 @@ class SeatMapScreen extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Edit Section'),
-              subtitle: const Text('Change name, rows, columns, or color'),
+              subtitle: const Text('Change name, desk layout, or color theme'),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               onTap: () {
                 Navigator.pop(sheetCtx);

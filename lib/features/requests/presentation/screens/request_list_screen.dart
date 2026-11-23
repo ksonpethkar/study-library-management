@@ -1592,8 +1592,8 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
             };
             AppNotificationService.sendNotification(
               libraryId: libraryId,
-              title: '$reqTitle Rejected ❌',
-              body: 'Your $reqTitle could not be approved$reasonText. Please visit reception for details.',
+              title: '$reqTitle Update • Action Required ℹ️',
+              body: 'Your $reqTitle requires an update$reasonText. Kindly visit reception or contact us on WhatsApp so we can immediately assist you. 🙏',
               type: notifType,
               targetRole: 'student',
               targetUserId: target,
@@ -2494,7 +2494,7 @@ class _RequestCard extends StatelessWidget {
                           Icon(Icons.payment_rounded, size: 14, color: theme.colorScheme.outline),
                           const SizedBox(width: 6),
                           Text(
-                            'Mode: ${request.paymentModeLabel ?? request.paymentMethod ?? 'Pay at Desk'}',
+                            'Mode: ${request.paymentModeLabel ?? request.paymentMethod ?? 'Pay Cash at Reception'}',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -2573,7 +2573,7 @@ class _RequestCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Reason: ${request.rejectionReason}',
+                        'Note from Reception: ${request.rejectionReason}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: Colors.red.shade900,
                           fontWeight: FontWeight.w500,

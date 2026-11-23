@@ -533,7 +533,10 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                             Row(
                               children: [
                                 Text(
-                                  'Seat ${widget.seat.label}',
+                                  SeatHelper.formatDeskLabel(
+                                    seatId: widget.seat.id,
+                                    rawLabel: widget.seat.label,
+                                  ),
                                   style: theme.textTheme.headlineSmall
                                       ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
@@ -551,7 +554,7 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                               ],
                             ),
                             Text(
-                              'Row ${widget.seat.row + 1}, Column ${widget.seat.col + 1}',
+                              'Dedicated Study Desk • Quiet Zone',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: Colors.grey,
                               ),

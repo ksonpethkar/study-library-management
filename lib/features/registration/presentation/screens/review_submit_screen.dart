@@ -922,7 +922,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                                                 border: Border.all(color: Colors.brown.shade200, width: 0.8),
                                               ),
                                               child: Text(
-                                                'Pay at Desk',
+                                                'Pay at Reception',
                                                 style: TextStyle(
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.bold,

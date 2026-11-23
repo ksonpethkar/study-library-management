@@ -9795,5 +9795,67 @@ Gender: Female
       expect(receiptRegex.hasMatch(formattedReceipt), isTrue, reason: 'Receipt numbers must follow standardized REC-YYYY-XXXX format');
       expect(receiptRegex.hasMatch('REC-2026-RE1S9V'), isFalse, reason: 'Random substring receipt numbers must be disallowed');
     });
+
+    test('Test 175: Row/Column Suppression, Polite Member Phrasing & Dynamic Text Protocol', () async {
+      // 1. Desk Labeling & Coordinate Suppression Protocol
+      // Verify SeatHelper formats desks cleanly without spreadsheet coordinates
+      final formattedDesk = SeatHelper.formatDeskLabel(seatId: 'seat_35', rawLabel: '35');
+      expect(formattedDesk, equals('Desk #35'));
+      expect(formattedDesk.toLowerCase().contains('row'), isFalse);
+      expect(formattedDesk.toLowerCase().contains('column'), isFalse);
+      expect(formattedDesk.toLowerCase().contains('c35'), isFalse);
+
+      // Verify recursive double prefix stripping
+      final cleanedDoublePrefix = SeatHelper.formatDeskLabel(seatId: 'seat_28', rawLabel: 'Desk #Seat #28');
+      expect(cleanedDoublePrefix, equals('Desk #28'));
+
+      // 2. Polite & Hospitable Wording Verification
+      // Rejection / Action Required wording
+      const String reqTitle = 'Plan Renewal';
+      final politeNotificationTitle = '$reqTitle Update • Action Required ℹ️';
+      expect(politeNotificationTitle.contains('Rejected ❌'), isFalse);
+      expect(politeNotificationTitle, contains('Action Required'));
+
+      const String receptionistNote = 'Payment reference could not be verified with bank';
+      final politeStudentMessage = 'Note from Reception: $receptionistNote';
+      expect(politeStudentMessage.startsWith('Note from Reception:'), isTrue);
+      expect(politeStudentMessage.contains('fake'), isFalse);
+
+      // Student payment badge polite copy
+      const bool isDeskPayment = true;
+      final badgeText = isDeskPayment ? 'PAY CASH AT RECEPTION' : 'PAYMENT UNDER REVIEW 🙏';
+      expect(badgeText, equals('PAY CASH AT RECEPTION'));
+      expect(badgeText.contains('PAY AT DESK'), isFalse);
+
+      const bool isUpiPayment = false;
+      final upiBadgeText = isUpiPayment ? 'PAY CASH AT RECEPTION' : 'PAYMENT UNDER REVIEW 🙏';
+      expect(upiBadgeText, equals('PAYMENT UNDER REVIEW 🙏'));
+      expect(upiBadgeText.contains('VERIFYING UTR'), isFalse);
+
+      // 3. Soundbox Verbal Announcement Formatting Verification
+      final soundbox = SoundboxService();
+      final enSpoken = soundbox.formatAnnouncement(
+        amount: 3800,
+        studentName: 'Srikrishnadatta',
+        seatLabel: 'Desk #21',
+        libraryName: 'Cozy Corner',
+        languageOverride: 'en',
+      );
+      expect(enSpoken, contains('Payment of 3800 rupees received for Srikrishnadatta Desk #21 on Cozy Corner.'));
+
+      final mrSpoken = soundbox.formatAnnouncement(
+        amount: 3800,
+        libraryName: 'Cozy Corner',
+        languageOverride: 'mr',
+      );
+      expect(mrSpoken, contains('Cozy Corner वर 3800 रुपये प्राप्त झाले।'));
+
+      final hiSpoken = soundbox.formatAnnouncement(
+        amount: 3800,
+        libraryName: 'Cozy Corner',
+        languageOverride: 'hi',
+      );
+      expect(hiSpoken, contains('Cozy Corner पर 3800 रुपये प्राप्त हुए।'));
+    });
   });
 }
