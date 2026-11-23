@@ -94,6 +94,9 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   String? _studentUserId;
   bool _isLoadingStudent = true;
 
+  double _studentWalletBalance = 0.0;
+  double _appliedWalletCredit = 0.0;
+
   bool _hasPowerSurcharge = false;
   double _powerSurchargeAmount = 150.0;
 
@@ -220,6 +223,9 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           if (data['customDiscountReason'] != null) {
             _discountReasonController.text = data['customDiscountReason'] as String;
           }
+          if (data['walletBalance'] != null) {
+            _studentWalletBalance = (data['walletBalance'] as num).toDouble();
+          }
           if (hasActivePlanDue) {
             _extendValidity = false; // Paying current plan due does not advance expiry
           }
@@ -229,6 +235,24 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
     } catch (_) {
       if (mounted) setState(() => _isLoadingStudent = false);
     }
+  }
+
+  void _applyWalletCredit() {
+    if (_studentWalletBalance <= 0) return;
+    setState(() {
+      final total = _effectiveTotalFee;
+      if (total <= 0) return;
+      _appliedWalletCredit = _studentWalletBalance.clamp(0.0, total);
+      final netPayable = (total - _appliedWalletCredit).clamp(0.0, 99999.0);
+      _amountController.text = netPayable.toStringAsFixed(0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Applied ₹${_appliedWalletCredit.toStringAsFixed(0)} unused proration credit to this renewal.'),
+          backgroundColor: const Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    });
   }
 
   Future<void> _loadPaymentMethods() async {
@@ -638,6 +662,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
             if (_bankNameController.text.trim().isNotEmpty) 'bankName': _bankNameController.text.trim(),
             if (_notesController.text.trim().isNotEmpty) 'notes': _notesController.text.trim(),
             if (isPartial) 'isInstalment': true,
+            if (_appliedWalletCredit > 0) 'walletCreditApplied': _appliedWalletCredit,
             'planName': effectivePlanName,
             if (isGstBilling) ...{
               'isGstInvoice': true,
@@ -769,6 +794,14 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           studentUpdates['customDiscountReason'] = FieldValue.delete();
         }
         studentUpdates['customDailyRate'] = double.tryParse(_dailyRateController.text) ?? 25.0;
+      }
+      if (_appliedWalletCredit > 0) {
+        final remainingWallet = _studentWalletBalance - _appliedWalletCredit;
+        if (remainingWallet > 0) {
+          studentUpdates['walletBalance'] = remainingWallet;
+        } else {
+          studentUpdates['walletBalance'] = FieldValue.delete();
+        }
       }
       if (_extendValidity) {
         if (!isAdvance) {
@@ -1185,6 +1218,68 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                   ),
                               ],
                             ),
+
+                            // Unused Proration Credit / Wallet Balance Banner
+                            if (_studentWalletBalance > 0) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: _appliedWalletCredit > 0 ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _appliedWalletCredit > 0 ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _appliedWalletCredit > 0 ? Icons.check_circle_rounded : Icons.account_balance_wallet_rounded,
+                                      color: _appliedWalletCredit > 0 ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _appliedWalletCredit > 0
+                                                ? 'Credit Applied: ₹${_appliedWalletCredit.toStringAsFixed(0)} Discount'
+                                                : 'Unused Proration Balance: ₹${_studentWalletBalance.toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12.5,
+                                              color: _appliedWalletCredit > 0 ? const Color(0xFF15803D) : const Color(0xFFB45309),
+                                            ),
+                                          ),
+                                          Text(
+                                            _appliedWalletCredit > 0
+                                                ? 'Net payable reduced from ₹${_effectiveTotalFee.toStringAsFixed(0)} to ₹${_amountController.text}.'
+                                                : 'Previous cycle surplus available. Tap to apply as discount on this renewal.',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: _appliedWalletCredit > 0 ? const Color(0xFF166534) : const Color(0xFF92400E),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (_appliedWalletCredit <= 0)
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFFD97706),
+                                          foregroundColor: Colors.white,
+                                          visualDensity: VisualDensity.compact,
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        ),
+                                        onPressed: _applyWalletCredit,
+                                        child: const Text('Apply Credit', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
 
                             // Prominently Highlighted Expiry Date Status Banner
                             if (_studentPlanEndDate != null)

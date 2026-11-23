@@ -396,8 +396,9 @@ final studentPendingRenewalProvider = StreamProvider<Map<String, dynamic>?>((ref
   }
 });
 
-/// Real-time stream of the current student's most recently rejected plan renewal request (within the last 7 days).
-final studentRecentRejectedRenewalProvider = StreamProvider<Map<String, dynamic>?>((ref) async* {
+/// Real-time stream of the current student's most recently rejected request (within the last 7 days).
+/// Captures rejected renewals, seat changes, admissions, or profile updates.
+final studentRecentRejectedRequestProvider = StreamProvider<Map<String, dynamic>?>((ref) async* {
   final libraryId = ref.watch(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
   if (libraryId.isEmpty) {
     yield null;
@@ -418,7 +419,7 @@ final studentRecentRejectedRenewalProvider = StreamProvider<Map<String, dynamic>
       ? curUid
       : (studentUserId.isNotEmpty ? studentUserId : studentId);
 
-  if (effectiveUserId.isEmpty) {
+  if (effectiveUserId.isEmpty && studentId.isEmpty) {
     yield null;
     return;
   }
@@ -429,7 +430,6 @@ final studentRecentRejectedRenewalProvider = StreamProvider<Map<String, dynamic>
         .doc(libraryId)
         .collection('requests')
         .where('userId', isEqualTo: effectiveUserId)
-        .where('type', isEqualTo: 'renewal')
         .snapshots();
 
     final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
@@ -475,10 +475,13 @@ final studentRecentRejectedRenewalProvider = StreamProvider<Map<String, dynamic>
       }
     }
   } catch (e) {
-    debugPrint('studentRecentRejectedRenewalProvider stream error: $e');
+    debugPrint('studentRecentRejectedRequestProvider stream error: $e');
     yield null;
   }
 });
+
+/// Legacy alias for backwards compatibility
+final studentRecentRejectedRenewalProvider = studentRecentRejectedRequestProvider;
 
 const _pageSize = 20;
 

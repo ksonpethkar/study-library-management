@@ -12,7 +12,10 @@ import 'package:study_library/services/badge_service.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/student_provisioning_service.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
+import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/services/soundbox_service.dart';
+import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 
 /// Data representation of a student request from raw Firestore data.
@@ -29,6 +32,8 @@ class StudentRequestItem {
   final String? currentSectionName;
   final String? targetSeatLabel;
   final String? targetSectionName;
+  final String? targetSeatId;
+  final String? targetSectionId;
   final String? reason;
   final String status;
   final DateTime? createdAt;
@@ -71,6 +76,8 @@ class StudentRequestItem {
     this.currentSectionName,
     this.targetSeatLabel,
     this.targetSectionName,
+    this.targetSeatId,
+    this.targetSectionId,
     this.reason,
     required this.status,
     this.createdAt,
@@ -118,6 +125,8 @@ class StudentRequestItem {
       currentSectionName: (data['currentSectionName'] ?? studentData['currentSectionName']) as String?,
       targetSeatLabel: rawTargetSeat != null ? SeatHelper.formatDeskLabel(rawLabel: rawTargetSeat) : null,
       targetSectionName: (data['targetSectionName'] ?? studentData['targetSectionName']) as String?,
+      targetSeatId: (data['targetSeatId'] ?? data['requestedSeatId'] ?? data['seatId'] ?? studentData['targetSeatId'] ?? studentData['seatId'])?.toString(),
+      targetSectionId: (data['targetSectionId'] ?? data['requestedSectionId'] ?? data['sectionId'] ?? studentData['targetSectionId'] ?? studentData['sectionId'])?.toString(),
       reason: (data['reason'] ?? data['message']) as String?,
       status: (data['status'] as String? ?? 'pending').trim().toLowerCase(),
       createdAt: _parseDate(data['createdAt']),
@@ -1154,7 +1163,22 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
       final amount = requestItem?.amount ?? 0.0;
       final planName = requestItem?.requestedPlanName ?? 'Standard Plan';
       final studentName = requestItem?.studentName ?? 'Student';
-      String selectedPaymentMethod = requestItem?.paymentMethod ?? 'Cash';
+      final phone = requestItem?.studentPhone ?? '';
+      String selectedPaymentMethod = (requestItem?.paymentMethod != null &&
+              requestItem!.paymentMethod!.isNotEmpty &&
+              requestItem.paymentMethod != 'Other')
+          ? requestItem.paymentMethod!
+          : 'UPI';
+
+      final payingAmountController = TextEditingController(
+        text: amount > 0 ? amount.toStringAsFixed(0) : '0',
+      );
+      final refController = TextEditingController(
+        text: requestItem?.referenceNumber ?? '',
+      );
+      bool sendWhatsAppReceipt = true;
+      double enteredAmount = amount;
+      double remainingDue = 0.0;
 
       bool isSubmitting = false;
 
@@ -1163,194 +1187,350 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (ctx) => StatefulBuilder(
-          builder: (ctx, setModalState) => Container(
-            decoration: BoxDecoration(
-              color: Theme.of(ctx).colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).viewPadding.bottom + 16,
-              left: 20,
-              right: 20,
-              top: 12,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
+          builder: (ctx, setModalState) {
+            final isElectronicPayment = selectedPaymentMethod == 'UPI' ||
+                selectedPaymentMethod == 'Bank Transfer' ||
+                selectedPaymentMethod == 'Cheque';
+
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).viewPadding.bottom + 16,
+                left: 20,
+                right: 20,
+                top: 12,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        isRenewal ? 'Collect Payment & Approve Renewal' : 'Approve Request',
-                        style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                if (isRenewal) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(ctx).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                    ),
-                    child: Column(
+                    const SizedBox(height: 16),
+                    Row(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Student:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
-                            Text(studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Plan:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
-                            Text(planName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          ],
-                        ),
-                        if (amount > 0) ...[
-                          const SizedBox(height: 6),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Amount to Collect:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '₹${amount.toStringAsFixed(0)}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 14),
-                                ),
-                              ),
-                            ],
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        ],
+                          child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            isRenewal ? 'Collect Payment & Approve Renewal' : 'Approve Request',
+                            style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedPaymentMethod,
-                    decoration: const InputDecoration(
-                      labelText: 'Payment Method Received',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'Cash', child: Text('Cash at Desk')),
-                      DropdownMenuItem(value: 'UPI', child: Text('UPI / QR Code')),
-                      DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer (NEFT/IMPS)')),
-                      DropdownMenuItem(value: 'Cheque', child: Text('Cheque / DD')),
-                      DropdownMenuItem(value: 'Other', child: Text('Other')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setModalState(() => selectedPaymentMethod = val);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Confirming will collect fee, issue digital receipt, and renew membership immediately.',
-                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: Theme.of(ctx).colorScheme.onSurfaceVariant),
-                  ),
-                ] else ...[
-                  Text(
-                    'Are you sure you want to approve this request? The student will be provisioned and assigned accordingly.',
-                    style: Theme.of(ctx).textTheme.bodyMedium,
-                  ),
-                ],
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: isSubmitting ? null : () => Navigator.of(ctx).pop(false),
-                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
-                        child: const Text('Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.green.shade700,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 13),
+                    const SizedBox(height: 14),
+                    if (isRenewal) ...[
+                      // Summary Details Card
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(ctx).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5)),
                         ),
-                        onPressed: isSubmitting
-                            ? null
-                            : () async {
-                                setModalState(() => isSubmitting = true);
-                                try {
-                                  if (isRenewal && selectedPaymentMethod != requestItem.paymentMethod) {
-                                    await FirebaseFirestore.instance
-                                        .collection('libraries')
-                                        .doc(libraryId)
-                                        .collection('requests')
-                                        .doc(requestId)
-                                        .update({'paymentMethod': selectedPaymentMethod});
-                                  }
-                                  await StudentProvisioningService.approveAndProvisionRequest(
-                                    libraryId: libraryId,
-                                    requestId: requestId,
-                                    allowSharedGovId: true,
-                                    allowSharedPhone: true,
-                                    mergeExistingPhone: true,
-                                  );
-                                  if (ctx.mounted) {
-                                    Navigator.of(ctx).pop(true);
-                                  }
-                                } catch (err) {
-                                  if (ctx.mounted) {
-                                    setModalState(() => isSubmitting = false);
-                                    AppErrorFormatter.showErrorSnackBar(ctx, err, actionContext: 'request');
-                                  }
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Student:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
+                                Text(studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Plan:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
+                                Text(planName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                            if (requestItem.currentSeatLabel != null) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Assigned Desk:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
+                                  Text(
+                                    '${SeatHelper.formatDeskLabel(rawLabel: requestItem.currentSeatLabel)} • ${requestItem.currentSectionName ?? "Cozy Hall"}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF059669)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            if (requestItem.cycleStartDate != null && requestItem.cycleEndDate != null) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Validity Cycle:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
+                                  Text(
+                                    '${DateFormat('dd MMM yyyy').format(requestItem.cycleStartDate!)} ➔ ${DateFormat('dd MMM yyyy').format(requestItem.cycleEndDate!)}',
+                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Total Plan Fee:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '₹${amount.toStringAsFixed(0)}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Editable Paying Amount Field
+                      TextFormField(
+                        controller: payingAmountController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: InputDecoration(
+                          labelText: 'Collected Fee Amount (₹)',
+                          prefixIcon: const Icon(Icons.currency_rupee_rounded, size: 20),
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          helperText: remainingDue > 0
+                              ? 'Remaining Due: ₹${remainingDue.toStringAsFixed(0)} (will be recorded on student pass)'
+                              : 'Full plan fee collected (Zero balance)',
+                          helperStyle: TextStyle(
+                            color: remainingDue > 0 ? Colors.amber.shade800 : Colors.green.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onChanged: (val) {
+                          setModalState(() {
+                            enteredAmount = double.tryParse(val) ?? 0.0;
+                            remainingDue = (amount - enteredAmount) > 0 ? (amount - enteredAmount) : 0.0;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Payment Method Received Dropdown
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedPaymentMethod,
+                        decoration: const InputDecoration(
+                          labelText: 'Payment Method Received',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'Cash', child: Text('Cash at Desk')),
+                          DropdownMenuItem(value: 'UPI', child: Text('UPI / QR Code')),
+                          DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer (NEFT/IMPS)')),
+                          DropdownMenuItem(value: 'Cheque', child: Text('Cheque / DD')),
+                          DropdownMenuItem(value: 'Other', child: Text('Other')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setModalState(() => selectedPaymentMethod = val);
+                          }
+                        },
+                      ),
+
+                      // UPI UTR / Transaction Reference ID Input
+                      if (isElectronicPayment) ...[
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: refController,
+                          decoration: InputDecoration(
+                            labelText: selectedPaymentMethod == 'Cheque' ? 'Cheque / DD Number' : 'UPI UTR / Bank Reference No.',
+                            hintText: 'e.g. 423984029384',
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.content_paste_rounded, size: 18),
+                              tooltip: 'Paste from clipboard',
+                              onPressed: () async {
+                                final data = await Clipboard.getData(Clipboard.kTextPlain);
+                                if (data?.text != null && data!.text!.isNotEmpty) {
+                                  refController.text = data.text!.trim();
+                                  setModalState(() {});
                                 }
                               },
-                        child: isSubmitting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : Text(isRenewal ? 'Collect & Approve' : 'Approve'),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // WhatsApp PDF Receipt Dispatch Toggle
+                      if (phone.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          value: sendWhatsAppReceipt,
+                          title: Text(
+                            'Send Official PDF Receipt on WhatsApp ($phone)',
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: const Text(
+                            'Generates instant verification link and sends receipt confirmation message.',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                          onChanged: (val) {
+                            setModalState(() => sendWhatsAppReceipt = val ?? true);
+                          },
+                        ),
+                      ],
+
+                      const SizedBox(height: 8),
+                      Text(
+                        'Confirming will collect fee, issue digital receipt, and renew membership immediately.',
+                        style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                       ),
+                    ] else ...[
+                      Text(
+                        'Are you sure you want to approve this request? The student will be provisioned and assigned accordingly.',
+                        style: Theme.of(ctx).textTheme.bodyMedium,
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: isSubmitting ? null : () => Navigator.of(ctx).pop(false),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.green.shade700,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                            ),
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    setModalState(() => isSubmitting = true);
+                                    try {
+                                      final paidAmt = enteredAmount > 0 ? enteredAmount : amount;
+                                      final remDue = remainingDue;
+                                      final refNum = refController.text.trim();
+
+                                      if (isRenewal) {
+                                        await FirebaseFirestore.instance
+                                            .collection('libraries')
+                                            .doc(libraryId)
+                                            .collection('requests')
+                                            .doc(requestId)
+                                            .update({
+                                          'paymentMethod': selectedPaymentMethod,
+                                          'method': selectedPaymentMethod,
+                                          'paidAmount': paidAmt,
+                                          'totalFee': amount,
+                                          'remainingDue': remDue,
+                                          if (refNum.isNotEmpty) 'referenceNumber': refNum,
+                                          if (refNum.isNotEmpty) 'transactionId': refNum,
+                                        });
+                                      }
+
+                                      await StudentProvisioningService.approveAndProvisionRequest(
+                                        libraryId: libraryId,
+                                        requestId: requestId,
+                                        allowSharedGovId: true,
+                                        allowSharedPhone: true,
+                                        mergeExistingPhone: true,
+                                      );
+
+                                      // Reception Soundbox Audio Chime
+                                      try {
+                                        ref.read(soundboxServiceProvider).announcePayment(
+                                          amount: paidAmt,
+                                          studentName: studentName,
+                                        );
+                                      } catch (_) {}
+
+                                      // WhatsApp Receipt Dispatch
+                                      if (isRenewal && sendWhatsAppReceipt && phone.isNotEmpty) {
+                                        try {
+                                          final currentLib = ref.read(currentLibraryProvider).value;
+                                          final libName = currentLib?.name ?? 'The Cozy Corner Study Centre';
+                                          await WhatsAppService().sendPaymentConfirmation(
+                                            phone,
+                                            studentName,
+                                            libName,
+                                            paidAmt,
+                                            refNum.isNotEmpty ? refNum : 'Official Receipt',
+                                            planName: planName,
+                                            seatLabel: requestItem.currentSeatLabel,
+                                            validFromDate: requestItem.cycleStartDate != null
+                                                ? DateFormat('dd MMM yyyy').format(requestItem.cycleStartDate!)
+                                                : null,
+                                            expiryDate: requestItem.cycleEndDate != null
+                                                ? DateFormat('dd MMM yyyy').format(requestItem.cycleEndDate!)
+                                                : null,
+                                            paymentMethod: selectedPaymentMethod,
+                                            remainingDue: remDue > 0 ? remDue : null,
+                                          );
+                                        } catch (_) {}
+                                      }
+
+                                      if (ctx.mounted) {
+                                        Navigator.of(ctx).pop(true);
+                                      }
+                                    } catch (err) {
+                                      if (ctx.mounted) {
+                                        setModalState(() => isSubmitting = false);
+                                        AppErrorFormatter.showErrorSnackBar(ctx, err, actionContext: 'request');
+                                      }
+                                    }
+                                  },
+                            child: isSubmitting
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : Text(isRenewal ? 'Collect & Approve' : 'Approve'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       );
 
@@ -1376,6 +1556,19 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
             .doc(requestId)
             .update(updateData);
 
+        // Immediate Seat Reservation Release to prevent soft-lock leaks
+        final reqSeatId = requestItem?.targetSeatId;
+        final reqSecId = requestItem?.targetSectionId;
+        if (reqSeatId != null && reqSeatId.isNotEmpty && reqSecId != null && reqSecId.isNotEmpty) {
+          try {
+            await ref.read(seatRepositoryProvider).releaseSoftLock(
+              libraryId: libraryId,
+              sectionId: reqSecId,
+              seatId: reqSeatId,
+            );
+          } catch (_) {}
+        }
+
         // Notify student of rejection/update
         if (requestItem != null) {
           final target = (requestItem.studentId.isNotEmpty && requestItem.studentId != 'pending')
@@ -1392,14 +1585,28 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
               'profile_update' => 'Profile Update',
               _ => 'Request',
             };
+            final notifType = switch (requestItem.type.toLowerCase()) {
+              'renewal' || 'plan_renewal' => 'renewal',
+              'seat_change' || 'seatchange' => 'seat_change',
+              _ => 'admission',
+            };
             AppNotificationService.sendNotification(
               libraryId: libraryId,
-              title: '$reqTitle Update',
+              title: '$reqTitle Rejected ❌',
               body: 'Your $reqTitle could not be approved$reasonText. Please visit reception for details.',
-              type: 'admission',
+              type: notifType,
               targetRole: 'student',
               targetUserId: target,
               actionRoute: Routes.studentHome,
+              metadata: {
+                'requestId': requestId,
+                'studentId': requestItem.studentId,
+                'studentUserId': requestItem.studentUserId,
+                'userId': requestItem.studentUserId,
+                'rejectionReason': reason,
+                'type': requestItem.type,
+                'rejectedAt': DateTime.now().toIso8601String(),
+              },
             ).ignore();
           }
         }
@@ -1537,6 +1744,7 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
         request.id,
         'rejected',
         reason: reasonController.text,
+        requestItem: request,
       );
     }
   }

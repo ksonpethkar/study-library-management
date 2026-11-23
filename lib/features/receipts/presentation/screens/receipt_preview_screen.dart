@@ -554,16 +554,37 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
     final receiptUrl = receipt.id.isNotEmpty
         ? 'https://study-lib-mgmt-2026.web.app/app/admin/receipts/${receipt.id}'
         : '';
+
+    DateTime effectiveValidFrom = receipt.validFrom;
+    DateTime effectiveValidTo = receipt.validTo;
+    if (effectiveValidFrom.year == effectiveValidTo.year &&
+        effectiveValidFrom.month == effectiveValidTo.month &&
+        effectiveValidFrom.day == effectiveValidTo.day &&
+        student.planEndDate != null &&
+        student.planEndDate!.isAfter(effectiveValidTo)) {
+      effectiveValidTo = student.planEndDate!;
+      if (student.planStartDate != null && student.planStartDate!.isBefore(effectiveValidTo)) {
+        effectiveValidFrom = student.planStartDate!;
+      }
+    }
+
+    final customPlanName = (receipt.customFields['planName'] as String?)?.trim();
+    final effectivePlanName = (customPlanName != null && customPlanName.isNotEmpty)
+        ? customPlanName
+        : (plan.name.isNotEmpty && plan.name != 'Monthly Study Pass' && plan.name != 'Membership'
+            ? plan.name
+            : (student.customPlanName?.isNotEmpty == true ? student.customPlanName! : plan.name));
+
     await WhatsAppService().sendPaymentConfirmation(
       student.phone,
       student.name,
       library.name,
       receipt.amount,
       receipt.receiptNumber,
-      planName: plan.name,
+      planName: effectivePlanName,
       seatLabel: seat,
-      validFromDate: DateFormat('dd MMM yyyy').format(receipt.validFrom),
-      expiryDate: DateFormat('dd MMM yyyy').format(receipt.validTo),
+      validFromDate: DateFormat('dd MMM yyyy').format(effectiveValidFrom),
+      expiryDate: DateFormat('dd MMM yyyy').format(effectiveValidTo),
       paymentMethod: receipt.paymentMethod,
       remainingDue: receipt.remainingDue,
       receiptUrl: receiptUrl,

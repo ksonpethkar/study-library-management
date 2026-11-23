@@ -532,7 +532,6 @@ class BiometricService {
         await prefs.remove('security_lockout_until_student_$id');
       }
 
-      final currentAuthUid = authUid ?? FirebaseAuth.instance.currentUser?.uid;
       final payload = <String, dynamic>{
         'pinHash': saltedHash,
         'biometricEnabled': biometricEnabled,
@@ -540,9 +539,8 @@ class BiometricService {
         'pinResetByAdmin': false,
         'pinResetMessage': '',
       };
-      if (currentAuthUid != null && currentAuthUid.isNotEmpty) {
-        payload['userId'] = currentAuthUid;
-      }
+      // CRITICAL GUARD: Never overwrite the student's primary userId binding during a PIN sync!
+      // Student-user authentication linking is strictly managed by Auth & Provisioning pipelines.
 
       await FirebaseFirestore.instance
           .collection('libraries')
@@ -555,8 +553,11 @@ class BiometricService {
             debugPrint('[BiometricService] Firestore student pin update error: $e');
           });
 
-      if (currentAuthUid != null && currentAuthUid.isNotEmpty) {
-        await FirebaseFirestore.instance.collection('users').doc(currentAuthUid).set({
+      // Only update user document if authUid matches the student's actual account (not an admin or mismatched UID)
+      final currentAuthUid = FirebaseAuth.instance.currentUser?.uid;
+      final targetUserUid = (authUid != null && authUid.isNotEmpty) ? authUid : currentAuthUid;
+      if (targetUserUid != null && targetUserUid.isNotEmpty) {
+        await FirebaseFirestore.instance.collection('users').doc(targetUserUid).set({
           'pinHash': saltedHash,
           'biometricEnabled': biometricEnabled,
           'pinUpdatedAt': FieldValue.serverTimestamp(),
@@ -638,7 +639,6 @@ class BiometricService {
         }
 
         // Local PIN is current and valid! Self-heal Firestore doc & user doc!
-        final currentAuthUid = authUid ?? FirebaseAuth.instance.currentUser?.uid;
         final healPayload = <String, dynamic>{
           'pinHash': localHash,
           'biometricEnabled': bioEnabled,
@@ -646,9 +646,8 @@ class BiometricService {
           'pinResetByAdmin': false,
           'pinResetMessage': '',
         };
-        if (currentAuthUid != null && currentAuthUid.isNotEmpty) {
-          healPayload['userId'] = currentAuthUid;
-        }
+        // CRITICAL GUARD: Never overwrite the student's primary userId binding during self-healing!
+
         await FirebaseFirestore.instance
             .collection('libraries')
             .doc(libraryId)
@@ -657,8 +656,10 @@ class BiometricService {
             .update(healPayload)
             .catchError((_) {});
 
-        if (currentAuthUid != null && currentAuthUid.isNotEmpty) {
-          await FirebaseFirestore.instance.collection('users').doc(currentAuthUid).set({
+        final currentAuthUid = FirebaseAuth.instance.currentUser?.uid;
+        final targetUserUid = (authUid != null && authUid.isNotEmpty) ? authUid : currentAuthUid;
+        if (targetUserUid != null && targetUserUid.isNotEmpty) {
+          await FirebaseFirestore.instance.collection('users').doc(targetUserUid).set({
             'pinHash': localHash,
             'biometricEnabled': bioEnabled,
             'pinUpdatedAt': FieldValue.serverTimestamp(),
@@ -711,7 +712,20 @@ class BiometricService {
     if (libraryId.isEmpty || studentId.isEmpty) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final ids = _extractCandidateIds(userId: studentId, authUid: authUid, candidateIds: candidateIds);
+      final currentAdminUid = FirebaseAuth.instance.currentUser?.uid;
+
+      // Strictly isolate to student keys; never wipe admin's own local security PIN
+      final ids = <String>{studentId};
+      if (authUid != null && authUid.trim().isNotEmpty && authUid.trim() != currentAdminUid) {
+        ids.add(authUid.trim());
+      }
+      if (candidateIds != null) {
+        for (final cid in candidateIds) {
+          if (cid.trim().isNotEmpty && cid.trim() != currentAdminUid) {
+            ids.add(cid.trim());
+          }
+        }
+      }
 
       for (final id in ids) {
         await prefs.remove('security_pin_hash_$id');
@@ -734,6 +748,16 @@ class BiometricService {
         'pinResetByAdmin': true,
         'pinResetMessage': 'Your security PIN was reset by your library admin.',
       });
+
+      // Clear student's user doc if authUid is known and distinct from admin
+      if (authUid != null && authUid.isNotEmpty && authUid != currentAdminUid) {
+        await FirebaseFirestore.instance.collection('users').doc(authUid).update({
+          'pinHash': FieldValue.delete(),
+          'biometricEnabled': false,
+          'pinResetAt': FieldValue.serverTimestamp(),
+          'pinResetByAdmin': true,
+        }).catchError((_) {});
+      }
     } catch (_) { /* intentionally silent */ }
   }
 

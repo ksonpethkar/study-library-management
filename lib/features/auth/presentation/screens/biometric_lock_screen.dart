@@ -106,36 +106,43 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
     // Proactively resolve student document & restore security from Firestore if student
     if (!isAdmin && authUser != null) {
       try {
-        final query = await FirebaseFirestore.instance
-            .collection('libraries')
-            .doc(libraryId)
-            .collection('students')
-            .where('userId', isEqualTo: authUser.uid)
-            .limit(1)
-            .get();
-        if (query.docs.isNotEmpty) {
-          final doc = query.docs.first;
-          _resolvedStudentDocId = doc.id;
-          final name = doc.data()['name'] as String?;
-          if (name != null && name.isNotEmpty && mounted) {
-            setState(() => _loadedStudentName = name);
-          }
-          await BiometricService.restoreStudentSecurityFromFirestore(
-            libraryId: libraryId,
-            studentId: doc.id,
-            authUid: authUser.uid,
-            candidateIds: [doc.id, authUser.uid],
-          );
-        } else if (authUser.email != null && authUser.email!.isNotEmpty) {
-          final eq = await FirebaseFirestore.instance
+        final prefs = await SharedPreferences.getInstance();
+        final currentStudent = ref.read(currentStudentProvider).value;
+        String? targetDocId = currentStudent?.id;
+        targetDocId ??= prefs.getString('cached_student_doc_id_${libraryId}_${authUser.uid}');
+
+        if (targetDocId != null && targetDocId.isNotEmpty) {
+          final doc = await FirebaseFirestore.instance
               .collection('libraries')
               .doc(libraryId)
               .collection('students')
-              .where('email', isEqualTo: authUser.email)
+              .doc(targetDocId)
+              .get();
+          if (doc.exists && doc.data() != null) {
+            _resolvedStudentDocId = doc.id;
+            final name = doc.data()!['name'] as String?;
+            if (name != null && name.isNotEmpty && mounted) {
+              setState(() => _loadedStudentName = name);
+            }
+            await BiometricService.restoreStudentSecurityFromFirestore(
+              libraryId: libraryId,
+              studentId: doc.id,
+              authUid: authUser.uid,
+              candidateIds: [doc.id, authUser.uid],
+            );
+          }
+        }
+
+        if (_resolvedStudentDocId == null || _resolvedStudentDocId!.isEmpty) {
+          final query = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('students')
+              .where('userId', isEqualTo: authUser.uid)
               .limit(1)
               .get();
-          if (eq.docs.isNotEmpty) {
-            final doc = eq.docs.first;
+          if (query.docs.isNotEmpty) {
+            final doc = query.docs.first;
             _resolvedStudentDocId = doc.id;
             final name = doc.data()['name'] as String?;
             if (name != null && name.isNotEmpty && mounted) {
@@ -147,6 +154,28 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
               authUid: authUser.uid,
               candidateIds: [doc.id, authUser.uid],
             );
+          } else if (authUser.email != null && authUser.email!.isNotEmpty) {
+            final eq = await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('students')
+                .where('email', isEqualTo: authUser.email)
+                .limit(1)
+                .get();
+            if (eq.docs.isNotEmpty) {
+              final doc = eq.docs.first;
+              _resolvedStudentDocId = doc.id;
+              final name = doc.data()['name'] as String?;
+              if (name != null && name.isNotEmpty && mounted) {
+                setState(() => _loadedStudentName = name);
+              }
+              await BiometricService.restoreStudentSecurityFromFirestore(
+                libraryId: libraryId,
+                studentId: doc.id,
+                authUid: authUser.uid,
+                candidateIds: [doc.id, authUser.uid],
+              );
+            }
           }
         }
       } catch (_) {}

@@ -708,6 +708,27 @@ class SeatRepository {
       });
 
       await batch.commit();
+
+      // Dispatch in-app notification to student
+      if (studentId.isNotEmpty) {
+        final formattedDesk = SeatHelper.formatSeatLabel(seatId: seatId);
+        AppNotificationService.sendNotification(
+          libraryId: libraryId,
+          title: 'Desk De-allocated 🪑',
+          body: 'Your assigned $formattedDesk has been unassigned by the counter. Please visit reception or choose a new desk.',
+          type: 'seat',
+          targetRole: 'student',
+          targetUserId: studentId,
+          actionRoute: '/student/home',
+          metadata: {
+            'studentId': studentId,
+            'previousSeatId': seatId,
+            'previousSectionId': sectionId,
+            'action': 'unassigned',
+          },
+        ).ignore();
+      }
+
       AuditLogger().log(
         action: AuditAction.updated,
         entityType: AuditEntity.seat,

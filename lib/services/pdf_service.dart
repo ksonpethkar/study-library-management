@@ -326,8 +326,23 @@ class PdfService {
         ? DateFormat('dd MMM yyyy').format(receipt.createdAt!)
         : DateFormat('dd MMM yyyy').format(DateTime.now());
 
-    final startValidityStr = DateFormat('dd/MM/yyyy').format(receipt.validFrom);
-    final endValidityStr = DateFormat('dd/MM/yyyy').format(receipt.validTo);
+    DateTime effectiveValidFrom = receipt.validFrom;
+    DateTime effectiveValidTo = receipt.validTo;
+
+    // Self-heal 0-day or unpopulated receipt dates if student has active plan dates
+    if (effectiveValidFrom.year == effectiveValidTo.year &&
+        effectiveValidFrom.month == effectiveValidTo.month &&
+        effectiveValidFrom.day == effectiveValidTo.day &&
+        student.planEndDate != null &&
+        student.planEndDate!.isAfter(effectiveValidTo)) {
+      effectiveValidTo = student.planEndDate!;
+      if (student.planStartDate != null && student.planStartDate!.isBefore(effectiveValidTo)) {
+        effectiveValidFrom = student.planStartDate!;
+      }
+    }
+
+    final startValidityStr = DateFormat('dd/MM/yyyy').format(effectiveValidFrom);
+    final endValidityStr = DateFormat('dd/MM/yyyy').format(effectiveValidTo);
 
     final paymentMode = receipt.paymentMethod.isNotEmpty ? receipt.paymentMethod.toUpperCase() : 'UPI / QR';
     final isRefund = receipt.customFields['isRefund'] == true;
@@ -337,6 +352,13 @@ class PdfService {
         : 'CC-${student.id.length > 6 ? student.id.substring(0, 6).toUpperCase() : student.id.toUpperCase()}';
 
     final wordsText = receipt.amount > 0 ? '${numberToIndianWords(receipt.amount.toInt())} Rupees Only' : 'Zero Rupees';
+
+    final customPlanName = (receipt.customFields['planName'] as String?)?.trim();
+    final effectivePlanName = (customPlanName != null && customPlanName.isNotEmpty)
+        ? customPlanName
+        : (plan.name.isNotEmpty && plan.name != 'Monthly Study Pass' && plan.name != 'Membership'
+            ? plan.name
+            : (student.customPlanName?.isNotEmpty == true ? student.customPlanName! : plan.name));
 
     // ── Load Form Config Custom Fields tagged for Receipt ─────────────────────
     List<Map<String, dynamic>> receiptCustomFields = [];
@@ -865,7 +887,7 @@ class PdfService {
                                   child: pw.Column(
                                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                                     children: [
-                                      pw.Text(showPlanName ? plan.name : 'Library Membership', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
+                                      pw.Text(showPlanName ? effectivePlanName : 'Library Membership', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
                                       if (isGstInvoice) ...[
                                         pw.SizedBox(height: 3),
                                         pw.Text(

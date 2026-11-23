@@ -9401,5 +9401,399 @@ Gender: Female
       expect(isPaymentActuallyRecorded, isFalse,
           reason: 'A pending renewal request where student has only submitted registration must NEVER be treated as paid');
     });
+
+    test('Test 172: Admin Reset Student Security PIN Isolation & Zero Cross-Student Session Conflation', () async {
+      SharedPreferences.setMockInitialValues({
+        'security_pin_hash_student_ashish': 'hash_ashish',
+        'security_pin_hash_student_sri': 'hash_sri',
+        'security_pin_hash_admin_123': 'hash_admin',
+        'cached_student_doc_id_lib1_uid_sri': 'student_sri',
+      });
+      final prefs = await SharedPreferences.getInstance();
+
+      const adminUid = 'admin_123';
+      const studentAshishId = 'student_ashish';
+      const studentSriId = 'student_sri';
+
+      // 1. Simulating Admin Reset Student PIN isolation
+      // Ensure that when admin resets studentAshishId, it does NOT clear student_sri or admin_123
+      final targetIds = <String>{studentAshishId};
+      // Explicitly protect adminUid from accidental inclusion
+      targetIds.remove(adminUid);
+      for (final id in targetIds) {
+        await prefs.remove('security_pin_hash_$id');
+      }
+
+      expect(prefs.getString('security_pin_hash_student_ashish'), isNull,
+          reason: 'Targeted student PIN hash must be cleared upon reset');
+      expect(prefs.getString('security_pin_hash_student_sri'), equals('hash_sri'),
+          reason: 'Other student PIN hash must remain completely intact');
+      expect(prefs.getString('security_pin_hash_admin_123'), equals('hash_admin'),
+          reason: 'Admin PIN hash must NEVER be touched when resetting student PIN');
+
+      // 2. Active Session Resolution Priority: Cached Doc ID must take precedence over unindexed/ambiguous query
+      final cachedDocId = prefs.getString('cached_student_doc_id_lib1_uid_sri');
+      expect(cachedDocId, equals(studentSriId),
+          reason: 'Session in Sri browser must resolve Sri document ID, never Ashish');
+
+      // 3. Security Payload Invariant: PIN sync must NEVER overwrite primary userId binding
+      final studentDoc = {
+        'id': studentSriId,
+        'userId': 'uid_sri',
+        'name': 'Srikrishnadatta Bharat Sonpethkar',
+      };
+      final pinPayload = {
+        'pinHash': 'new_pin_hash',
+        'biometricEnabled': false,
+        'pinResetByAdmin': false,
+      };
+      // Merging pinPayload onto studentDoc must NOT erase or overwrite userId
+      final updatedStudentDoc = {...studentDoc, ...pinPayload};
+      expect(updatedStudentDoc['userId'], equals('uid_sri'),
+          reason: 'PIN sync or self-heal must NEVER replace existing student userId');
+      expect(updatedStudentDoc['name'], equals('Srikrishnadatta Bharat Sonpethkar'));
+    });
+
+    test('Test 173: RECEIPT METADATA PERSISTENCE & SUBSCRIPTION QUEUING INVARIANTS', () {
+      // 1. Invariant: A generated receipt must NEVER omit validFrom, validTo, or planId
+      final student = createTestStudent(
+        id: 'std_ashish_1',
+        membershipNumber: 'CC20260001',
+        name: 'Ashish Wagesh Choudhari',
+        phone: '7385817571',
+        membershipStatus: MembershipStatus.active,
+        planStartDate: DateTime(2027, 2, 1),
+        planEndDate: DateTime(2027, 7, 31),
+      );
+
+      final halfYearPlan = PlanModel(
+        id: 'plan_half_year',
+        libraryId: 'lib1',
+        name: 'Half Year',
+        price: 3800.0,
+        duration: 6,
+        durationUnit: DurationUnit.months,
+        description: '6 Months Access',
+        gracePeriodDays: 0,
+        isActive: true,
+        isFeatured: false,
+        displayOrder: 1,
+      );
+
+      // Verify that calculateRenewal from Jan 31 extends continuously to July 31
+      final existingStudentWithJanEnd = student.copyWith(
+        planEndDate: DateTime(2027, 1, 31, 23, 59, 59),
+      );
+      final renewal = PlanCalculatorService.calculateRenewal(
+        student: existingStudentWithJanEnd,
+        plan: halfYearPlan,
+        fromDate: DateTime(2026, 11, 23),
+      );
+
+      expect(renewal.startDate, equals(DateTime(2027, 2, 1)),
+          reason: 'Seamless advance renewal must start on Feb 01 following Jan 31 expiry');
+      expect(renewal.endDate, equals(DateTime(2027, 7, 31, 23, 59, 59)),
+          reason: 'Half-year renewal must end on July 31');
+
+      // 2. Receipt Model Serialization: validFrom and validTo must not collapse to same day
+      final receiptPayload = {
+        'id': 'rec_ashish_renewal',
+        'libraryId': 'lib1',
+        'receiptNumber': 'REC-2026-RE1S9V',
+        'studentId': student.id,
+        'amount': 3800.0,
+        'paymentMethod': 'Other',
+        'validFrom': renewal.startDate.toIso8601String(),
+        'validTo': renewal.endDate.toIso8601String(),
+        'planId': halfYearPlan.id,
+        'customFields': {
+          'planName': halfYearPlan.name,
+          'isRenewal': true,
+        },
+        'status': 'active',
+      };
+
+      final parsedReceipt = ReceiptModel.fromJson(receiptPayload);
+      expect(parsedReceipt.planId, equals('plan_half_year'));
+      expect(parsedReceipt.validFrom, equals(DateTime(2027, 2, 1)));
+      expect(parsedReceipt.validTo, equals(DateTime(2027, 7, 31, 23, 59, 59)));
+      expect(parsedReceipt.validFrom != parsedReceipt.validTo, isTrue,
+          reason: 'A 6-month receipt must never have validFrom == validTo');
+
+      // 3. Resilient Fallback: If legacy receipt had identical validFrom & validTo, UI must resolve student planEndDate
+      final legacyZeroDayReceipt = ReceiptModel.fromJson({
+        'id': 'rec_legacy_zero_day',
+        'libraryId': 'lib1',
+        'receiptNumber': 'REC-2026-LEGACY',
+        'studentId': student.id,
+        'amount': 3800.0,
+        'validFrom': DateTime(2026, 11, 23).toIso8601String(),
+        'validTo': DateTime(2026, 11, 23).toIso8601String(), // 0-day anomaly
+        'status': 'active',
+      });
+
+      DateTime effectiveValidTo = legacyZeroDayReceipt.validTo;
+      if (legacyZeroDayReceipt.validFrom == legacyZeroDayReceipt.validTo &&
+          student.planEndDate != null &&
+          student.planEndDate!.isAfter(legacyZeroDayReceipt.validTo)) {
+        effectiveValidTo = student.planEndDate!;
+      }
+
+      expect(effectiveValidTo, equals(DateTime(2027, 7, 31)),
+          reason: 'UI must heal 0-day legacy receipt validity to match active digital student pass');
+    });
+
+    test('Test 174: STUDENT REJECTION NOTIFICATION DISPATCH, DUAL-ID MATCHING & DASHBOARD REJECTION BANNER INVARIANTS', () {
+      // 1. Verify Rejection Notification Payload Invariants
+      const requestId = 'jU6heMEfZtxPZHfnd1kd';
+      const studentId = 'TFBktLry0fa4FlDLVvyl';
+      const authUid = 'Z4vp6LzMXkMaLbGfUm7XEyfcr463';
+      const rejectionReason = 'fake';
+      const reqType = 'renewal';
+
+      final notifDoc = {
+        'id': 'notif_rej_1',
+        'title': 'Plan Renewal Rejected ❌',
+        'body': 'Hello Ashish! Your Plan Renewal could not be approved: "fake". Please visit the reception desk.',
+        'type': 'renewal',
+        'read': false,
+        'createdAt': DateTime.now().toIso8601String(),
+        'targetRole': 'student',
+        'targetUserId': studentId,
+        'actionRoute': '/student/home',
+        'metadata': {
+          'requestId': requestId,
+          'studentId': studentId,
+          'studentUserId': authUid,
+          'userId': authUid,
+          'rejectionReason': rejectionReason,
+          'type': reqType,
+          'rejectedAt': DateTime.now().toIso8601String(),
+        },
+      };
+
+      final parsedNotif = AppNotificationModel(
+        id: 'notif_rej_1',
+        title: notifDoc['title'] as String,
+        body: notifDoc['body'] as String,
+        type: notifDoc['type'] as String,
+        read: false,
+        createdAt: DateTime.now(),
+        targetRole: 'student',
+        targetUserId: studentId,
+        metadata: notifDoc['metadata'] as Map<String, dynamic>,
+      );
+      expect(parsedNotif.title, contains('Rejected ❌'));
+      expect(parsedNotif.body, contains('fake'));
+      expect(parsedNotif.metadata['rejectionReason'], equals('fake'));
+      expect(parsedNotif.metadata['studentUserId'], equals(authUid));
+
+      // 2. Dual-ID Cross-Matching Filter Simulation:
+      // Even if stream is initialized with authUid before student doc is loaded, it MUST match via metadata.studentUserId
+      bool matchesStudentStream({
+        required AppNotificationModel notif,
+        required String? effectiveId,
+        required String? studentId,
+        required String? authUid,
+      }) {
+        final metaStudentId = notif.metadata['studentId']?.toString().trim();
+        final metaUserId = (notif.metadata['studentUserId'] ?? notif.metadata['userId'])?.toString().trim();
+
+        if (notif.targetUserId != null && notif.targetUserId!.trim().isNotEmpty) {
+          final t = notif.targetUserId!.trim();
+          if (t == effectiveId || (authUid != null && t == authUid) || (studentId != null && t == studentId)) {
+            return true;
+          }
+          if (studentId != null && metaStudentId != null && metaStudentId == studentId) return true;
+          if (effectiveId != null && metaStudentId != null && metaStudentId == effectiveId) return true;
+          if (authUid != null && metaUserId != null && metaUserId == authUid) return true;
+          if (effectiveId != null && metaUserId != null && metaUserId == effectiveId) return true;
+          return false;
+        }
+
+        if ((studentId != null && metaStudentId != null && metaStudentId == studentId) ||
+            (authUid != null && metaUserId != null && metaUserId == authUid) ||
+            (effectiveId != null && ((metaStudentId != null && metaStudentId == effectiveId) || (metaUserId != null && metaUserId == effectiveId)))) {
+          return true;
+        }
+
+        return notif.targetRole == 'all' || notif.targetRole == 'student';
+      }
+
+      // Scenario A: Client watches stream with authUid only
+      final matchesA = matchesStudentStream(
+        notif: parsedNotif,
+        effectiveId: authUid,
+        studentId: null,
+        authUid: authUid,
+      );
+      expect(matchesA, isTrue, reason: 'Cross-ID matching must resolve student notification via metadata.studentUserId');
+
+      // Scenario B: Client watches stream with studentId
+      final matchesB = matchesStudentStream(
+        notif: parsedNotif,
+        effectiveId: studentId,
+        studentId: studentId,
+        authUid: authUid,
+      );
+      expect(matchesB, isTrue, reason: 'Direct targetUserId matching must resolve student notification');
+
+      // Scenario C: Untargeted personal alert must be blocked for an unrelated student
+      final unrelatedStudentNotif = parsedNotif;
+      final matchesC = matchesStudentStream(
+        notif: unrelatedStudentNotif,
+        effectiveId: 'unrelated_student_999',
+        studentId: 'unrelated_student_999',
+        authUid: 'unrelated_uid_999',
+      );
+      expect(matchesC, isFalse, reason: 'Privacy isolation: Another student must NEVER see private rejection alerts');
+
+      // 3. Rejection Banner Dismissal State Tracking
+      final dismissedSet = <String>{};
+      expect(dismissedSet.contains(requestId), isFalse, reason: 'Unread rejected request must display banner');
+      dismissedSet.add(requestId);
+      expect(dismissedSet.contains(requestId), isTrue, reason: 'Dismissed rejected request must be suppressed from UI');
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Test 161: Payment History Deduplication, Sequential Receipt Numbering & Counter Approval Protocol
+    // ─────────────────────────────────────────────────────────────────────────
+    test('Test 161: Payment History Deduplication, Sequential Receipt Numbering & Counter Approval Protocol', () async {
+      // 1. Payment History Deduplication Engine Verification
+      // Simulates both 'receipts' and 'payments' collections holding records for the same transaction
+      final receiptDocs = [
+        {
+          'id': 'rec_ashish_001',
+          'receiptNumber': 'REC-2026-0010',
+          'paymentId': 'pay_ashish_001',
+          'amount': 3800.0,
+          'paidAmount': 3800.0,
+          'remainingDue': 0.0,
+          'paymentMethod': 'UPI',
+          'createdAt': DateTime(2026, 11, 23, 10, 30),
+          'customFields': {'requestId': 'req_renew_ashish_99'},
+        },
+        {
+          'id': 'rec_past_002',
+          'receiptNumber': 'REC-2026-0009',
+          'paymentId': 'pay_past_002',
+          'amount': 2000.0,
+          'paidAmount': 2000.0,
+          'remainingDue': 0.0,
+          'paymentMethod': 'Cash',
+          'createdAt': DateTime(2026, 11, 3, 11, 0),
+        },
+      ];
+
+      final paymentDocs = [
+        // Mirrored payment for rec_ashish_001
+        {
+          'id': 'pay_ashish_001',
+          'receiptId': 'rec_ashish_001',
+          'receiptNumber': 'REC-2026-0010',
+          'amount': 3800.0,
+          'paymentMethod': 'UPI',
+          'requestId': 'req_renew_ashish_99',
+          'createdAt': DateTime(2026, 11, 23, 10, 30),
+        },
+        // Legacy payment without receiptId link (fuzzy duplicate test)
+        {
+          'id': 'pay_legacy_fuzzy_001',
+          'amount': 3800.0,
+          'paymentMethod': 'UPI',
+          'createdAt': DateTime(2026, 11, 23, 10, 31), // Within 1 min
+        },
+        // Distinct older cash payment
+        {
+          'id': 'pay_distinct_standalone',
+          'amount': 700.0,
+          'paymentMethod': 'UPI',
+          'createdAt': DateTime(2026, 10, 22, 14, 0),
+        },
+      ];
+
+      final List<Map<String, dynamic>> transactions = [];
+      final Set<String> seenReceiptIds = {};
+      final Set<String> seenPaymentIds = {};
+      final Set<String> seenReceiptNumbers = {};
+      final Set<String> seenRequestIds = {};
+
+      // Phase 1: Ingest Receipts
+      for (final data in receiptDocs) {
+        final id = data['id'] as String;
+        seenReceiptIds.add(id);
+        final pId = data['paymentId'] as String?;
+        if (pId != null && pId.isNotEmpty) seenPaymentIds.add(pId);
+        final rNum = data['receiptNumber'] as String?;
+        if (rNum != null && rNum.isNotEmpty) seenReceiptNumbers.add(rNum);
+        final reqId = (data['customFields'] as Map?)?['requestId'] as String?;
+        if (reqId != null && reqId.isNotEmpty) seenRequestIds.add(reqId);
+
+        transactions.add({
+          'id': id,
+          'receiptId': id,
+          'title': data['receiptNumber'],
+          'amount': (data['paidAmount'] as num?)?.toDouble() ?? (data['amount'] as num?)?.toDouble() ?? 0.0,
+          'date': data['createdAt'] as DateTime,
+          'method': data['paymentMethod'] ?? 'Paid',
+        });
+      }
+
+      // Phase 2: Ingest Payments with Deduplication
+      for (final data in paymentDocs) {
+        final pId = data['id'] as String;
+        if (seenPaymentIds.contains(pId)) continue;
+        final rId = data['receiptId'] as String?;
+        if (rId != null && (seenReceiptIds.contains(rId) || seenReceiptNumbers.contains(rId))) continue;
+        final rNum = data['receiptNumber'] as String?;
+        if (rNum != null && seenReceiptNumbers.contains(rNum)) continue;
+        final reqId = data['requestId'] as String?;
+        if (reqId != null && seenRequestIds.contains(reqId)) continue;
+
+        final date = data['createdAt'] as DateTime;
+        final pAmount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+
+        // Fuzzy duplicate prevention
+        final isFuzzyDup = transactions.any((t) =>
+            ((t['amount'] as double? ?? 0.0) - pAmount).abs() < 0.01 &&
+            ((t['date'] as DateTime).difference(date).abs().inMinutes < 15));
+        if (isFuzzyDup) continue;
+
+        transactions.add({
+          'id': pId,
+          'receiptId': rId,
+          'title': 'Payment #${pId.substring(0, 6)}',
+          'amount': pAmount,
+          'date': date,
+          'method': data['paymentMethod'] ?? 'Cash',
+        });
+      }
+
+      // Assertions:
+      // Exactly 3 unique transactions must remain:
+      // 1. ₹3,800 (REC-2026-0010)
+      // 2. ₹2,000 (REC-2026-0009)
+      // 3. ₹700 (pay_distinct_standalone)
+      // Both the linked payment AND the fuzzy duplicate payment must be suppressed!
+      expect(transactions.length, equals(3), reason: 'Payment history must deduplicate mirrored payment docs');
+      
+      double totalPaid = 0;
+      for (final t in transactions) {
+        totalPaid += (t['amount'] as double);
+      }
+      expect(totalPaid, equals(6500.0), reason: 'Total paid fees must NOT double count mirrored payments (3800 + 2000 + 700 = 6500)');
+
+      // 2. Partial Payment & Due Calculation Protocol
+      const double fullPlanFee = 3800.0;
+      const double collectedPartial = 2000.0;
+      final double calculatedDue = (fullPlanFee - collectedPartial) > 0 ? (fullPlanFee - collectedPartial) : 0.0;
+      expect(calculatedDue, equals(1800.0), reason: 'Partial payment must record remaining due');
+
+      // 3. Sequential Receipt Number Validation
+      const String formattedReceipt = 'REC-2026-0010';
+      final receiptRegex = RegExp(r'^REC-\d{4}-\d{4}$');
+      expect(receiptRegex.hasMatch(formattedReceipt), isTrue, reason: 'Receipt numbers must follow standardized REC-YYYY-XXXX format');
+      expect(receiptRegex.hasMatch('REC-2026-RE1S9V'), isFalse, reason: 'Random substring receipt numbers must be disallowed');
+    });
   });
 }

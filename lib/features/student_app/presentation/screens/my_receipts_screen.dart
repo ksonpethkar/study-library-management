@@ -463,7 +463,30 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text('Plan / Service:', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
-                                              Text(matchingPlan?.name ?? 'Monthly Study Pass', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                              Builder(builder: (context) {
+                                                String displayPlanName = (receipt.customFields['planName'] as String?)?.trim() ?? '';
+                                                if (displayPlanName.isEmpty && matchingPlan != null) {
+                                                  displayPlanName = matchingPlan.name;
+                                                }
+                                                if (displayPlanName.isEmpty) {
+                                                  final planByPrice = plansAsync.value?.where((p) => (p.price - receipt.amount).abs() < 1.0).firstOrNull;
+                                                  if (planByPrice != null) {
+                                                    displayPlanName = planByPrice.name;
+                                                  }
+                                                }
+                                                final rawDesc = (receipt.customFields['description'] ?? receipt.customFields['notes']) as String?;
+                                                if (displayPlanName.isEmpty && rawDesc != null && rawDesc.isNotEmpty) {
+                                                  if (rawDesc.contains('Plan Renewal - ')) {
+                                                    displayPlanName = rawDesc.replaceFirst('Plan Renewal - ', '').trim();
+                                                  } else {
+                                                    displayPlanName = rawDesc;
+                                                  }
+                                                }
+                                                if (displayPlanName.isEmpty) {
+                                                  displayPlanName = student.customPlanName ?? 'Study Pass';
+                                                }
+                                                return Text(displayPlanName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold));
+                                              }),
                                             ],
                                           ),
                                           const SizedBox(height: 4),
@@ -479,10 +502,26 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text('Validity Period:', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
-                                              Text(
-                                                '${dateFormat.format(receipt.validFrom)} → ${dateFormat.format(receipt.validTo)}',
-                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                              ),
+                                              Builder(builder: (context) {
+                                                DateTime displayValidFrom = receipt.validFrom;
+                                                DateTime displayValidTo = receipt.validTo;
+
+                                                final bool isSameDayFallback = displayValidFrom.year == displayValidTo.year &&
+                                                    displayValidFrom.month == displayValidTo.month &&
+                                                    displayValidFrom.day == displayValidTo.day;
+
+                                                if (isSameDayFallback && student.planEndDate != null && student.planEndDate!.isAfter(displayValidTo)) {
+                                                  displayValidTo = student.planEndDate!;
+                                                  if (student.planStartDate != null && student.planStartDate!.isBefore(displayValidTo)) {
+                                                    displayValidFrom = student.planStartDate!;
+                                                  }
+                                                }
+
+                                                return Text(
+                                                  '${dateFormat.format(displayValidFrom)} → ${dateFormat.format(displayValidTo)}',
+                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                                );
+                                              }),
                                             ],
                                           ),
                                         ],

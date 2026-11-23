@@ -27,6 +27,7 @@ import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/services/app_notification_service.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class RequestDetailScreen extends ConsumerStatefulWidget {
   final String requestId;
@@ -496,11 +497,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             final plans = ref.read(plansStreamProvider).value ?? [];
             final matchedPlan = plans.where((p) => p.id == planId).firstOrNull;
             if (matchedPlan != null) {
-              if (matchedPlan.durationUnit == DurationUnit.months) {
-                finalPlanEndDate = DateTime(finalPlanStartDate.year, finalPlanStartDate.month + matchedPlan.duration, finalPlanStartDate.day);
-              } else {
-                finalPlanEndDate = finalPlanStartDate.add(Duration(days: matchedPlan.duration));
-              }
+              final smartCalc = PlanCalculatorService.calculateSmartPlan(
+                plan: matchedPlan,
+                fromDate: finalPlanStartDate,
+              );
+              finalPlanEndDate = smartCalc.endDate;
             }
           }
           finalPlanEndDate ??= finalPlanStartDate.add(const Duration(days: 30));
@@ -550,6 +551,26 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             entityId: studentId,
             details: {'action': 'profile_update_approved', ...proposedData},
           ).ignore();
+
+          // Dispatch in-app notification to student
+          final pTarget = studentId.isNotEmpty ? studentId : (data['studentUserId'] ?? data['userId'] ?? '').toString();
+          if (pTarget.isNotEmpty) {
+            AppNotificationService.sendNotification(
+              libraryId: libraryId,
+              title: 'Profile Details Updated ✅',
+              body: 'Your profile update request has been reviewed and approved by reception.',
+              type: 'general',
+              targetRole: 'student',
+              targetUserId: pTarget,
+              actionRoute: Routes.studentProfile,
+              metadata: {
+                'studentId': studentId,
+                'studentUserId': (data['studentUserId'] ?? data['userId'] ?? '').toString(),
+                'userId': (data['studentUserId'] ?? data['userId'] ?? '').toString(),
+                'requestId': widget.requestId,
+              },
+            ).ignore();
+          }
         }
       } else if (type == 'renewal') {
         final studentId = (data['studentId'] ?? '').toString();
@@ -978,6 +999,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     setState(() => _isProcessing = true);
 
     try {
+      final reason = reasonController.text.trim().isNotEmpty
+          ? reasonController.text.trim()
+          : 'Application could not be approved at this time.';
+
       await FirebaseFirestore.instance
           .collection('libraries')
           .doc(libraryId)
@@ -985,9 +1010,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           .doc(widget.requestId)
           .update({
         'status': 'rejected',
-        'rejectionReason': reasonController.text.trim().isNotEmpty
-            ? reasonController.text.trim()
-            : 'Application could not be approved at this time.',
+        'rejectionReason': reason,
         'rejectedAt': FieldValue.serverTimestamp(),
       });
 
@@ -1002,6 +1025,48 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             seatId: reqSeatId,
           );
         } catch (_) {}
+      }
+
+      // Dispatch in-app notification to student
+      final studentId = (_requestData?['studentId'] ?? '').toString();
+      final studentUserId = (_requestData?['studentUserId'] ?? _requestData?['userId'] ?? '').toString();
+      final primaryTarget = (studentId.isNotEmpty && studentId != 'pending') ? studentId : studentUserId;
+      final type = (_requestData?['type'] ?? 'request').toString().toLowerCase();
+      final studentName = (_requestData?['studentName'] ?? 'Student').toString();
+
+      if (primaryTarget.isNotEmpty) {
+        final reqTitle = switch (type) {
+          'renewal' || 'plan_renewal' => 'Plan Renewal',
+          'registration' || 'newregistration' => 'Admission Application',
+          'seat_change' || 'seatchange' => 'Seat Change Request',
+          'profile_update' => 'Profile Update',
+          'freeze' => 'Study Freeze Request',
+          _ => 'Request',
+        };
+        final notifType = switch (type) {
+          'renewal' || 'plan_renewal' => 'renewal',
+          'seat_change' || 'seatchange' => 'seat_change',
+          _ => 'admission',
+        };
+
+        AppNotificationService.sendNotification(
+          libraryId: libraryId,
+          title: '$reqTitle Rejected ❌',
+          body: 'Hello $studentName! Your $reqTitle could not be approved: "$reason". Please visit the reception desk.',
+          type: notifType,
+          targetRole: 'student',
+          targetUserId: primaryTarget,
+          actionRoute: Routes.studentHome,
+          metadata: {
+            'requestId': widget.requestId,
+            'studentId': studentId,
+            'studentUserId': studentUserId,
+            'userId': studentUserId,
+            'rejectionReason': reason,
+            'type': type,
+            'rejectedAt': DateTime.now().toIso8601String(),
+          },
+        ).ignore();
       }
 
       AuditLogger().log(
@@ -4420,19 +4485,22 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     final effectivePlanId = planId ?? (studentData['planId'] ?? data['planId'])?.toString();
 
     double defaultAmount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+    if (defaultAmount <= 0 && effectivePlanId != null && effectivePlanId.isNotEmpty) {
+      final plans = ref.read(plansStreamProvider).value ?? [];
+      final matchedPlan = plans.where((p) => p.id == effectivePlanId).firstOrNull;
+      if (matchedPlan != null) {
+        final smartCalc = PlanCalculatorService.calculateSmartPlan(
+          plan: matchedPlan,
+          fromDate: planStartDate ?? DateTime.now(),
+        );
+        defaultAmount = smartCalc.proratedPrice;
+      }
+    }
     if (defaultAmount <= 0) {
       final proratedFee = (data['proratedFee'] as num?)?.toDouble() ??
           (studentData['proratedFee'] as num?)?.toDouble();
       if (proratedFee != null && proratedFee > 0) {
         defaultAmount = proratedFee;
-      }
-    }
-    if (defaultAmount <= 0 && effectivePlanId != null && effectivePlanId.isNotEmpty) {
-      final plans = ref.read(plansStreamProvider).value ?? [];
-      final matchedPlan = plans.where((p) => p.id == effectivePlanId).firstOrNull;
-      if (matchedPlan != null) {
-        final smartCalc = PlanCalculatorService.calculateSmartPlan(plan: matchedPlan);
-        defaultAmount = smartCalc.proratedPrice;
       }
     }
 
@@ -4766,11 +4834,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               effectiveStartDate = currentEnd;
             }
             if (matchedPlan.durationUnit == DurationUnit.months) {
-              effectiveEndDate = DateTime(
-                effectiveStartDate.year,
-                effectiveStartDate.month + matchedPlan.duration,
-                effectiveStartDate.day,
+              final smartCalc = PlanCalculatorService.calculateSmartPlan(
+                plan: matchedPlan,
+                fromDate: effectiveStartDate,
               );
+              effectiveEndDate = smartCalc.endDate;
             } else {
               effectiveEndDate = effectiveStartDate.add(Duration(days: matchedPlan.duration));
             }
@@ -4935,6 +5003,30 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           libraryName: libModel?.name,
         );
       } catch (_) {}
+
+      // Dispatch in-app notification to student for confirmed renewal payment
+      final rTarget = (studentId.isNotEmpty && studentId != 'pending') ? studentId : studentUserId;
+      if (rTarget.isNotEmpty) {
+        AppNotificationService.sendNotification(
+          libraryId: libraryId,
+          title: 'Plan Renewal Confirmed! 🎉',
+          body: 'Hello $studentName! Your membership has been renewed until ${DateFormat('dd MMM yyyy').format(effectiveEndDate)}. Receipt #$receiptNum generated.',
+          type: 'renewal',
+          targetRole: 'student',
+          targetUserId: rTarget,
+          actionRoute: Routes.studentHome,
+          metadata: {
+            'studentId': studentId,
+            'studentUserId': studentUserId,
+            'userId': studentUserId,
+            'receiptId': receiptRef.id,
+            'receiptNumber': receiptNum,
+            'amount': amount,
+            'validTo': effectiveEndDate.toIso8601String(),
+            'seatId': assignedSeatId ?? requestedDesk,
+          },
+        ).ignore();
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

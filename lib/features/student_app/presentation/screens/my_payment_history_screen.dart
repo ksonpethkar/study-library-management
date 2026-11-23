@@ -83,12 +83,21 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
 
                   final List<Map<String, dynamic>> transactions = [];
                   final Set<String> seenReceiptIds = {};
+                  final Set<String> seenPaymentIds = {};
+                  final Set<String> seenReceiptNumbers = {};
+                  final Set<String> seenRequestIds = {};
 
                   // 1. Receipts
                   for (final doc in receiptSnap.data?.docs ?? []) {
                     final data = doc.data();
                     if (data['deletedAt'] != null) continue;
                     seenReceiptIds.add(doc.id);
+                    final pId = data['paymentId'] as String?;
+                    if (pId != null && pId.isNotEmpty) seenPaymentIds.add(pId);
+                    final rNum = data['receiptNumber'] as String?;
+                    if (rNum != null && rNum.isNotEmpty) seenReceiptNumbers.add(rNum);
+                    final reqId = (data['customFields'] as Map?)?['requestId'] as String?;
+                    if (reqId != null && reqId.isNotEmpty) seenRequestIds.add(reqId);
 
                     DateTime date = DateTime.now();
                     final raw = data['createdAt'] ?? data['validFrom'];
@@ -99,32 +108,51 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
                       'id': doc.id,
                       'receiptId': doc.id,
                       'title': data['receiptNumber'] ?? 'Official Receipt',
-                      'amount': (data['amount'] as num?)?.toDouble() ?? 0.0,
+                      'amount': (data['paidAmount'] as num?)?.toDouble() ??
+                          (data['amount'] as num?)?.toDouble() ??
+                          0.0,
                       'date': date,
-                      'method': data['paymentMethod'] ?? 'Paid',
-                      'planName': data['planName'] ?? '',
+                      'method': data['paymentMethod'] ?? data['method'] ?? 'Paid',
+                      'planName': data['planName'] ?? (data['customFields'] as Map?)?['planName'] ?? '',
                       'status': data['status'] ?? 'paid',
                     });
                   }
 
-                  // 2. Payments
+                  // 2. Payments (deduplicated against receipts)
                   for (final doc in paymentSnap.data?.docs ?? []) {
                     final data = doc.data();
+                    if (data['deletedAt'] != null) continue;
+                    final pId = doc.id;
+                    if (seenPaymentIds.contains(pId)) continue;
                     final rId = data['receiptId'] as String?;
-                    if (rId != null && seenReceiptIds.contains(rId)) continue;
+                    if (rId != null && (seenReceiptIds.contains(rId) || seenReceiptNumbers.contains(rId))) continue;
+                    final rNum = data['receiptNumber'] as String?;
+                    if (rNum != null && seenReceiptNumbers.contains(rNum)) continue;
+                    final reqId = data['requestId'] as String?;
+                    if (reqId != null && seenRequestIds.contains(reqId)) continue;
 
                     DateTime date = DateTime.now();
-                    final raw = data['date'] ?? data['createdAt'];
+                    final raw = data['date'] ?? data['paymentDate'] ?? data['createdAt'];
                     if (raw is Timestamp) date = raw.toDate();
                     if (raw is String) date = DateTime.tryParse(raw) ?? date;
+
+                    final pAmount = (data['paidAmount'] as num?)?.toDouble() ??
+                        (data['amount'] as num?)?.toDouble() ??
+                        0.0;
+
+                    // Fuzzy duplicate check: same amount and within 15 minutes of a processed receipt
+                    final isFuzzyDup = transactions.any((t) =>
+                        ((t['amount'] as double? ?? 0.0) - pAmount).abs() < 0.01 &&
+                        ((t['date'] as DateTime).difference(date).abs().inMinutes < 15));
+                    if (isFuzzyDup) continue;
 
                     transactions.add({
                       'id': doc.id,
                       'receiptId': rId,
                       'title': data['referenceNumber']?.toString().isNotEmpty == true
                           ? 'Ref: ${data['referenceNumber']}'
-                          : 'Payment #${doc.id.substring(0, 6).toUpperCase()}',
-                      'amount': (data['amount'] as num?)?.toDouble() ?? 0.0,
+                          : (rNum?.isNotEmpty == true ? rNum : 'Payment #${doc.id.substring(0, doc.id.length >= 6 ? 6 : doc.id.length).toUpperCase()}'),
+                      'amount': pAmount,
                       'date': date,
                       'method': data['paymentMethod'] ?? data['method'] ?? 'Cash',
                       'planName': data['planName'] ?? '',

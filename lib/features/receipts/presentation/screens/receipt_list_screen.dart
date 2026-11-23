@@ -99,13 +99,15 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
     return Icons.receipt_long_rounded;
   }
 
-  String _formatValidity(DateTime from, DateTime to) {
+  String _formatValidity(DateTime from, DateTime to, {Map<String, dynamic>? customFields}) {
     final fromStr = _dateFormat.format(from);
     final toStr = _dateFormat.format(to);
+    final planName = (customFields?['planName'] as String?)?.trim();
+    final planPrefix = (planName != null && planName.isNotEmpty) ? '$planName • ' : '';
     if (fromStr == toStr) {
-      return 'Date: $fromStr (Single Day / Admission)';
+      return '$planPrefix$fromStr (Recorded)';
     }
-    return 'Valid: $fromStr – $toStr';
+    return '$planPrefix$fromStr – $toStr';
   }
 
   void _showFilterSheet(BuildContext context) {
@@ -723,7 +725,7 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                _formatValidity(receipt.validFrom, receipt.validTo),
+                                _formatValidity(receipt.validFrom, receipt.validTo, customFields: receipt.customFields),
                                 style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
                               ),
                               if (receipt.securityDeposit != null && receipt.securityDeposit! > 0)

@@ -78,11 +78,29 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
   late final Animation<double> _cardFlipAnimation;
   bool _birthdayDismissed = false;
   bool _hasCheckedStartupDialogs = false;
+  final Set<String> _dismissedRejectedRequests = {};
+
+  Future<void> _checkDismissedRejectedRequests() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys().where((k) => k.startsWith('dismissed_rejected_'));
+      if (mounted && keys.isNotEmpty) {
+        setState(() {
+          for (final k in keys) {
+            if (prefs.getBool(k) == true) {
+              _dismissedRejectedRequests.add(k.replaceFirst('dismissed_rejected_', ''));
+            }
+          }
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void initState() {
     super.initState();
     _checkBirthdayDismissed();
+    _checkDismissedRejectedRequests();
     _refreshAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 650),
@@ -230,6 +248,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     final sectionsAsync = ref.watch(sectionsProvider);
     final pendingSeatChange = ref.watch(studentPendingSeatChangeProvider).value;
     final pendingRenewal = ref.watch(studentPendingRenewalProvider).value;
+    final rejectedRequest = ref.watch(studentRecentRejectedRequestProvider).value;
 
     final library = libraryAsync.value;
     final libraryName = library?.name.isNotEmpty == true ? library!.name : 'Study Library';
@@ -711,13 +730,22 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   error: (_, _) => const SizedBox.shrink(),
                 ),
 
-                // Contextual Renewal In-Progress Banner OR Expiry Alert Banner
+                // Contextual Renewal In-Progress Banner OR Rejected Alert Banner OR Expiry Alert Banner
                 if (pendingRenewal != null) ...[
                   _buildPendingRenewalCard(
                     context: context,
                     theme: theme,
                     libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
                     pendingData: pendingRenewal,
+                    student: student,
+                    library: library,
+                  ),
+                  const SizedBox(height: 14),
+                ] else if (rejectedRequest != null && !_dismissedRejectedRequests.contains(rejectedRequest['id']?.toString() ?? '')) ...[
+                  _buildRejectedRequestBanner(
+                    context: context,
+                    theme: theme,
+                    rejectedData: rejectedRequest,
                     student: student,
                     library: library,
                   ),
@@ -2288,6 +2316,203 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
         }
       }
     }
+  }
+
+  Widget _buildRejectedRequestBanner({
+    required BuildContext context,
+    required ThemeData theme,
+    required Map<String, dynamic> rejectedData,
+    required StudentModel student,
+    required LibraryModel? library,
+  }) {
+    final isDark = theme.brightness == Brightness.dark;
+    final requestId = (rejectedData['id'] ?? '').toString();
+    final type = (rejectedData['type'] ?? 'request').toString().toLowerCase();
+    final reqTitle = switch (type) {
+      'renewal' || 'plan_renewal' => 'Plan Renewal Request',
+      'registration' || 'newregistration' => 'Admission Application',
+      'seat_change' || 'seatchange' => 'Seat Change Request',
+      'profile_update' => 'Profile Update Request',
+      _ => 'Request',
+    };
+    final reason = (rejectedData['rejectionReason'] ?? 'Application could not be approved at this time.').toString().trim();
+    final rejectedAtTs = rejectedData['rejectedAt'] as Timestamp? ?? rejectedData['processedAt'] as Timestamp?;
+    final dateStr = rejectedAtTs != null ? DateFormat('dd MMM, hh:mm a').format(rejectedAtTs.toDate()) : null;
+
+    final primaryRed = const Color(0xFFDC2626);
+    final bgColor = isDark ? const Color(0xFF2D1214) : const Color(0xFFFEF2F2);
+    final borderColor = isDark ? const Color(0xFF991B1B) : const Color(0xFFFECACA);
+
+    final cleanContact = (library?.effectiveContact ?? library?.phone ?? '9403243830').replaceAll(RegExp(r'\D'), '');
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: primaryRed.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: primaryRed.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.cancel_outlined, color: primaryRed, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$reqTitle Rejected',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                      ),
+                    ),
+                    if (dateStr != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Recorded on $dateStr',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? Colors.white60 : Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 20),
+                tooltip: 'Dismiss notice',
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _dismissedRejectedRequests.add(requestId);
+                  });
+                  SharedPreferences.getInstance().then((prefs) {
+                    prefs.setBool('dismissed_rejected_$requestId', true);
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.black26 : Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: borderColor.withValues(alpha: 0.7)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline_rounded, color: primaryRed, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                        fontFamily: theme.textTheme.bodyMedium?.fontFamily,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: 'Reason: ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(
+                          text: '"$reason"',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFFF87171) : primaryRed,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF16A34A),
+                  side: const BorderSide(color: Color(0xFF16A34A)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                label: const Text('Contact Reception 💬', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                onPressed: () async {
+                  HapticFeedback.lightImpact();
+                  final message = 'Hello ${library?.name ?? 'Reception'}, my $reqTitle was not approved (Reason: "$reason"). Please help me with the next steps.';
+                  final clean = cleanContact.startsWith('91') ? cleanContact : '91$cleanContact';
+                  final uri = Uri.parse('https://wa.me/$clean?text=${Uri.encodeComponent(message)}');
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (_) {}
+                },
+              ),
+              if (type == 'renewal' || type == 'plan_renewal')
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.autorenew_rounded, size: 16),
+                  label: const Text('Re-apply / Change Plan', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    context.push(Routes.studentRenew);
+                  },
+                )
+              else if (type == 'seat_change' || type == 'seatchange')
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.event_seat_rounded, size: 16),
+                  label: const Text('Select Another Desk', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    context.push(Routes.studentSeatMap);
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildPendingRenewalCard({

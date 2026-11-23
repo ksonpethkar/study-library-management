@@ -140,14 +140,36 @@ final studentNotificationsStreamProvider =
         final all = snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList();
         // Strict privacy filter:
         // A student ONLY sees:
-        // 1. Notifications explicitly addressed to THIS specific student (targetUserId == effectiveId or targetUserId == authUid)
+        // 1. Notifications explicitly addressed to THIS specific student (targetUserId, metadata.studentId, or metadata.studentUserId/userId)
         // 2. General public broadcasts intended for ALL users (type == 'announcement' with NO student-specific data)
         final filtered = all.where((n) {
+          final metaStudentId = n.metadata['studentId']?.toString().trim();
+          final metaUserId = (n.metadata['studentUserId'] ?? n.metadata['userId'])?.toString().trim();
+
           if (n.targetUserId != null && n.targetUserId!.trim().isNotEmpty) {
-            return n.targetUserId == effectiveId ||
-                (authUid != null && n.targetUserId == authUid) ||
-                (studentId != null && n.targetUserId == studentId);
+            final t = n.targetUserId!.trim();
+            final matchesDirect = t == effectiveId ||
+                (authUid != null && t == authUid) ||
+                (studentId != null && t == studentId);
+            if (matchesDirect) return true;
+
+            // Cross-ID resolution: Notification was addressed by studentId or authUid
+            if (studentId != null && metaStudentId != null && metaStudentId == studentId) return true;
+            if (metaStudentId != null && metaStudentId == effectiveId) return true;
+            if (authUid != null && metaUserId != null && metaUserId == authUid) return true;
+            if (metaUserId != null && metaUserId == effectiveId) return true;
+
+            return false;
           }
+
+          // Check if metadata matches this student even if targetUserId was omitted
+          if ((studentId != null && metaStudentId != null && metaStudentId == studentId) ||
+              (authUid != null && metaUserId != null && metaUserId == authUid) ||
+              ((metaStudentId != null && metaStudentId == effectiveId) ||
+                  (metaUserId != null && metaUserId == effectiveId))) {
+            return true;
+          }
+
           final personalTypes = {
             'payment',
             'receipt',
@@ -157,7 +179,8 @@ final studentNotificationsStreamProvider =
             'feedback',
             'feedback_reply',
             'expiry',
-            'due'
+            'due',
+            'renewal',
           };
           if (personalTypes.contains(n.type.toLowerCase())) {
             return false; // Hard reject untargeted sensitive notifications

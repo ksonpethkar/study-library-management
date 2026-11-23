@@ -681,3 +681,86 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
 
 
 
+
+
+---
+
+## 38. Comprehensive Occupancy Mathematics, Public Seat Map Syntax Immunity & Filter Chip Reconciliation (Learned Nov 2026)
+
+1. **Occupancy Availability Mathematical Invariant:**
+   - Root Cause: In `seat_providers.dart` (`occupancyProvider`), `availableSeats` was calculated as `totalCapacity - occupiedSeats`. This completely ignored `reserved` and `maintenance` desks. When Desk #60 was reserved, the Admin Home Dashboard reported `Available: 52 ready to assign`, while the Seat Map reported `Vacant: 51`, creating an unexplained 1-desk discrepancy across screens.
+   - Guardrail: Always compute available seats as:
+     $$\text{availableSeats} = \text{totalCapacity} - \text{occupiedSeats} - \text{reservedSeats} - \text{maintenanceSeats}$$
+   - The provider must yield `'reserved': reservedSeats, 'maintenance': maintenanceSeats` in addition to total, occupied, and available. The dashboard micro-metric tile must clarify reserved counts when present (`ready (1 res)`).
+
+2. **Filter Chip Zero-Gap Reconciliation ($51 + 8 + 1 = 60$):**
+   - Root Cause: `seat_grid_widget.dart` only displayed chips for `All Desks (60)`, `Vacant (51)`, and `Occupied (8)`. The sum was 59, leaving Desk #60 (Reserved) completely unrepresented, with no way for counter staff to filter or inspect reserved desks.
+   - Guardrail: Filter chips must account for 100% of seats in a section. When `reservedCount > 0` or `maintenanceCount > 0`, the UI must dynamically render `Reserved ($count)` (Amber `0xFFF59E0B`, `Icons.lock_clock_rounded`) and `Maintenance ($count)` (Slate `0xFF64748B`, `Icons.build_rounded`).
+   - Tapping the `Reserved` chip must highlight only reserved and soft-locked desks, dimming all vacant and occupied desks.
+
+3. **Public Live Seat Map JavaScript Syntax Immunity (`public/seats/index.html`):**
+   - Root Cause: Stray duplicate calls and unmatched closing braces (`}`) at line 1254 in `public/seats/index.html` caused an uncaught browser `SyntaxError: missing ) after argument list`. The script halted before execution, leaving the public visitor page permanently stuck on the loading spinner (`Connecting to live seating network...`) with stale hardcoded HTML values (`57 Available, 3 Occupied`).
+   - Guardrail: Any static HTML/JS web viewers hosted in `public/` must undergo automated JavaScript syntax parsing (`node --check`) in CI/QA before deployment to prevent runtime script crashes.
+
+4. **Sentinel 1-Tap Auto-Heal for Duplicate Seat Allocations:**
+   - Root Cause: Sentinel Guardian detected `Duplicate Desk Allocation: Desk #20` (e.g. Srikrishnadatta and Shubham simultaneously linked to the same desk), but clicking 'Re-sync Seat' threw `Failed to auto-heal` because `SentinelService.execute1TapAutoHeal` lacked the `duplicate_allocation_seat_` branch.
+   - Guardrail: `SentinelService.execute1TapAutoHeal` must route duplicate seat anomalies to `autoHealDuplicateSeatAllocation` in `SentinelInvariantEngine`, performing multi-section lookup, determining the legitimate occupant, clearing duplicate pointers from conflicting student records, and double-binding the retained student atomically.
+
+---
+
+## 39. Admin Reset Student PIN Isolation, Live Unlock Safeguards & Zero Cross-Student Session Conflation (Learned Nov 2026)
+
+1. **Live Instant Unlock Mechanism (How It Works):**
+   - Root Cause / Architectural Context: When an admin resets a student's PIN in `StudentDetailScreen` (`BiometricService.adminResetStudentPin`), the system flags the student's Firestore document with `pinResetByAdmin: true` and `pinResetAt: serverTimestamp()`. On the student's locked device running `BiometricLockScreen`, an active real-time Firestore stream (`_subscribeToLiveSecurityUpdates`) receives this event, clears the local lockout timer and PIN, and automatically navigates via `_unlockApp()` (`context.go(Routes.studentHome)`). This allows counter staff to unlock a forgotten student pass in real time without requiring the student to re-open or reload their app.
+
+2. **Shared `userId` Collision & Session Conflation Elimination:**
+   - Root Cause: In `BiometricService.syncStudentSecurityToFirestore` and `restoreStudentSecurityFromFirestore`, the code included `payload['userId'] = currentAuthUid` and `healPayload['userId'] = currentAuthUid`. When an admin or staff tested or restored PINs while logged in with one Google account (e.g. `Z4vp6LzMXkMaLbGfUm7XEyfcr463`), that Google account UID was erroneously stamped onto multiple student documents (both Ashish and Srikrishnadatta). When `BiometricLockScreen` queried `.where('userId', isEqualTo: authUid).limit(1)`, Firestore returned Ashish, subscribing Chrome to Ashish's document. When admin reset Ashish's PIN, Chrome unlocked; but upon navigating to `/app/student/home`, `currentStudentProvider` read the locally cached student ID for that browser profile (`dHWJekG8DtXm0lQJiX6d` / Srikrishnadatta), causing the dashboard to display Srikrishnadatta instead of Ashish.
+   - Guardrails:
+     a) **Zero `userId` Overwriting in Security Services:** `BiometricService` must NEVER mutate `userId` on student documents. Primary authentication bindings belong exclusively to the formal onboarding & login pipeline (`StudentProvisioningService`).
+     b) **Admin Reset Device Isolation:** `BiometricService.adminResetStudentPin` must strictly clear local `SharedPreferences` keys for `studentId`. It must NEVER clear keys matching `FirebaseAuth.instance.currentUser?.uid` (the admin's own session), preventing reception counter lockouts.
+     c) **Session-First Lock Listener Binding:** In `BiometricLockScreen`, the live security listener must prioritize `currentStudentProvider.value?.id` and `cached_student_doc_id_${libraryId}_${authUser.uid}` over unindexed or ambiguous queries, ensuring a locked device only ever listens to the exact student session active on that browser.
+
+
+---
+
+## 40. Calendar-Month Dynamic Pro-Rata Approval & Advance Credit Adjustment (Learned Nov 2026)
+
+1. **Dynamic Approval Re-Calculation (Option A Enforced, Option B Rejected):**
+   - Root Cause: In `RequestDetailScreen._promptPaymentAfterApproval`, `defaultAmount` read stale `proratedFee` stored at request creation (e.g. Nov 6 for 25 days = ₹580), while approval took place days later (Nov 16). The code also set a rolling 30-day month (16 Nov -> 16 Dec) while charging the 25-day fee of ₹580, resulting in 31 days given for ₹580 without collecting the full ₹700 monthly price.
+   - Guardrail: When approving an admission request, the system must ALWAYS dynamically recalculate pro-rata from the approval timestamp to the calendar month-end (`PlanCalculatorService.calculateSmartPlan(plan: matchedPlan, fromDate: DateTime.now())`). Rolling 30-day cycles (Option B) are strictly prohibited for calendar-month aligned libraries. All plan end dates on approval must strictly terminate at the calendar month-end (e.g., Nov 30 23:59:59).
+
+2. **Unutilized Pro-Rata Advance Credit Carry-Forward (Wallet Balance):**
+   - Architectural Standard: If a student paid a pre-calculated pro-rata amount (e.g., ₹580 for 25 days) but approval was delayed so actual usage is fewer days (e.g., 15 days = ₹350), the unutilized surplus (`₹580 paid − ₹350 usage = ₹230`) must be credited to the student's `walletBalance`.
+   - On the next recurring cycle (December 1 renewal), `RecordPaymentScreen` surfaces this credit via an interactive banner (`Unused Proration Balance: ₹230 Available`).
+   - Tapping **Apply Credit** automatically offsets the December plan price (`₹700 − ₹230 = ₹470 net payable`) and updates the student ledger transparently, matching the gold standard of Stripe Billing, Nexudus, and telecom utility billing.
+
+---
+
+## 41. Lifecycle Notification Dispatch, Cross-ID Targeting & Sticky Rejection Invariants (Learned Nov 2026)
+
+1. **Rejection Notification Omission & Parameter Dropping Root Causes:**
+   - Root Cause A: In `RequestDetailScreen._rejectRequest()`, the handler updated Firestore `status: 'rejected'` and logged audits, but completely omitted calling `AppNotificationService.sendNotification(...)`. Zero notification documents were written to Firestore.
+   - Root Cause B: In `RequestListScreen._promptReject()`, line 1540 called `_updateRequestStatus(context, libraryId, request.id, 'rejected', reason: reasonController.text)` without passing `requestItem: request`. In `_updateRequestStatus()`, `requestItem` defaulted to `null`, causing `if (requestItem != null)` at line 1380 to evaluate to `false` and bypass notification dispatch entirely.
+   - Guardrails:
+     a) Every rejection flow (`RequestDetailScreen`, `RequestListScreen`, `RequestRepository`) MUST atomically write an in-app notification to `libraries/{libId}/notifications` targeting the student.
+     b) Rejection notification titles must include explicit feedback: `$reqTitle Rejected ❌`, containing the admin's rejection reason in the body (`could not be approved: "$reason"`).
+     c) Mandatory metadata: `{ 'requestId': id, 'studentId': studentId, 'studentUserId': authUid, 'rejectionReason': reason, 'type': type }`.
+
+2. **Universal Lifecycle Audit & Auto-Dispatch Enforcement:**
+   - Forensic audit revealed that multiple critical lifecycle events lacked notifications:
+     a) **Plan Renewal Approval via Counter Payment** (`RequestDetailScreen._recordPaymentAndReceipt`): Now auto-dispatches `Plan Renewal Confirmed! 🎉` with receipt number and new validity dates.
+     b) **Profile Update Approval** (`RequestDetailScreen:514`): Now auto-dispatches `Profile Details Updated ✅`.
+     c) **Desk De-allocation / Vacating** (`SeatRepository.unassignStudent`): Now auto-dispatches `Desk De-allocated 🪑` notifying the student that their desk was vacated so they can re-select.
+
+3. **Dual-ID Cross-Matching Filter Architecture:**
+   - Root Cause: Notifications written with `targetUserId = student.id` failed to display if the student's notification sheet initialized before `student.id` resolved (using `FirebaseAuth.currentUser.uid`), and vice-versa.
+   - Guardrail: In `studentNotificationsStreamProvider`, notifications are matched if `n.targetUserId == effectiveId || n.targetUserId == authUid || n.targetUserId == studentId` OR if `n.metadata['studentId'] == studentId || n.metadata['studentUserId'] == authUid || n.metadata['userId'] == authUid`. Cross-ID metadata matching guarantees that personal notifications are never silently filtered out due to ID type asymmetry.
+
+4. **Sticky Rejection Feedback Banner on Student Dashboard (Zero Disappearing Requests):**
+   - Root Cause: When a renewal was pending, `student_home_screen.dart` rendered the "Desk Renewal Registered" card. Upon rejection, the card instantly vanished into thin air because `pendingRenewal` only matched `status == 'pending'`, leaving the student confused with zero visible feedback.
+   - Guardrail: When a student request is rejected, `studentRecentRejectedRequestProvider` streams the rejected document (within 7 days). `StudentHomeScreen` renders a prominent Amber/Red feedback banner directly above the pass showing:
+     a) Clear header: `Plan Renewal Request Rejected`
+     b) Exact admin reason box: `Reason: "fake"`
+     c) 1-tap WhatsApp deep link (`https://wa.me/...`) to contact reception.
+     d) 1-tap "Re-apply / Change Plan" button routing to `Routes.studentRenew`.
+     e) Dismiss button persisting `dismissed_rejected_<requestId>` in `SharedPreferences`.

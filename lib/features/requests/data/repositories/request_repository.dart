@@ -61,7 +61,13 @@ class RequestRepository {
           .doc(libraryId)
           .collection(FirestorePaths.requests)
           .doc(requestId)
-          .update({'status': 'rejected', 'rejectReason': reason, 'updatedAt': FieldValue.serverTimestamp()});
+          .update({
+        'status': 'rejected',
+        'rejectionReason': reason,
+        'rejectReason': reason,
+        'rejectedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       throw Exception('Failed to reject request.');
     }

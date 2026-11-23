@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/utils/sequence_counter.dart';
+import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/features/seats/data/repositories/seat_repository.dart';
 import 'package:study_library/features/students/data/repositories/student_repository.dart';
 import 'package:study_library/models/student_model.dart';
@@ -14,6 +15,7 @@ class StudentProvisioningService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final StudentRepository _studentRepo = StudentRepository();
   static final SeatRepository _seatRepo = SeatRepository();
+  static final ReceiptRepository _receiptRepo = ReceiptRepository();
 
   /// Centralized logic to approve any student request and create/update
   /// the corresponding student in libraries/{libraryId}/students,
@@ -484,23 +486,45 @@ class StudentProvisioningService {
             // Create Payment and Receipt records
             String? paymentId;
             String? receiptId;
+            String? recNum;
+            double remainingDue = 0.0;
             if (amount > 0 && !isPaid) {
               final double clearedDue = (data['pendingDueAmount'] as num?)?.toDouble() ?? 0.0;
+              final double paidAmount = (data['paidAmount'] as num?)?.toDouble() ??
+                  (data['amount'] as num?)?.toDouble() ??
+                  amount;
+              final double totalFee = (data['totalFee'] as num?)?.toDouble() ?? amount;
+              remainingDue = (data['remainingDue'] as num?)?.toDouble() ??
+                  ((totalFee - paidAmount) > 0 ? (totalFee - paidAmount) : 0.0);
+              final String? refNumber = (data['referenceNumber'] ?? data['transactionId'])?.toString();
+
               final recDescription = clearedDue > 0
                   ? 'Plan Renewal ($requestedPlanName) + Cleared Past Due (₹${clearedDue.toStringAsFixed(0)})'
                   : 'Plan Renewal - $requestedPlanName';
 
+              recNum = await _receiptRepo.getNextReceiptNumber(libraryId);
+              final recRef = _firestore.collection('libraries').doc(libraryId).collection('receipts').doc();
+              receiptId = recRef.id;
+
               final payRef = _firestore.collection('libraries').doc(libraryId).collection('payments').doc();
               paymentId = payRef.id;
+
               await payRef.set({
                 'id': paymentId,
                 'studentId': targetStudentId,
                 if (studentUserId.isNotEmpty) 'studentUserId': studentUserId,
                 'studentName': data['studentName'] ?? sData['name'] ?? 'Student',
-                'amount': amount,
+                'amount': paidAmount,
+                'totalFee': totalFee,
+                'paidAmount': paidAmount,
+                'remainingDue': remainingDue,
                 'paymentMethod': paymentMethod,
                 'method': paymentMethod,
                 'status': 'paid',
+                'receiptId': receiptId,
+                'receiptNumber': recNum,
+                if (refNumber != null && refNumber.isNotEmpty) 'referenceNumber': refNumber,
+                if (refNumber != null && refNumber.isNotEmpty) 'transactionId': refNumber,
                 'paymentDate': FieldValue.serverTimestamp(),
                 'date': FieldValue.serverTimestamp(),
                 'createdAt': FieldValue.serverTimestamp(),
@@ -508,9 +532,6 @@ class StudentProvisioningService {
                 'requestId': requestId,
               });
 
-              final recRef = _firestore.collection('libraries').doc(libraryId).collection('receipts').doc();
-              receiptId = recRef.id;
-              final recNum = 'REC-${DateTime.now().year}-${recRef.id.substring(0, recRef.id.length >= 6 ? 6 : recRef.id.length).toUpperCase()}';
               await recRef.set({
                 'id': recRef.id,
                 'libraryId': libraryId,
@@ -519,13 +540,28 @@ class StudentProvisioningService {
                 'studentId': targetStudentId,
                 if (studentUserId.isNotEmpty) 'studentUserId': studentUserId,
                 'studentName': data['studentName'] ?? sData['name'] ?? 'Student',
-                'amount': amount,
+                'amount': paidAmount,
+                'totalFee': totalFee,
+                'paidAmount': paidAmount,
+                'remainingDue': remainingDue,
+                if (refNumber != null && refNumber.isNotEmpty) 'referenceNumber': refNumber,
+                if (refNumber != null && refNumber.isNotEmpty) 'transactionId': refNumber,
                 'method': paymentMethod,
                 'paymentMethod': paymentMethod,
                 'status': 'active',
                 'issuedAt': FieldValue.serverTimestamp(),
                 'description': recDescription,
+                'validFrom': Timestamp.fromDate(newStartDate),
+                'validTo': Timestamp.fromDate(newEndDate),
+                'planId': requestedPlanId.isNotEmpty ? requestedPlanId : (sData['planId'] ?? 'plan_renewal'),
+                'customFields': {
+                  'planName': requestedPlanName,
+                  'isRenewal': true,
+                  'requestId': requestId,
+                  if (refNumber != null && refNumber.isNotEmpty) 'referenceNumber': refNumber,
+                },
                 'createdAt': FieldValue.serverTimestamp(),
+                'updatedAt': FieldValue.serverTimestamp(),
               });
             }
 
@@ -619,6 +655,8 @@ class StudentProvisioningService {
             };
             if (data['clearedDue'] == true || (data['pendingDueAmount'] as num?)?.toDouble() != null) {
               studentUpdates['pendingDueBalance'] = 0.0;
+            } else if (remainingDue > 0) {
+              studentUpdates['pendingDueBalance'] = remainingDue;
             }
             if (assignedSeatId != null) {
               studentUpdates['seatId'] = assignedSeatId;
@@ -645,6 +683,9 @@ class StudentProvisioningService {
             }
             if (receiptId != null) {
               updateData['receiptId'] = receiptId;
+            }
+            if (recNum != null) {
+              updateData['receiptNumber'] = recNum;
             }
             createdStudentId = targetStudentId;
 

@@ -727,49 +727,71 @@ class SentinelInvariantEngine {
         for (final sId in conflictingStudentIds) {
           if (sId != actualOccupant) {
             final sRef = libRef.collection(FirestorePaths.students).doc(sId);
-            batch.update(sRef, {
-              'seatId': FieldValue.delete(),
-              'previousSeatId': seatId,
-              'previousSectionId': ?targetSectionId,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
+            final sSnap = await sRef.get();
+            if (sSnap.exists) {
+              batch.set(
+                sRef,
+                {
+                  'seatId': FieldValue.delete(),
+                  'previousSeatId': seatId,
+                  if (targetSectionId != null && targetSectionId.isNotEmpty)
+                    'previousSectionId': targetSectionId,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                },
+                SetOptions(merge: true),
+              );
+            }
           }
         }
 
         // (b) Confirm double-binding on legitimate retained student
         final retainedRef = libRef.collection(FirestorePaths.students).doc(actualOccupant);
-        batch.update(retainedRef, {
-          'seatId': targetSeatRef != null ? targetSeatRef.id : seatId,
-          'sectionId': ?targetSectionId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        final retSnap = await retainedRef.get();
+        if (retSnap.exists) {
+          batch.set(
+            retainedRef,
+            {
+              'seatId': targetSeatRef != null ? targetSeatRef.id : seatId,
+              if (targetSectionId != null && targetSectionId.isNotEmpty)
+                'sectionId': targetSectionId,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+        }
 
         // (c) Update physical seat document to reflect legitimate occupant
         if (targetSeatRef != null) {
-          batch.update(targetSeatRef, {
-            'studentId': actualOccupant,
-            if (actualOccupantName != null && actualOccupantName.isNotEmpty)
-              'studentName': actualOccupantName,
-            'status': 'occupied',
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+          batch.set(
+            targetSeatRef,
+            {
+              'studentId': actualOccupant,
+              if (actualOccupantName != null && actualOccupantName.isNotEmpty)
+                'studentName': actualOccupantName,
+              'status': 'occupied',
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
         }
 
         await batch.commit();
       }
 
-      await _auditLogger?.log(
-        action: AuditAction.updated,
-        entityType: AuditEntity.seat,
-        libraryId: libraryId,
-        entityId: seatId,
-        entityName: 'Desk $seatId',
-        details: {
-          'action': 'sentinel_auto_heal_duplicate_seat_allocation',
-          'retainedOccupant': actualOccupant,
-          'clearedStudentIds': conflictingStudentIds.where((id) => id != actualOccupant).toList(),
-        },
-      );
+      try {
+        await _auditLogger?.log(
+          action: AuditAction.updated,
+          entityType: AuditEntity.seat,
+          libraryId: libraryId,
+          entityId: seatId,
+          entityName: 'Desk $seatId',
+          details: {
+            'action': 'sentinel_auto_heal_duplicate_seat_allocation',
+            'retainedOccupant': actualOccupant,
+            'clearedStudentIds': conflictingStudentIds.where((id) => id != actualOccupant).toList(),
+          },
+        );
+      } catch (_) {}
 
       return true;
     } catch (e) {
