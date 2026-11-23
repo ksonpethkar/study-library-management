@@ -288,7 +288,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                   _buildFilterChip(
                     'available',
                     'Vacant',
-                    sectionSeats.where((s) => !isSeatOccupied(s) && !s.hasActiveSoftLock && s.status != SeatStatus.maintenance).length,
+                    sectionSeats.where((s) => !isSeatOccupied(s) && !s.hasActiveSoftLock && s.status != SeatStatus.reserved && s.status != SeatStatus.maintenance).length,
                     const Color(0xFF10B981),
                     Icons.event_seat_rounded,
                   ),
@@ -300,6 +300,26 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                     const Color(0xFFEF4444),
                     Icons.person_rounded,
                   ),
+                  if (sectionSeats.any((s) => s.status == SeatStatus.reserved || s.hasActiveSoftLock)) ...[
+                    const SizedBox(width: 6),
+                    _buildFilterChip(
+                      'reserved',
+                      'Reserved',
+                      sectionSeats.where((s) => s.status == SeatStatus.reserved || s.hasActiveSoftLock).length,
+                      const Color(0xFFF59E0B),
+                      Icons.lock_clock_rounded,
+                    ),
+                  ],
+                  if (sectionSeats.any((s) => s.status == SeatStatus.maintenance)) ...[
+                    const SizedBox(width: 6),
+                    _buildFilterChip(
+                      'maintenance',
+                      'Maintenance',
+                      sectionSeats.where((s) => s.status == SeatStatus.maintenance).length,
+                      const Color(0xFF64748B),
+                      Icons.build_rounded,
+                    ),
+                  ],
                   if (sectionSeats.any((s) => s.genderRestriction == GenderRestriction.male)) ...[
                     const SizedBox(width: 6),
                     _buildFilterChip(
@@ -718,9 +738,13 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
 
                               bool isDimmed = false;
                               if (_activeFilter == 'available') {
-                                isDimmed = isOccupied || seat.hasActiveSoftLock || seat.status == SeatStatus.maintenance;
+                                isDimmed = isOccupied || seat.hasActiveSoftLock || seat.status == SeatStatus.reserved || seat.status == SeatStatus.maintenance;
                               } else if (_activeFilter == 'occupied') {
                                 isDimmed = !isOccupied;
+                              } else if (_activeFilter == 'reserved') {
+                                isDimmed = !(seat.status == SeatStatus.reserved || seat.hasActiveSoftLock);
+                              } else if (_activeFilter == 'maintenance') {
+                                isDimmed = seat.status != SeatStatus.maintenance;
                               } else if (_activeFilter == 'boys') {
                                 isDimmed = seat.genderRestriction != GenderRestriction.male;
                               } else if (_activeFilter == 'girls') {

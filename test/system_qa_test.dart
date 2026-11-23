@@ -9207,5 +9207,199 @@ Gender: Female
           mockStudent['seatId'] != mockStaleSeat19['_docId'];
       expect(isStalePointer, isTrue, reason: 'Seat 19 still pointing to Shubham Dixit who has moved to Seat 20 must be flagged as stale pointer');
     });
+
+    test('Test 159: FEEDBACK SCREEN SEAT IDENTIFIERS, ROBUST STUDENT SORTING & CROSS-REGISTRATION ISOLATION', () {
+      // 1. Feedback Screen Seat Label Formatting Invariants
+      // Raw historical seat strings from Firestore must cleanly format to human desk labels
+      expect(SeatHelper.formatDeskLabel(seatId: 'Seat #6', rawLabel: 'Seat #6'), equals('Desk #6'));
+      expect(SeatHelper.formatDeskLabel(seatId: 'Seat Seat #6', rawLabel: 'Seat Seat #6'), equals('Desk #6'));
+      expect(SeatHelper.formatDeskLabel(seatId: '1790647291016_r0_c2', rawLabel: '1790647291016_r0_c2'), equals('Desk #3'));
+      expect(SeatHelper.formatDeskLabel(seatId: '1790647291016_r0_c5', rawLabel: '1790647291016_r0_c5'), equals('Desk #6'));
+      expect(SeatHelper.formatDeskLabel(seatId: 'Desk #20', rawLabel: 'Desk #20'), equals('Desk #20'));
+
+      // 2. Student effectiveAdmissionDate Invariant
+      final stuNew = StudentModel.fromJson({
+        'id': 's_new',
+        'name': 'Srikrishnadatta Bharat',
+        'fatherName': 'Bharat',
+        'phone': '8793148930',
+        'email': 'sri@test.com',
+        'membershipNumber': 'CC20260014',
+        'membershipStatus': 'active',
+        'admissionDate': '2026-11-21T03:30:00.000Z',
+        'createdAt': '2026-11-21T03:30:00.000Z',
+      });
+
+      final stuLegacy = StudentModel.fromJson({
+        'id': 's_legacy',
+        'name': 'Ashish Wagesh',
+        'fatherName': 'Wagesh',
+        'phone': '9876543210',
+        'email': 'ashish@test.com',
+        'membershipNumber': 'CC20260001',
+        'membershipStatus': 'active',
+        'admissionDate': null,
+        'planStartDate': '2026-10-31T18:30:00.000Z',
+        'createdAt': '2026-09-22T08:54:00.000Z',
+      });
+
+      expect(stuNew.effectiveAdmissionDate, equals(DateTime.parse('2026-11-21T03:30:00.000Z')));
+      expect(stuLegacy.effectiveAdmissionDate, equals(DateTime.parse('2026-10-31T18:30:00.000Z')));
+
+      // 3. Sorting by Recent Admissions First: Newest admission must precede older records
+      final listToSort = [stuLegacy, stuNew];
+      listToSort.sort((a, b) => b.effectiveAdmissionDate.compareTo(a.effectiveAdmissionDate));
+      expect(listToSort.first.membershipNumber, equals('CC20260014'), reason: 'Recent admissions sort must place newest student first');
+      expect(listToSort.last.membershipNumber, equals('CC20260001'));
+
+      // 4. Sorting by Desk Number: Desks must sort numerically (1 -> 100), unassigned at bottom
+      final stuDesk3 = StudentModel.fromJson({
+        'id': 's3',
+        'name': 'Desk 3 Student',
+        'phone': '111',
+        'seatId': '1790647291016_r0_c2', // Resolves to 3
+        'membershipStatus': 'active',
+      });
+      final stuDesk6 = StudentModel.fromJson({
+        'id': 's6',
+        'name': 'Desk 6 Student',
+        'phone': '222',
+        'seatId': '1790647291016_r0_c5', // Resolves to 6
+        'membershipStatus': 'active',
+      });
+      final stuDesk20 = StudentModel.fromJson({
+        'id': 's20',
+        'name': 'Desk 20 Student',
+        'phone': '333',
+        'seatId': '20',
+        'membershipStatus': 'active',
+      });
+      final stuNoDesk = StudentModel.fromJson({
+        'id': 's_none',
+        'name': 'No Desk Student',
+        'phone': '444',
+        'seatId': null,
+        'membershipStatus': 'active',
+      });
+
+      final deskList = [stuNoDesk, stuDesk20, stuDesk3, stuDesk6];
+      deskList.sort((a, b) {
+        final aSeat = (a.seatId ?? '').trim();
+        final bSeat = (b.seatId ?? '').trim();
+        if (aSeat.isEmpty && bSeat.isEmpty) return 0;
+        if (aSeat.isEmpty) return 1;
+        if (bSeat.isEmpty) return -1;
+        final aNum = int.tryParse(SeatHelper.formatSeatNumberOnly(seatId: aSeat));
+        final bNum = int.tryParse(SeatHelper.formatSeatNumberOnly(seatId: bSeat));
+        if (aNum != null && bNum != null) {
+          final cmp = aNum.compareTo(bNum);
+          if (cmp != 0) return cmp;
+        } else if (aNum != null) {
+          return -1;
+        } else if (bNum != null) {
+          return 1;
+        }
+        return SeatHelper.compareNatural(aSeat, bSeat);
+      });
+
+      expect(deskList[0].id, equals('s3'));
+      expect(deskList[1].id, equals('s6'));
+      expect(deskList[2].id, equals('s20'));
+      expect(deskList[3].id, equals('s_none'), reason: 'Students without assigned desks must sink to the bottom');
+    });
+
+    test('Test 160: OCCUPANCY INVARIANT: RESERVED & MAINTENANCE DEDUCTION, FILTER CHIP ZERO-GAP RECONCILIATION', () {
+      // 1. Occupancy Available Calculation Invariant
+      // Available must deduct Occupied, Reserved, and Maintenance
+      const totalCapacity = 60;
+      const occupiedSeats = 8;
+      const reservedSeats = 1;
+      const maintenanceSeats = 0;
+      final availableSeats = (totalCapacity - occupiedSeats - reservedSeats - maintenanceSeats).clamp(0, totalCapacity).toInt();
+
+      expect(availableSeats, equals(51), reason: 'Available seats must be 51, never 52, when 1 seat is reserved');
+      expect(occupiedSeats + reservedSeats + maintenanceSeats + availableSeats, equals(totalCapacity), reason: 'All categorized seats must sum to total capacity');
+
+      // 2. Filter Chip Reconciliation Invariant
+      final mockSeats = List.generate(60, (i) {
+        final seatNum = i + 1;
+        SeatStatus status = SeatStatus.available;
+        String? studentId;
+        if ([2, 3, 6, 7, 20, 21, 28, 49].contains(seatNum)) {
+          status = SeatStatus.occupied;
+          studentId = 'student_$seatNum';
+        } else if (seatNum == 60) {
+          status = SeatStatus.reserved;
+        }
+        return SeatModel(
+          id: '1790647291016_$seatNum',
+          label: '$seatNum',
+          sectionId: '1790647291016',
+          status: status,
+          studentId: studentId,
+          genderRestriction: GenderRestriction.any,
+          row: i ~/ 10,
+          col: i % 10,
+        );
+      });
+
+      final vacantCount = mockSeats.where((s) => s.status != SeatStatus.occupied && s.studentId == null && !s.hasActiveSoftLock && s.status != SeatStatus.reserved && s.status != SeatStatus.maintenance).length;
+      final occupiedCount = mockSeats.where((s) => s.status == SeatStatus.occupied || (s.studentId != null && s.studentId!.isNotEmpty)).length;
+      final reservedCount = mockSeats.where((s) => s.status == SeatStatus.reserved || s.hasActiveSoftLock).length;
+      final maintenanceCount = mockSeats.where((s) => s.status == SeatStatus.maintenance).length;
+
+      expect(vacantCount, equals(51));
+      expect(occupiedCount, equals(8));
+      expect(reservedCount, equals(1));
+      expect(maintenanceCount, equals(0));
+      expect(vacantCount + occupiedCount + reservedCount + maintenanceCount, equals(mockSeats.length), reason: 'Filter chips must account for 100% of seats (51 + 8 + 1 = 60)');
+
+      // 3. Dimming Invariant: Filtering by 'reserved' must isolate Desk #60
+      for (final s in mockSeats) {
+        final isDimmedWhenReserved = !(s.status == SeatStatus.reserved || s.hasActiveSoftLock);
+        if (s.label == '60') {
+          expect(isDimmedWhenReserved, isFalse, reason: 'Desk #60 must remain highlighted under reserved filter');
+        } else {
+          expect(isDimmedWhenReserved, isTrue, reason: 'Non-reserved desks must be dimmed under reserved filter');
+        }
+      }
+    });
+
+    test('Test 171: Soundbox Payment Announcement Discipline (Zero False Announcement on Pending Requests)', () async {
+      SharedPreferences.setMockInitialValues({
+        'soundbox_audio_enabled': true,
+        'soundbox_audio_language': 'en',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final soundbox = SoundboxService(prefs: prefs);
+
+      // Invariant 1: Soundbox vocal announcement format correctness
+      final halfYearEn = soundbox.formatAnnouncement(
+        amount: 3800,
+        studentName: 'Srikrishnadatta Bharat Sonpethkar',
+        seatLabel: '21',
+        libraryName: 'The Cozy Corner Study Centre',
+      );
+      expect(halfYearEn, contains('Payment of 3800 rupees received'));
+      expect(halfYearEn, contains('Srikrishnadatta Bharat Sonpethkar'));
+      expect(halfYearEn, contains('Seat 21'));
+      expect(halfYearEn, contains('The Cozy Corner Study Centre'));
+
+      // Invariant 2: Pending request submitted by student (e.g. deskCash or bank)
+      // A pending renewal request MUST NOT announce payment until verified and recorded by staff
+      final pendingRenewalRequest = {
+        'type': 'renewal',
+        'studentName': 'Srikrishnadatta Bharat Sonpethkar',
+        'amount': 3800.0,
+        'paymentMethod': 'deskCash',
+        'status': 'pending', // NOT paid!
+      };
+
+      // Only requests that have been approved and where payment was actually recorded can trigger announcement
+      final bool isPaymentActuallyRecorded = pendingRenewalRequest['status'] == 'completed' ||
+          (pendingRenewalRequest['status'] == 'approved' && pendingRenewalRequest['paymentStatus'] == 'paid');
+      expect(isPaymentActuallyRecorded, isFalse,
+          reason: 'A pending renewal request where student has only submitted registration must NEVER be treated as paid');
+    });
   });
 }

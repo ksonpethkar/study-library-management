@@ -46,6 +46,22 @@ class _StudentRegistrationWizardState
   bool _formPrepopulated = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Guardrail: Clear all stale registration data, prior photos, and seat choices
+    // to prevent cross-profile contamination when registering on shared devices.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(registrationNotifierProvider.notifier).clear();
+        ref.read(ocrResultProvider.notifier).clear();
+        ref.read(selectedSeatDetailsProvider.notifier).clear();
+        ref.read(selectedPlanProvider.notifier).clear();
+        ref.read(registrationStepProvider.notifier).reset();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();

@@ -554,6 +554,31 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
 
 ---
 
+## 32. Seat Map Disambiguation, Recursive Double Prefix Elimination & Legend Real-Time Invariants (Learned Nov 2026)
+
+1. **Desk Map Tile Occupant Disambiguation (`_formatTileName`):**
+   - Root Cause: In `SeatAssignmentMapSheet`, desk tiles truncated names with `occupant.name.split(' ').first`. When multiple students shared a common first name (e.g. `Shubham Dixit` and `Shubham Kandukatle`), both desks displayed `Shubham`, causing counter staff to believe the same student was assigned to multiple desks or causing confusion between Seat 19, Seat 20, and Seat 40. Furthermore, lowercase names (`srikrishnadatta`, `shubham dixit`) lacked proper Title Casing.
+   - Guardrail: In `SeatAssignmentMapSheet._formatTileName`, format occupant names with Title Casing and last-initial disambiguation (`First Name + Last Initial`, e.g. `Shubham D.` vs `Shubham K.`). For single-word names, format cleanly in Title Case (`Srikrishnadatta`, `Swati`).
+
+2. **Recursive Double Prefix Eradication (`SeatHelper.formatDeskLabel`):**
+   - Root Cause: In `SeatAssignmentMapSheet` lines 208, 368, and 884, string interpolation concatenated `'Desk #' + SeatHelper.formatSeatLabel(seatId: widget.currentSeatId)`. Since `formatSeatLabel` already produced `'Seat #20'`, the resulting string was `'Current: Desk #Seat #20'`.
+   - Guardrail: Never concatenate `'Desk #' + SeatHelper.formatSeatLabel(...)`. Always invoke `SeatHelper.formatDeskLabel(seatId: ...)` or `SeatHelper.formatSeatNumberOnly(...)`.
+
+3. **Current Desk Badge Semantic Clarity (`CURRENT` vs `MINE`):**
+   - Root Cause: Current desk tiles displayed `MINE`, which is student-centric and misleading in an Admin staff workflow.
+   - Guardrail: On admin assignment maps, display `CURRENT` with the purple star badge.
+
+4. **Status Legend Real-Time Grid Count Synchronization:**
+   - Root Cause: The legend ribbon calculated `availableCount` and `occupiedCount` using raw `s.status` without evaluating `s.effectiveStatus`, student assignments, or deducting `widget.currentSeatId`, causing the legend to state `Occupied (3)` while the grid displayed 4 occupied desks + 1 current desk.
+   - Guardrail: Compute legend metrics by iterating over the active section's seats using the exact same `effectiveStatus` and occupant presence rules as the grid tiles, ensuring 100% mathematical parity.
+
+5. **Stale Occupancy Pointer Auto-Detection (Cozy Sentinel):**
+   - Root Cause: When students were moved from one desk to another, legacy or partially updated records could leave previous desks (e.g. Seat 19) retaining `studentId`, creating ghost occupancy.
+   - Guardrail: In `DatabaseDiagnosticsService`, flag any seat whose `studentId` points to an active student whose `seatId` has moved elsewhere as `stale_seat_pointer` with 1-click auto-healing.
+
+
+---
+
 ## 32. Restore Desk 1-Tap Optimistic State Mutation, Column Calculation & Double-Prefix Guardrails (Learned Nov 2026)
 
 1. **1-Tap Optimistic State Mutation (0ms UI Latency vs 2-Tap User Confusion):**
@@ -628,6 +653,29 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
 2. **Public Live Seat Map Typo Auto-Healing & Realtime Resolution:**
    - Root Cause: When users opened the public seat map with a library ID typo (e.g. character 17 typed as '1' or 'l' instead of capital 'T'), Firestore returned 404, causing the web view to fall back to hardcoded client defaults (60 total, 60 available, 0 occupied).
    - Guardrail: Public seat map `public/seats/index.html` must implement fuzzy typo auto-healing and 404 fallback to `DEFAULT_LIBRARY_ID`. In `resolveEffectiveStatus`, evaluate `status === 'occupied' || Boolean(seat.studentId) || Boolean(seat.studentName)`.
+
+---
+
+## 36. Public Live Seat Map Responsive Touch Hints & Viewport Guardrails (Learned Nov 2026)
+
+1. **Intelligent Mobile Swipe Hint (`checkSwipeHint`):**
+   - Root Cause: An animated horizontal gesture tip (`👉 Swipe to view all desks`) was rendered unconditionally across all display sizes, including widescreen desktop monitors (1920x1080) where all 60 desks fit within the viewport and mouse/trackpad controls are used, causing user confusion ("Swipe to view all desks? what is this?").
+   - Guardrail:
+     a) CSS: `.swipe-hint` is set to `display: none;` by default. It is only displayed via `@media (max-width: 768px)` when the `.visible` class is present.
+     b) JS Invariant: `checkSwipeHint()` verifies both `window.innerWidth <= 768` AND horizontal content overflow (`viewport.scrollWidth > viewport.clientWidth + 16`) before adding `.visible`.
+     c) Auto-Fade & Interaction Dismissal: Auto-fade the hint after 4 seconds, dismiss immediately on scroll/touch, and remove it whenever the user clicks `⛶ Fit Hall`.
+
+---
+
+## 37. Soundbox Audio Announcement Discipline (Zero False Announcements on Pending Student Requests) (Learned Nov 2026)
+
+1. **Separation of Student Request Submission vs Admin Fund Collection:**
+   - Root Cause: In `renew_plan_screen.dart`, when a student submitted a renewal request (e.g. Half Year ₹3800, "Pay at Desk"), the code called `soundboxServiceProvider.announcePayment(amount: 3800)`. Because both admin and student portal run on the same Flutter codebase (or when testing on the same machine/browser), the Web Audio & SpeechSynthesis soundbox synthesized a vocal announcement: *"Payment of 3800 rupees received for Student Name on Cozy Corner"*, even though the student had only submitted a pending request and admin had not approved or collected any cash yet.
+   - Guardrail: Student self-serve actions (`renew_plan_screen.dart`, `registration_screen.dart`, seat change requests) MUST NEVER invoke `soundboxServiceProvider.announcePayment`. Spoken payment announcements are strictly reserved for:
+     a) Reception desk staff recording an offline/counter payment (`record_payment_screen.dart`).
+     b) Admin manually recording payment during student renewal (`student_detail_screen.dart`).
+     c) Admin approving a pending renewal request and recording payment (`request_detail_screen.dart`).
+
 
 
 

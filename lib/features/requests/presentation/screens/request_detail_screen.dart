@@ -23,6 +23,7 @@ import 'package:study_library/features/seats/presentation/providers/seat_provide
 import 'package:study_library/models/seat_model.dart';
 import '../widgets/admin_document_studio_dialog.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/services/app_notification_service.dart';
@@ -713,6 +714,16 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               'remainingDue': newDue,
             },
           ).ignore();
+
+          // Soundbox counter announcement on verified due clearance
+          try {
+            final libModel = ref.read(currentLibraryProvider).value;
+            ref.read(soundboxServiceProvider).announcePayment(
+              amount: paidAmount,
+              studentName: data['studentName'] ?? studentSnap.data()?['name'] ?? 'Student',
+              libraryName: libModel?.name,
+            );
+          } catch (_) {}
         }
       }
 
@@ -4913,6 +4924,17 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       ).ignore();
 
       ref.invalidate(studentsStreamProvider);
+
+      // Soundbox counter announcement on verified admin payment recording
+      try {
+        final libModel = ref.read(currentLibraryProvider).value;
+        ref.read(soundboxServiceProvider).announcePayment(
+          amount: amount,
+          studentName: studentName,
+          seatLabel: assignedSeatId != null ? SeatHelper.formatSeatLabel(seatId: assignedSeatId) : null,
+          libraryName: libModel?.name,
+        );
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

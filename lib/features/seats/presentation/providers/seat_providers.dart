@@ -65,6 +65,9 @@ final occupancyProvider = StreamProvider<Map<String, int>>((ref) async* {
         .fold<int>(0, (sum, s) => sum + s.capacity);
 
     final occupiedSeatKeys = <String>{};
+    final reservedSeatKeys = <String>{};
+    final maintenanceSeatKeys = <String>{};
+
     for (final s in students) {
       if ((s.membershipStatus == MembershipStatus.active || s.membershipStatus == MembershipStatus.grace) &&
           s.seatId != null &&
@@ -75,19 +78,28 @@ final occupancyProvider = StreamProvider<Map<String, int>>((ref) async* {
       }
     }
     for (final seat in allSeats) {
+      final numOnly = SeatHelper.formatSeatNumberOnly(seatId: seat.id, rawLabel: seat.label);
+      final key = numOnly.isNotEmpty ? 'seat_num_$numOnly' : seat.id;
       if (seat.isOccupied || (seat.studentId != null && seat.studentId!.isNotEmpty)) {
-        final numOnly = SeatHelper.formatSeatNumberOnly(seatId: seat.id, rawLabel: seat.label);
-        occupiedSeatKeys.add(numOnly.isNotEmpty ? 'seat_num_$numOnly' : seat.id);
+        occupiedSeatKeys.add(key);
+      } else if (seat.status == SeatStatus.reserved || seat.hasActiveSoftLock) {
+        reservedSeatKeys.add(key);
+      } else if (seat.status == SeatStatus.maintenance) {
+        maintenanceSeatKeys.add(key);
       }
     }
 
     final occupiedSeats = occupiedSeatKeys.length;
-    final availableSeats = (totalCapacity - occupiedSeats).clamp(0, totalCapacity).toInt();
+    final reservedSeats = reservedSeatKeys.length;
+    final maintenanceSeats = maintenanceSeatKeys.length;
+    final availableSeats = (totalCapacity - occupiedSeats - reservedSeats - maintenanceSeats).clamp(0, totalCapacity).toInt();
 
     yield {
       'total': totalCapacity,
       'occupied': occupiedSeats,
       'available': availableSeats,
+      'reserved': reservedSeats,
+      'maintenance': maintenanceSeats,
     };
   } else {
     // Initial / fallback count

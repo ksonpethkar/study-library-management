@@ -1407,6 +1407,8 @@ class SeatRepository {
       int total = 0;
       int occupied = 0;
       int available = 0;
+      int reserved = 0;
+      int maintenance = 0;
 
       // For each section, count seats
       for (var sectionDoc in sectionsSnapshot.docs) {
@@ -1433,15 +1435,25 @@ class SeatRepository {
               resExpires != null &&
               resExpires.isAfter(DateTime.now());
 
-          if (status == SeatStatus.occupied.name || isSoftLockActive) {
+          if (status == SeatStatus.occupied.name) {
             occupied++;
+          } else if (status == SeatStatus.reserved.name || isSoftLockActive) {
+            reserved++;
+          } else if (status == SeatStatus.maintenance.name) {
+            maintenance++;
           } else {
             available++;
           }
         }
       }
 
-      return {'total': total, 'occupied': occupied, 'available': available};
+      return {
+        'total': total,
+        'occupied': occupied,
+        'available': available,
+        'reserved': reserved,
+        'maintenance': maintenance,
+      };
     } catch (e) {
       return {'total': 0, 'occupied': 0, 'available': 0};
     }

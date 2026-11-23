@@ -1417,7 +1417,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                           child: _buildMicroMetricTile(
                             label: 'Available',
                             value: '$availableSeats',
-                            subtext: 'ready to assign',
+                            subtext: (occ['reserved'] != null && occ['reserved']! > 0)
+                                ? 'ready (${occ['reserved']} res)'
+                                : 'ready to assign',
                             color: const Color(0xFF10B981),
                             icon: Icons.chair_rounded,
                             onTap: () => context.push(Routes.adminSeats),
