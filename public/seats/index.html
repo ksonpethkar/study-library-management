@@ -361,10 +361,18 @@
     }
 
     .swipe-hint {
+      display: none;
       color: var(--primary-accent);
       font-size: 0.75rem;
       font-weight: 700;
       animation: nudge 2s ease-in-out infinite;
+      transition: opacity 0.4s ease;
+    }
+
+    @media (max-width: 768px) {
+      .swipe-hint.visible {
+        display: inline-block;
+      }
     }
 
     @keyframes nudge {
@@ -1111,6 +1119,10 @@
         setZoom(fitScale);
         viewport.scrollLeft = 0;
       }
+      const hint = document.getElementById('swipeHint');
+      if (hint) {
+        hint.classList.remove('visible');
+      }
     }
 
     // Local Storage Caching
@@ -1249,10 +1261,6 @@
             cleanupSubscriptions();
             attachLiveListeners();
             fetchViaRestApi(DEFAULT_LIBRARY_ID, activeSectionId);
-            return;
-          }
-        }
-            attachLiveListeners();
             return;
           }
         }
@@ -1461,6 +1469,9 @@
 
         grid.appendChild(div);
       });
+
+      // Show swipe hint only on mobile screens if content actually overflows
+      checkSwipeHint();
     }
 
     function onSeatClick(seatId, label, status, gender) {
@@ -1565,14 +1576,36 @@
       }
     }
 
-    // Hide scroll hint once user scrolls
+    // Intelligent Mobile Swipe Hint (hidden on desktop; auto-fades on mobile)
+    function checkSwipeHint() {
+      const hint = document.getElementById('swipeHint');
+      const viewport = document.getElementById('seatScrollViewport');
+      if (!hint || !viewport) return;
+      const isMobile = window.innerWidth <= 768;
+      const isOverflowing = viewport.scrollWidth > viewport.clientWidth + 16;
+      if (isMobile && isOverflowing) {
+        hint.classList.add('visible');
+        hint.style.opacity = '1';
+        setTimeout(() => {
+          hint.style.opacity = '0';
+          setTimeout(() => hint.classList.remove('visible'), 400);
+        }, 4000);
+      } else {
+        hint.classList.remove('visible');
+      }
+    }
+
     const scrollViewport = document.getElementById('seatScrollViewport');
     if (scrollViewport) {
       scrollViewport.addEventListener('scroll', () => {
         const hint = document.getElementById('swipeHint');
-        if (hint) hint.style.opacity = '0.3';
+        if (hint && hint.classList.contains('visible')) {
+          hint.style.opacity = '0';
+          setTimeout(() => hint.classList.remove('visible'), 400);
+        }
       }, { passive: true });
     }
+    window.addEventListener('resize', checkSwipeHint, { passive: true });
 
     // Master Initialization
     function init() {
