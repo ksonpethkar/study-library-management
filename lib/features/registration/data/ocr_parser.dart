@@ -87,23 +87,110 @@ class OcrResult {
         'isQrVerified': isQrVerified ? 'true' : 'false',
       };
 
-  /// Returns only non-null fields for auto-fill display
-  Map<String, String> filledFields() {
+  /// Sanitizes OCR output to ensure ONLY deterministic, 100% format-valid
+  /// fields are accepted. Inaccurate, noisy, or misplaced fields (e.g. name placed in DOB)
+  /// are stripped to null so the user can cleanly enter them manually.
+  OcrResult sanitized([GovIdType? type]) {
+    final effectiveType = type ?? GovIdType.aadhaar;
+
+    // 1. Strict Name Validation
+    String? validName = name?.trim();
+    if (validName != null && !GovIdValidator.isValidName(validName)) {
+      validName = null;
+    }
+
+    // 2. Strict Father / Guardian Name Validation
+    String? validFather = fatherName?.trim();
+    if (validFather != null && (!GovIdValidator.isValidName(validFather) || validFather == validName)) {
+      validFather = null;
+    }
+
+    // 3. Strict DOB Validation: MUST be valid date format with age 10-100, no letters!
+    String? validDob = dob?.trim();
+    if (validDob != null && !GovIdValidator.isValidDob(validDob)) {
+      validDob = null;
+    }
+
+    // 4. Strict Gender Validation: only 'male', 'female', or 'other'
+    String? validGender = gender?.trim().toLowerCase();
+    if (validGender != 'male' && validGender != 'female' && validGender != 'other') {
+      validGender = null;
+    }
+
+    // 5. Strict Gov ID Number Validation
+    String? validId = idNumber?.trim();
+    if (validId != null && !GovIdValidator.isValid(effectiveType, validId)) {
+      validId = null;
+    }
+
+    // 6. Strict PIN Code Validation
+    String? validPin = pinCode?.trim();
+    if (validPin != null && !GovIdValidator.isValidPinCode(validPin)) {
+      validPin = null;
+    }
+
+    // 7. Strict Phone Validation
+    String? validPhone = phone?.trim();
+    if (validPhone != null && !RegExp(r'^[6-9]\d{9}$').hasMatch(validPhone)) {
+      validPhone = null;
+    }
+
+    // 8. Strict Blood Group Validation
+    String? validBlood = bloodGroup?.trim().toUpperCase();
+    if (validBlood != null && !RegExp(r'^(A|B|AB|O)[+-]$').hasMatch(validBlood)) {
+      validBlood = null;
+    }
+
+    // 9. Address
+    String? validAddress = address?.trim();
+    if (validAddress != null && !GovIdValidator.isValidAddress(validAddress)) {
+      validAddress = null;
+    }
+
+    return OcrResult(
+      name: validName,
+      fatherName: validFather,
+      dob: validDob,
+      gender: validGender,
+      idNumber: validId,
+      address: validAddress,
+      pinCode: validPin,
+      district: district,
+      state: state,
+      bloodGroup: validBlood,
+      phone: validPhone,
+      email: email,
+      college: college,
+      course: course,
+      rollNumber: rollNumber,
+      vehicleClass: vehicleClass,
+      expiryDate: expiryDate,
+      issuedDate: issuedDate,
+      confidence: confidence,
+      rawText: rawText,
+      qrData: qrData,
+      isQrVerified: isQrVerified,
+    );
+  }
+
+  /// Returns only validated non-null fields for auto-fill and preview display
+  Map<String, String> filledFields([GovIdType? type]) {
+    final clean = sanitized(type);
     final map = <String, String>{};
-    if (name != null) map['name'] = name!;
-    if (fatherName != null) map['fatherName'] = fatherName!;
-    if (dob != null) map['dob'] = dob!;
-    if (gender != null) map['gender'] = gender!;
-    if (idNumber != null) map['idNumber'] = idNumber!;
-    if (address != null) map['address'] = address!;
-    if (pinCode != null) map['pinCode'] = pinCode!;
-    if (bloodGroup != null) map['bloodGroup'] = bloodGroup!;
-    if (phone != null) map['phone'] = phone!;
-    if (vehicleClass != null) map['vehicleClass'] = vehicleClass!;
-    if (college != null) map['college'] = college!;
-    if (course != null) map['course'] = course!;
-    if (rollNumber != null) map['rollNumber'] = rollNumber!;
-    if (isQrVerified) map['isQrVerified'] = 'true';
+    if (clean.name != null && clean.name!.isNotEmpty) map['name'] = clean.name!;
+    if (clean.fatherName != null && clean.fatherName!.isNotEmpty) map['fatherName'] = clean.fatherName!;
+    if (clean.dob != null && clean.dob!.isNotEmpty) map['dob'] = clean.dob!;
+    if (clean.gender != null && clean.gender!.isNotEmpty) map['gender'] = clean.gender!;
+    if (clean.idNumber != null && clean.idNumber!.isNotEmpty) map['idNumber'] = clean.idNumber!;
+    if (clean.address != null && clean.address!.isNotEmpty) map['address'] = clean.address!;
+    if (clean.pinCode != null && clean.pinCode!.isNotEmpty) map['pinCode'] = clean.pinCode!;
+    if (clean.bloodGroup != null && clean.bloodGroup!.isNotEmpty) map['bloodGroup'] = clean.bloodGroup!;
+    if (clean.phone != null && clean.phone!.isNotEmpty) map['phone'] = clean.phone!;
+    if (clean.vehicleClass != null && clean.vehicleClass!.isNotEmpty) map['vehicleClass'] = clean.vehicleClass!;
+    if (clean.college != null && clean.college!.isNotEmpty) map['college'] = clean.college!;
+    if (clean.course != null && clean.course!.isNotEmpty) map['course'] = clean.course!;
+    if (clean.rollNumber != null && clean.rollNumber!.isNotEmpty) map['rollNumber'] = clean.rollNumber!;
+    if (clean.isQrVerified) map['isQrVerified'] = 'true';
     return map;
   }
 
@@ -386,11 +473,16 @@ class QrIdParser {
         idNumber = 'XXXX XXXX ${refId.substring(refId.length - 4)}';
       }
 
+      final formattedRawDob = rawDob?.replaceAll('-', '/');
+      final validDob = (formattedRawDob != null && GovIdValidator.isValidDob(formattedRawDob))
+          ? formattedRawDob
+          : null;
+
       return QrIdResult(
         type: GovIdType.aadhaar,
         name: name,
         fatherName: fatherName,
-        dob: rawDob?.replaceAll('-', '/'),
+        dob: validDob,
         gender: gender,
         idNumber: idNumber,
         address: address,
@@ -1605,7 +1697,8 @@ class OcrParser {
       if (dobLabelPattern.hasMatch(line)) {
         final match = datePattern.firstMatch(line);
         if (match != null) {
-          return '${match.group(1)}/${match.group(2)}/${match.group(3)}';
+          final candidate = '${match.group(1)}/${match.group(2)}/${match.group(3)}';
+          if (GovIdValidator.isValidDob(candidate)) return candidate;
         }
       }
     }
@@ -1615,7 +1708,8 @@ class OcrParser {
       if (dobLabelPattern.hasMatch(lines[i])) {
         final match = datePattern.firstMatch(lines[i + 1]);
         if (match != null) {
-          return '${match.group(1)}/${match.group(2)}/${match.group(3)}';
+          final candidate = '${match.group(1)}/${match.group(2)}/${match.group(3)}';
+          if (GovIdValidator.isValidDob(candidate)) return candidate;
         }
       }
     }
@@ -1626,16 +1720,17 @@ class OcrParser {
       if (issuePattern.hasMatch(line)) continue;
       final match = datePattern.firstMatch(line);
       if (match != null) {
-        final year = int.tryParse(match.group(3) ?? '');
-        if (year != null && year >= 1920 && year <= 2015) {
-          return '${match.group(1)}/${match.group(2)}/${match.group(3)}';
-        }
+        final candidate = '${match.group(1)}/${match.group(2)}/${match.group(3)}';
+        if (GovIdValidator.isValidDob(candidate)) return candidate;
       }
     }
 
     final match = datePattern.firstMatch(text);
-    if (match == null) return null;
-    return '${match.group(1)}/${match.group(2)}/${match.group(3)}';
+    if (match != null) {
+      final candidate = '${match.group(1)}/${match.group(2)}/${match.group(3)}';
+      if (GovIdValidator.isValidDob(candidate)) return candidate;
+    }
+    return null;
   }
 
   static String? _extractPin(String text) {

@@ -344,7 +344,11 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                       dynamicId: dynamicId,
                       validTillText: student.planEndDate != null
                           ? dateFormat.format(student.planEndDate!)
-                          : 'Active',
+                          : ((student.effectiveMembershipStatus == MembershipStatus.inactive ||
+                                  student.effectiveMembershipStatus == MembershipStatus.pending ||
+                                  student.planEndDate == null)
+                              ? 'Awaiting Payment'
+                              : 'Active'),
                       theme: theme,
                     ),
                   ],
@@ -612,6 +616,95 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
       );
     }
 
+    final isPaymentPending = effectiveStatus == MembershipStatus.inactive ||
+        effectiveStatus == MembershipStatus.pending ||
+        (student.planEndDate == null && effectiveStatus != MembershipStatus.active);
+
+    if (isPaymentPending) {
+      final isDark = theme.brightness == Brightness.dark;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2D1F08) : const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.6 : 0.4),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Color(0x33F59E0B),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.pending_actions_rounded,
+                    color: Color(0xFFD97706),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Admission Approved • Pass Awaiting Fee Payment',
+                        style: TextStyle(
+                          color: Color(0xFFD97706),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your admission is approved and ${seatText.isNotEmpty ? seatText : "your desk"} is held for you. Please complete fee payment at reception or via UPI to activate your pass, daily entry barcode, and official receipt.',
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: () async {
+              final helpline = library?.effectiveHelpline ?? library?.contact ?? '';
+              if (helpline.isNotEmpty) {
+                final clean = helpline.replaceAll(RegExp(r'[^0-9]'), '');
+                final msg = Uri.encodeComponent(
+                  'Hello! My admission is approved for ${student.name} ($seatText). I would like to complete fee payment to activate my pass.',
+                );
+                final uri = Uri.parse('https://wa.me/$clean?text=$msg');
+                if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 18),
+            label: const Text(
+              'Contact Reception on WhatsApp',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      );
+    }
+
     // Default / Active Pass Banner & WhatsApp Sharing
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -716,10 +809,13 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     final isExpired = effectiveStatus == MembershipStatus.expired;
     final isGrace = effectiveStatus == MembershipStatus.grace;
     final isBlocked = effectiveStatus == MembershipStatus.blocked;
+    final isPaymentPending = effectiveStatus == MembershipStatus.inactive ||
+        effectiveStatus == MembershipStatus.pending ||
+        (student.planEndDate == null && effectiveStatus != MembershipStatus.active);
 
     final validTillText = student.planEndDate != null
         ? dateFormat.format(student.planEndDate!)
-        : 'Active';
+        : (isPaymentPending ? 'Awaiting Payment' : 'Active');
 
     final logoProvider = (library != null && library.logoUrl.isNotEmpty)
         ? ImageService.getImageProvider(library.logoUrl)
@@ -749,7 +845,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
           BoxShadow(
             color: (isExpired || isBlocked
                     ? const Color(0xFFEF4444)
-                    : isGrace
+                    : isGrace || isPaymentPending
                         ? const Color(0xFFF59E0B)
                         : gradientColors.first)
                 .withValues(alpha: isFlipping ? 0.20 : 0.40),
@@ -760,10 +856,10 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
         border: Border.all(
           color: isExpired || isBlocked
               ? const Color(0xFFEF4444).withValues(alpha: 0.75)
-              : isGrace
+              : isGrace || isPaymentPending
                   ? const Color(0xFFF59E0B).withValues(alpha: 0.75)
                   : Colors.white.withValues(alpha: 0.25),
-          width: (isExpired || isBlocked || isGrace) ? 1.6 : 1.2,
+          width: (isExpired || isBlocked || isGrace || isPaymentPending) ? 1.6 : 1.2,
         ),
       ),
       child: ClipRRect(
@@ -878,14 +974,14 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                         decoration: BoxDecoration(
                           color: isExpired || isBlocked
                               ? const Color(0x33EF4444)
-                              : isGrace
+                              : isGrace || isPaymentPending
                                   ? const Color(0x33F59E0B)
                                   : const Color(0x3310B981),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isExpired || isBlocked
                                 ? const Color(0x80EF4444)
-                                : isGrace
+                                : isGrace || isPaymentPending
                                     ? const Color(0x80F59E0B)
                                     : const Color(0x6634D399),
                           ),
@@ -897,11 +993,13 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                   ? 'EXPIRED PASS'
                                   : isGrace
                                       ? 'GRACE PERIOD'
-                                      : 'ACTIVE PASS',
+                                      : isPaymentPending
+                                          ? 'AWAITING PAYMENT'
+                                          : 'ACTIVE PASS',
                           style: TextStyle(
                             color: isExpired || isBlocked
                                 ? const Color(0xFFFCA5A5)
-                                : isGrace
+                                : isGrace || isPaymentPending
                                     ? const Color(0xFFFDE68A)
                                     : const Color(0xFF6EE7B7),
                             fontWeight: FontWeight.bold,
@@ -1001,7 +1099,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                 decoration: BoxDecoration(
                                   color: isExpired || isBlocked
                                       ? const Color(0xFFEF4444)
-                                      : isGrace
+                                      : isGrace || isPaymentPending
                                           ? const Color(0xFFF59E0B)
                                           : const Color(0xFF10B981),
                                   shape: BoxShape.circle,
@@ -1014,7 +1112,9 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                           ? Icons.close_rounded
                                           : isGrace
                                               ? Icons.access_time_rounded
-                                              : Icons.check_rounded,
+                                              : isPaymentPending
+                                                  ? Icons.schedule_rounded
+                                                  : Icons.check_rounded,
                                   color: Colors.white,
                                   size: 12,
                                 ),
@@ -1055,14 +1155,14 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                   decoration: BoxDecoration(
                                     color: isExpired || isBlocked
                                         ? const Color(0x26EF4444)
-                                        : isGrace
+                                        : isGrace || isPaymentPending
                                             ? const Color(0x26F59E0B)
                                             : const Color(0x2610B981),
                                     borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
                                       color: isExpired || isBlocked
                                           ? const Color(0x66EF4444)
-                                          : isGrace
+                                          : isGrace || isPaymentPending
                                               ? const Color(0x66F59E0B)
                                               : const Color(0x6610B981),
                                     ),
@@ -1072,7 +1172,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                     style: TextStyle(
                                       color: isExpired || isBlocked
                                           ? const Color(0xFFFCA5A5)
-                                          : isGrace
+                                          : isGrace || isPaymentPending
                                               ? const Color(0xFFFDE68A)
                                               : const Color(0xFF6EE7B7),
                                       fontSize: 11,
@@ -1138,15 +1238,19 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                     Expanded(
                                       child: Text.rich(
                                         TextSpan(
-                                          text: isExpired ? 'Expired: ' : (isGrace ? 'Grace: ' : 'Valid: '),
+                                          text: isExpired
+                                              ? 'Expired: '
+                                              : (isGrace
+                                                  ? 'Grace: '
+                                                  : (isPaymentPending ? 'Status: ' : 'Valid: ')),
                                           style: TextStyle(
                                             color: isExpired
                                                 ? const Color(0xFFFCA5A5)
-                                                : isGrace
+                                                : isGrace || isPaymentPending
                                                     ? const Color(0xFFFDE68A)
                                                     : Colors.white.withValues(alpha: 0.7),
                                             fontSize: 10.5,
-                                            fontWeight: isExpired || isGrace ? FontWeight.bold : FontWeight.normal,
+                                            fontWeight: isExpired || isGrace || isPaymentPending ? FontWeight.bold : FontWeight.normal,
                                           ),
                                           children: [
                                             TextSpan(
@@ -1154,7 +1258,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                               style: TextStyle(
                                                 color: isExpired
                                                     ? const Color(0xFFFCA5A5)
-                                                    : isGrace
+                                                    : isGrace || isPaymentPending
                                                         ? const Color(0xFFFDE68A)
                                                         : Colors.white,
                                                 fontWeight: FontWeight.bold,
@@ -1250,7 +1354,10 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                             decoration: BoxDecoration(
                               color: Colors.black.withValues(alpha: 0.25),
                               borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4), width: 0.6),
+                              border: Border.all(
+                                color: (isPaymentPending ? const Color(0xFFF59E0B) : const Color(0xFF10B981)).withValues(alpha: 0.4),
+                                width: 0.6,
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1258,16 +1365,16 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                 Container(
                                   width: 4.5,
                                   height: 4.5,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF10B981),
+                                  decoration: BoxDecoration(
+                                    color: isPaymentPending ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
                                 const SizedBox(width: 3.5),
                                 Text(
-                                  'LIVE $timeStr',
-                                  style: const TextStyle(
-                                    color: Color(0xFF6EE7B7),
+                                  isPaymentPending ? 'PENDING $timeStr' : 'LIVE $timeStr',
+                                  style: TextStyle(
+                                    color: isPaymentPending ? const Color(0xFFFDE68A) : const Color(0xFF6EE7B7),
                                     fontSize: 8,
                                     fontFamily: 'monospace',
                                     fontWeight: FontWeight.bold,
@@ -1328,6 +1435,9 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     final isExpired = effectiveStatus == MembershipStatus.expired;
     final isGrace = effectiveStatus == MembershipStatus.grace;
     final isBlocked = effectiveStatus == MembershipStatus.blocked;
+    final isPaymentPending = effectiveStatus == MembershipStatus.inactive ||
+        effectiveStatus == MembershipStatus.pending ||
+        (student.planEndDate == null && effectiveStatus != MembershipStatus.active);
     final accentColor = _getThemeAccent(activeTheme, Color(library?.accentColor ?? 0xFF1E3A8A), gradientColors);
 
     final effectiveHelpline = library?.effectiveHelpline.isNotEmpty == true
@@ -1530,14 +1640,14 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                 decoration: BoxDecoration(
                                   color: isExpired || isBlocked
                                       ? const Color(0x33EF4444)
-                                      : isGrace
+                                      : isGrace || isPaymentPending
                                           ? const Color(0x33F59E0B)
                                           : accentColor.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(5),
                                   border: Border.all(
                                     color: isExpired || isBlocked
                                         ? const Color(0x66EF4444)
-                                        : isGrace
+                                        : isGrace || isPaymentPending
                                             ? const Color(0x66F59E0B)
                                             : accentColor.withValues(alpha: 0.5),
                                   ),
@@ -1549,13 +1659,15 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                           ? 'EXPIRED'
                                           : isGrace
                                               ? 'GRACE'
-                                              : 'MEMBER',
+                                              : isPaymentPending
+                                                  ? 'PENDING'
+                                                  : 'MEMBER',
                                   style: TextStyle(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.bold,
                                     color: isExpired || isBlocked
                                         ? const Color(0xFFF87171)
-                                        : isGrace
+                                        : isGrace || isPaymentPending
                                             ? const Color(0xFFFDE68A)
                                             : accentColor,
                                     letterSpacing: 0.8,

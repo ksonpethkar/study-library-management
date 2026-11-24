@@ -159,7 +159,7 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
           .doc('id_card_template')
           .set({
         'cardTheme': themeId,
-        if (themeId.startsWith('#')) 'customColorHex': themeId,
+        'customColorHex': themeId.startsWith('#') ? themeId : FieldValue.delete(),
       }, SetOptions(merge: true));
 
       ref.invalidate(idCardTemplateProvider);

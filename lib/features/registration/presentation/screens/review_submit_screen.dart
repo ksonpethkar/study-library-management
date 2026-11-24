@@ -47,20 +47,29 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
   /// Converts DD/MM/YYYY display format (used by date picker) to ISO 8601 string.
   /// StudentModel._parseDate() uses DateTime.tryParse which requires ISO 8601.
   static String? _parseDobToIso(String? dob) {
-    if (dob == null || dob.isEmpty) return null;
+    if (dob == null || dob.trim().isEmpty) return null;
+    final clean = dob.trim();
     // Already ISO format
-    if (DateTime.tryParse(dob) != null) return dob;
-    // DD/MM/YYYY format
-    final parts = dob.split('/');
-    if (parts.length == 3) {
-      final day = int.tryParse(parts[0]);
-      final month = int.tryParse(parts[1]);
-      final year = int.tryParse(parts[2]);
-      if (day != null && month != null && year != null) {
-        return DateTime(year, month, day).toIso8601String();
+    final parsedIso = DateTime.tryParse(clean);
+    if (parsedIso != null && parsedIso.year >= 1920 && parsedIso.year <= DateTime.now().year) {
+      return parsedIso.toIso8601String();
+    }
+    // DD/MM/YYYY or DD-MM-YYYY format
+    final sep = clean.contains('/') ? '/' : (clean.contains('-') ? '-' : null);
+    if (sep != null) {
+      final parts = clean.split(sep);
+      if (parts.length == 3) {
+        final day = int.tryParse(parts[0]);
+        final month = int.tryParse(parts[1]);
+        final year = int.tryParse(parts[2]);
+        if (day != null && month != null && year != null) {
+          if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1920 && year <= DateTime.now().year) {
+            return DateTime(year, month, day).toIso8601String();
+          }
+        }
       }
     }
-    return dob; // return as-is if cannot parse
+    return null; // Discard invalid/non-date strings
   }
 
   Future<bool> _promptSignInDialog() async {
@@ -387,6 +396,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'planName': resolvedPlanName,
         'proratedFee': smartCalc?.proratedPrice,
         'planPrice': selectedPlan?.price,
+        'amount': smartCalc?.proratedPrice ?? selectedPlan?.price,
         'daysRemaining': smartCalc?.daysRemaining,
         'cycleStartDate': smartCalc?.startDate.toIso8601String(),
         'cycleEndDate': smartCalc?.endDate.toIso8601String(),
@@ -413,6 +423,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'planName': resolvedPlanName,
         'proratedFee': smartCalc?.proratedPrice,
         'planPrice': selectedPlan?.price,
+        'amount': smartCalc?.proratedPrice ?? selectedPlan?.price,
         'daysRemaining': smartCalc?.daysRemaining,
         'cycleStartDate': smartCalc?.startDate.toIso8601String(),
         'cycleEndDate': smartCalc?.endDate.toIso8601String(),

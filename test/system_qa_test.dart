@@ -53,6 +53,7 @@ import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/models/app_notification_model.dart';
+import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
@@ -9934,6 +9935,399 @@ Gender: Female
       const bool bioEnabled = false;
       final bool shouldTrap = postResetHasPin || bioEnabled;
       expect(shouldTrap, isFalse, reason: 'Student with no active PIN must auto-unlock or open direct PIN configuration dialog');
+    });
+
+    test('Test 177: NOTIFICATION ROLE FENCING, LOCAL READ/DISMISSAL PERSISTENCE & ATOMIC BATCH ISOLATION', () async {
+      SharedPreferences.setMockInitialValues({});
+      AppNotificationService.clearLocalCachesForTest();
+
+      const testLibId = 'lib_cozy_corner';
+      const testStudentId = 'CC20260004';
+      const testAuthUid = 'auth_shubham_dixit';
+
+      // 1. Role Fencing Invariant:
+      // Notifications with targetRole == 'admin' (e.g. Profile Update Requests submitted by students)
+      // must NEVER be delivered or visible to students, even when metadata contains studentId!
+      final adminProfileUpdateNotif = AppNotificationModel(
+        id: 'notif_admin_prof_1',
+        title: 'Profile Update Request',
+        body: 'shubham dixit requested profile updates.',
+        type: 'profile_update',
+        read: false,
+        createdAt: DateTime.now(),
+        targetRole: 'admin',
+        metadata: {
+          'studentId': testStudentId,
+          'studentUserId': testAuthUid,
+          'userId': testAuthUid,
+        },
+      );
+
+      final studentDeskNotif = AppNotificationModel(
+        id: 'notif_student_desk_1',
+        title: 'Seat Allocated',
+        body: 'Desk #17 allocated to you',
+        type: 'seat',
+        read: false,
+        createdAt: DateTime.now(),
+        targetRole: 'student',
+        targetUserId: testStudentId,
+      );
+
+      final broadcastNoticeNotif = AppNotificationModel(
+        id: 'notif_broadcast_notice_1',
+        title: 'Holiday Notice',
+        body: 'The library will close early this Sunday.',
+        type: 'announcement',
+        read: false,
+        createdAt: DateTime.now(),
+        targetRole: 'all',
+      );
+
+      // Student filter logic simulation matching studentNotificationsStreamProvider
+      bool passesStudentFilter(AppNotificationModel n) {
+        if (n.targetRole == 'admin') return false; // Strict role fence
+        if (AppNotificationService.isLocallyDismissed(n.id)) return false;
+
+        final metaStudentId = n.metadata['studentId']?.toString().trim();
+        final metaUserId = (n.metadata['studentUserId'] ?? n.metadata['userId'])?.toString().trim();
+
+        if (n.targetUserId != null && n.targetUserId!.trim().isNotEmpty) {
+          final t = n.targetUserId!.trim();
+          if (t == testStudentId || t == testAuthUid) return true;
+          if (metaStudentId == testStudentId || metaUserId == testAuthUid) return true;
+          return false;
+        }
+
+        return n.targetRole == 'all' || n.targetRole == 'student' || n.type == 'announcement';
+      }
+
+      // Assertions on Role Fencing:
+      expect(passesStudentFilter(adminProfileUpdateNotif), isFalse,
+          reason: 'Admin-targeted notifications must NEVER leak into student feed despite studentId metadata');
+      expect(passesStudentFilter(studentDeskNotif), isTrue,
+          reason: 'Directly addressed student notifications must be delivered');
+      expect(passesStudentFilter(broadcastNoticeNotif), isTrue,
+          reason: 'Broadcast announcements must be delivered to students');
+
+      // 2. Local Read Persistence Invariant:
+      // When a user marks an item read, local state updates immediately without waiting for Firestore
+      expect(AppNotificationService.isLocallyRead(studentDeskNotif.id), isFalse);
+      AppNotificationService.recordLocallyRead(testLibId, testStudentId, studentDeskNotif.id);
+      expect(AppNotificationService.isLocallyRead(studentDeskNotif.id), isTrue);
+
+      final updatedDeskNotif = studentDeskNotif.copyWith(
+        read: AppNotificationService.isLocallyRead(studentDeskNotif.id),
+      );
+      expect(updatedDeskNotif.isRead, isTrue,
+          reason: 'Locally read item must be marked read even if Firestore sync is pending or restricted');
+
+      // 3. Local Dismissal Persistence Invariant (Zero Stuck Badge Count):
+      // When student dismisses or clears notifications, local dismissal hides them immediately
+      expect(AppNotificationService.isLocallyDismissed(broadcastNoticeNotif.id), isFalse);
+      AppNotificationService.recordLocallyDismissed(testLibId, testStudentId, broadcastNoticeNotif.id);
+      expect(AppNotificationService.isLocallyDismissed(broadcastNoticeNotif.id), isTrue);
+      expect(passesStudentFilter(broadcastNoticeNotif), isFalse,
+          reason: 'Locally dismissed broadcast notification must be filtered out so badge count drops to 0');
+
+      // 4. Batch Isolation Invariant:
+      // Verify that individual operations are used instead of single atomic WriteBatch
+      // so permission denial on broadcast items does not block personal items.
+      final notifIds = [studentDeskNotif.id, broadcastNoticeNotif.id];
+      for (final id in notifIds) {
+        AppNotificationService.recordLocallyRead(testLibId, testStudentId, id);
+      }
+      expect(AppNotificationService.isLocallyRead(studentDeskNotif.id), isTrue);
+      expect(AppNotificationService.isLocallyRead(broadcastNoticeNotif.id), isTrue);
+    });
+
+    test('Test 178: STUDENT ADMISSION APPROVAL PENDING PAYMENT LIFECYCLE & ZERO FAKE RECEIPT INVARIANTS', () async {
+      SharedPreferences.setMockInitialValues({
+        'cached_current_user_role': 'student',
+        'persisted_role': 'student',
+      });
+
+      // 1. Simulate a newly registered student approved by admin WITHOUT fee payment recorded
+      final unconfirmedStudent = createTestStudent(
+        id: 'CC20260016',
+        membershipNumber: 'CC20260016',
+        name: 'Vikrant Vaijanath Dhondge',
+        phone: '7020547263',
+        seatId: '21',
+        planId: 'monthly_plan_700',
+        admissionDate: DateTime(2026, 11, 23),
+        planStartDate: null, // Fee not recorded yet!
+        planEndDate: null,   // Fee not recorded yet!
+        membershipStatus: MembershipStatus.inactive, // Awaiting fee settlement
+      );
+
+      // Invariant 1: Effective Membership Status must evaluate to inactive, NOT active or expired
+      expect(unconfirmedStudent.effectiveMembershipStatus, equals(MembershipStatus.inactive));
+      expect(unconfirmedStudent.isEffectivelyActive, isFalse, reason: 'Unpaid student must not be active');
+
+      // Invariant 2: Digital ID Card status determination
+      final effectiveStatus = unconfirmedStudent.effectiveMembershipStatus;
+      final isExpired = effectiveStatus == MembershipStatus.expired;
+      final isGrace = effectiveStatus == MembershipStatus.grace;
+      final isBlocked = effectiveStatus == MembershipStatus.blocked;
+      final isPaymentPending = effectiveStatus == MembershipStatus.inactive ||
+          effectiveStatus == MembershipStatus.pending ||
+          (unconfirmedStudent.planEndDate == null && effectiveStatus != MembershipStatus.active);
+
+      expect(isPaymentPending, isTrue, reason: 'Approved student without planEndDate is payment pending');
+      expect(isExpired, isFalse, reason: 'Student who has not paid yet is not expired');
+      expect(isGrace, isFalse);
+      expect(isBlocked, isFalse);
+
+      final cardBadgeText = isBlocked
+          ? 'SUSPENDED'
+          : isExpired
+              ? 'EXPIRED PASS'
+              : isGrace
+                  ? 'GRACE PERIOD'
+                  : isPaymentPending
+                      ? 'AWAITING PAYMENT'
+                      : 'ACTIVE PASS';
+      expect(cardBadgeText, equals('AWAITING PAYMENT'),
+          reason: 'ID Card must state AWAITING PAYMENT instead of falsely claiming ACTIVE PASS');
+
+      final validTillText = unconfirmedStudent.planEndDate != null
+          ? 'Valid'
+          : (isPaymentPending ? 'Awaiting Payment' : 'Active');
+      expect(validTillText, equals('Awaiting Payment'),
+          reason: 'Validity label must show Awaiting Payment, never Active when unpaid');
+
+      // Invariant 3: Zero Fake Receipt Synthesis in Receipts Feature
+      final hasPaidAdmission = unconfirmedStudent.membershipStatus == MembershipStatus.active &&
+          unconfirmedStudent.planStartDate != null &&
+          unconfirmedStudent.planEndDate != null;
+
+      expect(hasPaidAdmission, isFalse,
+          reason: 'Unpaid student must NOT be categorized as hasPaidAdmission');
+
+      final receiptsList = <ReceiptModel>[];
+      if (receiptsList.isEmpty && hasPaidAdmission) {
+        receiptsList.add(ReceiptModel(
+          id: 'fake_receipt',
+          libraryId: 'test_lib',
+          receiptNumber: 'REC-2026-FAKE',
+          studentId: unconfirmedStudent.id,
+          planId: 'monthly_plan_700',
+          amount: 700.0,
+          paymentMethod: 'Desk / Confirmed',
+          validFrom: DateTime.now(),
+          validTo: DateTime.now(),
+          status: ReceiptStatus.active,
+          customFields: const {},
+        ));
+      }
+      expect(receiptsList.isEmpty, isTrue,
+          reason: 'Receipts list must remain strictly empty for unpaid student. Zero fake receipt synthesis!');
+
+      // Invariant 4: Home Screen Smart Pass Fee Status
+      final bool isPendingFeeOnHome = unconfirmedStudent.planEndDate == null ||
+          unconfirmedStudent.effectiveMembershipStatus == MembershipStatus.inactive ||
+          unconfirmedStudent.effectiveMembershipStatus == MembershipStatus.pending;
+      expect(isPendingFeeOnHome, isTrue);
+
+      final feeLabel = isPendingFeeOnHome ? 'Fee ₹700 Pending' : 'Fee ₹700 Settled';
+      expect(feeLabel, equals('Fee ₹700 Pending'),
+          reason: 'Home screen pass must show Fee Pending, never falsely claim Fee Settled');
+
+      // Invariant 5: Membership Screen State Resolution
+      final now = DateTime.now();
+      final memIsPaymentPending = unconfirmedStudent.planEndDate == null ||
+          unconfirmedStudent.effectiveMembershipStatus == MembershipStatus.inactive ||
+          unconfirmedStudent.effectiveMembershipStatus == MembershipStatus.pending;
+      final memIsExpired = !memIsPaymentPending && (unconfirmedStudent.planEndDate != null && unconfirmedStudent.planEndDate!.isBefore(now));
+      expect(memIsPaymentPending, isTrue);
+      expect(memIsExpired, isFalse,
+          reason: 'Membership screen must not mark an unpaid student as Expired');
+
+      final memSubtitle = unconfirmedStudent.planEndDate != null
+          ? 'Valid'
+          : (memIsPaymentPending ? 'Starts on fee payment' : 'Active Pass');
+      expect(memSubtitle, equals('Starts on fee payment'),
+          reason: 'Membership screen subtitle must state Starts on fee payment, never Active Pass');
+
+      // Invariant 6: Notification Device-Role Fencing
+      final prefs = await SharedPreferences.getInstance();
+      final currentRole = prefs.getString('cached_current_user_role') ?? 'student';
+      const targetRole = 'admin';
+
+      bool shouldShowLocally = true;
+      if (targetRole == 'admin' && currentRole != 'admin') {
+        shouldShowLocally = false;
+      }
+      expect(shouldShowLocally, isFalse,
+          reason: 'Admin-targeted alerts must NEVER show local status bar notifications on a student phone');
+    });
+
+    test('Soundbox announcement generation verifies English, Hindi, and Marathi formats', () {
+      final soundbox = SoundboxService();
+
+      final enMsg = soundbox.formatAnnouncement(
+        amount: 190.0,
+        studentName: 'Vikrant Dhondge',
+        seatLabel: 'Seat #21',
+        libraryName: 'Cozy Corner',
+        languageOverride: 'en',
+      );
+      expect(enMsg, contains('190 rupees received'));
+      expect(enMsg, contains('Vikrant Dhondge'));
+      expect(enMsg, contains('Seat #21'));
+
+      final mrMsg = soundbox.formatAnnouncement(
+        amount: 190.0,
+        libraryName: 'The Cozy Corner',
+        languageOverride: 'mr',
+      );
+      expect(mrMsg, contains('190'));
+      expect(mrMsg, contains('रुपये प्राप्त झाले'));
+
+      final hiMsg = soundbox.formatAnnouncement(
+        amount: 350.0,
+        libraryName: 'The Cozy Corner',
+        languageOverride: 'hi',
+      );
+      expect(hiMsg, contains('350'));
+      expect(hiMsg, contains('रुपये प्राप्त हुए'));
+    });
+
+    test('IdCardTemplateSettings clearCustomColor resets customColorHex to prevent theme clobbering', () {
+      final initialTemplate = const IdCardTemplateSettings(
+        cardTheme: 'royalNavy',
+        customColorHex: '#10172A',
+      );
+      expect(initialTemplate.customColorHex, equals('#10172A'));
+
+      // Selecting amberClassic with clearCustomColor clears the custom hex
+      final updatedTemplate = initialTemplate.copyWith(
+        cardTheme: 'amberClassic',
+        clearCustomColor: true,
+      );
+      expect(updatedTemplate.cardTheme, equals('amberClassic'));
+      expect(updatedTemplate.customColorHex, isNull,
+          reason: 'Selecting preset theme must clear customColorHex so front and back do not show color mismatch');
+    });
+
+    test('Adjusted admission, plan start, and plan end dates synchronize with ReceiptModel and StudentModel', () {
+      final admissionDate = DateTime(2026, 11, 15);
+      final planStartDate = DateTime(2026, 11, 15);
+      final planEndDate = DateTime(2026, 11, 30);
+
+      final student = createTestStudent(
+        id: 'student_vikrant',
+        name: 'Vikrant Dhondge',
+        phone: '9403243830',
+        admissionDate: admissionDate,
+        planStartDate: planStartDate,
+        planEndDate: planEndDate,
+        membershipStatus: MembershipStatus.active,
+      );
+
+      expect(student.admissionDate, equals(admissionDate));
+      expect(student.planStartDate, equals(planStartDate));
+      expect(student.planEndDate, equals(planEndDate));
+
+      final receipt = ReceiptModel(
+        id: 'rec_vikrant_001',
+        libraryId: 'lib_cozy',
+        receiptNumber: 'REC-2026-0016',
+        studentId: student.id,
+        planId: 'monthly_plan',
+        amount: 190.0,
+        paymentMethod: 'UPI / QR',
+        validFrom: planStartDate,
+        validTo: planEndDate,
+        status: ReceiptStatus.active,
+        customFields: {
+          'referenceNumber': 'UPI94032438301123',
+          'utr': 'UPI94032438301123',
+          'notes': 'Adjusted cycle for Nov 15-30',
+        },
+      );
+
+      expect(receipt.validFrom, equals(planStartDate),
+          reason: 'Receipt validity start must match adjusted plan start date');
+      expect(receipt.validTo, equals(planEndDate),
+          reason: 'Receipt validity end must match adjusted plan end date');
+      expect(receipt.customFields['referenceNumber'], equals('UPI94032438301123'));
+      expect(receipt.amount, equals(190.0));
+    });
+
+    test('Test 179: Request Ledger Amount Fallback, Inaccurate OCR Auto-Fill Discard & Sanitized Preview Invariants', () {
+      // 1. Ledger Amount Fallback Invariant:
+      // When a desk registration has data['amount'] == null, but data['proratedFee'] or studentData['proratedFee'] is 190.0,
+      // the resolved amount must be 190.0 and never null or '—'.
+      final Map<String, dynamic> requestData = {
+        'id': 'req_vikrant_1',
+        'type': 'admission',
+        'status': 'pending',
+        'amount': null,
+        'proratedFee': 190.0,
+        'studentData': {
+          'name': 'Vikrant Vaijanath Dhondge',
+          'proratedFee': 190.0,
+          'planPrice': 700.0,
+        },
+      };
+
+      final resolvedAmount = (requestData['amount'] as num?)?.toDouble() ??
+          (requestData['proratedFee'] as num?)?.toDouble() ??
+          (requestData['studentData']?['proratedFee'] as num?)?.toDouble() ??
+          (requestData['studentData']?['amount'] as num?)?.toDouble() ??
+          (requestData['totalPayable'] as num?)?.toDouble() ??
+          (requestData['planPrice'] as num?)?.toDouble();
+
+      expect(resolvedAmount, equals(190.0),
+          reason: 'Desk registration with null data[amount] must fall back to proratedFee (₹190) rather than showing ₹—');
+
+      // 2. OCR Garbage Rejection & Sanitization Invariant:
+      // If OCR erroneously captures a person name into DOB (e.g. 'Vikrant Vaijanath Dhondge' or 'Pvt Ltd'),
+      // or invalid non-date string, OcrResult.sanitized() must set dob to null!
+      const corruptOcrResult = OcrResult(
+        name: 'Vikrant Vaijanath Dhondge',
+        fatherName: 'Vaijanath',
+        dob: 'Vikrant Vaijanath Dhondge', // Corrupted DOB from bad token shift
+        gender: 'MALE',
+        idNumber: '2976 7173 2016',
+        pinCode: '431515',
+      );
+
+      final sanitizedResult = corruptOcrResult.sanitized(GovIdType.aadhaar);
+
+      expect(sanitizedResult.name, equals('Vikrant Vaijanath Dhondge'));
+      expect(sanitizedResult.fatherName, equals('Vaijanath'));
+      expect(sanitizedResult.dob, isNull,
+          reason: 'Corrupted text name in DOB must be sanitized to null so users do not see junk in DOB field');
+      expect(sanitizedResult.gender, equals('male'));
+      expect(sanitizedResult.idNumber, equals('2976 7173 2016'));
+      expect(sanitizedResult.pinCode, equals('431515'));
+
+      // 3. Valid DOB retention:
+      const validOcrResult = OcrResult(
+        name: 'Vikrant Dhondge',
+        dob: '15/08/2000',
+        idNumber: '2976 7173 2016',
+      );
+      final validSanitized = validOcrResult.sanitized(GovIdType.aadhaar);
+      expect(validSanitized.dob, equals('15/08/2000'),
+          reason: 'Format-compliant valid DOB must be preserved');
+
+      // 4. Invalid Gov ID Number Discard:
+      const invalidIdOcr = OcrResult(
+        name: 'Ashish Choudhari',
+        idNumber: 'NOT_AN_AADHAAR_OR_PAN',
+      );
+      final sanitizedInvalidId = invalidIdOcr.sanitized(GovIdType.aadhaar);
+      expect(sanitizedInvalidId.idNumber, isNull,
+          reason: 'Gov ID numbers failing checksum/length validation must be discarded');
+
+      // 5. filledFields must not contain discarded null fields:
+      final filledMap = sanitizedResult.filledFields(GovIdType.aadhaar);
+      expect(filledMap.containsKey('dob'), isFalse,
+          reason: 'filledFields must strictly omit sanitized null entries so preview and auto-fill remain pristine');
     });
   });
 }

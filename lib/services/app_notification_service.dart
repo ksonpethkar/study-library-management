@@ -80,6 +80,8 @@ final adminNotificationsStreamProvider = StreamProvider<List<AppNotificationMode
   final libraryId = ref.watch(currentLibraryIdProvider);
   if (libraryId == null || libraryId.isEmpty) return Stream.value([]);
 
+  AppNotificationService._ensureLocalPrefsLoaded(libraryId, 'admin');
+
   return FirebaseFirestore.instance
       .collection('libraries')
       .doc(libraryId)
@@ -89,7 +91,15 @@ final adminNotificationsStreamProvider = StreamProvider<List<AppNotificationMode
       .snapshots()
       .map((snap) {
         final all = snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList();
-        final filtered = all.where((n) => n.targetRole == 'admin' || n.targetRole == 'all').toList();
+        final filtered = all.where((n) {
+          if (AppNotificationService.isLocallyDismissed(n.id)) return false;
+          return n.targetRole == 'admin' || n.targetRole == 'all';
+        }).map((n) {
+          if (AppNotificationService.isLocallyRead(n.id)) {
+            return n.copyWith(read: true);
+          }
+          return n;
+        }).toList();
         return _deduplicateNotifications(filtered, libraryId);
       });
 });
@@ -112,6 +122,9 @@ final studentNotificationsStreamProvider =
       ? studentId.trim()
       : authUid;
 
+  // Pre-load local prefs
+  AppNotificationService._ensureLocalPrefsLoaded(libraryId, effectiveId);
+
   // STRICT PRIVACY PROTECTION:
   // If effectiveId is null or empty, this user is not authenticated.
   // They MUST NOT receive any personal student alerts (receipts, admissions, feedback, seat changes).
@@ -125,7 +138,16 @@ final studentNotificationsStreamProvider =
         .snapshots()
         .map((snap) {
           final all = snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList();
-          return all.where((n) => n.targetRole == 'all' && (n.targetUserId == null || n.targetUserId!.isEmpty)).toList();
+          return all.where((n) {
+            if (n.targetRole == 'admin') return false; // STRICT ROLE FENCE
+            if (AppNotificationService.isLocallyDismissed(n.id)) return false;
+            return n.targetRole == 'all' && (n.targetUserId == null || n.targetUserId!.isEmpty);
+          }).map((n) {
+            if (AppNotificationService.isLocallyRead(n.id)) {
+              return n.copyWith(read: true);
+            }
+            return n;
+          }).toList();
         });
   }
 
@@ -143,6 +165,12 @@ final studentNotificationsStreamProvider =
         // 1. Notifications explicitly addressed to THIS specific student (targetUserId, metadata.studentId, or metadata.studentUserId/userId)
         // 2. General public broadcasts intended for ALL users (type == 'announcement' with NO student-specific data)
         final filtered = all.where((n) {
+          // 1. Strict Target Role Fence: A student MUST NEVER see notifications intended for admins!
+          if (n.targetRole == 'admin') return false;
+
+          // 2. Strict Local Dismissal Fence: If dismissed locally by this student, hide it!
+          if (AppNotificationService.isLocallyDismissed(n.id)) return false;
+
           final metaStudentId = n.metadata['studentId']?.toString().trim();
           final metaUserId = (n.metadata['studentUserId'] ?? n.metadata['userId'])?.toString().trim();
 
@@ -181,11 +209,17 @@ final studentNotificationsStreamProvider =
             'expiry',
             'due',
             'renewal',
+            'profile_update_request',
           };
           if (personalTypes.contains(n.type.toLowerCase())) {
             return false; // Hard reject untargeted sensitive notifications
           }
           return n.targetRole == 'all' || n.targetRole == 'student' || n.type == 'announcement';
+        }).map((n) {
+          if (AppNotificationService.isLocallyRead(n.id)) {
+            return n.copyWith(read: true);
+          }
+          return n;
         }).toList();
         return _deduplicateNotifications(filtered, libraryId);
       });
@@ -193,6 +227,70 @@ final studentNotificationsStreamProvider =
 
 class AppNotificationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  static final Set<String> _locallyReadIds = {};
+  static final Set<String> _locallyDismissedIds = {};
+  static bool _localPrefsLoaded = false;
+
+  static String _readKey(String libraryId, String? userId) =>
+      'locally_read_notifs_${libraryId}_${userId ?? "all"}';
+  static String _dismissKey(String libraryId, String? userId) =>
+      'locally_dismissed_notifs_${libraryId}_${userId ?? "all"}';
+
+  static Future<void> _ensureLocalPrefsLoaded(String libraryId, String? userId) async {
+    if (_localPrefsLoaded) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final readList = prefs.getStringList(_readKey(libraryId, userId)) ?? [];
+      final dismissedList = prefs.getStringList(_dismissKey(libraryId, userId)) ?? [];
+      _locallyReadIds.addAll(readList);
+      _locallyDismissedIds.addAll(dismissedList);
+      _localPrefsLoaded = true;
+    } catch (_) {}
+  }
+
+  static void _recordLocallyRead(String libraryId, String? userId, String id) {
+    _locallyReadIds.add(id);
+    SharedPreferences.getInstance().then((prefs) {
+      final key = _readKey(libraryId, userId);
+      final current = prefs.getStringList(key) ?? [];
+      if (!current.contains(id)) {
+        current.add(id);
+        prefs.setStringList(key, current);
+      }
+    }).catchError((_) {});
+  }
+
+  static void _recordLocallyDismissed(String libraryId, String? userId, String id) {
+    _locallyDismissedIds.add(id);
+    _locallyReadIds.add(id); // Dismissed items are implicitly read
+    SharedPreferences.getInstance().then((prefs) {
+      final key = _dismissKey(libraryId, userId);
+      final current = prefs.getStringList(key) ?? [];
+      if (!current.contains(id)) {
+        current.add(id);
+        prefs.setStringList(key, current);
+      }
+    }).catchError((_) {});
+  }
+
+  @visibleForTesting
+  static void recordLocallyRead(String libraryId, String? userId, String id) =>
+      _recordLocallyRead(libraryId, userId, id);
+
+  @visibleForTesting
+  static void recordLocallyDismissed(String libraryId, String? userId, String id) =>
+      _recordLocallyDismissed(libraryId, userId, id);
+
+  @visibleForTesting
+  static void clearLocalCachesForTest() {
+    _locallyReadIds.clear();
+    _locallyDismissedIds.clear();
+    _localPrefsLoaded = false;
+  }
+
+  static bool isLocallyDismissed(String id) => _locallyDismissedIds.contains(id);
+  static bool isLocallyRead(String id) => _locallyReadIds.contains(id);
 
   /// Exposes deduplication logic to UI and stream consumers
   static List<AppNotificationModel> deduplicate(List<AppNotificationModel> list, [String? libraryId]) =>
@@ -304,12 +402,47 @@ class AppNotificationService {
         _ => NotificationService.channelGeneral,
       };
 
-      await NotificationService.showNotification(
-        title: title,
-        body: body,
-        channelId: channelId,
-        payload: actionRoute,
-      );
+      // Strict Device-Role Fencing:
+      // Only show local Android status-bar notification on this device if the notification
+      // is actually intended for this device's current user/role.
+      // E.g., when a student submits an admission request, the admin-targeted alert
+      // ('targetRole == admin') must NEVER buzz or show on the student's phone!
+      bool shouldShowLocally = true;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final currentRole = prefs.getString('cached_current_user_role') ??
+            prefs.getString('persisted_role') ??
+            'student';
+        final currentUid = FirebaseAuth.instance.currentUser?.uid;
+
+        if (targetRole == 'admin') {
+          // If current device is NOT logged in as admin, NEVER show admin alert locally!
+          if (currentRole != 'admin') {
+            shouldShowLocally = false;
+          }
+        } else if (targetRole == 'student') {
+          if (currentRole == 'admin') {
+            // Admins don't need personal student alerts popping up
+            shouldShowLocally = false;
+          } else if (targetUserId != null && targetUserId.isNotEmpty && currentUid != null) {
+            final cachedStudentId = prefs.getString('cached_student_id');
+            if (targetUserId != currentUid && targetUserId != cachedStudentId) {
+              shouldShowLocally = false;
+            }
+          }
+        }
+      } catch (_) {
+        if (targetRole == 'admin') shouldShowLocally = false;
+      }
+
+      if (shouldShowLocally) {
+        await NotificationService.showNotification(
+          title: title,
+          body: body,
+          channelId: channelId,
+          payload: actionRoute,
+        );
+      }
 
       return docRef.id;
     } catch (e) {
@@ -322,14 +455,16 @@ class AppNotificationService {
   static Future<void> markAsRead({
     required String libraryId,
     required String notificationId,
+    String? targetUserId,
   }) async {
+    _recordLocallyRead(libraryId, targetUserId, notificationId);
     try {
       await _firestore
           .collection('libraries')
           .doc(libraryId)
           .collection('notifications')
           .doc(notificationId)
-          .update({'read': true});
+          .update({'read': true, 'readAt': FieldValue.serverTimestamp()});
     } catch (e) {
       if (kDebugMode) debugPrint('Error marking notification as read: $e');
     }
@@ -340,7 +475,16 @@ class AppNotificationService {
     required String libraryId,
     required String targetRole,
     String? targetUserId,
+    List<String>? notificationIds,
   }) async {
+    // 1. Immediately mark provided notification IDs as read locally
+    if (notificationIds != null && notificationIds.isNotEmpty) {
+      for (final id in notificationIds) {
+        _recordLocallyRead(libraryId, targetUserId, id);
+      }
+    }
+
+    // 2. Resilient Firestore update per document (avoids batch abort on permission checks)
     try {
       final snap = await _firestore
           .collection('libraries')
@@ -350,8 +494,6 @@ class AppNotificationService {
           .get();
 
       final currentAuthUid = FirebaseAuth.instance.currentUser?.uid;
-      final batch = _firestore.batch();
-      int updateCount = 0;
 
       for (final doc in snap.docs) {
         final data = doc.data();
@@ -375,22 +517,21 @@ class AppNotificationService {
           if (!matches) continue;
         }
 
-        batch.update(doc.reference, {'read': true});
-        updateCount++;
-      }
-      if (updateCount > 0) {
-        await batch.commit();
+        _recordLocallyRead(libraryId, targetUserId, doc.id);
+        doc.reference.update({'read': true, 'readAt': FieldValue.serverTimestamp()}).catchError((_) {});
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Error marking all notifications as read: $e');
     }
   }
 
-  /// Delete notification
+  /// Delete notification or dismiss it permanently
   static Future<void> deleteNotification({
     required String libraryId,
     required String notificationId,
+    String? targetUserId,
   }) async {
+    _recordLocallyDismissed(libraryId, targetUserId, notificationId);
     try {
       await _firestore
           .collection('libraries')
@@ -408,7 +549,16 @@ class AppNotificationService {
     required String libraryId,
     required String targetRole,
     String? targetUserId,
+    List<String>? readNotificationIds,
   }) async {
+    // 1. Immediately record read notification IDs as dismissed locally
+    if (readNotificationIds != null && readNotificationIds.isNotEmpty) {
+      for (final id in readNotificationIds) {
+        _recordLocallyDismissed(libraryId, targetUserId, id);
+      }
+    }
+
+    // 2. Resilient Firestore delete per document (avoids batch abort on permission checks)
     try {
       final snap = await _firestore
           .collection('libraries')
@@ -418,8 +568,6 @@ class AppNotificationService {
           .get();
 
       final currentAuthUid = FirebaseAuth.instance.currentUser?.uid;
-      final batch = _firestore.batch();
-      int deleteCount = 0;
 
       for (final doc in snap.docs) {
         final data = doc.data();
@@ -443,11 +591,8 @@ class AppNotificationService {
           if (!matches) continue;
         }
 
-        batch.delete(doc.reference);
-        deleteCount++;
-      }
-      if (deleteCount > 0) {
-        await batch.commit();
+        _recordLocallyDismissed(libraryId, targetUserId, doc.id);
+        doc.reference.delete().catchError((_) {});
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Error clearing read notifications: $e');

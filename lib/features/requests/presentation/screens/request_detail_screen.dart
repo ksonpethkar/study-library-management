@@ -1256,9 +1256,30 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     final studentEmail = (studentData['email'] ?? _liveStudent?.email ?? data['studentEmail'] ?? '').toString();
 
     final amountNum = data['amount'] as num?;
-    final amount = amountNum?.toDouble();
+    double? amount = amountNum?.toDouble() ??
+        (data['proratedFee'] as num?)?.toDouble() ??
+        (studentData['proratedFee'] as num?)?.toDouble() ??
+        (studentData['amount'] as num?)?.toDouble() ??
+        (data['totalPayable'] as num?)?.toDouble() ??
+        (data['planPrice'] as num?)?.toDouble() ??
+        (studentData['planPrice'] as num?)?.toDouble();
+
     final origPriceNum = data['originalPrice'] as num?;
-    final origPrice = origPriceNum?.toDouble();
+    double? origPrice = origPriceNum?.toDouble() ??
+        (studentData['originalPrice'] as num?)?.toDouble() ??
+        (data['planPrice'] as num?)?.toDouble() ??
+        (studentData['planPrice'] as num?)?.toDouble();
+
+    final effectivePlanId = (data['planId'] ?? studentData['planId'])?.toString();
+    if (amount == null && effectivePlanId != null && effectivePlanId.isNotEmpty) {
+      final plans = ref.watch(plansStreamProvider).value ?? [];
+      final matchedPlan = plans.where((p) => p.id == effectivePlanId).firstOrNull;
+      if (matchedPlan != null) {
+        final calc = PlanCalculatorService.calculateSmartPlan(plan: matchedPlan);
+        amount = calc.proratedPrice;
+        origPrice ??= matchedPlan.price;
+      }
+    }
     final paymentMethod = (data['paymentMethod'] ?? data['paymentMode'] ?? data['paymentModeLabel'] ?? '').toString();
     final refNumber = (data['referenceNumber'] ?? '').toString().trim();
     final paymentProofUrl = (data['paymentProofUrl'] ?? '').toString().trim();
@@ -2838,21 +2859,23 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     if (s.isEmpty) return '';
     try {
       final dt = DateTime.tryParse(s);
-      if (dt != null) {
+      if (dt != null && dt.year >= 1920 && dt.year <= DateTime.now().year) {
         return DateFormat('dd MMM yyyy').format(dt);
       }
-      if (RegExp(r'^\d{2}[/\-.]\d{2}[/\-.]\d{4}$').hasMatch(s)) {
+      if (RegExp(r'^\d{1,2}[/\-.]\d{1,2}[/\-.]\d{4}$').hasMatch(s)) {
         final sep = s.contains('/') ? '/' : (s.contains('-') ? '-' : '.');
         final parts = s.split(sep);
         final day = int.tryParse(parts[0]);
         final month = int.tryParse(parts[1]);
         final year = int.tryParse(parts[2]);
         if (day != null && month != null && year != null) {
-          return DateFormat('dd MMM yyyy').format(DateTime(year, month, day));
+          if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1920 && year <= DateTime.now().year) {
+            return DateFormat('dd MMM yyyy').format(DateTime(year, month, day));
+          }
         }
       }
     } catch (_) {}
-    return s;
+    return ''; // Discard strings that do not represent valid calendar dates
   }
 
   Future<void> _showChangePlanDialog(Map<String, dynamic> data, Map<String, dynamic> studentData) async {
@@ -4080,8 +4103,15 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             ),
             if (studentData['gender'] != null && studentData['gender'].toString().trim().isNotEmpty)
               _buildRow("Gender", studentData['gender'].toString().toUpperCase()),
-            if (studentData['dob'] != null && studentData['dob'].toString().trim().isNotEmpty)
-              _buildRow("Date of Birth", _formatDob(studentData['dob'])),
+            Builder(
+              builder: (_) {
+                final dobFormatted = _formatDob(studentData['dob']);
+                if (dobFormatted.isNotEmpty) {
+                  return _buildRow("Date of Birth", dobFormatted);
+                }
+                return const SizedBox.shrink();
+              },
+            ),
             if (studentData['bloodGroup'] != null && studentData['bloodGroup'].toString().trim().isNotEmpty)
               _buildRow("Blood Group", studentData['bloodGroup'].toString()),
 
@@ -4484,6 +4514,13 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
     final effectivePlanId = planId ?? (studentData['planId'] ?? data['planId'])?.toString();
 
+    DateTime curStartDate = planStartDate ??
+        StudentModel.parseDateStatic(studentData['planStartDate'] ?? data['planStartDate'] ?? studentData['admissionDate'] ?? data['admissionDate']) ??
+        DateTime.now();
+    DateTime curEndDate = planEndDate ??
+        StudentModel.parseDateStatic(studentData['planEndDate'] ?? data['planEndDate']) ??
+        curStartDate.add(const Duration(days: 30));
+
     double defaultAmount = (data['amount'] as num?)?.toDouble() ?? 0.0;
     if (defaultAmount <= 0 && effectivePlanId != null && effectivePlanId.isNotEmpty) {
       final plans = ref.read(plansStreamProvider).value ?? [];
@@ -4491,9 +4528,12 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       if (matchedPlan != null) {
         final smartCalc = PlanCalculatorService.calculateSmartPlan(
           plan: matchedPlan,
-          fromDate: planStartDate ?? DateTime.now(),
+          fromDate: curStartDate,
         );
         defaultAmount = smartCalc.proratedPrice;
+        if (planEndDate == null) {
+          curEndDate = smartCalc.endDate;
+        }
       }
     }
     if (defaultAmount <= 0) {
@@ -4519,111 +4559,306 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     }
 
     final studentRef = (data['referenceNumber'] ?? '').toString().trim();
+    final referenceController = TextEditingController(text: studentRef);
+    final bankNameController = TextEditingController();
+    final cashNotesController = TextEditingController(text: 'Paid at reception desk');
+    bool announceSoundbox = true;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDs) => AlertDialog(
-          icon: const Icon(Icons.celebration_rounded, color: Colors.green, size: 36),
-          title: const Text('Registration Approved! 🎉'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$studentName has been approved. Record payment to activate their pass and generate a receipt.'),
-              if (studentRef.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline_rounded, size: 16, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Student Ref / UTR: $studentRef',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+        builder: (ctx, setDs) {
+          final int cycleDurationDays = curEndDate.difference(curStartDate).inDays + 1;
+          final durationLabel = '$cycleDurationDays Days (${DateFormat('dd MMM yyyy').format(curStartDate)} → ${DateFormat('dd MMM yyyy').format(curEndDate)})';
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            icon: const Icon(Icons.celebration_rounded, color: Colors.green, size: 36),
+            title: const Text('Registration Approved! 🎉', textAlign: TextAlign.center),
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+                maxWidth: 480,
+              ),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$studentName has been approved. Configure validity period & record payment to activate pass.'),
+                    const SizedBox(height: 12),
+
+                    // 1. Interactive Validity Period Box
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.calendar_month_rounded, size: 16, color: Colors.green),
+                              const SizedBox(width: 6),
+                              const Expanded(
+                                child: Text(
+                                  'Pass Validity Period',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                                ),
+                              ),
+                              Text(
+                                '$cycleDurationDays d',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.green),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            durationLabel,
+                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(Icons.edit_calendar_rounded, size: 14),
+                                  label: Text('Start: ${DateFormat('dd MMM').format(curStartDate)}'),
+                                  onPressed: () async {
+                                    final picked = await showDatePicker(
+                                      context: ctx,
+                                      initialDate: curStartDate,
+                                      firstDate: DateTime(2020),
+                                      lastDate: DateTime(2035),
+                                      helpText: 'SELECT PLAN START DATE',
+                                    );
+                                    if (picked != null) {
+                                      setDs(() {
+                                        final diff = picked.difference(curStartDate);
+                                        curStartDate = picked;
+                                        curEndDate = curEndDate.add(diff);
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(Icons.event_available_rounded, size: 14),
+                                  label: Text('End: ${DateFormat('dd MMM').format(curEndDate)}'),
+                                  onPressed: () async {
+                                    final picked = await showDatePicker(
+                                      context: ctx,
+                                      initialDate: curEndDate,
+                                      firstDate: DateTime(2020),
+                                      lastDate: DateTime(2035),
+                                      helpText: 'SELECT PLAN EXPIRY DATE',
+                                    );
+                                    if (picked != null) {
+                                      setDs(() => curEndDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59));
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 2. Amount Field
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Payment Amount (₹)',
+                        prefixText: '₹ ',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 3. Payment Method Dropdown
+                    DropdownButtonFormField<String>(
+                      initialValue: paymentMethod,
+                      decoration: const InputDecoration(labelText: 'Payment Method', border: OutlineInputBorder(), isDense: true),
+                      items: const [
+                        DropdownMenuItem(value: 'Cash', child: Text('Cash at Reception')),
+                        DropdownMenuItem(value: 'UPI', child: Text('UPI / QR')),
+                        DropdownMenuItem(value: 'Card', child: Text('Debit/Credit Card')),
+                        DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer (NEFT/IMPS)')),
+                      ],
+                      onChanged: (v) => setDs(() => paymentMethod = v ?? 'Cash'),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 4. Dynamic Conditional Fields Based on Payment Method
+                    if (paymentMethod == 'UPI') ...[
+                      TextField(
+                        controller: referenceController,
+                        decoration: InputDecoration(
+                          labelText: 'UPI / UTR Transaction ID',
+                          hintText: 'e.g. 432156789012',
+                          prefixIcon: const Icon(Icons.qr_code_rounded, size: 20),
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.content_paste_rounded, size: 18),
+                            tooltip: 'Paste from clipboard',
+                            onPressed: () async {
+                              final clipData = await Clipboard.getData('text/plain');
+                              if (clipData?.text != null && clipData!.text!.trim().isNotEmpty) {
+                                referenceController.text = clipData.text!.trim();
+                                setDs(() {});
+                              }
+                            },
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 10),
+                    ] else if (paymentMethod == 'Bank Transfer') ...[
+                      TextField(
+                        controller: bankNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Bank Name',
+                          hintText: 'e.g. SBI, HDFC, ICICI',
+                          prefixIcon: Icon(Icons.account_balance_rounded, size: 20),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: referenceController,
+                        decoration: const InputDecoration(
+                          labelText: 'NEFT / IMPS / Cheque Reference #',
+                          hintText: 'e.g. CMS123456789',
+                          prefixIcon: Icon(Icons.receipt_long_rounded, size: 20),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ] else if (paymentMethod == 'Card') ...[
+                      TextField(
+                        controller: referenceController,
+                        decoration: const InputDecoration(
+                          labelText: 'Card Details & Auth Slip #',
+                          hintText: 'e.g. Card ending 4242 / AUTH-9812',
+                          prefixIcon: Icon(Icons.credit_card_rounded, size: 20),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ] else ...[
+                      TextField(
+                        controller: cashNotesController,
+                        decoration: const InputDecoration(
+                          labelText: 'Cash Notes / Received By',
+                          hintText: 'e.g. Cash collected at reception desk',
+                          prefixIcon: Icon(Icons.payments_rounded, size: 20),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                     ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Amount (₹)',
-                  prefixText: '₹ ',
-                  border: OutlineInputBorder(),
+
+                    // 5. Soundbox Counter Announcement Toggle
+                    CheckboxListTile(
+                      value: announceSoundbox,
+                      contentPadding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      onChanged: (val) => setDs(() => announceSoundbox = val ?? true),
+                      title: const Text('🔊 Announce Payment on Soundbox Speaker', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Plays chime & voice readout on reception counter speaker', style: TextStyle(fontSize: 10.5)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: paymentMethod,
-                decoration: const InputDecoration(labelText: 'Payment Method', border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                  DropdownMenuItem(value: 'UPI', child: Text('UPI / QR')),
-                  DropdownMenuItem(value: 'Card', child: Text('Debit/Credit Card')),
-                  DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer')),
-                ],
-                onChanged: (v) => setDs(() => paymentMethod = v ?? 'Cash'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('$studentName remains inactive until fee payment is recorded.'),
+                        backgroundColor: Colors.orange.shade800,
+                      ),
+                    );
+                    if (studentPhone.isNotEmpty) {
+                      _offerWhatsAppWelcome(studentId, studentName, studentPhone, 0, 'None', planEndDate: curEndDate);
+                    }
+                  }
+                },
+                child: const Text('Skip Payment'),
+              ),
+              FilledButton.icon(
+                icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                label: const Text('Confirm & Generate Receipt'),
+                onPressed: () async {
+                  final amount = double.tryParse(amountController.text.trim()) ?? defaultAmount;
+                  final refVal = paymentMethod == 'Cash'
+                      ? cashNotesController.text.trim()
+                      : (paymentMethod == 'Bank Transfer'
+                          ? '${bankNameController.text.trim().isNotEmpty ? "${bankNameController.text.trim()} - " : ""}${referenceController.text.trim()}'
+                          : referenceController.text.trim());
+                  final notesVal = paymentMethod == 'Cash' ? cashNotesController.text.trim() : null;
+
+                  Navigator.of(ctx).pop();
+                  DateTime? recordedEnd = curEndDate;
+                  if (amount > 0) {
+                    recordedEnd = await _recordPaymentAndReceipt(
+                      libraryId,
+                      studentId,
+                      studentUserId,
+                      studentName,
+                      studentPhone,
+                      amount,
+                      paymentMethod,
+                      planId: effectivePlanId,
+                      planStartDate: curStartDate,
+                      planEndDate: curEndDate,
+                      referenceNumber: refVal,
+                      notes: notesVal,
+                      enableSoundbox: announceSoundbox,
+                    );
+                  }
+                  if (mounted && studentPhone.isNotEmpty) {
+                    _offerWhatsAppWelcome(
+                      studentId,
+                      studentName,
+                      studentPhone,
+                      amount,
+                      paymentMethod,
+                      planEndDate: recordedEnd ?? curEndDate,
+                    );
+                  }
+                },
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('$studentName remains inactive until fee payment is recorded.'),
-                      backgroundColor: Colors.orange.shade800,
-                    ),
-                  );
-                  if (studentPhone.isNotEmpty) {
-                    _offerWhatsAppWelcome(studentId, studentName, studentPhone, 0, 'None', planEndDate: planEndDate);
-                  }
-                }
-              },
-              child: const Text('Skip Payment'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final amount = double.tryParse(amountController.text.trim()) ?? defaultAmount;
-                Navigator.of(ctx).pop();
-                DateTime? recordedEnd = planEndDate;
-                if (amount > 0) {
-                  recordedEnd = await _recordPaymentAndReceipt(
-                    libraryId,
-                    studentId,
-                    studentUserId,
-                    studentName,
-                    studentPhone,
-                    amount,
-                    paymentMethod,
-                    planId: effectivePlanId,
-                    planStartDate: planStartDate,
-                    planEndDate: planEndDate,
-                  );
-                }
-                if (mounted && studentPhone.isNotEmpty) {
-                  _offerWhatsAppWelcome(studentId, studentName, studentPhone, amount, paymentMethod, planEndDate: recordedEnd ?? planEndDate);
-                }
-              },
-              child: const Text('Confirm & Generate Receipt'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -4653,108 +4888,306 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     }
 
     final studentRef = (_requestData?['referenceNumber'] ?? '').toString().trim();
+    final referenceController = TextEditingController(text: studentRef);
+    final bankNameController = TextEditingController();
+    final cashNotesController = TextEditingController(text: 'Renewal fee paid at desk');
+    bool announceSoundbox = true;
+
+    DateTime curStartDate = planStartDate ?? DateTime.now();
+    DateTime curEndDate = planEndDate ?? curStartDate.add(const Duration(days: 30));
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDs) => AlertDialog(
-          icon: const Icon(Icons.autorenew_rounded, color: Colors.blue, size: 36),
-          title: const Text('Renewal Approved! 🔄'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$studentName\'s renewal request has been approved. Record payment to extend their validity and generate receipt.'),
-              if (studentRef.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.tag_rounded, size: 16, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Student Ref / UTR: $studentRef',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+        builder: (ctx, setDs) {
+          final int cycleDurationDays = curEndDate.difference(curStartDate).inDays + 1;
+          final durationLabel = '$cycleDurationDays Days (${DateFormat('dd MMM yyyy').format(curStartDate)} → ${DateFormat('dd MMM yyyy').format(curEndDate)})';
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            icon: const Icon(Icons.autorenew_rounded, color: Colors.blue, size: 36),
+            title: const Text('Renewal Approved! 🔄', textAlign: TextAlign.center),
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+                maxWidth: 480,
+              ),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$studentName\'s renewal request has been approved. Record payment to extend their validity and generate receipt.'),
+                    const SizedBox(height: 12),
+
+                    // 1. Interactive Validity Period Box
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.event_repeat_rounded, size: 16, color: Colors.blue),
+                              const SizedBox(width: 6),
+                              const Expanded(
+                                child: Text(
+                                  'Renewed Validity Cycle',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+                                ),
+                              ),
+                              Text(
+                                '$cycleDurationDays d',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.blue),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            durationLabel,
+                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(Icons.edit_calendar_rounded, size: 14),
+                                  label: Text('Start: ${DateFormat('dd MMM').format(curStartDate)}'),
+                                  onPressed: () async {
+                                    final picked = await showDatePicker(
+                                      context: ctx,
+                                      initialDate: curStartDate,
+                                      firstDate: DateTime(2020),
+                                      lastDate: DateTime(2035),
+                                      helpText: 'SELECT RENEWAL START DATE',
+                                    );
+                                    if (picked != null) {
+                                      setDs(() {
+                                        final diff = picked.difference(curStartDate);
+                                        curStartDate = picked;
+                                        curEndDate = curEndDate.add(diff);
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(Icons.event_available_rounded, size: 14),
+                                  label: Text('End: ${DateFormat('dd MMM').format(curEndDate)}'),
+                                  onPressed: () async {
+                                    final picked = await showDatePicker(
+                                      context: ctx,
+                                      initialDate: curEndDate,
+                                      firstDate: DateTime(2020),
+                                      lastDate: DateTime(2035),
+                                      helpText: 'SELECT RENEWAL EXPIRY DATE',
+                                    );
+                                    if (picked != null) {
+                                      setDs(() => curEndDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59));
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 2. Amount Field
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Renewal Amount (₹)',
+                        prefixText: '₹ ',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 3. Payment Method Dropdown
+                    DropdownButtonFormField<String>(
+                      initialValue: paymentMethod,
+                      decoration: const InputDecoration(labelText: 'Payment Method', border: OutlineInputBorder(), isDense: true),
+                      items: const [
+                        DropdownMenuItem(value: 'UPI', child: Text('UPI / QR')),
+                        DropdownMenuItem(value: 'Cash', child: Text('Cash at Desk')),
+                        DropdownMenuItem(value: 'Card', child: Text('Debit/Credit Card')),
+                        DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer (NEFT/IMPS)')),
+                      ],
+                      onChanged: (v) => setDs(() => paymentMethod = v ?? 'UPI'),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 4. Dynamic Conditional Fields Based on Payment Method
+                    if (paymentMethod == 'UPI') ...[
+                      TextField(
+                        controller: referenceController,
+                        decoration: InputDecoration(
+                          labelText: 'UPI / UTR Transaction ID',
+                          hintText: 'e.g. 432156789012',
+                          prefixIcon: const Icon(Icons.qr_code_rounded, size: 20),
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.content_paste_rounded, size: 18),
+                            tooltip: 'Paste from clipboard',
+                            onPressed: () async {
+                              final clipData = await Clipboard.getData('text/plain');
+                              if (clipData?.text != null && clipData!.text!.trim().isNotEmpty) {
+                                referenceController.text = clipData.text!.trim();
+                                setDs(() {});
+                              }
+                            },
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 10),
+                    ] else if (paymentMethod == 'Bank Transfer') ...[
+                      TextField(
+                        controller: bankNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Bank Name',
+                          hintText: 'e.g. SBI, HDFC, ICICI',
+                          prefixIcon: Icon(Icons.account_balance_rounded, size: 20),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: referenceController,
+                        decoration: const InputDecoration(
+                          labelText: 'NEFT / IMPS / Cheque Reference #',
+                          hintText: 'e.g. CMS123456789',
+                          prefixIcon: Icon(Icons.receipt_long_rounded, size: 20),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ] else if (paymentMethod == 'Card') ...[
+                      TextField(
+                        controller: referenceController,
+                        decoration: const InputDecoration(
+                          labelText: 'Card Details & Auth Slip #',
+                          hintText: 'e.g. Card ending 4242 / AUTH-9812',
+                          prefixIcon: Icon(Icons.credit_card_rounded, size: 20),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ] else ...[
+                      TextField(
+                        controller: cashNotesController,
+                        decoration: const InputDecoration(
+                          labelText: 'Cash Notes / Received By',
+                          hintText: 'e.g. Cash collected at desk',
+                          prefixIcon: Icon(Icons.payments_rounded, size: 20),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                     ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Renewal Amount (₹)',
-                  prefixText: '₹ ',
-                  border: OutlineInputBorder(),
+
+                    // 5. Soundbox Counter Announcement Toggle
+                    CheckboxListTile(
+                      value: announceSoundbox,
+                      contentPadding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      onChanged: (val) => setDs(() => announceSoundbox = val ?? true),
+                      title: const Text('🔊 Announce Payment on Soundbox Speaker', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Plays chime & voice readout on reception counter speaker', style: TextStyle(fontSize: 10.5)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: paymentMethod,
-                decoration: const InputDecoration(labelText: 'Payment Method', border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'UPI', child: Text('UPI / QR')),
-                  DropdownMenuItem(value: 'Cash', child: Text('Cash at Desk')),
-                  DropdownMenuItem(value: 'Card', child: Text('Debit/Credit Card')),
-                  DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer')),
-                ],
-                onChanged: (v) => setDs(() => paymentMethod = v ?? 'UPI'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Renewal approved. $studentName will be activated once payment is recorded.'),
+                        backgroundColor: Colors.orange.shade800,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Record Later'),
+              ),
+              FilledButton.icon(
+                icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                label: const Text('Record Payment & Receipt'),
+                onPressed: () async {
+                  final amount = double.tryParse(amountController.text.trim()) ?? renewalAmount;
+                  final refVal = paymentMethod == 'Cash'
+                      ? cashNotesController.text.trim()
+                      : (paymentMethod == 'Bank Transfer'
+                          ? '${bankNameController.text.trim().isNotEmpty ? "${bankNameController.text.trim()} - " : ""}${referenceController.text.trim()}'
+                          : referenceController.text.trim());
+                  final notesVal = paymentMethod == 'Cash' ? cashNotesController.text.trim() : null;
+
+                  Navigator.of(ctx).pop();
+                  DateTime? recordedEnd = curEndDate;
+                  if (amount > 0) {
+                    recordedEnd = await _recordPaymentAndReceipt(
+                      libraryId,
+                      studentId,
+                      studentUserId,
+                      studentName,
+                      studentPhone,
+                      amount,
+                      paymentMethod,
+                      planId: planId,
+                      planStartDate: curStartDate,
+                      planEndDate: curEndDate,
+                      referenceNumber: refVal,
+                      notes: notesVal,
+                      enableSoundbox: announceSoundbox,
+                    );
+                  }
+                  if (mounted && studentPhone.isNotEmpty) {
+                    _offerWhatsAppWelcome(
+                      studentId,
+                      studentName,
+                      studentPhone,
+                      amount,
+                      paymentMethod,
+                      planEndDate: recordedEnd ?? curEndDate,
+                    );
+                  }
+                },
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Renewal approved. $studentName will be activated once payment is recorded.'),
-                      backgroundColor: Colors.orange.shade800,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Record Later'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final amount = double.tryParse(amountController.text.trim()) ?? renewalAmount;
-                Navigator.of(ctx).pop();
-                DateTime? recordedEnd = planEndDate;
-                if (amount > 0) {
-                  recordedEnd = await _recordPaymentAndReceipt(
-                    libraryId,
-                    studentId,
-                    studentUserId,
-                    studentName,
-                    studentPhone,
-                    amount,
-                    paymentMethod,
-                    planId: planId,
-                    planStartDate: planStartDate,
-                    planEndDate: planEndDate,
-                  );
-                }
-                if (mounted && studentPhone.isNotEmpty) {
-                  _offerWhatsAppWelcome(studentId, studentName, studentPhone, amount, paymentMethod, planEndDate: recordedEnd ?? planEndDate);
-                }
-              },
-              child: const Text('Record Payment & Receipt'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -4770,6 +5203,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     String? planId,
     DateTime? planStartDate,
     DateTime? planEndDate,
+    String? referenceNumber,
+    String? notes,
+    bool enableSoundbox = true,
   }) async {
     try {
       final receiptNum = 'REC${DateTime.now().year}${(DateTime.now().millisecondsSinceEpoch % 100000).toString().padLeft(5, '0')}';
@@ -4781,14 +5217,17 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           .collection('payments')
           .doc();
 
-      final studentRef = (_requestData?['referenceNumber'] ?? '').toString().trim();
+      final effectiveRef = (referenceNumber != null && referenceNumber.trim().isNotEmpty)
+          ? referenceNumber.trim()
+          : ((_requestData?['referenceNumber'] ?? '').toString().trim());
 
       final paymentData = {
         'id': paymentRef.id,
         'studentId': studentId,
         'amount': amount,
         'method': paymentMethod,
-        'referenceNumber': studentRef.isNotEmpty ? studentRef : null,
+        'referenceNumber': effectiveRef.isNotEmpty ? effectiveRef : null,
+        'notes': notes,
         'status': 'paid',
         'date': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
@@ -4964,7 +5403,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         'studentPhone': studentPhone,
         'amount': amount,
         'paymentMethod': paymentMethod,
-        'referenceNumber': studentRef.isNotEmpty ? studentRef : null,
+        'referenceNumber': effectiveRef.isNotEmpty ? effectiveRef : null,
+        'notes': notes,
         'status': 'active',
         'validFrom': Timestamp.fromDate(effectiveStartDate),
         'validTo': Timestamp.fromDate(effectiveEndDate),
@@ -4985,7 +5425,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           'amount': amount,
           'method': paymentMethod,
           'receiptNumber': receiptNum,
-          'referenceNumber': studentRef,
+          'referenceNumber': effectiveRef,
           'planStartDate': effectiveStartDate.toIso8601String(),
           'planEndDate': effectiveEndDate.toIso8601String(),
         },
@@ -4994,15 +5434,17 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       ref.invalidate(studentsStreamProvider);
 
       // Soundbox counter announcement on verified admin payment recording
-      try {
-        final libModel = ref.read(currentLibraryProvider).value;
-        ref.read(soundboxServiceProvider).announcePayment(
-          amount: amount,
-          studentName: studentName,
-          seatLabel: assignedSeatId != null ? SeatHelper.formatSeatLabel(seatId: assignedSeatId) : null,
-          libraryName: libModel?.name,
-        );
-      } catch (_) {}
+      if (enableSoundbox) {
+        try {
+          final libModel = ref.read(currentLibraryProvider).value;
+          ref.read(soundboxServiceProvider).announcePayment(
+            amount: amount,
+            studentName: studentName,
+            seatLabel: assignedSeatId != null ? SeatHelper.formatSeatLabel(seatId: assignedSeatId) : null,
+            libraryName: libModel?.name,
+          );
+        } catch (_) {}
+      }
 
       // Dispatch in-app notification to student for confirmed renewal payment
       final rTarget = (studentId.isNotEmpty && studentId != 'pending') ? studentId : studentUserId;

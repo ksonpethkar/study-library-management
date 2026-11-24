@@ -133,7 +133,13 @@ class StudentRequestItem {
       rejectionReason: (data['rejectionReason'] ?? data['rejectReason']) as String?,
       requestedPlanName: (data['requestedPlanName'] ?? studentData['requestedPlanName'] ?? data['planName']) as String?,
       requestedPlanId: (data['requestedPlanId'] ?? data['planId']) as String?,
-      amount: (data['amount'] as num?)?.toDouble() ?? (studentData['amount'] as num?)?.toDouble(),
+      amount: (data['amount'] as num?)?.toDouble() ??
+          (studentData['amount'] as num?)?.toDouble() ??
+          (data['proratedFee'] as num?)?.toDouble() ??
+          (studentData['proratedFee'] as num?)?.toDouble() ??
+          (data['totalPayable'] as num?)?.toDouble() ??
+          (data['planPrice'] as num?)?.toDouble() ??
+          (studentData['planPrice'] as num?)?.toDouble(),
       paymentMethod: (data['paymentMethod'] ?? data['paymentMode'] ?? data['method']) as String?,
       paymentModeLabel: (data['paymentModeLabel'] ?? data['paymentMode'] ?? data['paymentMethod']) as String?,
       referenceNumber: (data['referenceNumber'] ?? data['reference']) as String?,

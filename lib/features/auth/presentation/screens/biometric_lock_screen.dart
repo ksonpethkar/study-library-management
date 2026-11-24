@@ -261,96 +261,252 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
 
       if (!mounted) return;
 
+      final pinController = TextEditingController();
+      final confirmController = TextEditingController();
+      String? pinError;
+      bool isSavingPin = false;
+      bool isConfiguringPin = false;
+
       await showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          icon: const Icon(Icons.lock_reset_rounded, size: 40, color: Colors.orange),
-          title: const Text(
-            'Security PIN Reset by Admin',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: const Text(
-            'Your library administrator has reset your 4-digit security PIN and biometric lock.\n\n'
-            'Your pass is now unlocked. You can configure a fresh PIN now, or proceed to your dashboard.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, height: 1.4),
-          ),
-          actionsAlignment: MainAxisAlignment.spaceEvenly,
-          actions: [
-            OutlinedButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                final sId = _resolvedStudentDocId ?? _studentId;
-                final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
-                if (sId != null && sId.isNotEmpty) {
-                  await BiometricService.clearAdminPinResetFlag(
-                    libraryId: libId,
-                    studentId: sId,
-                    authUid: authUid,
-                  );
-                }
-                if (mounted) {
-                  _unlockApp();
-                }
-              },
-              child: const Text('Go to Dashboard'),
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            icon: Icon(
+              isConfiguringPin ? Icons.pin_rounded : Icons.lock_reset_rounded,
+              size: 40,
+              color: isConfiguringPin ? const Color(0xFF059669) : Colors.orange,
             ),
-            FilledButton.icon(
-              icon: const Icon(Icons.pin_rounded, size: 16),
-              label: const Text('Set New PIN Now'),
-              style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade800),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                final sId = _resolvedStudentDocId ?? _studentId;
-                final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
-
-                if (sId != null && sId.isNotEmpty && mounted) {
-                  final pinSet = await SecuritySettingsDialog.showSetPinDialog(
-                    context,
-                    isStudent: true,
-                    studentId: sId,
-                    authUid: authUid,
-                    libraryId: libId,
-                    candidateIds: _candidateStudentIds,
-                    isChanging: false,
-                  );
-
-                  if (pinSet) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Row(
-                            children: [
-                              Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                              SizedBox(width: 8),
-                              Expanded(child: Text('New 4-digit PIN configured successfully! Pass unlocked 🔒')),
-                            ],
-                          ),
-                          backgroundColor: Color(0xFF059669),
-                          behavior: SnackBarBehavior.floating,
+            title: Text(
+              isConfiguringPin ? 'Set Personal 4-Digit PIN' : 'Security PIN Reset by Admin',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: isConfiguringPin
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Enter a 4-digit PIN to securely protect your student pass on this device.',
+                          style: TextStyle(fontSize: 13, height: 1.4),
                         ),
-                      );
-                      _unlockApp();
-                    }
-                  } else {
-                    await BiometricService.clearAdminPinResetFlag(
-                      libraryId: libId,
-                      studentId: sId,
-                      authUid: authUid,
-                    );
-                    if (mounted) {
-                      _unlockApp();
-                    }
-                  }
-                } else {
-                  _unlockApp();
-                }
-              },
+                        const SizedBox(height: 16),
+                        if (pinError != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFEF4444), width: 1),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    pinError!,
+                                    style: const TextStyle(
+                                      color: Color(0xFFDC2626),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        TextField(
+                          controller: pinController,
+                          keyboardType: TextInputType.number,
+                          obscureText: true,
+                          maxLength: 4,
+                          textAlign: TextAlign.center,
+                          autofocus: true,
+                          style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.bold),
+                          onChanged: (_) {
+                            if (pinError != null) setDialogState(() => pinError = null);
+                          },
+                          decoration: InputDecoration(
+                            labelText: 'Enter 4-Digit PIN',
+                            counterText: '',
+                            prefixIcon: const Icon(Icons.pin_outlined),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: confirmController,
+                          keyboardType: TextInputType.number,
+                          obscureText: true,
+                          maxLength: 4,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.bold),
+                          onChanged: (_) {
+                            if (pinError != null) setDialogState(() => pinError = null);
+                          },
+                          decoration: InputDecoration(
+                            labelText: 'Confirm 4-Digit PIN',
+                            counterText: '',
+                            prefixIcon: const Icon(Icons.check_circle_outline),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
+                    )
+                  : const Text(
+                      'Your library administrator has reset your 4-digit security PIN and biometric lock.\n\n'
+                      'Your pass is now unlocked. You can configure a fresh PIN now, or proceed to your dashboard.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, height: 1.4),
+                    ),
             ),
-          ],
+            actionsAlignment: MainAxisAlignment.spaceEvenly,
+            actions: isConfiguringPin
+                ? [
+                    OutlinedButton(
+                      onPressed: isSavingPin
+                          ? null
+                          : () => setDialogState(() {
+                                isConfiguringPin = false;
+                                pinError = null;
+                              }),
+                      child: const Text('Back'),
+                    ),
+                    FilledButton.icon(
+                      icon: isSavingPin
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.lock_rounded, size: 16),
+                      label: Text(isSavingPin ? 'Saving...' : 'Save PIN & Unlock'),
+                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFF059669)),
+                      onPressed: isSavingPin
+                          ? null
+                          : () async {
+                              final pin = pinController.text.trim();
+                              final confirm = confirmController.text.trim();
+                              if (pin.length != 4 || !RegExp(r'^\d{4}$').hasMatch(pin)) {
+                                setDialogState(() => pinError = 'PIN must be exactly 4 numeric digits (0-9)');
+                                return;
+                              }
+                              if (pin != confirm) {
+                                setDialogState(() => pinError = 'PINs do not match. Please re-enter.');
+                                return;
+                              }
+
+                              setDialogState(() {
+                                isSavingPin = true;
+                                pinError = null;
+                              });
+
+                              try {
+                                final sId = _resolvedStudentDocId ?? _studentId;
+                                final libId = ref.read(currentLibraryIdProvider) ??
+                                    CurrentLibraryNotifier.defaultLibraryId;
+                                final candidates = _candidateStudentIds;
+                                final ids = <String>{};
+                                if (sId != null && sId.isNotEmpty) ids.add(sId);
+                                if (authUid != null && authUid.isNotEmpty) ids.add(authUid);
+                                ids.addAll(candidates);
+                                final allCandidates = ids.toList();
+
+                                await BiometricService.setPin(
+                                  pin,
+                                  userId: sId,
+                                  authUid: authUid,
+                                  candidateIds: allCandidates,
+                                );
+
+                                if (sId != null && sId.isNotEmpty && libId.isNotEmpty) {
+                                  await BiometricService.syncStudentSecurityToFirestore(
+                                    libraryId: libId,
+                                    studentId: sId,
+                                    pin: pin,
+                                    authUid: authUid,
+                                    candidateIds: allCandidates,
+                                    biometricEnabled: false,
+                                  );
+                                  await BiometricService.clearAdminPinResetFlag(
+                                    libraryId: libId,
+                                    studentId: sId,
+                                    authUid: authUid,
+                                  );
+                                }
+
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                }
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Row(
+                                        children: [
+                                          Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                          SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text('New 4-digit PIN configured successfully! Pass unlocked 🔒'),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: Color(0xFF059669),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                  _unlockApp();
+                                }
+                              } catch (err) {
+                                if (ctx.mounted) {
+                                  setDialogState(() {
+                                    isSavingPin = false;
+                                    pinError = 'Failed to save PIN: $err';
+                                  });
+                                }
+                              }
+                            },
+                    ),
+                  ]
+                : [
+                    OutlinedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        final sId = _resolvedStudentDocId ?? _studentId;
+                        final libId =
+                            ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+                        if (sId != null && sId.isNotEmpty) {
+                          await BiometricService.clearAdminPinResetFlag(
+                            libraryId: libId,
+                            studentId: sId,
+                            authUid: authUid,
+                          );
+                        }
+                        if (mounted) {
+                          _unlockApp();
+                        }
+                      },
+                      child: const Text('Go to Dashboard'),
+                    ),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.pin_rounded, size: 16),
+                      label: const Text('Set New PIN Now'),
+                      style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade800),
+                      onPressed: () {
+                        setDialogState(() {
+                          isConfiguringPin = true;
+                          pinError = null;
+                        });
+                      },
+                    ),
+                  ],
+          ),
         ),
       );
     } finally {

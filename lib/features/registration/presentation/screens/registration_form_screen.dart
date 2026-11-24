@@ -81,18 +81,21 @@ class _RegistrationFormScreenState
       }
     }
 
-    final nameVal = pick('name');
+    final rawNameVal = pick('name');
+    final nameVal = GovIdValidator.isValidName(rawNameVal) ? rawNameVal : '';
     final finalName = nameVal.isNotEmpty
         ? nameVal
         : (currentUser?.displayName ?? '');
     _nameController = TextEditingController(text: finalName);
     trackIfFilled('name', nameVal);
 
-    final fatherVal = pick('fatherName');
+    final rawFatherVal = pick('fatherName');
+    final fatherVal = (GovIdValidator.isValidName(rawFatherVal) && rawFatherVal != nameVal) ? rawFatherVal : '';
     _fatherNameController = TextEditingController(text: fatherVal);
     trackIfFilled('fatherName', fatherVal);
 
-    final dobVal = pick('dob');
+    final rawDobVal = pick('dob');
+    final dobVal = GovIdValidator.isValidDob(rawDobVal) ? rawDobVal : '';
     _dobController = TextEditingController(text: dobVal);
     trackIfFilled('dob', dobVal);
 
@@ -106,7 +109,8 @@ class _RegistrationFormScreenState
         : (currentUser?.email ?? '');
     _emailController = TextEditingController(text: emailVal);
 
-    final idVal = pick('govIdNumber');
+    final rawIdVal = pick('govIdNumber');
+    final idVal = GovIdValidator.isValid(_selectedGovIdType, rawIdVal) ? rawIdVal : '';
     _idNumberController = TextEditingController(text: idVal);
     trackIfFilled('govIdNumber', idVal);
 
@@ -114,7 +118,8 @@ class _RegistrationFormScreenState
     _addressController = TextEditingController(text: addrVal);
     trackIfFilled('address', addrVal);
 
-    final pinVal = pick('pinCode');
+    final rawPinVal = pick('pinCode');
+    final pinVal = GovIdValidator.isValidPinCode(rawPinVal) ? rawPinVal : '';
     _pinCodeController = TextEditingController(text: pinVal);
     trackIfFilled('pinCode', pinVal);
 
@@ -537,47 +542,43 @@ class _RegistrationFormScreenState
             preferredType: finalType,
           );
 
+          final clean = result.sanitized(finalType);
           updates['govIdType'] = finalType.name;
           setState(() {
             _selectedGovIdType = finalType;
-            if (result.idNumber != null && result.idNumber!.trim().isNotEmpty) {
-              final formatted = GovIdValidator.format(finalType, result.idNumber!.trim());
+            if (clean.idNumber != null && clean.idNumber!.trim().isNotEmpty) {
+              final formatted = GovIdValidator.format(finalType, clean.idNumber!.trim());
               _idNumberController.text = formatted;
               _autoFilledKeys.add('govIdNumber');
               updates['govIdNumber'] = formatted;
             }
-            if (result.name != null && result.name!.trim().isNotEmpty) {
-              _nameController.text = result.name!.trim();
+            if (clean.name != null && clean.name!.trim().isNotEmpty) {
+              _nameController.text = clean.name!.trim();
               _autoFilledKeys.add('name');
-              updates['name'] = result.name!.trim();
+              updates['name'] = clean.name!.trim();
             }
-            if (result.fatherName != null && result.fatherName!.trim().isNotEmpty) {
-              _fatherNameController.text = result.fatherName!.trim();
+            if (clean.fatherName != null && clean.fatherName!.trim().isNotEmpty) {
+              _fatherNameController.text = clean.fatherName!.trim();
               _autoFilledKeys.add('fatherName');
-              updates['fatherName'] = result.fatherName!.trim();
+              updates['fatherName'] = clean.fatherName!.trim();
             }
-            if (result.dob != null && result.dob!.trim().isNotEmpty) {
-              _dobController.text = result.dob!.trim();
+            if (clean.dob != null && clean.dob!.trim().isNotEmpty) {
+              _dobController.text = clean.dob!.trim();
               _autoFilledKeys.add('dob');
-              updates['dob'] = result.dob!.trim();
+              updates['dob'] = clean.dob!.trim();
             }
-            if (result.gender != null && result.gender!.trim().isNotEmpty) {
-              final g = result.gender!.toLowerCase();
-              if (g.contains('female')) {
-                _gender = 'female';
-              } else if (g.contains('male')) {
-                _gender = 'male';
-              }
+            if (clean.gender != null && clean.gender!.trim().isNotEmpty) {
+              _gender = clean.gender!;
               updates['gender'] = _gender;
             }
-            if (result.address != null && result.address!.trim().isNotEmpty) {
-              _addressController.text = result.address!.trim();
+            if (clean.address != null && clean.address!.trim().isNotEmpty) {
+              _addressController.text = clean.address!.trim();
               _autoFilledKeys.add('address');
-              updates['address'] = result.address!.trim();
+              updates['address'] = clean.address!.trim();
               updates['govIdBackDataUrl'] = dataUrl;
               updates['govIdBackImageUrl'] = dataUrl;
             }
-            if (result.pinCode != null && result.pinCode!.trim().isNotEmpty) {
+            if (clean.pinCode != null && clean.pinCode!.trim().isNotEmpty) {
               _pinCodeController.text = result.pinCode!.trim();
               _autoFilledKeys.add('pinCode');
               updates['pinCode'] = result.pinCode!.trim();

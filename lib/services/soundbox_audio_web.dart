@@ -15,6 +15,9 @@ void playWebSoundboxChime() {
           var AudioCtx = window.AudioContext || window.webkitAudioContext;
           if (!AudioCtx) return;
           var ctx = new AudioCtx();
+          if (ctx.state === 'suspended') {
+            ctx.resume();
+          }
           var freqs = [523.25, 659.25, 783.99, 1046.50];
           var step = 0.075;
           var now = ctx.currentTime;
@@ -26,7 +29,7 @@ void playWebSoundboxChime() {
             var st = now + (i * step);
             var et = st + 0.16;
             gain.gain.setValueAtTime(0.01, st);
-            gain.gain.linearRampToValueAtTime(0.28, st + 0.015);
+            gain.gain.linearRampToValueAtTime(0.35, st + 0.015);
             gain.gain.exponentialRampToValueAtTime(0.001, et);
             osc.connect(gain);
             gain.connect(ctx.destination);
@@ -45,7 +48,11 @@ void speakWebAnnouncement(String text, String languageCode) {
   try {
     if (html.window.speechSynthesis == null) return;
 
-    html.window.speechSynthesis?.cancel(); // Cancel any queued utterance
+    final synth = html.window.speechSynthesis!;
+    if (synth.speaking == true) {
+      synth.cancel();
+    }
+
     final utterance = html.SpeechSynthesisUtterance(text);
 
     if (languageCode == 'hi') {
@@ -60,7 +67,12 @@ void speakWebAnnouncement(String text, String languageCode) {
     utterance.pitch = 1.05; // Friendly clarity
     utterance.volume = 1.0;
 
-    html.window.speechSynthesis?.speak(utterance);
+    // Small delay ensures previous cancel event does not clobber speech
+    Future.delayed(const Duration(milliseconds: 50), () {
+      try {
+        synth.speak(utterance);
+      } catch (_) {}
+    });
   } catch (_) {
     // Graceful fallback
   }

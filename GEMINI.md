@@ -865,3 +865,65 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
         - `StudyLibrary.aab` (Google Play App Bundle)
      c) Stage all assets in `release_assets/v<version>/` and create the GitHub Release with all 4 binaries uploaded via `gh release create`.
      d) Perform byte-range health checks (`curl -s -L -r 0-10 -o NUL -w "%{http_code}"`) to verify all assets return `206 Partial Content` (or `200 OK`) before deploying hosting.
+
+---
+
+## 46. Notification Role Fencing, Local Read/Dismissal Persistence & Batch Isolation Standard (Learned Nov 2026)
+
+1. **Strict Notification Role Fencing (`targetRole == 'admin'`):**
+   - Root Cause: Administrative alerts (such as `Profile Update Request` dispatched when a student submitted profile edits) attached `metadata['studentId']` for administrative reference. In `studentNotificationsStreamProvider`, notifications were matched against `metadata['studentId']` before evaluating `targetRole`. This leaked administrative alerts into the student notification center with confusing prompts (e.g. "shubham dixit requested profile updates").
+   - Guardrails:
+     a) In `studentNotificationsStreamProvider`, enforce an immediate strict role fence `if (n.targetRole == 'admin') return false;` at the very beginning of the evaluation loop. Students must NEVER receive, view, or count alerts meant for administrators.
+     b) Filter sensitive personal types (`receipt`, `payment`, `seat`, `renewal`) to ensure they only render when explicitly addressed to the student's direct ID or Auth UID.
+
+2. **Hybrid Local Persistence (`SharedPreferences`) for Zero-Stuck Notification Badges:**
+   - Root Cause: Public broadcast notices (`targetRole == 'all'`) and cross-role documents cannot be deleted or modified in Firestore by student client credentials under `firestore.rules`. When students tapped "Clear Read", "Mark all read", or swiped to dismiss, Firestore rejected the write, causing notifications and unread badge counts to persistently stick on screen after reloading.
+   - Guardrails:
+     a) Implement hybrid local persistence using `_locallyReadIds` and `_locallyDismissedIds` backed by `SharedPreferences` keys (`locally_read_notifs_${libraryId}_${userId}` and `locally_dismissed_notifs_${libraryId}_${userId}`).
+     b) Both `studentNotificationsStreamProvider` and `adminNotificationsStreamProvider` must filter out any locally dismissed notification IDs and mark read state instantaneously (`copyWith(read: true)`).
+     c) Notification center sheets must maintain local optimistic sets and update the UI instantly (0ms latency) upon swipe-to-dismiss, checkmark tap, "Mark all read", or "Clear Read".
+
+3. **Atomic Batch Isolation & Fault-Tolerant Operations:**
+   - Root Cause: `markAllAsRead` and `clearAllRead` previously bundled multiple notification documents into a single Firestore `WriteBatch`. If a single broadcast document failed security rule checks, Firestore aborted the entire batch with `PERMISSION_DENIED`, leaving all valid personal notifications unread and stuck.
+   - Guardrails:
+     a) Eliminate monolithic `WriteBatch` writes for heterogeneous notification lists.
+     b) Use resilient individual document operations (`doc.reference.update(...).catchError((_) {})` and `doc.reference.delete().catchError((_) {})`) alongside immediate local state persistence.
+     c) Permission failure on a shared or broadcast item must NEVER block personal items from being updated or cleared.
+
+---
+
+## 47. Student Admission Approval Pending Payment Lifecycle, Zero Fake Receipt Synthesis & Local Role Fencing Discipline (Learned Nov 2026)
+
+1. **Zero Fake Receipt Synthesis for Unpaid Students:**
+   - Root Cause: In `my_receipts_screen.dart`, when a student had an approved admission but the counter had not yet recorded their initial fee payment, `hasActiveAdmission` checked `student.seatId != null || student.planId != null`. This condition was true immediately upon admission approval, triggering in-memory synthesis of a fake `REC-2026-CC20260016 [PAID] ₹700` receipt claiming "100% Settled • 0 Pending Dues" before any payment was actually collected.
+   - Guardrails:
+     a) Replace broad `hasActiveAdmission` with strict `hasPaidAdmission`: `student.membershipStatus == MembershipStatus.active && student.planStartDate != null && student.planEndDate != null`.
+     b) When `student.planId != null` and fee payment is not recorded (`isPaymentPending`), display a dedicated **"ADMISSION APPROVED • AWAITING PAYMENT"** invoice card with `UNPAID / PENDING AT RECEPTION` and a 1-tap WhatsApp contact button. Never synthesize `[PAID]` receipts or claim fees are settled.
+
+2. **Digital ID Card Provisional State Determination (`Awaiting Payment`):**
+   - Root Cause: In `my_id_card_screen.dart`, ternary status chains fell through to `'ACTIVE PASS'`, `'Active'`, and live security clocks for newly approved students whose `membershipStatus` was `inactive` or `pending` (awaiting initial counter fee payment).
+   - Guardrails:
+     a) Formulate `isPaymentPending`: `effectiveStatus == MembershipStatus.inactive || effectiveStatus == MembershipStatus.pending || (student.planEndDate == null && effectiveStatus != MembershipStatus.active)`.
+     b) When `isPaymentPending` is true:
+        - Front badge: Display `'AWAITING PAYMENT'` (Amber) instead of `'ACTIVE PASS'`.
+        - Validity label: Display `'Awaiting Payment'` instead of `'Active'`.
+        - Verification QR: Overlay `'PENDING'` badge on the card back.
+        - Bottom ticker: Display `'PENDING HH:mm:ss'` with amber indicator.
+        - Render dedicated "Admission Approved • Pass Awaiting Fee Payment" status banner with direct counter contact.
+
+3. **Student Home Screen Smart Pass Invariant (`Fee Pending`):**
+   - Root Cause: In `student_home_screen.dart`, the smart pass footer displayed `'Fee ₹700 Settled'` with a green checkmark next to `'No Active Plan'`, presenting conflicting information to the student.
+   - Guardrail: When `student.planEndDate == null` or membership status is `inactive`/`pending`, display `'Fee ₹${plan.price} Pending'` (or `'Payment Awaiting'`) with an amber `Icons.schedule_rounded` icon. Never display `'Fee Settled'` when payment has not been recorded in Firestore.
+
+4. **Membership Screen Expiry Disambiguation:**
+   - Root Cause: In `my_membership_screen.dart`, unpaid students with `planEndDate == null` were marked with a red `[Expired]` badge alongside an "Active Pass" subtitle.
+   - Guardrails:
+     a) Differentiate `isPaymentPending` from `isExpired`. Unpaid students whose plan has not started are NOT expired.
+     b) Display badge `'Payment Pending'`, subtitle `'Starts on fee payment'`, progress label `'Starts Upon Payment'`, and seat guarantee pill `'🔒 Desk is held for you • Settle fee at reception to activate'`.
+     c) Render amber quick action button: `'Pay Fee / Settle at Counter'`.
+
+5. **Local Device Notification Role Fencing:**
+   - Root Cause: In `AppNotificationService.sendNotification`, calling `NotificationService.showNotification` showed OS-level local push notifications on the current device regardless of `targetRole`. When a student submitted a self-registration, their phone triggered both the student confirmation and the admin alert (`📋 New Registration Request... Please review and approve`).
+   - Guardrail: In `AppNotificationService.sendNotification`, evaluate the current device's logged-in role (`cached_current_user_role` or `persisted_role`). If `targetRole == 'admin'` and the current session is a `student`, suppress the local push notification entirely.
+
+

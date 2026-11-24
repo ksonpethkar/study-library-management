@@ -17,6 +17,7 @@ import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MyReceiptsScreen extends ConsumerStatefulWidget {
   const MyReceiptsScreen({super.key});
@@ -190,22 +191,19 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
               }).toList()
                 ..sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
 
-              // Resilient fallback: If no official receipt doc exists, but student has an active/grace plan enrollment,
-              // synthesize the official enrollment receipt so that receipts are ALWAYS visible!
-              final hasActiveAdmission = student.membershipStatus == MembershipStatus.active ||
-                  student.membershipStatus == MembershipStatus.grace ||
-                  student.planStartDate != null ||
-                  student.planEndDate != null ||
-                  student.seatId != null ||
-                  student.planId != null;
+              // Resilient fallback: If no official receipt doc exists, but student has a genuine active paid plan enrollment,
+              // synthesize the official enrollment receipt ONLY for active members who have actually paid!
+              final hasPaidAdmission = student.membershipStatus == MembershipStatus.active &&
+                  student.planStartDate != null &&
+                  student.planEndDate != null;
 
-              if (receipts.isEmpty && hasActiveAdmission) {
+              if (receipts.isEmpty && hasPaidAdmission) {
                 final plans = plansAsync.value ?? [];
                 final matchedPlan = plans.where((p) => p.id == student.planId).firstOrNull;
                 final planName = matchedPlan?.name ?? student.customPlanName ?? 'Quarterly Study Pass';
                 final planPrice = matchedPlan?.price ?? student.customPlanFee ?? 2000.0;
-                final startDate = student.planStartDate ?? student.createdAt ?? DateTime.now();
-                final endDate = student.planEndDate ?? startDate.add(const Duration(days: 90));
+                final startDate = student.planStartDate!;
+                final endDate = student.planEndDate!;
 
                 final uniqueSuffix = student.membershipNumber?.isNotEmpty == true
                     ? student.membershipNumber!
@@ -714,14 +712,142 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                   final startDate = student.planStartDate ?? student.createdAt ?? DateTime.now();
                   final endDate = student.planEndDate ?? startDate.add(const Duration(days: 30));
 
-                  final hasActiveAdmission = student.membershipStatus == MembershipStatus.active ||
-                      student.membershipStatus == MembershipStatus.grace ||
-                      student.planStartDate != null ||
-                      student.planEndDate != null ||
-                      student.seatId != null ||
-                      student.planId != null;
+                  final isPaymentPending = (student.planEndDate == null ||
+                          student.membershipStatus == MembershipStatus.inactive ||
+                          student.membershipStatus == MembershipStatus.pending) &&
+                      (student.planId != null || student.seatId != null);
 
-                  if (hasActiveAdmission) {
+                  final hasPaidAdmission = student.membershipStatus == MembershipStatus.active &&
+                      student.planStartDate != null &&
+                      student.planEndDate != null;
+
+                  if (isPaymentPending) {
+                    final libPhone = libraryAsync.value?.effectiveHelpline ?? libraryAsync.value?.contact ?? '';
+                    final deskLabel = SeatHelper.formatSeatLabel(seatId: student.seatId);
+                    return ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(18.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                                      ),
+                                      child: const Text(
+                                        'ADMISSION APPROVED • AWAITING PAYMENT',
+                                        style: TextStyle(color: Color(0xFFD97706), fontWeight: FontWeight.bold, fontSize: 11),
+                                      ),
+                                    ),
+                                    Text(
+                                      dateFormat.format(student.createdAt ?? DateTime.now()),
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  planName,
+                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '$deskLabel • Desk Allocated (Pass activates upon fee settlement)',
+                                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                                ),
+                                const Divider(height: 24),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Total Plan Fee:', style: TextStyle(fontWeight: FontWeight.w600)),
+                                    Text(
+                                      '₹${planPrice.toStringAsFixed(0)}',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFD97706)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Payment Status:', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFEF3C7),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFFF59E0B)),
+                                      ),
+                                      child: const Text(
+                                        'UNPAID / PENDING AT RECEPTION',
+                                        style: TextStyle(color: Color(0xFFB45309), fontWeight: FontWeight.bold, fontSize: 11),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFFD97706)),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Your seat is held. Please deposit fee at reception desk or via UPI to activate your smart pass and generate your official tax receipt.',
+                                          style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant, height: 1.35),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                if (libPhone.isNotEmpty)
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: FilledButton.icon(
+                                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                                      label: const Text('Contact Desk on WhatsApp to Pay'),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: const Color(0xFF25D366),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                      onPressed: () {
+                                        final clean = libPhone.replaceAll(RegExp(r'[^0-9]'), '');
+                                        final text = Uri.encodeComponent(
+                                          'Hello! My admission is approved for $deskLabel ($planName, ₹${planPrice.toStringAsFixed(0)}). I would like to complete fee payment.',
+                                        );
+                                        launchUrl(Uri.parse('https://wa.me/$clean?text=$text'), mode: LaunchMode.externalApplication);
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  if (hasPaidAdmission) {
                     return ListView(
                       padding: const EdgeInsets.all(16),
                       children: [

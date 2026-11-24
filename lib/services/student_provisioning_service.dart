@@ -116,8 +116,9 @@ class StudentProvisioningService {
 
         // 2. Calculate Plan Expiry Dates if plan is selected
         final planId = (studentData['planId'] ?? data['planId'])?.toString();
-        DateTime? planStartDate;
-        DateTime? planEndDate;
+        DateTime? planStartDate = StudentModel.parseDateStatic(
+            studentData['planStartDate'] ?? data['planStartDate'] ?? studentData['admissionDate'] ?? data['admissionDate']);
+        DateTime? planEndDate = StudentModel.parseDateStatic(studentData['planEndDate'] ?? data['planEndDate']);
         double? planSecurityDeposit;
         if (planId != null && planId.isNotEmpty) {
           try {
@@ -132,12 +133,14 @@ class StudentProvisioningService {
               if (plan.hasSecurityDeposit && plan.securityDepositAmount != null) {
                 planSecurityDeposit = plan.securityDepositAmount;
               }
-              planStartDate = DateTime.now();
-              final smartCalc = PlanCalculatorService.calculateSmartPlan(
-                plan: plan,
-                fromDate: planStartDate,
-              );
-              planEndDate = smartCalc.endDate;
+              planStartDate ??= DateTime.now();
+              if (planEndDate == null) {
+                final smartCalc = PlanCalculatorService.calculateSmartPlan(
+                  plan: plan,
+                  fromDate: planStartDate,
+                );
+                planEndDate = smartCalc.endDate;
+              }
             }
           } catch (e) {
             if (kDebugMode) debugPrint('Failed to calculate plan duration: $e');
@@ -242,9 +245,9 @@ class StudentProvisioningService {
             seatId: requestedSeatId,
             sectionId: requestedSectionId,
             planId: planId,
-            admissionDate: DateTime.now(),
-            planStartDate: isPaid ? planStartDate : null,
-            planEndDate: isPaid ? planEndDate : null,
+            admissionDate: StudentModel.parseDateStatic(studentData['admissionDate'] ?? data['admissionDate'] ?? studentData['joiningDate'] ?? data['joiningDate']) ?? planStartDate ?? DateTime.now(),
+            planStartDate: isPaid ? planStartDate : (planStartDate ?? DateTime.now()),
+            planEndDate: isPaid ? planEndDate : planEndDate,
             membershipStatus: isPaid ? MembershipStatus.active : MembershipStatus.inactive,
             customFields: {
               ...extractedCustomFields,

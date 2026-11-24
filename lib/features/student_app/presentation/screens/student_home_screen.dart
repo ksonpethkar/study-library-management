@@ -1536,7 +1536,9 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                         ? '1 Day Remaining'
                         : (daysLeft > 1
                             ? '$daysLeft Days Remaining'
-                            : (student.planEndDate != null ? 'Expired ${-daysLeft}d ago' : 'No Active Plan'))),
+                            : (student.planEndDate != null
+                                ? 'Expired ${-daysLeft}d ago'
+                                : (student.seatId != null ? 'Admission Approved • Awaiting Fee' : 'No Active Plan')))),
                 style: TextStyle(
                   color: student.isCurrentlyFrozen ? const Color(0xFFFCD34D) : progressColor,
                   fontWeight: FontWeight.bold,
@@ -1555,6 +1557,19 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                         color: Color(0xFFFBBF24),
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ] else if (student.planEndDate == null ||
+                      student.effectiveMembershipStatus == MembershipStatus.inactive ||
+                      student.effectiveMembershipStatus == MembershipStatus.pending) ...[
+                    const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: 4),
+                    Text(
+                      plan != null ? 'Fee ₹${plan.price.toStringAsFixed(0)} Pending' : 'Payment Awaiting',
+                      style: const TextStyle(
+                        color: Color(0xFFFDE68A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ] else ...[

@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:study_library/core/router/app_router.dart';
 import '../providers/registration_provider.dart';
 import 'package:study_library/features/registration/data/ocr_parser.dart';
@@ -40,68 +39,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
         _selectedType == GovIdType.voterId;
   }
 
-  void _openLiveQrScanner() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.black,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => _LiveAadhaarQrScannerSheet(
-        onQrDetected: (String rawCode) {
-          Navigator.of(ctx).pop();
-          _handleQrDecoded(rawCode);
-        },
-      ),
-    );
-  }
 
-  void _handleQrDecoded(String rawCode) {
-    final qrResult = QrIdParser.parseQrString(rawCode);
-    if (qrResult == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unrecognized QR format. Please scan an official Aadhaar or Indian Gov ID QR code.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    try {
-      HapticFeedback.mediumImpact();
-    } catch (_) {}
-
-    final ocrResult = qrResult.toOcrResult();
-
-    final updates = <String, dynamic>{
-      'govIdType': qrResult.type.name,
-      if (ocrResult.name != null && ocrResult.name!.trim().isNotEmpty) 'name': ocrResult.name!.trim(),
-      if (ocrResult.fatherName != null && ocrResult.fatherName!.trim().isNotEmpty) 'fatherName': ocrResult.fatherName!.trim(),
-      if (ocrResult.dob != null && ocrResult.dob!.trim().isNotEmpty) 'dob': ocrResult.dob!.trim(),
-      if (ocrResult.gender != null && ocrResult.gender!.trim().isNotEmpty) 'gender': ocrResult.gender!.trim(),
-      if (ocrResult.idNumber != null && ocrResult.idNumber!.trim().isNotEmpty) 'govIdNumber': ocrResult.idNumber!.trim(),
-      if (ocrResult.address != null && ocrResult.address!.trim().isNotEmpty) 'address': ocrResult.address!.trim(),
-      if (ocrResult.pinCode != null && ocrResult.pinCode!.trim().isNotEmpty) 'pinCode': ocrResult.pinCode!.trim(),
-      if (ocrResult.phone != null && ocrResult.phone!.trim().isNotEmpty) 'phone': ocrResult.phone!.trim(),
-      'isQrVerified': 'true',
-    };
-
-    ref.read(registrationNotifierProvider.notifier).updateFields(updates);
-    ref.read(ocrResultProvider.notifier).setResult({
-      ...ocrResult.toMap(),
-      'isQrVerified': 'true',
-    });
-
-    setState(() {
-      _selectedType = qrResult.type;
-      _frontScanned = true;
-    });
-
-    _showAutoFillPreview(ocrResult);
-  }
 
   Future<void> _captureAndScan(ImageSource source, {bool isBackSide = false}) async {
     final doc = await DocumentPickerService.pickDocument(
@@ -204,7 +142,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
           qrString: qrString,
           rawText: rawText,
           preferredType: _selectedType,
-        );
+        ).sanitized(_selectedType);
 
         // Update address-related fields from the back scan
         final updates = <String, dynamic>{
@@ -278,11 +216,12 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
           _detectedLayout = layout;
         });
 
-        final result = OcrParser.parseUnified(
+        final rawResult = OcrParser.parseUnified(
           qrString: qrString,
           rawText: rawText,
           preferredType: effectiveType,
         );
+        final result = rawResult.sanitized(effectiveType);
 
         final updates = <String, dynamic>{
           'govIdType': effectiveType.name,
@@ -394,14 +333,15 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
 
   /// Shows a bottom sheet summarising what was extracted, then advances to step 2.
   void _showAutoFillPreview(OcrResult result) {
-    final filled = result.filledFields();
+    final clean = result.sanitized(_selectedType);
+    final filled = clean.filledFields(_selectedType);
     final theme = Theme.of(context);
     final labelMap = {
       'name': 'Full Name',
       'fatherName': "Father's Name",
       'dob': 'Date of Birth',
       'gender': 'Gender',
-      'idNumber': 'ID Number',
+      'idNumber': '${_selectedType.displayName} Number',
       'address': 'Address',
       'pinCode': 'PIN Code',
       'phone': 'Phone',
@@ -411,7 +351,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
       'rollNumber': 'Roll / Enroll No.',
     };
 
-    final isIdValid = GovIdValidator.isValid(_selectedType, result.idNumber);
+    final isIdValid = clean.idNumber != null && GovIdValidator.isValid(_selectedType, clean.idNumber);
 
     showModalBottomSheet(
       context: context,
@@ -445,12 +385,8 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
               Row(
                 children: [
                   Icon(
-                    result.isQrVerified
-                        ? Icons.verified_rounded
-                        : (isIdValid ? Icons.verified_rounded : Icons.auto_fix_high_rounded),
-                    color: result.isQrVerified
-                        ? const Color(0xFF16A34A)
-                        : (isIdValid ? Colors.green.shade600 : const Color(0xFF2563EB)),
+                    isIdValid ? Icons.verified_rounded : Icons.auto_fix_high_rounded,
+                    color: isIdValid ? Colors.green.shade600 : const Color(0xFF2563EB),
                     size: 28,
                   ),
                   const SizedBox(width: 10),
@@ -459,17 +395,15 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          result.isQrVerified
-                              ? 'Official ID QR Verified ✓'
-                              : (isIdValid ? 'ID Scanned & Number Validated ✓' : 'ID Scanned (Please Review)'),
+                          isIdValid
+                              ? '${_selectedType.displayName} Number Validated ✓'
+                              : (filled.isNotEmpty ? 'ID Details Extracted' : 'ID Photo Attached'),
                           style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          result.isQrVerified
-                              ? '100% Cryptographic Match from UIDAI Signed QR'
-                              : (isIdValid
-                                  ? '${_selectedType.displayName} Checksum Verified  •  Review details in Step 2'
-                                  : '${filled.length} fields auto-filled  •  Verify details in Step 2'),
+                          filled.isNotEmpty
+                              ? '${filled.length} verified fields auto-filled • Review in Step 2'
+                              : 'Card photo saved • Please enter your details in Step 2',
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
                         ),
                       ],
@@ -484,12 +418,19 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
               // Filled fields list
               if (filled.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Center(
-                    child: Text(
-                      'No fields could be extracted automatically.\nPlease fill in the form manually.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.badge_outlined, color: Colors.grey.shade400, size: 40),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Government ID photo captured and attached.\nPlease enter your details in Step 2.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                        ),
+                      ],
                     ),
                   ),
                 )
@@ -499,40 +440,12 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                     controller: controller,
                     children: filled.entries.where((e) => e.key != 'isQrVerified').map((e) {
                       final label = labelMap[e.key] ?? e.key;
-                      bool? isValid;
-                      if (e.key == 'idNumber') isValid = GovIdValidator.isValid(_selectedType, e.value);
-                      if (e.key == 'name') isValid = GovIdValidator.isValidName(e.value);
-                      if (e.key == 'dob') isValid = GovIdValidator.isValidDob(e.value);
-                      if (e.key == 'pinCode') isValid = GovIdValidator.isValidPinCode(e.value);
-
-                      IconData iconData;
-                      Color iconColor;
-                      Widget badgeWidget;
-
-                      if (result.isQrVerified) {
-                        iconData = Icons.verified_rounded;
-                        iconColor = Colors.green.shade600;
-                        badgeWidget = Text('Verified ✓', style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold, fontSize: 11));
-                      } else if (e.key == 'idNumber' && isValid == true) {
-                        iconData = Icons.verified_rounded;
-                        iconColor = Colors.green.shade600;
-                        badgeWidget = Text('Checksum ✓', style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold, fontSize: 11));
-                      } else if (isValid == false) {
-                        iconData = Icons.warning_amber_rounded;
-                        iconColor = Colors.amber.shade800;
-                        badgeWidget = Text('Review', style: TextStyle(color: Colors.amber.shade900, fontSize: 11, fontWeight: FontWeight.bold));
-                      } else {
-                        iconData = Icons.auto_fix_high_rounded;
-                        iconColor = const Color(0xFF2563EB);
-                        badgeWidget = const Text('Auto-filled', style: TextStyle(color: Color(0xFF1D4ED8), fontSize: 11, fontWeight: FontWeight.w600));
-                      }
-
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 5),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(iconData, color: iconColor, size: 18),
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 18),
                             const SizedBox(width: 8),
                             SizedBox(
                               width: 120,
@@ -552,7 +465,14 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            badgeWidget,
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('Verified ✓', style: TextStyle(color: Color(0xFF16A34A), fontWeight: FontWeight.bold, fontSize: 11)),
+                            ),
                           ],
                         ),
                       );
@@ -754,108 +674,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                       label: const Text('Skip Back Side — Continue to Form'),
                     ),
                   ] else ...[
-                    // ── 1. RECOMMENDED: DIRECT AADHAAR / ID QR SCANNER ──────
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF047857), Color(0xFF059669)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF059669).withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: _openLiveQrScanner,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white24,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 24),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Text(
-                                            'Scan Aadhaar QR Code',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.amber,
-                                              borderRadius: BorderRadius.all(Radius.circular(6)),
-                                            ),
-                                            child: const Text(
-                                              '100% ACCURATE',
-                                              style: TextStyle(
-                                                color: Colors.black87,
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w900,
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      const Text(
-                                        'Instant, zero typos • Direct UIDAI signed demographic data',
-                                        style: TextStyle(color: Colors.white70, fontSize: 11.5),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 14),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const Expanded(child: Divider()),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Text('OR USE OCR PHOTO SCAN',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey.shade500,
-                                  letterSpacing: 0.8)),
-                        ),
-                        const Expanded(child: Divider()),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ── 2. OCR PHOTO SCAN BUTTONS ────────────────────────────
+                    // ── ID CARD PHOTO SCAN BUTTONS ──────────────────────────
                     FilledButton.icon(
                       onPressed: () => _captureAndScan(ImageSource.camera),
                       icon: const Icon(Icons.camera_alt_rounded),
@@ -1038,182 +857,3 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
   }
 }
 
-/// Live Aadhaar & Government ID QR Code Camera Scanner Bottom Sheet
-class _LiveAadhaarQrScannerSheet extends StatefulWidget {
-  final ValueChanged<String> onQrDetected;
-
-  const _LiveAadhaarQrScannerSheet({
-    required this.onQrDetected,
-  });
-
-  @override
-  State<_LiveAadhaarQrScannerSheet> createState() => _LiveAadhaarQrScannerSheetState();
-}
-
-class _LiveAadhaarQrScannerSheetState extends State<_LiveAadhaarQrScannerSheet> {
-  final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.normal,
-    facing: CameraFacing.back,
-    torchEnabled: false,
-  );
-  bool _hasScanned = false;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onDetect(BarcodeCapture capture) {
-    if (_hasScanned) return;
-    for (final barcode in capture.barcodes) {
-      final code = barcode.rawValue;
-      if (code != null && code.trim().isNotEmpty) {
-        setState(() => _hasScanned = true);
-        widget.onQrDetected(code.trim());
-        break;
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.88,
-      decoration: const BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
-          // Top bar with grabber & close
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 26),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                const Text(
-                  'Scan Aadhaar QR Code',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.flash_on_rounded, color: Colors.white, size: 22),
-                      onPressed: () => _controller.toggleTorch(),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.cameraswitch_rounded, color: Colors.white, size: 22),
-                      onPressed: () => _controller.switchCamera(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Live Viewfinder
-          Expanded(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                MobileScanner(
-                  controller: _controller,
-                  onDetect: _onDetect,
-                ),
-
-                // Viewfinder Reticle Overlay
-                Center(
-                  child: Container(
-                    width: 260,
-                    height: 260,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFF10B981), width: 2.5),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.25),
-                          blurRadius: 16,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          top: 10,
-                          left: 10,
-                          child: Container(width: 24, height: 24, decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.white, width: 3), left: BorderSide(color: Colors.white, width: 3)))),
-                        ),
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: Container(width: 24, height: 24, decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.white, width: 3), right: BorderSide(color: Colors.white, width: 3)))),
-                        ),
-                        Positioned(
-                          bottom: 10,
-                          left: 10,
-                          child: Container(width: 24, height: 24, decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white, width: 3), left: BorderSide(color: Colors.white, width: 3)))),
-                        ),
-                        Positioned(
-                          bottom: 10,
-                          right: 10,
-                          child: Container(width: 24, height: 24, decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white, width: 3), right: BorderSide(color: Colors.white, width: 3)))),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Helper text pill
-                Positioned(
-                  bottom: 30,
-                  left: 20,
-                  right: 20,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: const Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.center_focus_strong_rounded, color: Color(0xFF10B981), size: 18),
-                            SizedBox(width: 8),
-                            Text(
-                              'Align Aadhaar QR inside the box',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Works with e-Aadhaar PDF, PVC card & paper slips',
-                          style: TextStyle(color: Colors.white70, fontSize: 11.5),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

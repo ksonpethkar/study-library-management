@@ -55,14 +55,20 @@ enum NotificationCategory { all, unread, receipts, passSeats, notices }
 
 class _NotificationCenterSheetState extends ConsumerState<NotificationCenterSheet> {
   NotificationCategory _selectedCategory = NotificationCategory.all;
+  final Set<String> _locallyReadIds = {};
+  final Set<String> _locallyDismissedIds = {};
 
   bool _matchesCategory(AppNotificationModel notif, NotificationCategory category) {
+    if (_locallyDismissedIds.contains(notif.id) || AppNotificationService.isLocallyDismissed(notif.id)) {
+      return false;
+    }
+    final isRead = notif.read || _locallyReadIds.contains(notif.id) || AppNotificationService.isLocallyRead(notif.id);
     final type = notif.type.toLowerCase();
     switch (category) {
       case NotificationCategory.all:
         return true;
       case NotificationCategory.unread:
-        return !notif.read;
+        return !isRead;
       case NotificationCategory.receipts:
         return type == 'payment' || type == 'receipt';
       case NotificationCategory.passSeats:
@@ -232,10 +238,16 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                       TextButton.icon(
                         onPressed: () async {
                           HapticFeedback.heavyImpact();
+                          final allNotifs = notifsAsync.value ?? [];
+                          final ids = allNotifs.map((n) => n.id).toList();
+                          setState(() {
+                            _locallyReadIds.addAll(ids);
+                          });
                           await AppNotificationService.markAllAsRead(
                             libraryId: widget.libraryId,
                             targetRole: widget.role,
                             targetUserId: widget.studentId,
+                            notificationIds: ids,
                           );
                           ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
                           ref.invalidate(adminNotificationsStreamProvider);
@@ -255,10 +267,14 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                                   label: 'Clear All Read',
                                   textColor: Colors.amberAccent,
                                   onPressed: () async {
+                                    setState(() {
+                                      _locallyDismissedIds.addAll(_locallyReadIds);
+                                    });
                                     await AppNotificationService.clearAllRead(
                                       libraryId: widget.libraryId,
                                       targetRole: widget.role,
                                       targetUserId: widget.studentId,
+                                      readNotificationIds: _locallyReadIds.toList(),
                                     );
                                     ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
                                     ref.invalidate(adminNotificationsStreamProvider);
@@ -274,10 +290,19 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                       TextButton.icon(
                         onPressed: () async {
                           HapticFeedback.lightImpact();
+                          final allNotifs = notifsAsync.value ?? [];
+                          final readIds = allNotifs
+                              .where((n) => n.read || _locallyReadIds.contains(n.id) || AppNotificationService.isLocallyRead(n.id))
+                              .map((n) => n.id)
+                              .toList();
+                          setState(() {
+                            _locallyDismissedIds.addAll(readIds);
+                          });
                           await AppNotificationService.clearAllRead(
                             libraryId: widget.libraryId,
                             targetRole: widget.role,
                             targetUserId: widget.studentId,
+                            readNotificationIds: readIds,
                           );
                           ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
                           ref.invalidate(adminNotificationsStreamProvider);
@@ -314,7 +339,11 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
             // Filter Tabs
             Builder(
               builder: (context) {
-                final allNotifs = AppNotificationService.deduplicate(notifsAsync.value ?? [], widget.libraryId);
+                final rawNotifs = AppNotificationService.deduplicate(notifsAsync.value ?? [], widget.libraryId);
+                final allNotifs = rawNotifs
+                    .where((n) => !_locallyDismissedIds.contains(n.id) && !AppNotificationService.isLocallyDismissed(n.id))
+                    .map((n) => _locallyReadIds.contains(n.id) || AppNotificationService.isLocallyRead(n.id) ? n.copyWith(read: true) : n)
+                    .toList();
                 final alertsState = (widget.libraryId.isNotEmpty && widget.role == 'admin')
                     ? ref.watch(systemAlertsProvider(widget.libraryId))
                     : const SystemAlertsState();
@@ -491,16 +520,24 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                       // Firestore Stream Items with Individual Unread Dots
                       ...items.map((notif) => _buildNotificationItem(context, theme, notif)),
 
-                      if (items.any((n) => n.read)) ...[
+                      if (items.any((n) => n.read || _locallyReadIds.contains(n.id) || AppNotificationService.isLocallyRead(n.id))) ...[
                         const SizedBox(height: 12),
                         Center(
                           child: OutlinedButton.icon(
                             onPressed: () async {
                               HapticFeedback.lightImpact();
+                              final readIds = items
+                                  .where((n) => n.read || _locallyReadIds.contains(n.id) || AppNotificationService.isLocallyRead(n.id))
+                                  .map((n) => n.id)
+                                  .toList();
+                              setState(() {
+                                _locallyDismissedIds.addAll(readIds);
+                              });
                               await AppNotificationService.clearAllRead(
                                 libraryId: widget.libraryId,
                                 targetRole: widget.role,
                                 targetUserId: widget.studentId,
+                                readNotificationIds: readIds,
                               );
                               ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
                               ref.invalidate(adminNotificationsStreamProvider);
@@ -545,6 +582,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
   Widget _buildNotificationItem(BuildContext context, ThemeData theme, AppNotificationModel notif) {
     final dateFormat = DateFormat('dd MMM • h:mm a');
     final (icon, iconColor) = _getTypeVisuals(notif.type);
+    final isRead = notif.read || _locallyReadIds.contains(notif.id) || AppNotificationService.isLocallyRead(notif.id);
 
     return Dismissible(
       key: Key('notif_${notif.id}'),
@@ -568,36 +606,48 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
       ),
       onDismissed: (_) async {
         HapticFeedback.mediumImpact();
+        setState(() {
+          _locallyDismissedIds.add(notif.id);
+        });
         await AppNotificationService.deleteNotification(
           libraryId: widget.libraryId,
           notificationId: notif.id,
+          targetUserId: widget.studentId,
         );
+        ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+        ref.invalidate(adminNotificationsStreamProvider);
       },
       child: Opacity(
-        opacity: notif.read ? 0.72 : 1.0,
+        opacity: isRead ? 0.72 : 1.0,
         child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: !notif.read
+          color: !isRead
               ? theme.colorScheme.primaryContainer.withValues(alpha: 0.22)
               : theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: !notif.read
+            color: !isRead
                 ? theme.colorScheme.primary.withValues(alpha: 0.35)
                 : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-            width: !notif.read ? 1.5 : 1,
+            width: !isRead ? 1.5 : 1,
           ),
         ),
         child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () async {
           HapticFeedback.lightImpact();
-          if (!notif.read) {
+          if (!isRead) {
+            setState(() {
+              _locallyReadIds.add(notif.id);
+            });
             await AppNotificationService.markAsRead(
               libraryId: widget.libraryId,
               notificationId: notif.id,
+              targetUserId: widget.studentId,
             );
+            ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+            ref.invalidate(adminNotificationsStreamProvider);
           }
           if (notif.actionRoute != null && notif.actionRoute!.isNotEmpty && context.mounted) {
             Navigator.pop(context);
@@ -610,7 +660,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // INDIVIDUAL UNREAD INDICATOR DOT
-              if (!notif.read)
+              if (!isRead)
                 Container(
                   margin: const EdgeInsets.only(top: 6, right: 8),
                   width: 8,
@@ -653,12 +703,12 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 13,
-                              fontWeight: !notif.read ? FontWeight.bold : FontWeight.w600,
-                              color: !notif.read ? theme.colorScheme.onSurface : theme.colorScheme.onSurfaceVariant,
+                              fontWeight: !isRead ? FontWeight.bold : FontWeight.w600,
+                              color: !isRead ? theme.colorScheme.onSurface : theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
-                        if (notif.read) ...[
+                        if (isRead) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                             margin: const EdgeInsets.only(right: 6),
@@ -708,17 +758,24 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
               ),
 
               // Mark as read icon button
-              if (!notif.read)
+              if (!isRead)
                 IconButton(
                   icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
                   tooltip: 'Mark as read',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   onPressed: () {
+                    HapticFeedback.lightImpact();
+                    setState(() {
+                      _locallyReadIds.add(notif.id);
+                    });
                     AppNotificationService.markAsRead(
                       libraryId: widget.libraryId,
                       notificationId: notif.id,
+                      targetUserId: widget.studentId,
                     );
+                    ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+                    ref.invalidate(adminNotificationsStreamProvider);
                   },
                 ),
             ],
@@ -789,11 +846,18 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
       borderRadius: BorderRadius.circular(20),
       onTap: () async {
         HapticFeedback.lightImpact();
-        if (!notif.read) {
+        final isRead = notif.read || _locallyReadIds.contains(notif.id) || AppNotificationService.isLocallyRead(notif.id);
+        if (!isRead) {
+          setState(() {
+            _locallyReadIds.add(notif.id);
+          });
           await AppNotificationService.markAsRead(
             libraryId: widget.libraryId,
             notificationId: notif.id,
+            targetUserId: widget.studentId,
           );
+          ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+          ref.invalidate(adminNotificationsStreamProvider);
         }
         if (context.mounted) {
           Navigator.of(context).pop();

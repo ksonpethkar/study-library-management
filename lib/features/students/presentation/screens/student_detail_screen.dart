@@ -3747,6 +3747,31 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               .doc(s.id)
                               .update(updates);
 
+                          // Synchronize latest active receipt(s) with adjusted validity dates
+                          try {
+                            final receiptsQuery = await FirebaseFirestore.instance
+                                .collection('libraries')
+                                .doc(libraryId)
+                                .collection('receipts')
+                                .where('studentId', isEqualTo: s.id)
+                                .get();
+
+                            for (final rDoc in receiptsQuery.docs) {
+                              final rData = rDoc.data();
+                              if (rData['status'] == 'active' || rData['status'] == 'paid' || rData['deletedAt'] == null) {
+                                await rDoc.reference.update({
+                                  if (selectedPlanStartDate != null)
+                                    'validFrom': Timestamp.fromDate(selectedPlanStartDate!),
+                                  if (selectedPlanEndDate != null)
+                                    'validTo': Timestamp.fromDate(selectedPlanEndDate!),
+                                  'updatedAt': FieldValue.serverTimestamp(),
+                                });
+                              }
+                            }
+                          } catch (recSyncErr) {
+                            debugPrint('Failed to sync adjusted dates to receipts: $recSyncErr');
+                          }
+
                           AuditLogger().log(
                             action: AuditAction.updated,
                             entityType: AuditEntity.student,
@@ -4772,18 +4797,25 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Row(
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          const Icon(Icons.history_edu_rounded, size: 14, color: Colors.grey),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Admitted: ${DateFormat('dd MMM yyyy').format(s.effectiveAdmissionDate)}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.history_edu_rounded, size: 14, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Admitted: ${DateFormat('dd MMM yyyy').format(s.effectiveAdmissionDate)}',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
                           InkWell(
                             onTap: () => _showAdjustDatesDialog(s),
                             borderRadius: BorderRadius.circular(4),
@@ -4807,7 +4839,6 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
                           InkWell(
                             onTap: () => _showAdjustDueDialog(s),
                             borderRadius: BorderRadius.circular(4),

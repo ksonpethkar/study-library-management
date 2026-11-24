@@ -94,15 +94,19 @@ class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen>
     setState(() => _isSaving = true);
     try {
       final updated = _settings.copyWith(customRulesText: _rulesController.text.trim());
+      final Map<String, dynamic> dataToSave = {
+        ...updated.toJson(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (updated.customColorHex == null) {
+        dataToSave['customColorHex'] = FieldValue.delete();
+      }
       await FirebaseFirestore.instance
           .collection('libraries')
           .doc(libraryId)
           .collection('settings')
           .doc('id_card_template')
-          .set({
-        ...updated.toJson(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+          .set(dataToSave, SetOptions(merge: true));
 
       ref.invalidate(idCardTemplateProvider);
 
@@ -254,7 +258,7 @@ class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen>
                     final isSelected = _settings.cardTheme == themeId;
                     return InkWell(
                       borderRadius: BorderRadius.circular(8),
-                      onTap: () => setState(() => _settings = _settings.copyWith(cardTheme: themeId)),
+                      onTap: () => setState(() => _settings = _settings.copyWith(cardTheme: themeId, clearCustomColor: true)),
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

@@ -132,8 +132,11 @@ class MyMembershipScreen extends ConsumerWidget {
               ? (daysRemaining / totalDays).clamp(0.0, 1.0)
               : 0.0;
 
-          final isExpired = daysRemaining <= 0;
-          final isExpiringSoon = !isExpired && daysRemaining <= 5;
+          final isPaymentPending = student.planEndDate == null ||
+              student.effectiveMembershipStatus == MembershipStatus.inactive ||
+              student.effectiveMembershipStatus == MembershipStatus.pending;
+          final isExpired = !isPaymentPending && (endDate != null && endDate.isBefore(now));
+          final isExpiringSoon = !isPaymentPending && !isExpired && daysRemaining <= 5;
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -312,14 +315,14 @@ class MyMembershipScreen extends ConsumerWidget {
                                 decoration: BoxDecoration(
                                   color: isExpired
                                       ? const Color(0xFFEF4444).withValues(alpha: 0.2)
-                                      : (isExpiringSoon
+                                      : (isPaymentPending || isExpiringSoon
                                           ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
                                           : const Color(0xFF10B981).withValues(alpha: 0.2)),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isExpired
                                         ? const Color(0xFFEF4444).withValues(alpha: 0.4)
-                                        : (isExpiringSoon
+                                        : (isPaymentPending || isExpiringSoon
                                             ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
                                             : const Color(0xFF10B981).withValues(alpha: 0.4)),
                                   ),
@@ -328,19 +331,23 @@ class MyMembershipScreen extends ConsumerWidget {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      isExpired ? Icons.cancel_rounded : Icons.hourglass_bottom_rounded,
+                                      isExpired
+                                          ? Icons.cancel_rounded
+                                          : (isPaymentPending ? Icons.schedule_rounded : Icons.hourglass_bottom_rounded),
                                       size: 13,
                                       color: isExpired
                                           ? const Color(0xFFFCA5A5)
-                                          : (isExpiringSoon ? const Color(0xFFFCD34D) : const Color(0xFF6EE7B7)),
+                                          : (isPaymentPending || isExpiringSoon ? const Color(0xFFFCD34D) : const Color(0xFF6EE7B7)),
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      isExpired ? 'Expired' : '$daysRemaining Days Left',
+                                      isExpired
+                                          ? 'Expired'
+                                          : (isPaymentPending ? 'Payment Pending' : '$daysRemaining Days Left'),
                                       style: TextStyle(
                                         color: isExpired
                                             ? const Color(0xFFFCA5A5)
-                                            : (isExpiringSoon ? const Color(0xFFFCD34D) : const Color(0xFF6EE7B7)),
+                                            : (isPaymentPending || isExpiringSoon ? const Color(0xFFFCD34D) : const Color(0xFF6EE7B7)),
                                         fontWeight: FontWeight.w800,
                                         fontSize: 12,
                                       ),
@@ -350,7 +357,9 @@ class MyMembershipScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                endDate != null ? 'Valid till ${dateFormat.format(endDate)}' : 'Active Pass',
+                                endDate != null
+                                    ? 'Valid till ${dateFormat.format(endDate)}'
+                                    : (isPaymentPending ? 'Starts on fee payment' : 'Pass Inactive'),
                                 style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
                               ),
                             ],
@@ -368,9 +377,11 @@ class MyMembershipScreen extends ConsumerWidget {
                             style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 11, fontWeight: FontWeight.w600),
                           ),
                           Text(
-                            '${(progress * 100).toInt()}% Remaining',
-                            style: const TextStyle(
-                              color: Color(0xFF818CF8),
+                            isPaymentPending
+                                ? 'Starts Upon Payment'
+                                : '${(progress * 100).toInt()}% Remaining',
+                            style: TextStyle(
+                              color: isPaymentPending ? const Color(0xFFFDE68A) : const Color(0xFF818CF8),
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'monospace',
@@ -520,7 +531,35 @@ class MyMembershipScreen extends ConsumerWidget {
                       const SizedBox(height: 14),
 
                       // Phase 3: Seat Protection Active Guarantee Pill
-                      if ((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired) ...[
+                      if (isPaymentPending) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.45)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.schedule_rounded, size: 15, color: Color(0xFFFDE68A)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  student.seatId != null && student.seatId!.isNotEmpty
+                                      ? '🔒 ${SeatHelper.formatSeatLabel(seatId: student.seatId)} is held for you • Settle fee at reception to activate'
+                                      : '🔒 Admission approved • Complete fee payment to activate your spot',
+                                  style: const TextStyle(
+                                    color: Color(0xFFFEF3C7),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else if ((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired) ...[
                         Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -560,19 +599,23 @@ class MyMembershipScreen extends ConsumerWidget {
                               label: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
-                                  ((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired) &&
-                                          student.seatId != null &&
-                                          student.seatId!.isNotEmpty
-                                      ? '🔒 Keep ${SeatHelper.formatSeatLabel(seatId: student.seatId)}'
-                                      : 'Extend / Renew',
+                                  isPaymentPending
+                                      ? 'Pay Fee / Settle at Counter'
+                                      : (((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired) &&
+                                              student.seatId != null &&
+                                              student.seatId!.isNotEmpty
+                                          ? '🔒 Keep ${SeatHelper.formatSeatLabel(seatId: student.seatId)}'
+                                          : 'Extend / Renew'),
                                   maxLines: 1,
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                                 ),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: ((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired)
-                                    ? const Color(0xFF059669)
-                                    : const Color(0xFF4F46E5),
+                                backgroundColor: isPaymentPending
+                                    ? const Color(0xFFD97706)
+                                    : (((student.daysRemaining != null && student.daysRemaining! <= 7) || isExpired)
+                                        ? const Color(0xFF059669)
+                                        : const Color(0xFF4F46E5)),
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -635,10 +678,25 @@ class MyMembershipScreen extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.15),
+                              color: isPaymentPending
+                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                                  : (isExpired
+                                      ? Colors.red.withValues(alpha: 0.15)
+                                      : Colors.green.withValues(alpha: 0.15)),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text('All Active', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green)),
+                            child: Text(
+                              isPaymentPending
+                                  ? 'Pending Fee'
+                                  : (isExpired ? 'Inactive' : 'All Active'),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isPaymentPending
+                                    ? const Color(0xFFD97706)
+                                    : (isExpired ? const Color(0xFFDC2626) : Colors.green),
+                              ),
+                            ),
                           ),
                         ],
                       ),
