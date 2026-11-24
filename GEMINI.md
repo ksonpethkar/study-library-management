@@ -927,3 +927,65 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
    - Guardrail: In `AppNotificationService.sendNotification`, evaluate the current device's logged-in role (`cached_current_user_role` or `persisted_role`). If `targetRole == 'admin'` and the current session is a `student`, suppress the local push notification entirely.
 
 
+
+
+---
+
+## 48. Zero-Junk OCR Auto-Fill, Ledger Amount Fallback & Clean Auth Invariants (Learned Nov 2026)
+
+1. **Request Ledger Amount Resolution Fallback (`Total Payable Amount`):**
+   - Root Cause: In `RequestDetailScreen`, the ledger card read only `data['amount']`. In desk cash registrations, the payable fee was stored under `data['proratedFee']` or `studentData['proratedFee']` (`₹190`). Because `data['amount']` was null, the UI displayed `Total Payable Amount: ₹—`.
+   - Guardrail: Always resolve fee amounts with multi-tier fallbacks:
+     ```dart
+     final amount = (data['amount'] as num?)?.toDouble() ??
+         (data['proratedFee'] as num?)?.toDouble() ??
+         (studentData['proratedFee'] as num?)?.toDouble() ??
+         (studentData['amount'] as num?)?.toDouble() ??
+         (data['totalPayable'] as num?)?.toDouble() ??
+         (data['planPrice'] as num?)?.toDouble();
+     ```
+     Ensure `RequestItem.fromFirestore` and `ReviewSubmitScreen` also explicitly persist `amount` across all layers so ledger amounts never render as `₹—`.
+
+2. **Zero-Junk OCR Auto-Fill & Token Shift Immunity:**
+   - Root Cause: Unvalidated regex extraction and shifting index offsets on newer PVC Aadhaar cards caused the applicant's name ('Vikrant Vaijanath Dhondge') to be extracted into the `dob` field. The form and preview screens blindly displayed this text as Date of Birth.
+   - Guardrails:
+     a) **OcrResult Sanitization (`result.sanitized(type)`):** Every OCR extraction must be passed through `OcrResult.sanitized()`. Any candidate that fails strict regex or semantic validation (`GovIdValidator.isValidDob`, `isValidGovId`, etc.) is immediately discarded to `null`.
+     b) **Clean Manual Input Fallback:** Form fields must only auto-fill if confidence is 100% verified. If uncertain or invalid, fields must remain completely blank for clean, hassle-free manual entry without showing confusing red error badges or noisy junk strings.
+     c) **DOB Sanitized Display:** Formatters (`_formatDob`) and view widgets must discard unparseable or out-of-range dates (valid birth year range: 1920 to current year). If invalid, suppress the Date of Birth row entirely.
+
+3. **Strict Prohibition on Mobile Account Linking & QR Scanners:**
+   - Root Cause: An obsolete 'Link Mobile Number' button existed in the `/login` 'Account Not Found' dialog, and a non-functional green 'Scan Aadhaar QR Code' tab existed in `IdScanScreen`, violating Master Rule 1 (Email/Password & Admin-assisted onboarding only; zero SMS OTP / mobile linking).
+   - Guardrails:
+     a) Remove all mobile linking buttons and dialogs from login flows. Direct unverified users to tap 'Register New' or sign in with their registered email.
+     b) Remove camera QR code scanners for Aadhaar. Use the clean, standardized document photo scan and gallery upload pipeline with sanitized OCR parsing.
+
+---
+
+## 49. Receipt Date Sync, Payment Modal Ledger, ID Card Theme & Security PIN Flow (Learned Nov 2026)
+
+1. **Receipt Date Synchronization with Admin Date Adjustments:**
+   - Root Cause: When an admin adjusted admission and plan cycle dates in `student_detail_screen.dart`, only `students/{id}` was updated, leaving `libraries/{libId}/receipts` with stale timestamps. This caused discrepancies where WhatsApp messages reflected adjusted dates (`15 Nov → 30 Nov`) while app receipts and PDF invoices retained default monthly cycle dates (`23 Nov → 30 Nov`).
+   - Guardrail: When adjusting student cycle dates or approving requests with custom start/end dates, always query and update active receipts (`libraries/{libId}/receipts`) matching `studentId == s.id` so that `validFrom` and `validTo` remain 100% synchronized across the Student Dossier, Receipts Screen, PDF invoices, and WhatsApp notifications.
+
+2. **Approval Payment Modal Contextual Fields & Custom Date Pickers:**
+   - Root Cause: `_promptPaymentAfterApproval` and `_promptRenewalPaymentAfterApproval` showed only an amount box and a generic dropdown, lacking custom cycle date selectors and payment-specific transaction fields (UTR, bank name, card digits, cash notes).
+   - Guardrails:
+     a) Provide interactive `Plan Start Date` and `Plan End Date` pickers with a real-time duration counter (`X Days (dd MMM yyyy → dd MMM yyyy)`).
+     b) Provide contextual dynamic inputs: UPI Transaction ID / UTR with 1-tap clipboard paste button; Bank name + IMPS/NEFT reference; Card details + auth slip #; Cash notes / received by.
+     c) Include an instant Soundbox speaker announcement toggle (`🔊 Announce Payment on Soundbox Speaker`).
+
+3. **ID Card Template Custom Color Persistence & Preset Switch Guard:**
+   - Root Cause: `IdCardTemplateSettings.copyWith` could not clear `customColorHex`, and choosing a preset theme in `id_card_customizer_screen.dart` didn't delete `customColorHex` from Firestore. Because `customColorHex ?? cardTheme` was used, stale custom hex colors permanently overrode preset themes on the card back, resulting in a color mismatch (front amber vs back navy).
+   - Guardrail: Always provide `bool clearCustomColor = false` in `IdCardTemplateSettings.copyWith`. When selecting any named preset (e.g., `amberClassic`), set `clearCustomColor: true` and write `customColorHex: FieldValue.delete()` to Firestore so custom colors do not clobber preset card styles.
+
+4. **Multi-Step In-Dialog Security PIN Reset Flow:**
+   - Root Cause: Tapping "Set New PIN Now" in the "Security PIN Reset by Admin" dialog called `Navigator.pop(ctx)` and attempted to launch a second modal (`showSetPinDialog`). On Flutter Web, navigator collisions and dialog race conditions dismissed the popups and left the user stranded on the locked keypad without showing the PIN setup window.
+   - Guardrail: Never dismiss a modal dialog to open a second one for sequential security flows. Embed the PIN setup form directly inside the reset dialog via in-place state switching (`isConfiguringPin = true`). Allow the user to enter and confirm their new 4-digit PIN directly inside the same window, saving and unlocking seamlessly with zero navigator race conditions.
+
+5. **Counter Soundbox Audio Synthesis (Web Audio & Native TTS):**
+   - Root Cause: Soundbox announcements on desktop web failed due to suspended Web Audio contexts and lack of native text-to-speech fallback on mobile.
+   - Guardrail: Deploy dual-mode audio synthesis using `flutter_tts` on mobile and Web Audio API with auto-resume (`ctx.resume()`) and SpeechSynthesis on web, with standardized payment confirmations in Marathi, Hindi, and English.
+
+6. **Mobile Viewport Wrapping for Header Actions ("Set Due / Set Amount"):**
+   - Root Cause: Unconstrained horizontal `Row` containing "Admitted", "Adjust Dates", and "Set Due" clipped the "Set Due / Set Amount" button on narrow viewports (<390px).
+   - Guardrail: Wrap all variable-width header action clusters in `Wrap(spacing: 10, runSpacing: 6)` and provide a minimum bottom scroll inset of `80 + MediaQuery.of(context).padding.bottom` across all scrollable views.
