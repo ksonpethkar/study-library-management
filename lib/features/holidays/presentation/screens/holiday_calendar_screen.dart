@@ -52,6 +52,85 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
     return result ?? false;
   }
 
+  Future<void> _extendActiveMembershipsForHoliday(HolidayModel holiday) async {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) return;
+    final days = holiday.extensionDays > 0 ? holiday.extensionDays : 1;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Extend Active Plans'),
+        content: Text(
+          'Extend all active student memberships by +$days day${days > 1 ? 's' : ''} for "${holiday.reason}"?\n\nThis updates each active student\'s planEndDate and marks this holiday as extended.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.event_available_rounded),
+            label: Text('Extend +$days Day${days > 1 ? 's' : ''}'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final db = FirebaseFirestore.instance;
+      final studentsSnap = await db
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .where('membershipStatus', isEqualTo: 'active')
+          .get();
+
+      int updatedCount = 0;
+      WriteBatch batch = db.batch();
+      int ops = 0;
+
+      for (final doc in studentsSnap.docs) {
+        final rawEnd = doc.data()['planEndDate'];
+        DateTime? endDate;
+        if (rawEnd is Timestamp) endDate = rawEnd.toDate();
+        if (rawEnd is String) endDate = DateTime.tryParse(rawEnd);
+        if (endDate == null) continue;
+
+        final newEnd = endDate.add(Duration(days: days));
+        batch.update(doc.reference, {
+          'planEndDate': newEnd.toIso8601String(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        updatedCount++;
+        ops++;
+        if (ops >= 400) {
+          await batch.commit();
+          batch = db.batch();
+          ops = 0;
+        }
+      }
+
+      batch.update(
+        db.collection('libraries').doc(libraryId).collection('holidays').doc(holiday.id),
+        {'membershipExtended': true, 'extensionDays': days},
+      );
+      await batch.commit();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Extended $updatedCount active membership(s) by +$days day${days > 1 ? 's' : ''}!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        AppErrorFormatter.showErrorSnackBar(context, e, actionContext: 'holiday extension');
+      }
+    }
+  }
+
   Future<void> _deleteHoliday(String holidayId, String reason) async {
     final libraryId = ref.read(currentLibraryIdProvider);
     if (libraryId == null || libraryId.isEmpty) return;
@@ -698,6 +777,15 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
                   ),
                 ),
               ),
+              if (!holiday.membershipExtended) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.event_available_rounded),
+                  color: Colors.green.shade700,
+                  tooltip: 'Extend active plans (+${holiday.extensionDays > 0 ? holiday.extensionDays : 1}d)',
+                  onPressed: () => _extendActiveMembershipsForHoliday(holiday),
+                ),
+              ],
               const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.delete_outline),

@@ -877,6 +877,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            // Dedicated Seat Change In-Progress + High-Readability Seat Radar Card (isolated Consumer scope)
                             Consumer(
                               builder: (context, ref, _) {
                                 final pendingSeatChange = ref.watch(studentPendingSeatChangeProvider).value;
@@ -5463,5 +5464,146 @@ Widget _buildRealTimePendingView(BuildContext context, ThemeData theme, Map<Stri
       ),
     ),
   );
+}
+
+/// Consolidated swipeable notice carousel for active library announcements.
+/// Prevents vertical banner stacking on mobile viewports.
+class _NoticeCarouselBanner extends StatefulWidget {
+  final List<dynamic> announcements;
+  final void Function(dynamic announcement) onTapAnnouncement;
+
+  const _NoticeCarouselBanner({
+    required this.announcements,
+    required this.onTapAnnouncement,
+  });
+
+  @override
+  State<_NoticeCarouselBanner> createState() => _NoticeCarouselBannerState();
+}
+
+class _NoticeCarouselBannerState extends State<_NoticeCarouselBanner> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final items = widget.announcements;
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.tertiary.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 92,
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: items.length,
+              onPageChanged: (index) {
+                if (mounted) setState(() => _currentPage = index);
+              },
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return InkWell(
+                  onTap: () => widget.onTapAnnouncement(item),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.campaign_rounded, color: theme.colorScheme.tertiary, size: 26),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      item.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14.5,
+                                        color: theme.colorScheme.onTertiaryContainer,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 13,
+                                    color: theme.colorScheme.onTertiaryContainer.withValues(alpha: 0.6),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                item.message,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: theme.colorScheme.onTertiaryContainer.withValues(alpha: 0.85),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (items.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  items.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: _currentPage == i ? 14 : 6,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: _currentPage == i
+                          ? theme.colorScheme.tertiary
+                          : theme.colorScheme.tertiary.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 

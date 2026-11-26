@@ -785,6 +785,8 @@ class _RegistrationFormScreenState
     List<TextInputFormatter>? inputFormatters,
     String? helperText,
     String? hintText,
+    TextInputAction? textInputAction,
+    Iterable<String>? autofillHints,
   }) {
     final isAutoFilled = _autoFilledKeys.contains(trackKey);
     final text = controller.text;
@@ -814,6 +816,8 @@ class _RegistrationFormScreenState
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      textInputAction: textInputAction ?? (maxLines > 1 ? TextInputAction.newline : TextInputAction.next),
+      autofillHints: autofillHints,
       maxLines: maxLines,
       textCapitalization: capitalization,
       inputFormatters: inputFormatters,
@@ -868,10 +872,11 @@ class _RegistrationFormScreenState
                 horizontal: MediaQuery.of(context).size.width < 380 ? 16.0 : 24.0,
                 vertical: 20.0,
               ),
-              child: Form(
-                key: _formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                child: Column(
+              child: AutofillGroup(
+                child: Form(
+                  key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Auto-fill banner (Honest UI: green strictly for QR, informative blue for OCR)
@@ -922,6 +927,7 @@ class _RegistrationFormScreenState
                       trackKey: 'name',
                       icon: Icons.person_rounded,
                       capitalization: TextCapitalization.words,
+                      autofillHints: const [AutofillHints.name],
                       validator: (v) => AppValidators.name(v, label: FormConfigService.getFieldLabel(_customFieldsConfig, 'name', 'Full Name')),
                     ),
                     if (FirebaseAuth.instance.currentUser?.displayName != null &&
@@ -1154,9 +1160,7 @@ class _RegistrationFormScreenState
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                _gender == 'male'
-                                    ? 'Desk Allocation Info: Desks 1 to 50 are assigned for Boys. Desks 51 to 60 are reserved for Girls.'
-                                    : 'Desk Allocation Info: Desks 51 to 60 are dedicated quiet desks for Girls (near road-facing windows).',
+                                'Desks on the floor map are dynamically filtered according to hall gender rules.',
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   color: _gender == 'male' ? const Color(0xFF1E40AF) : const Color(0xFF9D174D),
@@ -1216,6 +1220,7 @@ class _RegistrationFormScreenState
                       trackKey: 'phone',
                       icon: Icons.phone_android_rounded,
                       keyboardType: TextInputType.phone,
+                      autofillHints: const [AutofillHints.telephoneNumber],
                       inputFormatters: AppValidators.phoneFormatters,
                       validator: (v) => AppValidators.phone(v, label: FormConfigService.getFieldLabel(_customFieldsConfig, 'phone', 'Phone number')),
                     ),
@@ -1229,6 +1234,7 @@ class _RegistrationFormScreenState
                         trackKey: 'email',
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [AutofillHints.email],
                         validator: (v) => AppValidators.email(
                           v,
                           required: _isFieldRequired('email'),
@@ -1634,6 +1640,7 @@ class _RegistrationFormScreenState
                           trackKey: 'address',
                           icon: Icons.home_outlined,
                           maxLines: 2,
+                          autofillHints: const [AutofillHints.fullStreetAddress],
                           validator: (v) => AppValidators.address(
                             v,
                             required: _isFieldRequired('address'),
@@ -1651,6 +1658,7 @@ class _RegistrationFormScreenState
                           trackKey: 'pinCode',
                           icon: Icons.pin_drop_outlined,
                           keyboardType: TextInputType.number,
+                          autofillHints: const [AutofillHints.postalCode],
                           inputFormatters: AppValidators.pincodeFormatters,
                           validator: (v) => AppValidators.pinCode(
                             v,
@@ -1941,6 +1949,7 @@ class _RegistrationFormScreenState
                     const SizedBox(height: 32),
                   ],
                 ),
+              ),
               ),
             ),
           ),

@@ -2190,9 +2190,15 @@ class SettingsScreen extends ConsumerWidget {
 
   void _showSoundboxSettingsDialog(BuildContext context, WidgetRef ref) {
     final soundbox = ref.read(soundboxServiceProvider);
+    final libId = ref.read(currentLibraryIdProvider) ?? '';
     final libName = ref.read(currentLibraryProvider).value?.name ?? 'Cozy Corner';
     bool enabled = soundbox.isEnabled;
     String activeLang = soundbox.language;
+    bool privacyMode = soundbox.isPrivacyMode;
+    bool chimeOnly = soundbox.isChimeOnly;
+    if (libId.isNotEmpty) {
+      soundbox.syncFromLibrary(libId);
+    }
 
     showDialog(
       context: context,
@@ -2245,7 +2251,36 @@ class SettingsScreen extends ConsumerWidget {
                   onChanged: (val) async {
                     setDlgState(() => enabled = val);
                     await soundbox.setEnabled(val);
+                    if (libId.isNotEmpty) await soundbox.saveToLibrary(libId);
                   },
+                ),
+                SwitchListTile.adaptive(
+                  value: privacyMode,
+                  contentPadding: EdgeInsets.zero,
+                  activeTrackColor: const Color(0xFF059669),
+                  title: const Text('Privacy Mode (Amount Only)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                  subtitle: const Text('Omit student name & desk number at crowded counters', style: TextStyle(fontSize: 11)),
+                  onChanged: enabled
+                      ? (val) async {
+                          setDlgState(() => privacyMode = val);
+                          await soundbox.setPrivacyMode(val);
+                          if (libId.isNotEmpty) await soundbox.saveToLibrary(libId);
+                        }
+                      : null,
+                ),
+                SwitchListTile.adaptive(
+                  value: chimeOnly,
+                  contentPadding: EdgeInsets.zero,
+                  activeTrackColor: const Color(0xFF059669),
+                  title: const Text('Chime-Only Mode', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                  subtitle: const Text('Play ascending chime without spoken voice', style: TextStyle(fontSize: 11)),
+                  onChanged: enabled
+                      ? (val) async {
+                          setDlgState(() => chimeOnly = val);
+                          await soundbox.setChimeOnly(val);
+                          if (libId.isNotEmpty) await soundbox.saveToLibrary(libId);
+                        }
+                      : null,
                 ),
                 const Divider(height: 20),
                 const Text(

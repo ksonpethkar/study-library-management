@@ -46,6 +46,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
   // Policies Controllers
   final _gracePeriodController = TextEditingController(text: '3');
   final _lateFineController = TextEditingController(text: '0');
+  final _powerSurchargeController = TextEditingController(text: '150');
   final _gstinController = TextEditingController();
   final _refundPolicyController = TextEditingController(
     text: 'Fees once paid are non-refundable and non-transferable under any circumstances.',
@@ -87,6 +88,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
 
     _gracePeriodController.dispose();
     _lateFineController.dispose();
+    _powerSurchargeController.dispose();
     _gstinController.dispose();
     _refundPolicyController.dispose();
     super.dispose();
@@ -173,6 +175,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
             final p = Map<String, dynamic>.from(data['policies'] as Map);
             _gracePeriodController.text = p['gracePeriodDays']?.toString() ?? '3';
             _lateFineController.text = p['lateFinePerDay']?.toString() ?? '0';
+            _powerSurchargeController.text = p['powerSurchargeAmount']?.toString() ?? '150';
             _gstinController.text = p['gstin']?.toString() ?? '';
             if (p['refundPolicy']?.toString().isNotEmpty == true) {
               _refundPolicyController.text = p['refundPolicy'].toString();
@@ -231,6 +234,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     final policies = {
       'gracePeriodDays': int.tryParse(_gracePeriodController.text.trim()) ?? 3,
       'lateFinePerDay': double.tryParse(_lateFineController.text.trim()) ?? 0.0,
+      'powerSurchargeAmount': double.tryParse(_powerSurchargeController.text.trim()) ?? 150.0,
       'gstin': _gstinController.text.trim(),
       'refundPolicy': _refundPolicyController.text.trim(),
     };
@@ -1481,6 +1485,19 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
                             prefixIcon: Icon(Icons.currency_rupee_rounded),
                             border: OutlineInputBorder(),
                             helperText: 'Optional late fee per overdue day (applied in Record Payment)',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        TextField(
+                          controller: _powerSurchargeController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(
+                            labelText: 'Power / Laptop Surcharge (₹ / Month)',
+                            hintText: '150',
+                            prefixIcon: Icon(Icons.bolt_rounded),
+                            border: OutlineInputBorder(),
+                            helperText: 'Default monthly laptop/power point surcharge in Record Payment',
                           ),
                         ),
                         const SizedBox(height: 12),

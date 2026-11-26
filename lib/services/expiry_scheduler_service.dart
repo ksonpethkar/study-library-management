@@ -48,11 +48,14 @@ class ExpirySchedulerService {
   /// [expiryDate] is the planEndDate of the student.
   /// [studentName] is used in the notification message.
   /// [libraryName] is the library name shown in notification.
+  /// Schedule expiry reminders for a student using configurable [reminderOffsets] (in days).
   static Future<void> scheduleExpiryReminders({
     required DateTime expiryDate,
     required String studentName,
     required String libraryName,
     int reminderDays = 3,
+    List<int> reminderOffsets = const [3, 1, 0],
+    int preferredHour = 9,
   }) async {
     if (!_initialized) await initialize();
 
@@ -75,61 +78,53 @@ class ExpirySchedulerService {
     );
     const details = NotificationDetails(android: androidDetails);
 
-    // 3 days before
-    final threeDaysBefore = expiryDate.subtract(const Duration(days: 3));
-    if (threeDaysBefore.isAfter(now)) {
+    final offsets = (reminderOffsets.isNotEmpty ? reminderOffsets : [reminderDays, 1, 0])
+        .where((d) => d >= 0)
+        .toSet()
+        .toList();
+
+    for (final offset in offsets) {
+      final targetDate = offset == 0
+          ? DateTime(expiryDate.year, expiryDate.month, expiryDate.day, preferredHour, 0)
+          : expiryDate.subtract(Duration(days: offset));
+      if (!targetDate.isAfter(now)) continue;
+
+      final notifId = offset == 3
+          ? _expiryIn3DaysId
+          : offset == 1
+              ? _expiryIn1DayId
+              : offset == 0
+                  ? _expiryTodayId
+                  : 1000 + offset;
+
+      final title = offset == 0
+          ? '❌ Membership Expired Today'
+          : offset == 1
+              ? '🚨 Membership Expires Tomorrow!'
+              : '⏰ Membership Expires in $offset Days';
+
+      final body = offset == 0
+          ? 'Your $libraryName membership has expired. Visit the library to renew and keep your seat.'
+          : offset == 1
+              ? 'Your $libraryName membership expires tomorrow. Renew today to avoid losing your seat.'
+              : 'Your $libraryName membership expires on ${_formatDate(expiryDate)}. Renew now to keep your seat!';
+
       try {
         await _plugin.zonedSchedule(
-          id: _expiryIn3DaysId,
-          title: '⏰ Membership Expires in 3 Days',
-          body: 'Your $libraryName membership expires on ${_formatDate(expiryDate)}. Renew now to keep your seat!',
-          scheduledDate: tz.TZDateTime.from(threeDaysBefore, tz.local),
+          id: notifId,
+          title: title,
+          body: body,
+          scheduledDate: tz.TZDateTime.from(targetDate, tz.local),
           notificationDetails: details,
           payload: Routes.studentRenew,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
       } catch (e) {
-        if (kDebugMode) debugPrint('Schedule 3-day reminder failed: $e');
+        if (kDebugMode) debugPrint('Schedule $offset-day reminder failed: $e');
       }
     }
 
-    // 1 day before
-    final oneDayBefore = expiryDate.subtract(const Duration(days: 1));
-    if (oneDayBefore.isAfter(now)) {
-      try {
-        await _plugin.zonedSchedule(
-          id: _expiryIn1DayId,
-          title: '🚨 Membership Expires Tomorrow!',
-          body: 'Your $libraryName membership expires tomorrow. Renew today to avoid losing your seat.',
-          scheduledDate: tz.TZDateTime.from(oneDayBefore, tz.local),
-          notificationDetails: details,
-          payload: Routes.studentRenew,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        );
-      } catch (e) {
-        if (kDebugMode) debugPrint('Schedule 1-day reminder failed: $e');
-      }
-    }
-
-    // On expiry day at 9 AM
-    final expiryDayNotif = DateTime(expiryDate.year, expiryDate.month, expiryDate.day, 9, 0);
-    if (expiryDayNotif.isAfter(now)) {
-      try {
-        await _plugin.zonedSchedule(
-          id: _expiryTodayId,
-          title: '❌ Membership Expired Today',
-          body: 'Your $libraryName membership has expired. Visit the library to renew and keep your seat.',
-          scheduledDate: tz.TZDateTime.from(expiryDayNotif, tz.local),
-          notificationDetails: details,
-          payload: Routes.studentRenew,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        );
-      } catch (e) {
-        if (kDebugMode) debugPrint('Schedule expiry-day reminder failed: $e');
-      }
-    }
-
-    if (kDebugMode) debugPrint('Expiry reminders scheduled for ${_formatDate(expiryDate)}');
+    if (kDebugMode) debugPrint('Expiry reminders scheduled for ${_formatDate(expiryDate)} ($offsets)');
   }
 
   /// Cancel all scheduled expiry reminders (call on logout or plan change).
@@ -139,6 +134,9 @@ class ExpirySchedulerService {
       await _plugin.cancel(id: _expiryIn3DaysId);
       await _plugin.cancel(id: _expiryIn1DayId);
       await _plugin.cancel(id: _expiryTodayId);
+      for (final d in const [5, 7, 10, 14, 30]) {
+        await _plugin.cancel(id: 1000 + d);
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('Cancel reminders failed: $e');
     }

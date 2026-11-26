@@ -25,9 +25,9 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# 2. Compile Web Release with Base Href /app/
-Write-Host "`n[2/4] Compiling Flutter Web release bundle (--base-href /app/)..." -ForegroundColor Yellow
-flutter build web --release --base-href /app/
+# 2. Compile Web Release (Wasm + JS fallback) with Base Href /app/
+Write-Host "`n[2/4] Compiling Flutter WebAssembly + JS fallback bundle (--base-href /app/)..." -ForegroundColor Yellow
+flutter build web --release --wasm --base-href /app/
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Flutter Web build failed. Aborting." -ForegroundColor Red
     exit 1

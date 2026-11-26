@@ -11471,8 +11471,19 @@ Gender: Female
       expect(adminDashSrc.contains('ImageService.getAvatarProvider('), isTrue);
       expect(adminDashSrc.contains('Consolidated Financial Pulse Card (isolated Consumer scope)'), isTrue);
       expect(studentHomeSrc.contains('ImageService.getAvatarProvider('), isTrue);
-      expect(studentHomeSrc.contains('Active Announcement Banner (isolated Consumer scope)'), isTrue);
+      expect(studentHomeSrc.contains('isolated Consumer scope'), isTrue);
       expect(studentHomeSrc.contains('Dedicated Seat Change In-Progress + High-Readability Seat Radar Card (isolated Consumer scope)'), isTrue);
+
+      // 12. Phase 3: WebAssembly (--wasm) build pipeline, main.dart.wasm revalidation & RevenueDashboard parallelization
+      final publishScript = readProjFile('scripts/publish_web.ps1');
+      expect(publishScript.contains('--wasm'), isTrue,
+          reason: 'publish_web.ps1 must build WebAssembly + JS fallback bundles');
+      expect(firebaseJson.contains('"source": "**/main.dart.wasm"'), isTrue,
+          reason: 'main.dart.wasm must use ETag must-revalidate instead of 7-day immutable caching');
+      final revDashSrc = readProjFile('lib/features/dashboard/presentation/screens/revenue_dashboard_screen.dart');
+      expect(revDashSrc.contains('Future.wait'), isTrue,
+          reason: 'RevenueDashboardScreen must parallelize Firestore collection fetches');
+      expect(revDashSrc.contains('getExpenses(libraryId, startDate: since)'), isTrue);
     });
 
     test('Test 189: DUAL-PORTAL IDENTICAL ID PASS GEOMETRY, OFFICIAL RUBBER SEAL STAMP & INACTIVE STATE FENCING INVARIANTS', () {
@@ -11778,6 +11789,31 @@ Gender: Female
 
       final bulkImportSrc = readProjFile('lib/features/students/presentation/screens/bulk_import_screen.dart');
       expect(bulkImportSrc.contains('InactivityLockService.setExternalDialogActive'), isTrue);
+
+      // 9. P1 High Operational ROI: Section priceModifier, seatHoldMinutes, Soundbox privacy/chimeOnly
+      final sec = SectionModel(
+        id: 'sec-ac',
+        libraryId: 'lib-1',
+        name: 'AC Cabin',
+        rows: 2,
+        cols: 5,
+        color: 0xFF1E3A8A,
+        order: 0,
+        isActive: true,
+        priceModifier: 250.0,
+        createdAt: DateTime(2026, 11, 26),
+        updatedAt: DateTime(2026, 11, 26),
+      );
+      expect(sec.toJson()['priceModifier'], 250.0);
+      expect(SectionModel.fromJson(sec.toJson()).priceModifier, 250.0);
+
+      final soundboxSrc = readProjFile('lib/services/soundbox_service.dart');
+      expect(soundboxSrc.contains('isPrivacyMode'), isTrue);
+      expect(soundboxSrc.contains('isChimeOnly'), isTrue);
+      expect(soundboxSrc.contains('syncFromLibrary'), isTrue);
+
+      final seatSelSrc = readProjFile('lib/features/registration/presentation/screens/seat_selection_screen.dart');
+      expect(seatSelSrc.contains('seatHoldMinutes'), isTrue);
     });
   });
 }

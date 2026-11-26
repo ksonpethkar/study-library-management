@@ -4,23 +4,23 @@
                 "buildNumber":  2078,
                 "buildDate":  "2026-11-26"
             },
-    "versionCode":  2076,
-    "latestVersionCode":  2076,
-    "latestBuild":  2076,
-    "latestVersion":  "1.5.59",
-    "versionName":  "1.5.59+2076",
-    "apkSize":  "55.1 MB",
+    "versionCode":  2078,
+    "latestVersionCode":  2078,
+    "latestBuild":  2078,
+    "latestVersion":  "1.5.61",
+    "versionName":  "1.5.61+2078",
+    "apkSize":  "54.8 MB",
     "apkType":  "64-Bit ARM (arm64-v8a) — High-Performance \u0026 Instant Download",
-    "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-arm64-v8a.apk",
-    "arm64ApkSize":  "55.1 MB",
-    "legacy32DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-armeabi-v7a.apk",
-    "legacy32ApkSize":  "48.3 MB",
-    "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary.apk",
-    "universalApkSize":  "141.0 MB",
-    "aabDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary.aab",
-    "aabSize":  "107.5 MB",
-    "releaseNotes":  "v1.5.61 (Build 2078): Full Form Builder parity across Add/Edit, Registration, Profile, ID Cards, Receipts \u0026 CSV Exports; status-gated public/student seat maps with single canonical amenities; and live version-keyed What\u0027s New \u0026 dynamic APK/Web release links.",
-    "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-arm64-v8a.apk",
+    "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-arm64-v8a.apk",
+    "arm64ApkSize":  "54.8 MB",
+    "legacy32DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-armeabi-v7a.apk",
+    "legacy32ApkSize":  "48.0 MB",
+    "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary.apk",
+    "universalApkSize":  "141.6 MB",
+    "aabDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary.aab",
+    "aabSize":  "107.7 MB",
+    "releaseNotes":  "v1.5.61 (Build 2078): Strict Admin/Student notification role isolation \u0026 self-action suppression; Student Portal Screenshot Protection (Android FLAG_SECURE, Web capture deterrent, Home Pass live clock) with Admin screenshots unlocked; full Form Builder parity across Add/Edit, Registration, Profile, ID Cards, Receipts \u0026 CSV Exports; status-gated seat maps \u0026 single canonical amenities; and live version-keyed release links.",
+    "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-arm64-v8a.apk",
     "mandatory":  false,
     "organization":  {
                          "name":  "The Cozy Corner Study Centre",
@@ -36,13 +36,23 @@
                           "version":  "1.5.61",
                           "buildNumber":  2078,
                           "date":  "2026-11-26",
-                          "summary":  "Unified Form Builder parity across every form, Digital ID card, receipt \u0026 export; status-gated seat maps \u0026 canonical amenities; and live version-keyed release notes.",
+                          "summary":  "Strict Admin/Student notification isolation, Student Portal screenshot shield with Home Pass live clock, unified Form Builder parity, status-gated seat maps \u0026 live versioned releases.",
                           "highlights":  [
+                                             "Strict Admin vs Student notification role isolation \u0026 self-action suppression",
+                                             "Student Portal Screenshot Protection (Android FLAG_SECURE + Web capture shield + Home Pass live clock)",
                                              "Unified Form Builder across Add/Edit, Registration, Profile, ID Cards, Receipts \u0026 CSV Exports",
                                              "Status-gated seat selection \u0026 single canonical Library amenities everywhere",
                                              "Version-keyed What\u0027s New \u0026 dynamic Web/APK download portal links"
                                          ],
                           "adminFeatures":  [
+                                                {
+                                                    "icon":  "lock",
+                                                    "badge":  "Security \u0026 Roles",
+                                                    "title":  "Admin/Student Notification Isolation \u0026 Student Screenshot Shield",
+                                                    "description":  "Strict role fencing stops student admission/desk/announcement alerts from reaching Admin devices, while Student Portal Screenshot Protection settings stay controlled from Admin without blocking Admin screenshots.",
+                                                    "actionRoute":  "/admin/settings",
+                                                    "actionLabel":  "Security Settings"
+                                                },
                                                 {
                                                     "icon":  "tune",
                                                     "badge":  "Form Builder",
@@ -69,6 +79,14 @@
                                                 }
                                             ],
                           "studentFeatures":  [
+                                                  {
+                                                      "icon":  "lock",
+                                                      "badge":  "Pass Security",
+                                                      "title":  "Screenshot-Shielded Smart Pass \u0026 Clean Student Alerts",
+                                                      "description":  "Digital Pass, Receipts, and Payment screens enforce screenshot protection with a live verification clock ticker on your Home Pass, while notifications deliver strictly student-relevant updates.",
+                                                      "actionRoute":  "/student/home",
+                                                      "actionLabel":  "Open Pass"
+                                                  },
                                                   {
                                                       "icon":  "tune",
                                                       "badge":  "Smart Forms",
@@ -140,6 +158,12 @@
                   ],
     "studentFeatures":  [
                             {
+                                "icon":  "lock",
+                                "badge":  "Pass Security",
+                                "title":  "Screenshot-Shielded Smart Pass \u0026 Clean Student Alerts",
+                                "description":  "Digital Pass, Receipts, and Payment screens enforce screenshot protection with a live verification clock ticker on your Home Pass, while notifications deliver strictly student-relevant updates."
+                            },
+                            {
                                 "icon":  "tune",
                                 "badge":  "Smart Forms",
                                 "title":  "Upgraded Admission Forms \u0026 Full Profile Editing",
@@ -160,6 +184,12 @@
                         ],
     "adminFeatures":  [
                           {
+                              "icon":  "lock",
+                              "badge":  "Security \u0026 Roles",
+                              "title":  "Admin/Student Notification Isolation \u0026 Student Screenshot Shield",
+                              "description":  "Strict role fencing stops student admission/desk/announcement alerts from reaching Admin devices, while Student Portal Screenshot Protection settings stay controlled from Admin without blocking Admin screenshots."
+                          },
+                          {
                               "icon":  "tune",
                               "badge":  "Form Builder",
                               "title":  "Full Custom Field Parity Across Add, Edit, Cards \u0026 Exports",
@@ -179,21 +209,21 @@
                           }
                       ],
     "android":  {
-                    "versionCode":  2076,
-                    "versionName":  "1.5.59+2076",
-                    "apkSize":  "55.1 MB",
-                    "arm64ApkSize":  "55.1 MB",
-                    "legacy32ApkSize":  "48.3 MB",
-                    "universalApkSize":  "141.0 MB",
-                    "aabSize":  "107.5 MB",
-                    "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-arm64-v8a.apk",
-                    "apkUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-arm64-v8a.apk",
-                    "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-arm64-v8a.apk",
-                    "legacy32DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-armeabi-v7a.apk",
-                    "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary.apk",
-                    "aabDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary.aab",
-                    "releaseUrl":  "https://github.com/ksonpethkar/study-library-management/releases/tag/v1.5.59",
-                    "releasedAt":  "2026-11-23T19:50:00.000Z",
-                    "releaseNotes":  "v1.5.59 (Build 2076): Advanced visual physics release featuring 3D holographic specular sheen student smart pass with perspective tilt, live radar sonar ripples on desk map, tactile spring button physics (0.95x compression), rolling odometer text transitions, and soundbox announcement formatting discipline."
+                    "versionCode":  2078,
+                    "versionName":  "1.5.61+2078",
+                    "apkSize":  "54.8 MB",
+                    "arm64ApkSize":  "54.8 MB",
+                    "legacy32ApkSize":  "48.0 MB",
+                    "universalApkSize":  "141.6 MB",
+                    "aabSize":  "107.7 MB",
+                    "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-arm64-v8a.apk",
+                    "apkUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-arm64-v8a.apk",
+                    "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-arm64-v8a.apk",
+                    "legacy32DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-armeabi-v7a.apk",
+                    "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary.apk",
+                    "aabDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary.aab",
+                    "releaseUrl":  "https://github.com/ksonpethkar/study-library-management/releases/tag/v1.5.61",
+                    "releasedAt":  "2026-11-26T07:21:46Z",
+                    "releaseNotes":  "v1.5.61 (Build 2078): Strict Admin/Student notification role isolation \u0026 self-action suppression; Student Portal Screenshot Protection (Android FLAG_SECURE, Web capture deterrent, Home Pass live clock) with Admin screenshots unlocked; full Form Builder parity across Add/Edit, Registration, Profile, ID Cards, Receipts \u0026 CSV Exports; status-gated seat maps \u0026 single canonical amenities; and live version-keyed release links."
                 }
 }

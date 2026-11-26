@@ -59,6 +59,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
   late TextEditingController _whatsappTemplateController;
   late TextEditingController _receiptFooterController;
   int _reminderDays = 7;
+  int _seatHoldMinutes = 10;
 
   // B2B GST Commercial Tax Invoicing
   bool _enableGstBilling = false;
@@ -224,6 +225,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         _reminderDays = data['renewalReminderDays'] is int
             ? data['renewalReminderDays'] as int
             : int.tryParse(data['renewalReminderDays']?.toString() ?? '7') ?? 7;
+        _seatHoldMinutes = ((data['seatHoldMinutes'] as num?)?.toInt() ?? 10).clamp(5, 30);
 
         // B2B GST Commercial Tax Invoicing
         _enableGstBilling = data['enableGstBilling'] == true;
@@ -396,6 +398,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         'whatsappWelcomeTemplate': _whatsappTemplateController.text.trim(),
         'receiptFooterText': _receiptFooterController.text.trim(),
         'renewalReminderDays': _reminderDays,
+        'seatHoldMinutes': _seatHoldMinutes,
         'upiId': _upiIdController.text.trim(),
         'wifiSsid': _wifiSsidController.text.trim(),
         'wifiPassword': _wifiPasswordController.text.trim(),
@@ -2137,6 +2140,23 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                                           decoration: const InputDecoration(
                                             border: OutlineInputBorder(),
                                             prefixIcon: Icon(Icons.alarm_rounded),
+                                            isDense: true,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        const Text('Registration Desk Hold Timer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                        const SizedBox(height: 4),
+                                        DropdownButtonFormField<int>(
+                                          initialValue: const [5, 10, 15].contains(_seatHoldMinutes) ? _seatHoldMinutes : 10,
+                                          items: const [
+                                            DropdownMenuItem(value: 5, child: Text('5 minutes hold')),
+                                            DropdownMenuItem(value: 10, child: Text('10 minutes hold (Default)')),
+                                            DropdownMenuItem(value: 15, child: Text('15 minutes hold')),
+                                          ],
+                                          onChanged: (v) => setState(() => _seatHoldMinutes = v ?? 10),
+                                          decoration: const InputDecoration(
+                                            border: OutlineInputBorder(),
+                                            prefixIcon: Icon(Icons.timer_outlined),
                                             isDense: true,
                                           ),
                                         ),

@@ -62,6 +62,8 @@ class LibraryModel {
   final double gstRate;
   final String sacCode;
   final DateTime? policyUpdatedAt;
+  final int seatHoldMinutes;
+  final List<int> reminderOffsets;
 
   String get effectiveGstin => gstin.trim().toUpperCase();
   double get effectiveGstRate => gstRate > 0 ? gstRate : 18.0;
@@ -153,6 +155,8 @@ class LibraryModel {
     this.gstRate = 18.0,
     this.sacCode = '999293',
     this.policyUpdatedAt,
+    this.seatHoldMinutes = 10,
+    this.reminderOffsets = const [3, 1, 0],
   });
 
   factory LibraryModel.fromJson(Map<String, dynamic> json) {
@@ -229,6 +233,10 @@ class LibraryModel {
       gstRate: (json['gstRate'] as num?)?.toDouble() ?? 18.0,
       sacCode: (json['sacCode'] ?? '999293').toString().trim(),
       policyUpdatedAt: _parseNullableDate(json['policyUpdatedAt']),
+      seatHoldMinutes: ((json['seatHoldMinutes'] as num?)?.toInt() ?? 10).clamp(5, 30),
+      reminderOffsets: json['reminderOffsets'] is List
+          ? (json['reminderOffsets'] as List).map((e) => (e as num?)?.toInt() ?? 0).toSet().toList()
+          : const [3, 1, 0],
     );
   }
 
@@ -286,6 +294,8 @@ class LibraryModel {
       'gstRate': gstRate,
       'sacCode': sacCode,
       if (policyUpdatedAt != null) 'policyUpdatedAt': policyUpdatedAt!.toIso8601String(),
+      'seatHoldMinutes': seatHoldMinutes,
+      'reminderOffsets': reminderOffsets,
     };
   }
 
@@ -342,6 +352,8 @@ class LibraryModel {
     String? sacCode,
     DateTime? policyUpdatedAt,
     bool clearPolicyUpdatedAt = false,
+    int? seatHoldMinutes,
+    List<int>? reminderOffsets,
   }) {
     return LibraryModel(
       id: id ?? this.id,
@@ -395,6 +407,8 @@ class LibraryModel {
       gstRate: gstRate ?? this.gstRate,
       sacCode: sacCode ?? this.sacCode,
       policyUpdatedAt: clearPolicyUpdatedAt ? null : (policyUpdatedAt ?? this.policyUpdatedAt),
+      seatHoldMinutes: seatHoldMinutes ?? this.seatHoldMinutes,
+      reminderOffsets: reminderOffsets ?? this.reminderOffsets,
     );
   }
 

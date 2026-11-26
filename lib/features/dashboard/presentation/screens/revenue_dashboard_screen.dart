@@ -9,6 +9,7 @@ import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/models/receipt_model.dart';
+import 'package:study_library/models/expense_model.dart';
 
 class RevenueDashboardScreen extends ConsumerStatefulWidget {
   const RevenueDashboardScreen({super.key});
@@ -57,28 +58,6 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
       return;
     }
     try {
-      // Fetch plan names
-      try {
-        final plansSnap = await FirebaseFirestore.instance
-            .collection('libraries').doc(libraryId)
-            .collection('plans').get();
-        for (final doc in plansSnap.docs) {
-          final pName = doc.data()['name'] as String? ?? '';
-          if (pName.isNotEmpty) _planNames[doc.id] = pName;
-        }
-      } catch (_) { /* intentionally silent */ }
-
-      // Fetch student names for display
-      try {
-        final studentsSnap = await FirebaseFirestore.instance
-            .collection('libraries').doc(libraryId)
-            .collection('students').limit(50).get();
-        for (final doc in studentsSnap.docs) {
-          final sName = doc.data()['name'] as String? ?? '';
-          if (sName.isNotEmpty) _studentNames[doc.id] = sName;
-        }
-      } catch (_) { /* intentionally silent */ }
-
       // Determine date range filter
       final now = DateTime.now();
       DateTime? since;
@@ -90,40 +69,91 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
         since = DateTime(now.year, 1, 1);
       }
 
-      // Load receipts
-      Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-          .collection('libraries').doc(libraryId)
-          .collection('receipts')
-          .orderBy('createdAt', descending: true);
-      
-      final allSnap = await query.get();
-      
+      final db = FirebaseFirestore.instance;
+      final libRef = db.collection('libraries').doc(libraryId);
+
+      // Run all Firestore reads in parallel instead of 6 sequential roundtrips.
+      // Cache plan & student lookup maps across range-chip toggles.
+      final futures = await Future.wait<dynamic>([
+        _planNames.isEmpty
+            ? libRef.collection('plans').get().then<QuerySnapshot<Map<String, dynamic>>?>((s) => s).catchError((_) => null)
+            : Future<QuerySnapshot<Map<String, dynamic>>?>.value(null),
+        _studentNames.isEmpty
+            ? libRef.collection('students').limit(50).get().then<QuerySnapshot<Map<String, dynamic>>?>((s) => s).catchError((_) => null)
+            : Future<QuerySnapshot<Map<String, dynamic>>?>.value(null),
+        libRef
+            .collection('receipts')
+            .orderBy('createdAt', descending: true)
+            .get()
+            .then<QuerySnapshot<Map<String, dynamic>>?>((s) => s)
+            .catchError((_) => null),
+        libRef
+            .collection('payments')
+            .get()
+            .then<QuerySnapshot<Map<String, dynamic>>?>((s) => s)
+            .catchError((_) => null),
+        libRef
+            .collection('students')
+            .where('membershipStatus', isEqualTo: 'active')
+            .count()
+            .get()
+            .then<AggregateQuerySnapshot?>((s) => s)
+            .catchError((_) => null),
+        ref
+            .read(expenseRepositoryProvider)
+            .getExpenses(libraryId, startDate: since)
+            .catchError((_) => <ExpenseModel>[]),
+      ]);
+
+      final plansSnap = futures[0] as QuerySnapshot<Map<String, dynamic>>?;
+      if (plansSnap != null) {
+        for (final doc in plansSnap.docs) {
+          final pName = doc.data()['name'] as String? ?? '';
+          if (pName.isNotEmpty) _planNames[doc.id] = pName;
+        }
+      }
+
+      final studentsSnap = futures[1] as QuerySnapshot<Map<String, dynamic>>?;
+      if (studentsSnap != null) {
+        for (final doc in studentsSnap.docs) {
+          final sName = doc.data()['name'] as String? ?? '';
+          if (sName.isNotEmpty) _studentNames[doc.id] = sName;
+        }
+      }
+
+      final allSnap = futures[2] as QuerySnapshot<Map<String, dynamic>>?;
+      final paySnap = futures[3] as QuerySnapshot<Map<String, dynamic>>?;
+      final stuSnap = futures[4] as AggregateQuerySnapshot?;
+      final filteredExpenses = futures[5] as List;
+
       double total = 0;
       double rangeTotal = 0;
       final byPlan = <String, double>{};
       final byMethod = <String, double>{};
       final receipts = <ReceiptModel>[];
-      
-      for (final doc in allSnap.docs) {
-        final data = {...doc.data(), 'id': doc.id};
-        ReceiptModel receipt;
-        try { receipt = ReceiptModel.fromJson(data); } catch (_) { continue; }
-        
-        // Skip deleted or voided receipts from all calculations
-        if (receipt.deletedAt != null || receipt.status == ReceiptStatus.voided) continue;
 
-        final amt = receipt.amount;
-        total += amt;
-        
-        final genAt = receipt.createdAt;
-        if (since == null || (genAt != null && genAt.isAfter(since))) {
-          rangeTotal += amt;
-          final resolvedPlan = _planNames[receipt.planId] ?? (receipt.planId.isNotEmpty ? receipt.planId : 'General Membership');
-          byPlan[resolvedPlan] = (byPlan[resolvedPlan] ?? 0) + amt;
-          final method = receipt.paymentMethod.isNotEmpty ? receipt.paymentMethod : 'Cash';
-          byMethod[method] = (byMethod[method] ?? 0) + amt;
+      if (allSnap != null) {
+        for (final doc in allSnap.docs) {
+          final data = {...doc.data(), 'id': doc.id};
+          ReceiptModel receipt;
+          try { receipt = ReceiptModel.fromJson(data); } catch (_) { continue; }
+
+          // Skip deleted or voided receipts from all calculations
+          if (receipt.deletedAt != null || receipt.status == ReceiptStatus.voided) continue;
+
+          final amt = receipt.amount;
+          total += amt;
+
+          final genAt = receipt.createdAt;
+          if (since == null || (genAt != null && genAt.isAfter(since))) {
+            rangeTotal += amt;
+            final resolvedPlan = _planNames[receipt.planId] ?? (receipt.planId.isNotEmpty ? receipt.planId : 'General Membership');
+            byPlan[resolvedPlan] = (byPlan[resolvedPlan] ?? 0) + amt;
+            final method = receipt.paymentMethod.isNotEmpty ? receipt.paymentMethod : 'Cash';
+            byMethod[method] = (byMethod[method] ?? 0) + amt;
+          }
+          receipts.add(receipt);
         }
-        receipts.add(receipt);
       }
 
       final seenReceiptIds = <String>{};
@@ -134,12 +164,7 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
       }
 
       // Reconcile unreceipted payments so numbers match RevenueChart & netProfitProvider
-      try {
-        final paySnap = await FirebaseFirestore.instance
-            .collection('libraries').doc(libraryId)
-            .collection('payments')
-            .get();
-
+      if (paySnap != null) {
         for (final doc in paySnap.docs) {
           final pData = doc.data();
           final status = (pData['status'] ?? '').toString().toLowerCase();
@@ -192,30 +217,17 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
           ));
         }
         receipts.sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
-      } catch (_) {}
-      
-      // Active students count
-      final stuSnap = await FirebaseFirestore.instance
-          .collection('libraries').doc(libraryId)
-          .collection('students')
-          .where('membershipStatus', isEqualTo: 'active')
-          .count()
-          .get();
+      }
 
       // Operating Expenses & Net Profit Calculation
       double rangeExpenses = 0.0;
-      try {
-        final allExpenses = await ref.read(expenseRepositoryProvider).getExpenses(libraryId);
-        for (final ex in allExpenses) {
-          if (since == null || ex.date.isAfter(since)) {
-            rangeExpenses += ex.amount;
-          }
-        }
-      } catch (_) { /* intentionally silent */ }
+      for (final ex in filteredExpenses) {
+        rangeExpenses += (ex.amount as num).toDouble();
+      }
 
       final netProfit = rangeTotal - rangeExpenses;
       final margin = rangeTotal > 0 ? (netProfit / rangeTotal) * 100 : 0.0;
-      
+
       if (mounted) {
         setState(() {
           _totalRevenue = total;
@@ -223,7 +235,7 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
           _rangeExpenses = rangeExpenses;
           _netProfit = netProfit;
           _operatingMargin = margin;
-          _activeStudents = stuSnap.count ?? 0;
+          _activeStudents = stuSnap?.count ?? 0;
           _totalReceiptsCount = receipts.length;
           _byPlan = byPlan;
           _byMethod = byMethod;

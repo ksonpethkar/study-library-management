@@ -16,6 +16,7 @@ class SectionModel {
   final List<String> amenities; // ['ac', 'power', 'wifi']
   final bool inheritLibraryAmenities;
   final int? totalSeats;
+  final double priceModifier;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -36,6 +37,7 @@ class SectionModel {
     this.amenities = const [],
     this.inheritLibraryAmenities = true,
     this.totalSeats,
+    this.priceModifier = 0.0,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -62,6 +64,7 @@ class SectionModel {
           : const [],
       inheritLibraryAmenities: json['inheritLibraryAmenities'] as bool? ?? true,
       totalSeats: json['totalSeats'] as int? ?? json['seatCount'] as int? ?? json['capacity'] as int?,
+      priceModifier: (json['priceModifier'] as num?)?.toDouble() ?? 0.0,
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now(),
       updatedAt: _parseDate(json['updatedAt']) ?? DateTime.now(),
       deletedAt: _parseDate(json['deletedAt']),
@@ -85,6 +88,7 @@ class SectionModel {
       'amenities': amenities,
       'inheritLibraryAmenities': inheritLibraryAmenities,
       if (totalSeats != null) 'totalSeats': totalSeats,
+      if (priceModifier != 0) 'priceModifier': priceModifier,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
@@ -107,6 +111,7 @@ class SectionModel {
     List<String>? amenities,
     bool? inheritLibraryAmenities,
     int? totalSeats,
+    double? priceModifier,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -127,6 +132,7 @@ class SectionModel {
       amenities: amenities ?? this.amenities,
       inheritLibraryAmenities: inheritLibraryAmenities ?? this.inheritLibraryAmenities,
       totalSeats: totalSeats ?? this.totalSeats,
+      priceModifier: priceModifier ?? this.priceModifier,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,

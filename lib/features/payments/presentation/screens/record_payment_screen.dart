@@ -104,6 +104,9 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
 
   bool _hasPowerSurcharge = false;
   double _powerSurchargeAmount = 150.0;
+  double _sectionPriceModifier = 0.0;
+  bool _sectionModifierApplied = false;
+  String _sectionTierName = '';
 
   double _lateFinePerDay = 0.0;
   int _gracePeriodDays = 3;
@@ -294,6 +297,27 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           }
           _isLoadingStudent = false;
         });
+
+        if (sectionId != null && sectionId.isNotEmpty) {
+          try {
+            final secDoc = await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('sections')
+                .doc(sectionId)
+                .get();
+            if (secDoc.exists && mounted && secDoc.data() != null) {
+              final mod = (secDoc.data()!['priceModifier'] as num?)?.toDouble() ?? 0.0;
+              final secName = secDoc.data()!['name']?.toString() ?? 'Section';
+              if (mod != 0) {
+                setState(() {
+                  _sectionPriceModifier = mod;
+                  _sectionTierName = secName;
+                });
+              }
+            }
+          } catch (_) {}
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _isLoadingStudent = false);
@@ -334,6 +358,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         final rawData = doc.data();
         final policies = rawData?['policies'] as Map<String, dynamic>?;
         final configuredFine = (policies?['lateFinePerDay'] as num?)?.toDouble() ?? 0.0;
+        final configuredPower = (policies?['powerSurchargeAmount'] as num?)?.toDouble();
         final fallbackGrace = (policies?['gracePeriodDays'] as num?)?.toInt();
 
         int resolvedGrace = fallbackGrace ?? _gracePeriodDays;
@@ -354,6 +379,9 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           setState(() {
             _lateFinePerDay = configuredFine;
             _gracePeriodDays = resolvedGrace;
+            if (configuredPower != null && configuredPower >= 0) {
+              _powerSurchargeAmount = configuredPower;
+            }
             if (data != null && data.isNotEmpty) {
               final methods = data
                   .cast<Map<String, dynamic>>()
@@ -2331,6 +2359,64 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                         onChanged: (val) => _togglePowerSurcharge(val),
                       ),
                     ),
+
+                    if (_sectionPriceModifier != 0) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _sectionModifierApplied
+                              ? Colors.indigo.withValues(alpha: 0.12)
+                              : Colors.indigo.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.indigo.withValues(alpha: _sectionModifierApplied ? 0.45 : 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.layers_outlined, color: Colors.indigo, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$_sectionTierName Tier Modifier (${_sectionPriceModifier > 0 ? '+' : ''}₹${_sectionPriceModifier.toStringAsFixed(0)}/mo)',
+                                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    _sectionModifierApplied ? 'Applied to total fee' : 'Optional section-tier fee adjustment',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ActionChip(
+                              label: Text(
+                                _sectionModifierApplied
+                                    ? 'Remove'
+                                    : '${_sectionPriceModifier > 0 ? '+' : ''}₹${_sectionPriceModifier.toStringAsFixed(0)}',
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  final applying = !_sectionModifierApplied;
+                                  _sectionModifierApplied = applying;
+                                  final cur = double.tryParse(_totalFeeController.text) ?? _effectiveTotalFee;
+                                  final next = (applying ? cur + _sectionPriceModifier : cur - _sectionPriceModifier)
+                                      .clamp(0.0, double.infinity);
+                                  _totalFeeController.text = next.round().toString();
+                                  if (!_isPartialPayment) {
+                                    _amountController.text = next.round().toString();
+                                  }
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     if (_suggestedLateFine > 0 || _lateFineApplied) ...[
                       Container(

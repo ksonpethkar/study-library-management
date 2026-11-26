@@ -57,11 +57,18 @@ service cloud.firestore {
       return isOwner(libraryId) || staffCan(libraryId, permission);
     }
 
+    // Owner OR any active staff member
+    function isOwnerOrStaff(libraryId) {
+      return isOwner(libraryId) || isActiveStaff(libraryId);
+    }
+
     // ── Libraries ────────────────────────────────────────────────────────────
     match /libraries/{libraryId} {
       // Public read for student web portal / seat map (library name, logo, hours)
       allow read: if true;
-      allow create: if isAuth();
+      allow create: if isAuth() &&
+                       request.resource.data.get('ownerId', '') == uid() &&
+                       request.resource.data.ownerId is string;
       allow update: if isOwner(libraryId) || staffCan(libraryId, 'canManageSettings');
       allow delete: if isOwner(libraryId);
 
@@ -81,6 +88,11 @@ service cloud.firestore {
           allow create, delete: if ownerOrStaffCan(libraryId, 'canManageSeats');
           allow update: if ownerOrStaffCan(libraryId, 'canManageSeats') ||
             (isAuth() &&
+             !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+               'assignedStudentId',
+               'studentName',
+               'studentId'
+             ]) &&
              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                'status',
                'reservationType',
@@ -93,6 +105,8 @@ service cloud.firestore {
                (
                  request.resource.data.get('status', '') == 'reserved' &&
                  request.resource.data.get('reservedCandidateId', '') == uid() &&
+                 request.resource.data.reservationExpiresAt is timestamp &&
+                 request.resource.data.reservationExpiresAt <= request.time + duration.value(25, 'h') &&
                  (
                    resource.data.get('status', 'available') == 'available' ||
                    (
@@ -314,7 +328,15 @@ service cloud.firestore {
                          resource.data.get('studentUserId', '') == uid() ||
                          resource.data.get('userId', '') == uid()
                        ));
-        allow create: if isAuth();
+        allow create: if isOwner(libraryId) ||
+                         staffCan(libraryId, 'canManageStudents') ||
+                         (isAuth() &&
+                          request.resource.data.get('status', '') in ['pending', 'desk_payment_pending'] &&
+                          (
+                            request.resource.data.get('userId', '') == uid() ||
+                            request.resource.data.get('studentUserId', '') == uid() ||
+                            request.resource.data.get('studentId', '') == uid()
+                          ));
         allow update, delete: if isOwner(libraryId) ||
                                  staffCan(libraryId, 'canManageStudents') ||
                                  (isAuth() && (
@@ -326,7 +348,21 @@ service cloud.firestore {
 
       // ── Student & In-App Notifications ─────────────────────────────────────
       match /notifications/{id} {
-        allow read: if isAuth();
+        allow read: if isOwnerOrStaff(libraryId) ||
+                       (isAuth() && (
+                         resource.data.get('type', '') == 'announcement' ||
+                         resource.data.get('targetUserId', '') == uid() ||
+                         resource.data.get('targetUserId', '') == ('student_' + uid()) ||
+                         resource.data.get('studentUserId', '') == uid() ||
+                         resource.data.get('userId', '') == uid() ||
+                         (resource.data.get('targetUserId', '') is string &&
+                          resource.data.get('targetUserId', '').size() > 0 &&
+                          exists(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.get('targetUserId', ''))) &&
+                          (
+                            get(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.get('targetUserId', ''))).data.get('userId', '') == uid() ||
+                            get(/databases/$(database)/documents/libraries/$(libraryId)/students/$(resource.data.get('targetUserId', ''))).data.get('studentUserId', '') == uid()
+                          ))
+                       ));
 
         // Students can create notifications for themselves or targeted to admin (e.g. renewal triggers, feedback, seat change)
         // Owner/staff can create for anyone

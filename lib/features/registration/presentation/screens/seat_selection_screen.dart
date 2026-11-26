@@ -233,6 +233,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
         ).ignore();
       }
 
+      final configuredHoldMin = (ref.read(currentLibraryProvider).value?.seatHoldMinutes ?? 10).clamp(5, 30);
       try {
         await ref.read(seatRepositoryProvider).softLockSeat(
           libraryId: libId,
@@ -240,7 +241,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
           seatId: seat.id,
           candidateId: curUser.uid,
           candidateName: applicantName,
-          duration: const Duration(minutes: 10),
+          duration: Duration(minutes: configuredHoldMin),
         );
       } catch (e) {
         if (!context.mounted) return;

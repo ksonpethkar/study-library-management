@@ -1135,6 +1135,12 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
      b) Isolate localized banners and sub-cards (holidays, financial pulse, student notices, renewal/seat-change banners) inside scoped `Consumer` widgets and render circular avatars/logos with `ImageService.getAvatarProvider(...)`.
      c) Import standalone heavy Admin screens (Bulk Import, Backup, Maintenance, Sentinel Diagnostics, Data Export, Audit Log, Recycle Bin, Revenue Dashboard, Template/Form Studios, QR Scanner) via `deferred as` + `_DeferredRouteLoader` in `app_router.dart` so `main.dart.js` stays lean on initial boot.
 
+7. **WebAssembly (`--wasm`) Production Compilation & Parallelized `RevenueDashboardScreen` Queries:**
+   - Guardrails:
+     a) Build web releases with `--wasm` (`flutter build web --release --wasm --base-href /app/`) so Chrome/Edge/Firefox execute `main.dart.wasm` + Skwasm while keeping automatic JS fallback for older browsers.
+     b) Serve `**/main.dart.wasm` with `public, max-age=0, must-revalidate` (ETag revalidation on deploy) while keeping engine `.wasm` files (`canvaskit`, `skwasm`) cached for 7 days.
+     c) Execute `RevenueDashboardScreen._loadData()` Firestore reads in parallel via `Future.wait`, cache `_planNames`/`_studentNames` across date-range toggles, and pass `startDate: since` to `expenseRepositoryProvider.getExpenses`.
+
 
 
 

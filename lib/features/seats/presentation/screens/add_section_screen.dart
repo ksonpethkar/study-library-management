@@ -35,6 +35,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
   final _customPrefixController = TextEditingController(text: 'CAB');
   final _rowsController = TextEditingController(text: '5');
   final _colsController = TextEditingController(text: '10');
+  final _priceModifierController = TextEditingController(text: '0');
 
   // Gender restriction
   GenderRestriction _genderRestriction = GenderRestriction.any;
@@ -77,6 +78,9 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
       _sectionType = widget.section!.sectionType;
       _rowsController.text = widget.section!.rows.toString();
       _colsController.text = widget.section!.cols.toString();
+      _priceModifierController.text = widget.section!.priceModifier == 0
+          ? '0'
+          : widget.section!.priceModifier.toStringAsFixed(0);
       _floor = widget.section!.floor ?? 'Ground Floor';
       _selectedAmenities = widget.section!.amenities
           .map(AmenityCatalog.normalizeId)
@@ -126,6 +130,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
     _customPrefixController.dispose();
     _rowsController.dispose();
     _colsController.dispose();
+    _priceModifierController.dispose();
     super.dispose();
   }
 
@@ -286,6 +291,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
           amenities: _selectedAmenities,
           inheritLibraryAmenities: _inheritLibraryAmenities,
           totalSeats: totalSeats,
+          priceModifier: double.tryParse(_priceModifierController.text.trim()) ?? 0.0,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
@@ -318,6 +324,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
           amenities: _selectedAmenities,
           inheritLibraryAmenities: _inheritLibraryAmenities,
           totalSeats: currentSeatCount,
+          priceModifier: double.tryParse(_priceModifierController.text.trim()) ?? 0.0,
           rows: (currentSeatCount <= 10) ? 1 : (currentSeatCount / 10).ceil(),
           cols: 10,
           updatedAt: DateTime.now(),
@@ -717,6 +724,19 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
                         DropdownMenuItem(value: 'premium', child: Text('Premium Cabin 🌟')),
                       ],
                       onChanged: (v) => setState(() => _sectionType = v ?? 'normal'),
+                    ),
+                    const SizedBox(height: 14),
+
+                    TextFormField(
+                      controller: _priceModifierController,
+                      keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: false),
+                      decoration: const InputDecoration(
+                        labelText: 'Section Tier Fee Modifier (₹ / Month)',
+                        hintText: 'e.g. 200 for AC/Window Cabin, or 0 for standard',
+                        prefixIcon: Icon(Icons.currency_rupee_rounded),
+                        border: OutlineInputBorder(),
+                        helperText: 'Optional +/- monthly surcharge applied in Record Payment',
+                      ),
                     ),
                     const SizedBox(height: 14),
 
