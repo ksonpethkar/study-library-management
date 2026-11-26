@@ -35,6 +35,45 @@ function parseDateValue(raw) {
   return null;
 }
 
+async function sendFreeTelegramMessage(botToken, chatId, text) {
+  if (!botToken || !chatId || !text) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      }),
+    });
+  } catch (err) {
+    console.warn('Telegram send failed (non-fatal):', err?.message || err);
+  }
+}
+
+async function getCommsConfig(libraryId) {
+  let rules = {};
+  let channels = {};
+  let secrets = {};
+  try {
+    const [commsDoc, secretDoc] = await Promise.all([
+      db.collection(`libraries/${libraryId}/settings`).doc('communications').get(),
+      db.collection(`libraries/${libraryId}/admin_secrets`).doc('communications').get(),
+    ]);
+    if (commsDoc.exists) {
+      const cData = commsDoc.data() || {};
+      rules = cData.rules || {};
+      channels = cData.channels || {};
+    }
+    if (secretDoc.exists) {
+      secrets = secretDoc.data() || {};
+    }
+  } catch (_) {}
+  return { rules, channels, secrets };
+}
+
 async function runExpiryCheck() {
   console.log('Starting daily membership expiry check...');
   console.log('Time (UTC):', new Date().toISOString());
@@ -66,6 +105,42 @@ async function runExpiryCheck() {
         continue;
       }
 
+      const { rules: commsRules, channels: commsChannels, secrets: commsSecrets } =
+        await getCommsConfig(libraryId);
+
+      // 1) Release expired 5-minute registration soft-locks (free Spark seat cleanup)
+      let expiredHoldsReleased = 0;
+      if (commsRules.waitlistCascade !== false) {
+        try {
+          const sectionsSnap = await db.collection(`libraries/${libraryId}/sections`).get();
+          for (const secDoc of sectionsSnap.docs) {
+            const seatsSnap = await secDoc.ref
+              .collection('seats')
+              .where('status', '==', 'reserved')
+              .get();
+            for (const seatDoc of seatsSnap.docs) {
+              const sData = seatDoc.data() || {};
+              const exp = parseDateValue(sData.reservationExpiresAt);
+              if (exp && exp <= nowDate) {
+                expiredHoldsReleased++;
+                await seatDoc.ref.update({
+                  status: 'available',
+                  reservationType: admin.firestore.FieldValue.delete(),
+                  reservedCandidateId: admin.firestore.FieldValue.delete(),
+                  reservedCandidateName: admin.firestore.FieldValue.delete(),
+                  reservationExpiresAt: admin.firestore.FieldValue.delete(),
+                  updatedAt: nowTs,
+                });
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (commsRules.autoExpiryGrace === false) {
+        console.log(`[${libraryName}] Auto expiry/grace paused in Communications Hub (released ${expiredHoldsReleased} expired holds).`);
+      }
+
       let globalGraceDays = typeof libData.defaultGraceDays === 'number' ? libData.defaultGraceDays : 3;
       let planGraceOverrides = {};
       try {
@@ -89,10 +164,12 @@ async function runExpiryCheck() {
         });
       } catch (_) {}
 
-      const studentsSnap = await db
-        .collection(`libraries/${libraryId}/students`)
-        .where('membershipStatus', 'in', ['active', 'grace'])
-        .get();
+      const studentsSnap = commsRules.autoExpiryGrace === false
+        ? { docs: [], size: 0 }
+        : await db
+            .collection(`libraries/${libraryId}/students`)
+            .where('membershipStatus', 'in', ['active', 'grace'])
+            .get();
 
       let libraryExpired = 0;
       let libraryGrace = 0;
@@ -210,6 +287,85 @@ async function runExpiryCheck() {
           createdAt: nowTs,
           read: false,
         });
+      }
+
+      // 2) Free Morning Briefing (8 AM IST) / Nightly Settlement (11 PM IST) Digest
+      try {
+        const istHour = Number(
+          new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Kolkata',
+            hour: '2-digit',
+            hour12: false,
+          }).format(nowDate)
+        );
+        const istDateKey = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Kolkata',
+        }).format(nowDate);
+        const isMorning = istHour < 14;
+        const digestKey = isMorning ? `morning_${istDateKey}` : `nightly_${istDateKey}`;
+        const digestAllowed = isMorning
+          ? commsRules.morningBriefing !== false
+          : commsRules.nightlySettlement !== false;
+
+        if (digestAllowed && libData.lastFreeDigestKey !== digestKey) {
+          const allStudentsSnap = await db.collection(`libraries/${libraryId}/students`).get();
+          let activeCount = 0;
+          let graceCount = 0;
+          let expiringSoonCount = 0;
+          const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+
+          for (const st of allStudentsSnap.docs) {
+            const d = st.data() || {};
+            const mStatus = (d.membershipStatus || '').toLowerCase();
+            if (mStatus === 'active') activeCount++;
+            if (mStatus === 'grace') graceCount++;
+            const pEnd = parseDateValue(d.planEndDate || d.validTo);
+            if (
+              (mStatus === 'active' || mStatus === 'grace') &&
+              pEnd &&
+              pEnd >= nowDate &&
+              pEnd.getTime() - nowDate.getTime() <= threeDaysMs
+            ) {
+              expiringSoonCount++;
+            }
+          }
+
+          const title = isMorning ? '☀️ Morning Library Briefing' : '🌙 Nightly Library Summary';
+          const summaryBody =
+            `Active: ${activeCount} • Grace: ${graceCount} • Expiring ≤3d: ${expiringSoonCount}` +
+            (libraryExpired > 0 || libraryReleased > 0
+              ? ` • Today Expired: ${libraryExpired}, Seats Released: ${libraryReleased}`
+              : '');
+
+          await db.collection(`libraries/${libraryId}/notifications`).add({
+            title,
+            body: summaryBody,
+            targetRole: 'admin',
+            type: 'digest',
+            actionRoute: '/admin',
+            createdAt: nowTs,
+            read: false,
+          });
+
+          if (commsChannels.telegramEnabled === true) {
+            const botToken = (commsSecrets.telegramBotToken || '').trim();
+            const chatId = (commsSecrets.telegramChatId || '').trim();
+            if (botToken && chatId) {
+              await sendFreeTelegramMessage(
+                botToken,
+                chatId,
+                `<b>${title} — ${libraryName}</b>\n${summaryBody}`
+              );
+            }
+          }
+
+          await db.collection('libraries').doc(libraryId).set(
+            { lastFreeDigestKey: digestKey },
+            { merge: true }
+          );
+        }
+      } catch (digestErr) {
+        console.warn(`[${libraryName}] Digest skipped:`, digestErr?.message || digestErr);
       }
 
       grandTotalExpired += libraryExpired;
