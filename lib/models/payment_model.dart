@@ -22,6 +22,7 @@ class PaymentModel {
   final int? installmentNumber;
   final PaymentStatus status;
   final String? cancellationReason;
+  final bool aggregateSyncedByClient;
   final DateTime createdAt;
 
   PaymentModel({
@@ -44,6 +45,7 @@ class PaymentModel {
     this.installmentNumber,
     required this.status,
     this.cancellationReason,
+    this.aggregateSyncedByClient = false,
     required this.createdAt,
   });
 
@@ -68,6 +70,7 @@ class PaymentModel {
       receiptNumber: (json['receiptNumber'] ?? json['receiptNo']) as String?,
       status: _parsePaymentStatus(json['status'] as String?),
       cancellationReason: json['cancellationReason'] as String? ?? json['voidReason'] as String?,
+      aggregateSyncedByClient: json['aggregateSyncedByClient'] == true,
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now(),
     );
   }
@@ -94,6 +97,7 @@ class PaymentModel {
       if (installmentNumber != null) 'installmentNumber': installmentNumber,
       'status': status.name,
       if (cancellationReason != null) 'cancellationReason': cancellationReason,
+      if (aggregateSyncedByClient) 'aggregateSyncedByClient': true,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -118,6 +122,7 @@ class PaymentModel {
     int? installmentNumber,
     PaymentStatus? status,
     String? cancellationReason,
+    bool? aggregateSyncedByClient,
     DateTime? createdAt,
   }) {
     return PaymentModel(
@@ -140,6 +145,7 @@ class PaymentModel {
       installmentNumber: installmentNumber ?? this.installmentNumber,
       status: status ?? this.status,
       cancellationReason: cancellationReason ?? this.cancellationReason,
+      aggregateSyncedByClient: aggregateSyncedByClient ?? this.aggregateSyncedByClient,
       createdAt: createdAt ?? this.createdAt,
     );
   }

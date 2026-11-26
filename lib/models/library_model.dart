@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
 import 'package:study_library/services/message_template_service.dart';
 
 enum WaitingListMode { waitingList, noSeatsMessage, contactAdmin }
@@ -43,6 +44,7 @@ class LibraryModel {
   final List<String> enabledPaymentMethods;
   final String adminName;
   final List<String> facilities;
+  final List<Map<String, dynamic>> amenities;
   final String ownerName;
   final String ownerContact;
   final String managerName;
@@ -133,14 +135,8 @@ class LibraryModel {
     this.upiId = '',
     this.enabledPaymentMethods = const ['cash', 'upi'],
     this.adminName = '',
-    this.facilities = const [
-      'High-Speed Wi-Fi',
-      'Power Sockets at Desk',
-      'Purified RO Water',
-      'Silent Study Zone',
-      'CCTV Surveillance',
-      'Ergonomic Chairs',
-    ],
+    this.facilities = AmenityCatalog.safeDefaultLabels,
+    this.amenities = const [],
     this.ownerName = '',
     this.ownerContact = '',
     this.managerName = '',
@@ -160,6 +156,18 @@ class LibraryModel {
   });
 
   factory LibraryModel.fromJson(Map<String, dynamic> json) {
+    final parsedAmenities = (json['amenities'] as List<dynamic>?)
+            ?.whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList() ??
+        const <Map<String, dynamic>>[];
+
+    final parsedFacilities = json['facilities'] is List
+        ? (json['facilities'] as List<dynamic>).map((e) => e.toString()).toList()
+        : (parsedAmenities.isNotEmpty
+            ? AmenityCatalog.toCanonicalLabels(parsedAmenities)
+            : AmenityCatalog.safeDefaultLabels);
+
     return LibraryModel(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -201,15 +209,8 @@ class LibraryModel {
               .toList() ??
           const ['cash', 'upi'],
       adminName: json['adminName'] as String? ?? json['ownerName'] as String? ?? json['contactPerson'] as String? ?? '',
-      facilities: (json['facilities'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
-          const [
-            'High-Speed Wi-Fi',
-            'Power Sockets at Desk',
-            'Purified RO Water',
-            'Silent Study Zone',
-            'CCTV Surveillance',
-            'Ergonomic Chairs',
-          ],
+      facilities: parsedFacilities,
+      amenities: parsedAmenities,
       ownerName: json['ownerName'] as String? ?? '',
       ownerContact: json['ownerContact'] as String? ?? '',
       managerName: json['managerName'] as String? ?? '',
@@ -268,6 +269,7 @@ class LibraryModel {
       'enabledPaymentMethods': enabledPaymentMethods,
       'adminName': adminName,
       'facilities': facilities,
+      'amenities': amenities,
       'ownerName': ownerName,
       'ownerContact': ownerContact,
       'managerName': managerName,
@@ -322,6 +324,7 @@ class LibraryModel {
     List<String>? enabledPaymentMethods,
     String? adminName,
     List<String>? facilities,
+    List<Map<String, dynamic>>? amenities,
     String? ownerName,
     String? ownerContact,
     String? managerName,
@@ -375,6 +378,7 @@ class LibraryModel {
       enabledPaymentMethods: enabledPaymentMethods ?? this.enabledPaymentMethods,
       adminName: adminName ?? this.adminName,
       facilities: facilities ?? this.facilities,
+      amenities: amenities ?? this.amenities,
       ownerName: ownerName ?? this.ownerName,
       ownerContact: ownerContact ?? this.ownerContact,
       managerName: managerName ?? this.managerName,
@@ -394,9 +398,26 @@ class LibraryModel {
     );
   }
 
+  /// Effective Admin-configured amenities (prefers structured [amenities] when present,
+  /// otherwise falls back to [facilities]).
+  List<AmenityItem> get effectiveAmenityItems =>
+      AmenityCatalog.resolveEffectiveAmenities(library: this);
+
+  /// Canonical labels of all active library facilities.
+  List<String> get effectiveFacilities =>
+      effectiveAmenityItems.map((e) => e.label).toList();
+
   /// Whether the library is configured with Air Conditioning (AC).
   bool get hasAirConditioning =>
-      facilities.any((f) => f.toLowerCase() == 'ac' || f.toLowerCase().contains('air condition') || f.toLowerCase().contains('ac •'));
+      effectiveAmenityItems.any((e) => e.id == 'ac');
+
+  /// Whether High-Speed Wi-Fi is enabled by Admin.
+  bool get hasWifi =>
+      effectiveAmenityItems.any((e) => e.id == 'wifi');
+
+  /// Whether Silent Study Zone is enabled by Admin.
+  bool get hasSilentZone =>
+      effectiveAmenityItems.any((e) => e.id == 'silence');
 
   /// Returns structured list of all populated key personnel with role, name and phone.
   List<Map<String, String>> get populatedPersonnel {

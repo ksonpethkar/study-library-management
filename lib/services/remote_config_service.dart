@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class RemoteConfigService {
   static final _rc = FirebaseRemoteConfig.instance;
 
-  static Future<void> initialize() async {
+  static Future<void> initialize({bool waitForFetch = true}) async {
     try {
       await _rc.setConfigSettings(RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 10),
@@ -33,7 +33,15 @@ class RemoteConfigService {
         'default_library_id': const String.fromEnvironment('DEFAULT_LIBRARY_ID', defaultValue: 'aPSMq8xSAjuZQh2fTtuY'),
       });
 
-      await _rc.fetchAndActivate();
+      if (waitForFetch) {
+        if (waitForFetch) {
+        await _rc.fetchAndActivate();
+      } else {
+        _rc.fetchAndActivate().catchError((_) => false);
+      }
+      } else {
+        _rc.fetchAndActivate().then((_) {}, onError: (_) {});
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('RemoteConfig init failed: $e');
       // App works fine with defaults

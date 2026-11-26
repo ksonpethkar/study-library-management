@@ -108,21 +108,24 @@ class MetaWhatsAppApiService {
     }
 
     try {
-      // Fast2SMS Quick Transactional Bulk API
+      // Fast2SMS Quick Transactional Bulk API (uses DLT route if senderId is provided)
       final url = Uri.parse('https://www.fast2sms.com/dev/bulkV2');
+      final cleanSender = senderId?.trim() ?? '';
+      final payload = <String, dynamic>{
+        'route': cleanSender.isNotEmpty ? 'dlt' : 'q',
+        if (cleanSender.isNotEmpty) 'sender_id': cleanSender,
+        'message': message,
+        'language': 'english',
+        'flash': 0,
+        'numbers': tenDigitPhone,
+      };
       final response = await _client.post(
         url,
         headers: {
           'authorization': cleanKey,
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'route': 'q',
-          'message': message,
-          'language': 'english',
-          'flash': 0,
-          'numbers': tenDigitPhone,
-        }),
+        body: jsonEncode(payload),
       ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
@@ -166,6 +169,7 @@ class MetaWhatsAppApiService {
   Future<bool> testSmsConnection({
     required String apiKey,
     required String testPhone,
+    String? senderId,
     String libraryName = 'Study Library',
   }) async {
     final testMsg = '[$libraryName] Commercial SMS Gateway test ping successful at ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}.';
@@ -173,6 +177,7 @@ class MetaWhatsAppApiService {
       apiKey: apiKey,
       toPhone: testPhone,
       message: testMsg,
+      senderId: senderId,
     );
   }
 }

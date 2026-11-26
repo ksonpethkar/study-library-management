@@ -8,6 +8,21 @@ class EncryptionService {
   /// by [setLegacyKey]. Never hardcoded in this file after initial migration.
   static String? _cachedLegacyKey;
 
+  /// Memoized PBKDF2 / SHA-256 derived keys by passphrase.
+  /// Prevents executing 100,000 PBKDF2 iterations on the JS/UI thread for every student doc!
+  static final Map<String, enc.Key> _derivedKeyCache = {};
+  static final Map<String, enc.Key> _legacyKeyCache = {};
+
+  /// Bounded cache of decrypted GovID strings keyed by `passphrase|ciphertext`
+  static final Map<String, String> _decryptedValueCache = {};
+
+  /// Clears caches (for unit testing or key rotation).
+  static void clearCaches() {
+    _derivedKeyCache.clear();
+    _legacyKeyCache.clear();
+    _decryptedValueCache.clear();
+  }
+
   /// Called once at app startup (after [LegacyKeyMigrationService.ensureMigrated]).
   /// Stores the legacy key in memory so [safeDecryptGovId] works synchronously.
   static void setLegacyKey(String? key) => _cachedLegacyKey = key;
@@ -65,21 +80,37 @@ class EncryptionService {
   }
 
   /// Derives a 32-byte key using PBKDF2-HMAC-SHA256 (100K iterations).
-  /// OWASP-recommended key derivation for brute-force resistance.
+  /// Memoized per passphrase so key derivation executes at most once per session.
   static enc.Key _deriveKey(String passphrase) {
+    final cached = _derivedKeyCache[passphrase];
+    if (cached != null) return cached;
+
     final passphraseBytes = utf8.encode(passphrase);
     // Deterministic salt (same passphrase → same key for decryption compatibility)
     final salt = sha256.convert(utf8.encode('study_library_kdf_salt_$passphrase')).bytes;
     final derivedKey = _pbkdf2(passphraseBytes, salt, 100000, 32);
-    return enc.Key(Uint8List.fromList(derivedKey));
+    final key = enc.Key(Uint8List.fromList(derivedKey));
+    if (_derivedKeyCache.length > 25) {
+      _derivedKeyCache.remove(_derivedKeyCache.keys.first);
+    }
+    _derivedKeyCache[passphrase] = key;
+    return key;
   }
 
   /// Legacy key derivation (simple SHA-256) — used ONLY for decrypting
   /// data that was encrypted before the PBKDF2 upgrade.
   static enc.Key _deriveKeyLegacy(String passphrase) {
+    final cached = _legacyKeyCache[passphrase];
+    if (cached != null) return cached;
+
     final bytes = utf8.encode(passphrase);
     final digest = sha256.convert(bytes);
-    return enc.Key(Uint8List.fromList(digest.bytes));
+    final key = enc.Key(Uint8List.fromList(digest.bytes));
+    if (_legacyKeyCache.length > 25) {
+      _legacyKeyCache.remove(_legacyKeyCache.keys.first);
+    }
+    _legacyKeyCache[passphrase] = key;
+    return key;
   }
 
   /// PBKDF2 implementation using HMAC-SHA256.
@@ -136,11 +167,21 @@ class EncryptionService {
       return value;
     }
 
+    final cacheKey = '$appSecret|${_cachedLegacyKey ?? ''}|$value';
+    final cachedValue = _decryptedValueCache[cacheKey];
+    if (cachedValue != null) return cachedValue;
+
     // Try decrypting with the provided appSecret (library ID or Remote Config key)
     if (appSecret.isNotEmpty) {
       try {
         final decrypted = decrypt(value, appSecret);
-        if (decrypted.isNotEmpty) return decrypted;
+        if (decrypted.isNotEmpty) {
+          if (_decryptedValueCache.length > 600) {
+            _decryptedValueCache.remove(_decryptedValueCache.keys.first);
+          }
+          _decryptedValueCache[cacheKey] = decrypted;
+          return decrypted;
+        }
       } catch (_) { /* intentionally silent */ }
     }
 
@@ -149,11 +190,22 @@ class EncryptionService {
     if (_cachedLegacyKey != null && _cachedLegacyKey!.isNotEmpty) {
       try {
         final decrypted = decrypt(value, _cachedLegacyKey!);
-        if (decrypted.isNotEmpty) return decrypted;
+        if (decrypted.isNotEmpty) {
+          if (_decryptedValueCache.length > 600) {
+            _decryptedValueCache.remove(_decryptedValueCache.keys.first);
+          }
+          _decryptedValueCache[cacheKey] = decrypted;
+          return decrypted;
+        }
       } catch (_) { /* intentionally silent */ }
     }
 
     // SEC-4: Return masked placeholder so UI never exposes raw base64 ciphertext
-    return '••••••••';
+    const masked = '••••••••';
+    if (_decryptedValueCache.length > 600) {
+      _decryptedValueCache.remove(_decryptedValueCache.keys.first);
+    }
+    _decryptedValueCache[cacheKey] = masked;
+    return masked;
   }
 }

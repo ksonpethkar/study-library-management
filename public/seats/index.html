@@ -210,14 +210,16 @@
 
     /* Stats Dashboard Row */
     .stats-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.65rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
     }
 
     .stat-box {
+      flex: 1 1 92px;
+      min-width: 82px;
       background: var(--surface-elevated);
-      padding: 0.75rem 0.5rem;
+      padding: 0.7rem 0.45rem;
       border-radius: var(--radius-md);
       border: 1px solid var(--border);
       text-align: center;
@@ -557,12 +559,22 @@
       color: var(--color-reserved-text);
     }
 
+    .seat-cell.maintenance,
     .seat-cell.disabled {
       background: var(--color-disabled-bg);
       border-color: var(--color-disabled-border);
       color: var(--color-disabled);
       cursor: not-allowed;
-      opacity: 0.5;
+      opacity: 0.78;
+    }
+
+    @keyframes seatPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); transform: scale(1); }
+      50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); transform: scale(1.1); }
+    }
+    .seat-cell.pulse-highlight {
+      animation: seatPulse 0.8s ease-in-out 2;
+      z-index: 12;
     }
 
     .gender-badge {
@@ -782,6 +794,46 @@
       border: 1px solid var(--border);
     }
 
+    .drawer-btn-find {
+      background: #059669;
+      color: #FFFFFF;
+      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+    }
+    .drawer-btn-find:hover {
+      background: #047857;
+      transform: translateY(-1px);
+    }
+
+    .drawer-restriction-box {
+      padding: 0.85rem 0.95rem;
+      border-radius: 12px;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      border: 1px solid var(--border);
+      background: var(--surface-elevated);
+      color: var(--text);
+      display: none;
+    }
+
+    .drawer-restriction-title {
+      font-weight: 800;
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+
+    .hall-maintenance-banner {
+      display: none;
+      margin-bottom: 0.85rem;
+      padding: 0.7rem 0.9rem;
+      border-radius: 12px;
+      background: rgba(245, 158, 11, 0.14);
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      color: #FBBF24;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
     .loader {
       border: 3px solid var(--border);
       border-top: 3px solid var(--primary-accent);
@@ -828,16 +880,24 @@
       <!-- Quick Stats Dashboard -->
       <div class="stats-row">
         <div class="stat-box">
-          <h4 id="statTotal" style="color: #60A5FA">60</h4>
+          <h4 id="statTotal" style="color: #60A5FA">0</h4>
           <p>Total Seats</p>
         </div>
         <div class="stat-box">
-          <h4 id="statAvailable" style="color: var(--color-available)">57</h4>
+          <h4 id="statAvailable" style="color: var(--color-available)">0</h4>
           <p>Available</p>
         </div>
         <div class="stat-box">
-          <h4 id="statOccupied" style="color: var(--color-occupied)">3</h4>
+          <h4 id="statOccupied" style="color: var(--color-occupied)">0</h4>
           <p>Occupied</p>
+        </div>
+        <div class="stat-box">
+          <h4 id="statReserved" style="color: var(--color-reserved)">0</h4>
+          <p>Reserved</p>
+        </div>
+        <div class="stat-box">
+          <h4 id="statMaintenance" style="color: var(--color-disabled)">0</h4>
+          <p>Maint.</p>
         </div>
       </div>
     </div>
@@ -888,6 +948,11 @@
         </div>
       </div>
 
+      <!-- Hall Maintenance Banner (only shown if section.isActive === false) -->
+      <div class="hall-maintenance-banner" id="hallMaintenanceBanner">
+        🔧 This study hall is temporarily under maintenance. Bookings are currently disabled.
+      </div>
+
       <!-- Touch-Safe Horizontal Viewport -->
       <div class="seat-map-scroll-viewport" id="seatScrollViewport">
         <!-- Canvas starts at 0 when wider than screen so Col 1 is 100% visible -->
@@ -916,11 +981,11 @@
             No seats found in this hall section.
           </div>
 
-          <!-- Spatial Anchor: Quiet Window Bay -->
+          <!-- Spatial Anchor: Rear Wing -->
           <div class="spatial-anchor window-anchor">
             <div class="anchor-line"></div>
             <div class="anchor-badge">
-              <span>🪟 ROAD-FACING QUIET STUDY ZONE & WINDOWS</span>
+              <span id="windowAnchorText">🪟 STUDY HALL WING</span>
             </div>
             <div class="anchor-line"></div>
           </div>
@@ -967,34 +1032,28 @@
         <button onclick="hideDrawer()" style="background: none; border: none; font-size: 1.6rem; cursor: pointer; color: var(--text-muted);">&times;</button>
       </div>
 
-      <!-- Desk Amenities Matrix -->
-      <div class="amenities-grid">
-        <div class="amenity-chip">
-          <span>🔌</span>
-          <span>Dedicated Power Socket</span>
-        </div>
-        <div class="amenity-chip">
-          <span>💡</span>
-          <span>Individual Desk Lamp</span>
-        </div>
-        <div class="amenity-chip">
-          <span>📶</span>
-          <span>High-Speed 5G Wi-Fi</span>
-        </div>
-        <div class="amenity-chip">
-          <span>❄️</span>
-          <span>Air Conditioned Hall</span>
-        </div>
-      </div>
+      <!-- Status Restriction / Notice Box (for Reserved, Maintenance, Occupied, Gender Zones) -->
+      <div class="drawer-restriction-box" id="drawerRestrictionBox"></div>
 
-      <!-- Action Buttons -->
+      <!-- Dynamic Admin-Configured Desk Amenities Matrix -->
+      <div class="amenities-grid" id="drawerAmenitiesGrid" style="display: none;"></div>
+
+      <!-- Status-Gated Action Buttons -->
       <div class="drawer-actions">
-        <a id="drawerWhatsAppBtn" href="#" target="_blank" class="drawer-btn drawer-btn-whatsapp">
+        <a id="drawerWhatsAppBtn" href="#" target="_blank" class="drawer-btn drawer-btn-whatsapp" style="display: none;">
           <span>💬 Book This Desk on WhatsApp</span>
         </a>
 
-        <a href="/app/" class="drawer-btn drawer-btn-primary">
+        <a id="drawerRegisterBtn" href="/app/" class="drawer-btn drawer-btn-primary" style="display: none;">
           <span>📝 Register for Admission Online</span>
+        </a>
+
+        <button id="drawerFindAvailBtn" type="button" class="drawer-btn drawer-btn-find" onclick="highlightFirstAvailableSeat()" style="display: none;">
+          <span>🔍 Find an Available Seat</span>
+        </button>
+
+        <a id="drawerWaitlistBtn" href="/app/" class="drawer-btn drawer-btn-primary" style="display: none;">
+          <span>📋 Hall Full — Join Priority Waiting List</span>
         </a>
 
         <button class="drawer-btn drawer-btn-secondary" onclick="hideDrawer()">
@@ -1025,10 +1084,163 @@
     const DEFAULT_COLS = 10;
     const DEFAULT_TOTAL_SEATS = 60;
     let libraryPhone = '8625982248';
+    let libraryMeta = null;
+
+    // Canonical 15-item Amenity Registry mirrored verbatim from Flutter AmenityCatalog
+    const AMENITY_CATALOG = [
+      { id: 'wifi', label: 'High-Speed Wi-Fi', shortLabel: 'Free Wi-Fi', emoji: '📶', aliases: ['wifi', 'wi-fi', 'high-speed wi-fi', 'high-speed wifi', 'high-speed 5g wi-fi', '5g mesh wi-fi', '5g wi-fi', 'free wi-fi', 'free wifi', 'wi-fi zone', 'wifi zone', 'unlimited wifi', 'fiber wifi'] },
+      { id: 'ac', label: 'Air Conditioned Hall', shortLabel: 'AC Hall', emoji: '❄️', aliases: ['ac', 'air conditioned', 'air conditioned hall', 'air conditioning', 'central ac', 'ac hall', 'ac study hall', 'fully ac', 'ac zone'] },
+      { id: 'power', label: 'Power Sockets at Desk', shortLabel: 'Power Socket', emoji: '🔌', aliases: ['power', 'power socket', 'power sockets', 'power sockets at desk', 'dedicated power socket', 'power socket at desk', 'desk charging socket', 'charging point', 'charging port', 'individual power socket', 'sockets', 'plug point'] },
+      { id: 'desk_lamp', label: 'Individual Desk Lamp', shortLabel: 'Desk Lamp', emoji: '💡', aliases: ['desk_lamp', 'desk lamp', 'individual desk lamp', 'study lamp', 'reading lamp', 'led desk lamp', 'lamp'] },
+      { id: 'ro_water', label: 'Purified RO Water', shortLabel: 'RO Water', emoji: '💧', aliases: ['ro_water', 'ro water', 'purified ro water', 'chilled ro drinking water', 'drinking water', 'chilled water', 'water cooler', 'water'] },
+      { id: 'silence', label: 'Silent Study Zone', shortLabel: 'Silent Zone', emoji: '🤫', aliases: ['silence', 'silent', 'silent study zone', 'silent study', 'quiet study zone', 'quiet zone', 'pin-drop silence', 'pin-drop silence zone', 'noise free', 'noise-free'] },
+      { id: 'cctv', label: '24x7 CCTV Surveillance', shortLabel: 'CCTV', emoji: '📹', aliases: ['cctv', 'cctv surveillance', '24x7 cctv surveillance', '24/7 cctv security', '24x7 cctv', 'cctv security', 'cctv camera'] },
+      { id: 'chairs', label: 'Ergonomic Chairs', shortLabel: 'Ergonomic Chairs', emoji: '🪑', aliases: ['chairs', 'chair', 'ergonomic chairs', 'ergonomic study chairs', 'comfortable chairs', 'cushioned chairs', 'seating'] },
+      { id: 'locker', label: 'Personal Lockers', shortLabel: 'Lockers', emoji: '🔐', aliases: ['locker', 'lockers', 'personal locker', 'personal lockers', 'locker facility', 'storage locker', 'locker attached'] },
+      { id: 'power_backup', label: '24x7 Power Backup', shortLabel: 'Power Backup', emoji: '⚡', aliases: ['power_backup', 'power backup', '24x7 power backup', '24/7 power backup', 'inverter', 'inverter backup', 'dg backup', 'ups backup', 'backup'] },
+      { id: 'open_24_7', label: 'Open 24x7 Access', shortLabel: 'Open 24x7', emoji: '🕒', aliases: ['open_24_7', 'open 24x7', 'open 24/7', 'open 24x7 access', '24x7 access', '24/7 access', '24 hours open', '24x7'] },
+      { id: 'parking', label: 'Dedicated Parking', shortLabel: 'Parking', emoji: '🛵', aliases: ['parking', 'dedicated parking', 'two-wheeler parking', 'two-wheeler / car parking', 'bike parking', 'bike & car parking', 'vehicle parking'] },
+      { id: 'pantry', label: 'Tea / Coffee & Pantry', shortLabel: 'Pantry', emoji: '☕', aliases: ['pantry', 'tea / coffee', 'tea / coffee & pantry', 'pantry & cafeteria', 'cafeteria', 'canteen', 'refreshment area'] },
+      { id: 'newspapers', label: 'Newspapers & Magazines', shortLabel: 'Newspapers', emoji: '📰', aliases: ['newspapers', 'newspaper', 'newspapers & magazines', 'daily newspapers', 'daily newspapers & magazines', 'magazines'] },
+      { id: 'natural_light', label: 'Natural Light & Ventilation', shortLabel: 'Natural Light', emoji: '☀️', aliases: ['natural_light', 'natural light', 'natural light & ventilation', 'window view', 'ventilation', 'well ventilated'] },
+    ];
+
+    function findCanonicalAmenity(raw) {
+      if (!raw) return null;
+      const lower = String(raw).trim().toLowerCase();
+      if (!lower) return null;
+      for (const item of AMENITY_CATALOG) {
+        if (
+          item.id === lower ||
+          item.label.toLowerCase() === lower ||
+          item.shortLabel.toLowerCase() === lower ||
+          item.aliases.includes(lower)
+        ) {
+          return item;
+        }
+      }
+      if (lower.includes('power backup') || lower.includes('inverter') || lower.includes('ups')) return AMENITY_CATALOG.find(i => i.id === 'power_backup');
+      if (lower.includes('lamp')) return AMENITY_CATALOG.find(i => i.id === 'desk_lamp');
+      if (lower.includes('wifi') || lower.includes('wi-fi')) return AMENITY_CATALOG.find(i => i.id === 'wifi');
+      if (lower === 'ac' || lower.includes('air condition') || lower.includes('central ac') || lower.includes('ac hall') || lower.includes('ac zone')) return AMENITY_CATALOG.find(i => i.id === 'ac');
+      if (lower.includes('socket') || lower.includes('charging')) return AMENITY_CATALOG.find(i => i.id === 'power');
+      if (lower.includes('water')) return AMENITY_CATALOG.find(i => i.id === 'ro_water');
+      if (lower.includes('silen') || lower.includes('quiet')) return AMENITY_CATALOG.find(i => i.id === 'silence');
+      if (lower.includes('cctv')) return AMENITY_CATALOG.find(i => i.id === 'cctv');
+      if (lower.includes('chair')) return AMENITY_CATALOG.find(i => i.id === 'chairs');
+      if (lower.includes('locker')) return AMENITY_CATALOG.find(i => i.id === 'locker');
+      if (lower.includes('24x7') || lower.includes('24/7')) return AMENITY_CATALOG.find(i => i.id === 'open_24_7');
+      if (lower.includes('park')) return AMENITY_CATALOG.find(i => i.id === 'parking');
+      if (lower.includes('pantry') || lower.includes('cafeteria') || lower.includes('coffee')) return AMENITY_CATALOG.find(i => i.id === 'pantry');
+      if (lower.includes('newspaper') || lower.includes('magazine')) return AMENITY_CATALOG.find(i => i.id === 'newspapers');
+      if (lower.includes('natural light') || lower.includes('window') || lower.includes('ventilat')) return AMENITY_CATALOG.find(i => i.id === 'natural_light');
+      return null;
+    }
+
+    function normalizeAmenityItem(raw) {
+      if (!raw) return null;
+      if (typeof raw === 'object') {
+        if (raw.enabled === false) return null;
+        const idRaw = (raw.id || '').toString().trim();
+        const labelRaw = (raw.label || '').toString().trim();
+        const canonical = findCanonicalAmenity(idRaw || labelRaw) || findCanonicalAmenity(labelRaw);
+        if (canonical) {
+          return {
+            id: canonical.id,
+            label: labelRaw || canonical.label,
+            emoji: (raw.emoji || raw.icon || '').toString().trim() || canonical.emoji,
+          };
+        }
+        const displayLabel = labelRaw || idRaw;
+        if (!displayLabel) return null;
+        return {
+          id: 'custom_' + displayLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+          label: displayLabel,
+          emoji: (raw.emoji || raw.icon || '').toString().trim() || '✨',
+        };
+      }
+      const text = String(raw).trim();
+      if (!text) return null;
+      const canonical = findCanonicalAmenity(text);
+      if (canonical) return { id: canonical.id, label: canonical.label, emoji: canonical.emoji };
+      return {
+        id: 'custom_' + text.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+        label: text,
+        emoji: '✨',
+      };
+    }
+
+    function resolveEffectiveAmenities(libData, secData, seatData) {
+      const merged = [];
+      const seen = new Set();
+      const addList = (list) => {
+        if (!Array.isArray(list)) return;
+        for (const raw of list) {
+          const item = normalizeAmenityItem(raw);
+          if (!item || seen.has(item.id)) continue;
+          seen.add(item.id);
+          merged.push(item);
+        }
+      };
+      const inheritLib = !secData || secData.inheritLibraryAmenities !== false;
+      if (inheritLib && libData) {
+        if (Array.isArray(libData.amenities) && libData.amenities.length > 0) {
+          addList(libData.amenities);
+        } else if (Array.isArray(libData.facilities)) {
+          addList(libData.facilities);
+        }
+      }
+      if (secData && Array.isArray(secData.amenities)) {
+        addList(secData.amenities);
+      }
+      if (seatData && Array.isArray(seatData.amenities)) {
+        addList(seatData.amenities);
+      }
+      return merged;
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[m]));
+    }
+
+    function decodeFirestoreValue(val) {
+      if (!val || typeof val !== 'object') return null;
+      if ('stringValue' in val) return val.stringValue;
+      if ('booleanValue' in val) return Boolean(val.booleanValue);
+      if ('integerValue' in val) return parseInt(val.integerValue, 10);
+      if ('doubleValue' in val) return parseFloat(val.doubleValue);
+      if ('timestampValue' in val) return val.timestampValue;
+      if ('nullValue' in val) return null;
+      if ('arrayValue' in val) {
+        const vals = val.arrayValue && Array.isArray(val.arrayValue.values) ? val.arrayValue.values : [];
+        return vals.map(decodeFirestoreValue);
+      }
+      if ('mapValue' in val) {
+        return decodeFirestoreFields((val.mapValue && val.mapValue.fields) || {});
+      }
+      return null;
+    }
+
+    function decodeFirestoreFields(fields) {
+      const out = {};
+      if (!fields) return out;
+      for (const [k, v] of Object.entries(fields)) {
+        out[k] = decodeFirestoreValue(v);
+      }
+      return out;
+    }
 
     // State variables
-    let sectionsList = [{ id: DEFAULT_SECTION_ID, name: DEFAULT_SECTION_NAME, cols: DEFAULT_COLS, rows: 6 }];
+    let sectionsList = [{ id: DEFAULT_SECTION_ID, name: DEFAULT_SECTION_NAME, cols: DEFAULT_COLS, rows: 6, isActive: true }];
     let activeSectionId = DEFAULT_SECTION_ID;
+    let latestSeatsList = [];
+    let latestHallStats = { total: 0, available: 0, occupied: 0, reserved: 0, maintenance: 0 };
     let seatsUnsubscribe = null;
     let libraryUnsubscribe = null;
     let sectionsUnsubscribe = null;
@@ -1145,6 +1357,9 @@
             libraryPhone = cached.phone;
             document.getElementById('contactReceptionLink').href = 'tel:+91' + cached.phone;
           }
+          if (cached.libraryMeta) {
+            libraryMeta = cached.libraryMeta;
+          }
           if (cached.seats && cached.seats.length > 0) {
             renderSeats(cached.seats, cached.cols || DEFAULT_COLS);
             updateStats(cached.seats, false);
@@ -1166,25 +1381,28 @@
       } catch (_) {}
     }
 
-    // Fast-path REST API fetch (~150ms) - Parallel fetch of Library Branding + Live Seat Occupancy
+    // Fast-path REST API fetch (~150ms) - Parallel fetch of Library Branding + Sections + Live Seat Occupancy
     async function fetchViaRestApi(libId, secId) {
       try {
         const targetSecId = secId || activeSectionId || DEFAULT_SECTION_ID;
         const libUrl = `https://firestore.googleapis.com/v1/projects/study-lib-mgmt-2026/databases/(default)/documents/libraries/${libId}`;
+        const sectionsUrl = `https://firestore.googleapis.com/v1/projects/study-lib-mgmt-2026/databases/(default)/documents/libraries/${libId}/sections?pageSize=50`;
         const seatsUrl = `https://firestore.googleapis.com/v1/projects/study-lib-mgmt-2026/databases/(default)/documents/libraries/${libId}/sections/${targetSecId}/seats?pageSize=300`;
 
-        const [libResp, seatsResp] = await Promise.allSettled([
+        const [libResp, sectionsResp, seatsResp] = await Promise.allSettled([
           fetch(libUrl).then(r => r.ok ? r.json() : null),
+          fetch(sectionsUrl).then(r => r.ok ? r.json() : null),
           fetch(seatsUrl).then(r => r.ok ? r.json() : null)
         ]);
 
-        // 1. Process Library Branding & Details (Instant Logo, Address, Contact)
+        // 1. Process Library Branding & Admin-Configured Amenities
         if (libResp.status === 'fulfilled' && libResp.value && libResp.value.fields) {
-          const lf = libResp.value.fields;
-          const libName = lf.name?.stringValue || 'The Cozy Corner Study Centre';
-          const libAddress = lf.address?.stringValue || '';
-          const logoUrl = lf.logoUrl?.stringValue || '';
-          const phone = lf.phone?.stringValue || '';
+          const libObj = decodeFirestoreFields(libResp.value.fields);
+          libraryMeta = libObj;
+          const libName = libObj.name || 'The Cozy Corner Study Centre';
+          const libAddress = libObj.address || '';
+          const logoUrl = libObj.logoUrl || '';
+          const phone = libObj.phone || libObj.contact || '';
 
           if (libName) {
             document.getElementById('libName').innerText = libName;
@@ -1194,14 +1412,25 @@
             document.getElementById('libAddress').innerText = libAddress;
           }
           if (logoUrl && logoUrl.trim().length > 0) {
-            document.getElementById('libLogo').innerHTML = `<img src="${logoUrl}" alt="${libName} Logo">`;
+            document.getElementById('libLogo').innerHTML = `<img src="${logoUrl}" alt="${escapeHtml(libName)} Logo">`;
           }
           if (phone) {
             libraryPhone = phone;
             const recLink = document.getElementById('contactReceptionLink');
-            if (recLink) recLink.href = 'tel:+91' + phone;
+            if (recLink) recLink.href = 'tel:+91' + phone.replace(/\D/g, '');
           }
-          saveToCache(libId, { name: libName, address: libAddress, logoUrl: logoUrl, phone: phone });
+          saveToCache(libId, {
+            name: libName,
+            address: libAddress,
+            logoUrl: logoUrl,
+            phone: phone,
+            libraryMeta: {
+              name: libName,
+              whatsappNumber: libObj.whatsappNumber || phone,
+              facilities: Array.isArray(libObj.facilities) ? libObj.facilities : null,
+              amenities: Array.isArray(libObj.amenities) ? libObj.amenities : null,
+            }
+          });
         } else if (libId !== DEFAULT_LIBRARY_ID) {
           // Automatic 404 fallback to Cozy Corner default library ID
           libraryId = DEFAULT_LIBRARY_ID;
@@ -1211,28 +1440,35 @@
           return fetchViaRestApi(DEFAULT_LIBRARY_ID, secId);
         }
 
-        // 2. Process Live Seats Grid & Occupancy
+        // 2. Process Sections Metadata (isActive, notes, amenities, cols)
+        if (sectionsResp.status === 'fulfilled' && sectionsResp.value && Array.isArray(sectionsResp.value.documents) && sectionsResp.value.documents.length > 0) {
+          const restSections = sectionsResp.value.documents.map(doc => ({
+            id: doc.name.split('/').pop(),
+            ...decodeFirestoreFields(doc.fields || {})
+          }));
+          restSections.sort((a, b) => (a.order || 0) - (b.order || 0));
+          sectionsList = restSections;
+          renderSectionTabs();
+        }
+
+        // 3. Process Live Seats Grid & Occupancy
         if (seatsResp.status === 'fulfilled' && seatsResp.value && seatsResp.value.documents) {
           const docs = seatsResp.value.documents;
           if (docs.length > 0) {
             const sec = sectionsList.find(s => s.id === targetSecId);
-            const cols = sec ? sec.cols : DEFAULT_COLS;
+            const cols = (sec && sec.cols > 0) ? sec.cols : DEFAULT_COLS;
             const seats = docs.map(doc => {
-              const f = doc.fields || {};
+              const decoded = decodeFirestoreFields(doc.fields || {});
               return {
                 id: doc.name.split('/').pop(),
-                label: f.label?.stringValue || '',
-                seatNumber: f.seatNumber?.stringValue || '',
-                status: f.status?.stringValue || 'available',
-                genderRestriction: f.genderRestriction?.stringValue || 'any',
-                studentId: f.studentId?.stringValue || null,
-                studentName: f.studentName?.stringValue || null,
-                reservationType: f.reservationType?.stringValue || null,
-                reservationExpiresAt: f.reservationExpiresAt?.timestampValue || null,
-                row: parseInt(f.row?.integerValue || '0', 10),
-                col: parseInt(f.col?.integerValue || '0', 10),
+                ...decoded,
+                status: decoded.status || 'available',
+                genderRestriction: decoded.genderRestriction || 'any',
+                row: parseInt(decoded.row || 0, 10),
+                col: parseInt(decoded.col || 0, 10),
               };
-            });
+            }).filter(s => !s.deletedAt);
+            updateSectionUI(sec);
             renderSeats(seats, cols);
             updateStats(seats);
             saveToCache(libId, { seats: seats, cols: cols });
@@ -1266,6 +1502,7 @@
         }
         if (doc.exists) {
           const data = doc.data() || {};
+          libraryMeta = data;
           if (data.name) {
             document.getElementById('libName').innerText = data.name;
             document.title = data.name + ' — Live Seat Map';
@@ -1274,13 +1511,31 @@
             document.getElementById('libAddress').innerText = data.address;
           }
           if (data.logoUrl && data.logoUrl.trim().length > 0) {
-            document.getElementById('libLogo').innerHTML = `<img src="${data.logoUrl}" alt="${data.name || 'Library'} Logo">`;
+            document.getElementById('libLogo').innerHTML = `<img src="${data.logoUrl}" alt="${escapeHtml(data.name || 'Library')} Logo">`;
           }
-          if (data.phone) {
-            libraryPhone = data.phone;
-            document.getElementById('contactReceptionLink').href = 'tel:+91' + data.phone;
+          const resolvedPhone = data.whatsappNumber || data.phone || data.contact || '';
+          if (resolvedPhone) {
+            libraryPhone = resolvedPhone;
+            document.getElementById('contactReceptionLink').href = 'tel:+91' + resolvedPhone.replace(/\D/g, '');
           }
-          saveToCache(libraryId, { name: data.name, address: data.address, logoUrl: data.logoUrl, phone: data.phone });
+          const activeSec = sectionsList.find(s => s.id === activeSectionId) || sectionsList[0];
+          updateSectionUI(activeSec);
+          if (selectedSeatId) {
+            const curSeat = latestSeatsList.find(s => s.id === selectedSeatId);
+            if (curSeat) showDrawer(curSeat, activeSec);
+          }
+          saveToCache(libraryId, {
+            name: data.name,
+            address: data.address,
+            logoUrl: data.logoUrl,
+            phone: resolvedPhone,
+            libraryMeta: {
+              name: data.name,
+              whatsappNumber: resolvedPhone,
+              facilities: Array.isArray(data.facilities) ? data.facilities : null,
+              amenities: Array.isArray(data.amenities) ? data.amenities : null,
+            }
+          });
         }
       }, err => {
         console.warn('Library metadata listener error:', err);
@@ -1327,13 +1582,36 @@
       });
     }
 
+    function updateSectionUI(sec) {
+      const secName = sec?.name || 'Cozy Hall';
+      const badgeEl = document.getElementById('activeSectionBadge');
+      if (badgeEl) {
+        badgeEl.innerText = '🏛️ ' + secName + (sec?.floor ? ' • ' + sec.floor : '');
+      }
+      const maintBanner = document.getElementById('hallMaintenanceBanner');
+      if (maintBanner) {
+        if (sec && sec.isActive === false) {
+          maintBanner.innerText = `🔧 ${secName} is temporarily under maintenance. Bookings for this hall are paused.`;
+          maintBanner.style.display = 'block';
+        } else {
+          maintBanner.style.display = 'none';
+        }
+      }
+      const winEl = document.getElementById('windowAnchorText');
+      if (winEl) {
+        const eff = resolveEffectiveAmenities(libraryMeta, sec, null);
+        const hasSilence = eff.some(a => a.id === 'silence');
+        const notes = (sec?.notes || '').trim();
+        winEl.innerText = notes ? `🪟 ${notes}` : (hasSilence ? '🪟 QUIET STUDY ZONE & WINDOWS' : '🪟 STUDY HALL WING');
+      }
+    }
+
     function selectSection(sectionId) {
       activeSectionId = sectionId;
       renderSectionTabs();
 
       const sec = sectionsList.find(s => s.id === sectionId) || sectionsList[0];
-      const secName = sec?.name || 'Cozy Hall';
-      document.getElementById('activeSectionBadge').innerText = '🏛️ ' + secName;
+      updateSectionUI(sec);
 
       if (seatsUnsubscribe) {
         seatsUnsubscribe();
@@ -1353,7 +1631,10 @@
         .collection('sections').doc(sectionId)
         .collection('seats').onSnapshot(snap => {
           const seats = [];
-          snap.forEach(doc => seats.push({ id: doc.id, ...doc.data() }));
+          snap.forEach(doc => {
+            const d = doc.data();
+            if (!d.deletedAt) seats.push({ id: doc.id, ...d });
+          });
 
           if (seats.length > 0) {
             renderSeats(seats, cols);
@@ -1367,46 +1648,41 @@
         });
     }
 
-    function resolveEffectiveStatus(seat) {
+    function parseExpiryDate(resExpires) {
+      if (!resExpires) return null;
+      if (resExpires.seconds) return new Date(resExpires.seconds * 1000);
+      if (typeof resExpires.toDate === 'function') return resExpires.toDate();
+      const d = new Date(resExpires);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    function resolveEffectiveStatus(seat, sec) {
       if (!seat) return 'available';
       const rawStatus = (seat.status || 'available').toLowerCase();
 
-      // Check if soft-lock or reservation has expired
-      const resExpires = seat.reservationExpiresAt;
-      let isReservationActive = false;
-      if (rawStatus === 'reserved' || seat.hasActiveSoftLock === true) {
-        if (resExpires) {
-          let expDate = null;
-          if (resExpires.seconds) {
-            expDate = new Date(resExpires.seconds * 1000);
-          } else if (typeof resExpires.toDate === 'function') {
-            expDate = resExpires.toDate();
-          } else {
-            expDate = new Date(resExpires);
-          }
-          if (!isNaN(expDate.getTime()) && expDate > new Date()) {
-            isReservationActive = true;
-          }
-        } else {
-          isReservationActive = true;
-        }
-      }
-
-      // 1. Occupied check (explicit status, student pointer, or isOccupied flag)
+      // 1. Occupied always takes precedence (explicit status, student pointer, or isOccupied flag)
       const hasStudent = (seat.studentId && String(seat.studentId).trim().length > 0) ||
                          (seat.studentName && String(seat.studentName).trim().length > 0);
       if (rawStatus === 'occupied' || seat.isOccupied === true || hasStudent) {
         return 'occupied';
       }
 
-      // 2. Active Reservation
-      if (isReservationActive) {
-        return 'reserved';
+      // 2. Section-wide maintenance overrides non-occupied desks
+      if (sec && sec.isActive === false) {
+        return 'maintenance';
       }
 
       // 3. Maintenance
       if (rawStatus === 'maintenance' || rawStatus === 'disabled') {
         return 'maintenance';
+      }
+
+      // 4. Active Reservation (either permanent manual reserve without expiry or live non-expired soft-lock)
+      if (rawStatus === 'reserved' || seat.hasActiveSoftLock === true) {
+        const expDate = parseExpiryDate(seat.reservationExpiresAt);
+        if (!expDate || expDate > new Date()) {
+          return 'reserved';
+        }
       }
 
       return 'available';
@@ -1417,6 +1693,10 @@
         seats = generateDefaultSeats();
       }
       hasLoadedData = true;
+      latestSeatsList = seats;
+
+      const sec = sectionsList.find(s => s.id === activeSectionId) || sectionsList[0];
+      updateSectionUI(sec);
 
       const grid = document.getElementById('gridContainer');
       const colHeaders = document.getElementById('columnHeadersRow');
@@ -1446,20 +1726,26 @@
       grid.innerHTML = '';
       seats.forEach((seat, idx) => {
         const div = document.createElement('div');
-        const status = resolveEffectiveStatus(seat);
+        const status = resolveEffectiveStatus(seat, sec);
         div.className = `seat-cell ${status}` + (seat.id === selectedSeatId ? ' selected' : '');
         div.id = 'cell_' + seat.id;
-        
+        div.dataset.status = status;
+
+        const effectiveGender = (seat.genderRestriction && seat.genderRestriction !== 'any')
+          ? seat.genderRestriction
+          : (sec?.genderRestriction || 'any');
+
         let genderBadge = '';
-        if (seat.genderRestriction === 'male') {
+        if (effectiveGender === 'male') {
           genderBadge = '<span class="gender-badge" style="color:var(--gender-male);" title="Boys Reserved">♂</span>';
-        } else if (seat.genderRestriction === 'female') {
+        } else if (effectiveGender === 'female') {
           genderBadge = '<span class="gender-badge" style="color:var(--gender-female);" title="Girls Reserved">♀</span>';
         }
 
         const seatDisplayLabel = formatSeatLabel(seat.label || seat.seatNumber, idx + 1);
-        div.innerHTML = `${genderBadge}<span>${seatDisplayLabel}</span>`;
-        div.onclick = () => onSeatClick(seat.id, seatDisplayLabel, status, seat.genderRestriction);
+        seat._displayLabel = seatDisplayLabel;
+        div.innerHTML = `${genderBadge}<span>${escapeHtml(seatDisplayLabel)}</span>`;
+        div.onclick = () => onSeatClick(seat.id);
 
         grid.appendChild(div);
       });
@@ -1468,21 +1754,40 @@
       checkSwipeHint();
     }
 
-    function onSeatClick(seatId, label, status, gender) {
+    function onSeatClick(seatId) {
       selectedSeatId = seatId;
       document.querySelectorAll('.seat-cell').forEach(c => c.classList.remove('selected'));
       const activeCell = document.getElementById('cell_' + seatId);
       if (activeCell) activeCell.classList.add('selected');
 
       const sec = sectionsList.find(s => s.id === activeSectionId) || sectionsList[0];
-      const secName = sec?.name || 'Cozy Hall';
-
-      showDrawer(label, status, gender, secName);
+      const seat = latestSeatsList.find(s => s.id === seatId);
+      if (seat) {
+        showDrawer(seat, sec);
+      }
     }
 
-    function showDrawer(label, status, gender, secName) {
-      document.getElementById('drawerSeatTitle').innerText = 'Seat #' + label;
-      
+    function highlightFirstAvailableSeat() {
+      hideDrawer();
+      const firstAvailCell = document.querySelector('.seat-cell.available');
+      if (!firstAvailCell) return;
+      firstAvailCell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      firstAvailCell.classList.remove('pulse-highlight');
+      void firstAvailCell.offsetWidth;
+      firstAvailCell.classList.add('pulse-highlight');
+      setTimeout(() => firstAvailCell.classList.remove('pulse-highlight'), 2200);
+    }
+
+    function showDrawer(seat, sec) {
+      const label = seat._displayLabel || formatSeatLabel(seat.label || seat.seatNumber, '');
+      const secName = sec?.name || 'Cozy Hall';
+      const status = resolveEffectiveStatus(seat, sec);
+      const effectiveGender = (seat.genderRestriction && seat.genderRestriction !== 'any')
+        ? seat.genderRestriction
+        : (sec?.genderRestriction || 'any');
+
+      document.getElementById('drawerSeatTitle').innerText = `Seat #${label} • ${secName}`;
+
       const badge = document.getElementById('drawerStatusBadge');
       let statusColor = 'var(--color-available)';
       let statusBg = 'var(--color-available-bg)';
@@ -1496,34 +1801,111 @@
         statusColor = 'var(--color-reserved)';
         statusBg = 'var(--color-reserved-bg)';
         statusText = '🟡 Temporarily Reserved';
-      } else if (status === 'disabled') {
+      } else if (status === 'maintenance') {
         statusColor = 'var(--color-disabled)';
         statusBg = 'var(--color-disabled-bg)';
-        statusText = '⚪ Under Maintenance';
+        statusText = (sec && sec.isActive === false) ? '⚪ Hall Under Maintenance' : '⚪ Under Maintenance';
       }
 
-      if (gender === 'male') statusText += ' • Boys Only';
-      if (gender === 'female') statusText += ' • Girls Only';
+      if (effectiveGender === 'male') statusText += ' • Boys Only';
+      if (effectiveGender === 'female') statusText += ' • Girls Only';
 
       badge.style.color = statusColor;
       badge.style.background = statusBg;
       badge.innerText = statusText;
 
-      // Build WhatsApp URL with pre-filled message
-      const cleanPhone = (libraryPhone || '8625982248').replace(/\D/g, '');
-      const encodedMsg = encodeURIComponent(
-        `Hello Cozy Corner Study Centre! 👋\nI am checking your Live Seat Map.\nI want to book *Seat #${label}* (${secName}).\nIs this desk available for me to join today?`
-      );
-      const waUrl = `https://wa.me/91${cleanPhone}?text=${encodedMsg}`;
-      const waBtn = document.getElementById('drawerWhatsAppBtn');
-      waBtn.href = waUrl;
-
-      if (status === 'occupied') {
-        waBtn.innerHTML = '<span>💬 Inquire on WhatsApp for Next Renewal</span>';
-        waBtn.style.background = '#475569';
+      // Render STRICTLY Admin-configured amenities from Library -> Section -> Seat
+      const amenitiesGrid = document.getElementById('drawerAmenitiesGrid');
+      const resolvedAmenities = resolveEffectiveAmenities(libraryMeta, sec, seat);
+      if (resolvedAmenities.length > 0) {
+        amenitiesGrid.innerHTML = resolvedAmenities.map(a => `
+          <div class="amenity-chip">
+            <span>${escapeHtml(a.emoji)}</span>
+            <span>${escapeHtml(a.label)}</span>
+          </div>
+        `).join('');
+        amenitiesGrid.style.display = 'grid';
       } else {
-        waBtn.innerHTML = '<span>💬 Book Seat #' + label + ' on WhatsApp</span>';
+        amenitiesGrid.innerHTML = '';
+        amenitiesGrid.style.display = 'none';
+      }
+
+      const restrictionBox = document.getElementById('drawerRestrictionBox');
+      const waBtn = document.getElementById('drawerWhatsAppBtn');
+      const regBtn = document.getElementById('drawerRegisterBtn');
+      const findBtn = document.getElementById('drawerFindAvailBtn');
+      const waitlistBtn = document.getElementById('drawerWaitlistBtn');
+
+      if (status === 'available') {
+        const libDisplayName = libraryMeta?.name || document.getElementById('libName')?.innerText || 'Study Library';
+        const cleanPhone = (libraryPhone || '8625982248').replace(/\D/g, '');
+        const encodedMsg = encodeURIComponent(
+          `Hello ${libDisplayName}! 👋\nI am checking your Live Seat Map.\nI want to book *Seat #${label}* (${secName}).\nIs this desk available for me to join today?`
+        );
+        waBtn.href = `https://wa.me/91${cleanPhone}?text=${encodedMsg}`;
+        waBtn.innerHTML = `<span>💬 Book Seat #${escapeHtml(label)} on WhatsApp</span>`;
         waBtn.style.background = '#25D366';
+        waBtn.style.display = 'flex';
+
+        regBtn.href = `/app/student/register?lib=${encodeURIComponent(libraryId)}&section=${encodeURIComponent(activeSectionId)}&seat=${encodeURIComponent(seat.id)}`;
+        regBtn.style.display = 'flex';
+
+        findBtn.style.display = 'none';
+        waitlistBtn.style.display = 'none';
+
+        if (effectiveGender === 'male' || effectiveGender === 'female') {
+          const zoneLabel = effectiveGender === 'male' ? 'Boys Only Zone ♂' : 'Girls Only Zone ♀';
+          restrictionBox.innerHTML = `<span class="drawer-restriction-title">ℹ️ Zone Guideline: ${zoneLabel}</span>Admission on Seat #${escapeHtml(label)} is restricted to eligible ${effectiveGender === 'male' ? 'male' : 'female'} students.`;
+          restrictionBox.style.display = 'block';
+        } else {
+          restrictionBox.style.display = 'none';
+        }
+      } else {
+        // Non-available desks NEVER expose WhatsApp booking or seat registration links
+        waBtn.style.display = 'none';
+        waBtn.removeAttribute('href');
+        regBtn.style.display = 'none';
+        regBtn.removeAttribute('href');
+
+        let title = '';
+        let details = '';
+        if (status === 'reserved') {
+          title = '🟡 Desk Reserved — Booking Restricted';
+          const expDate = parseExpiryDate(seat.reservationExpiresAt);
+          const expiryInfo = expDate && expDate > new Date()
+            ? ` (active hold until ${expDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
+            : '';
+          const reasonNote = seat.statusReason ? ` Reason: ${escapeHtml(seat.statusReason)}.` : '';
+          details = `Seat #${escapeHtml(label)} is currently held or reserved${expiryInfo}.${reasonNote} Direct WhatsApp requests and online booking are disabled for reserved desks.`;
+        } else if (status === 'maintenance') {
+          title = (sec && sec.isActive === false) ? '⚪ Hall Under Maintenance' : '⚪ Desk Under Maintenance';
+          const reasonNote = seat.statusReason
+            ? ` Reason: ${escapeHtml(seat.statusReason)}.`
+            : (sec && sec.isActive === false
+                ? ` ${escapeHtml(secName)} is temporarily closed for maintenance.`
+                : ' Management has temporarily paused bookings on this desk.');
+          details = `Seat #${escapeHtml(label)} is currently unavailable.${reasonNote} Direct WhatsApp requests and online admission for this desk are disabled.`;
+        } else {
+          title = '🔴 Desk Occupied — Cannot Be Booked';
+          details = `Seat #${escapeHtml(label)} is currently allocated to an enrolled student. Direct booking and WhatsApp reservation requests are disabled for occupied desks.`;
+        }
+
+        if (effectiveGender === 'male' || effectiveGender === 'female') {
+          details += ` (${effectiveGender === 'male' ? '♂ Boys Only Zone' : '♀ Girls Only Zone'})`;
+        }
+
+        restrictionBox.innerHTML = `<span class="drawer-restriction-title">${title}</span>${details}`;
+        restrictionBox.style.display = 'block';
+
+        if ((latestHallStats?.available || 0) > 0) {
+          findBtn.innerHTML = `<span>🔍 Find an Available Seat (${latestHallStats.available} Open)</span>`;
+          findBtn.style.display = 'flex';
+          waitlistBtn.style.display = 'none';
+        } else {
+          findBtn.style.display = 'none';
+          waitlistBtn.href = `/app/student/register?lib=${encodeURIComponent(libraryId)}`;
+          waitlistBtn.style.display = 'flex';
+        }
       }
 
       document.getElementById('seatDrawer').style.display = 'flex';
@@ -1543,6 +1925,7 @@
     }
 
     function updateStats(seats, shouldSave = true) {
+      const sec = sectionsList.find(s => s.id === activeSectionId) || sectionsList[0];
       let total = seats.length;
       let available = 0;
       let occupied = 0;
@@ -1550,20 +1933,26 @@
       let maintenance = 0;
 
       seats.forEach(s => {
-        const status = resolveEffectiveStatus(s);
+        const status = resolveEffectiveStatus(s, sec);
         if (status === 'available') available++;
         else if (status === 'occupied') occupied++;
         else if (status === 'reserved') reserved++;
         else if (status === 'maintenance') maintenance++;
       });
 
+      latestHallStats = { total, available, occupied, reserved, maintenance };
+
       const statTotalEl = document.getElementById('statTotal');
       const statAvailEl = document.getElementById('statAvailable');
       const statOccEl = document.getElementById('statOccupied');
+      const statResEl = document.getElementById('statReserved');
+      const statMaintEl = document.getElementById('statMaintenance');
 
       if (statTotalEl) statTotalEl.innerText = total;
       if (statAvailEl) statAvailEl.innerText = available;
       if (statOccEl) statOccEl.innerText = occupied;
+      if (statResEl) statResEl.innerText = reserved;
+      if (statMaintEl) statMaintEl.innerText = maintenance;
 
       if (shouldSave && libraryId) {
         saveToCache(libraryId, { seats: seats });

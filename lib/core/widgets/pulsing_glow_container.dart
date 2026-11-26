@@ -107,35 +107,37 @@ class _PulsingGlowContainerState extends State<PulsingGlowContainer>
       );
     }
 
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        final progress = _animation.value;
-        final blur = lerpDouble(widget.minBlur, widget.maxBlur, progress)!;
-        final spread = lerpDouble(widget.minSpread, widget.maxSpread, progress)!;
-        final glowAlpha = lerpDouble(0.12, 0.40, progress)!;
-        final borderAlpha = lerpDouble(0.35, 0.90, progress)!;
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _animation,
+        builder: (context, child) {
+          final progress = _animation.value;
+          final blur = lerpDouble(widget.minBlur, widget.maxBlur, progress)!;
+          final spread = lerpDouble(widget.minSpread, widget.maxSpread, progress)!;
+          final glowAlpha = lerpDouble(0.12, 0.40, progress)!;
+          final borderAlpha = lerpDouble(0.35, 0.90, progress)!;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: widget.backgroundColor,
-            borderRadius: radius,
-            border: Border.all(
-              color: widget.glowColor.withValues(alpha: borderAlpha),
-              width: widget.borderWidth,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: widget.glowColor.withValues(alpha: glowAlpha),
-                blurRadius: blur,
-                spreadRadius: spread,
+          return Container(
+            decoration: BoxDecoration(
+              color: widget.backgroundColor,
+              borderRadius: radius,
+              border: Border.all(
+                color: widget.glowColor.withValues(alpha: borderAlpha),
+                width: widget.borderWidth,
               ),
-            ],
-          ),
-          child: child,
-        );
-      },
-      child: content,
+              boxShadow: [
+                BoxShadow(
+                  color: widget.glowColor.withValues(alpha: glowAlpha),
+                  blurRadius: blur,
+                  spreadRadius: spread,
+                ),
+              ],
+            ),
+            child: child,
+          );
+        },
+        child: content,
+      ),
     );
   }
 }
@@ -190,46 +192,48 @@ class _LiveRadarDotState extends State<LiveRadarDot>
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: widget.size * 2.3,
-      height: widget.size * 2.3,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Expanding ripple wave
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) {
-              return Transform.scale(
-                scale: _scaleAnimation.value,
-                child: Container(
-                  width: widget.size,
-                  height: widget.size,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: widget.color.withValues(alpha: _fadeAnimation.value),
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size * 2.3,
+        height: widget.size * 2.3,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Expanding ripple wave
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) {
+                return Transform.scale(
+                  scale: _scaleAnimation.value,
+                  child: Container(
+                    width: widget.size,
+                    height: widget.size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.color.withValues(alpha: _fadeAnimation.value),
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-          // Core solid center dot
-          Container(
-            width: widget.size,
-            height: widget.size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: widget.color,
-              boxShadow: [
-                BoxShadow(
-                  color: widget.color.withValues(alpha: 0.6),
-                  blurRadius: 3,
-                  spreadRadius: 0.5,
-                ),
-              ],
+                );
+              },
             ),
-          ),
-        ],
+            // Core solid center dot
+            Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.color,
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.color.withValues(alpha: 0.6),
+                    blurRadius: 3,
+                    spreadRadius: 0.5,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -14,6 +14,7 @@ import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/services/app_notification_service.dart';
@@ -205,12 +206,39 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
 
     if (confirm == true) {
       try {
-        await FirebaseFirestore.instance
+        final reqRef = FirebaseFirestore.instance
             .collection('libraries')
             .doc(libraryId)
             .collection('requests')
-            .doc(requestId)
-            .delete();
+            .doc(requestId);
+        final reqSnap = await reqRef.get();
+        final reqData = reqSnap.data();
+        final targetSeatId = (reqData?['targetSeatId'] ?? reqData?['requestedSeatId'] ?? '')
+            .toString()
+            .trim();
+        final targetSectionId = (reqData?['targetSectionId'] ?? reqData?['requestedSectionId'] ?? '')
+            .toString()
+            .trim();
+        final curUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+        final candidateId = curUid.isNotEmpty
+            ? curUid
+            : (reqData?['userId'] ?? reqData?['studentUserId'] ?? reqData?['studentId'] ?? '')
+                .toString()
+                .trim();
+
+        await reqRef.delete();
+
+        if (targetSeatId.isNotEmpty && targetSectionId.isNotEmpty) {
+          try {
+            await ref.read(seatRepositoryProvider).releaseSoftLock(
+              libraryId: libraryId,
+              sectionId: targetSectionId,
+              seatId: targetSeatId,
+              expectedCandidateId: candidateId.isNotEmpty ? candidateId : null,
+            );
+          } catch (_) {}
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -401,6 +429,188 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
     );
   }
 
+  void _showRestrictedDeskInfoSheet({
+    required BuildContext context,
+    required SeatModel seat,
+    required SectionModel section,
+    required bool isReserved,
+    required bool isOccupied,
+    required bool isMaintenance,
+  }) {
+    final library = ref.read(currentLibraryProvider).value;
+    final resolvedAmenities = AmenityCatalog.resolveEffectiveAmenities(
+      library: library,
+      section: section,
+      seat: seat,
+    );
+    final deskLabel = SeatHelper.formatSeatLabel(
+      seatId: seat.id,
+      rawLabel: seat.label,
+      cols: section.cols,
+    );
+
+    final Color statusColor;
+    final IconData statusIcon;
+    final String statusBadge;
+    final String explanation;
+
+    if (isMaintenance) {
+      statusColor = const Color(0xFFD97706);
+      statusIcon = Icons.build_rounded;
+      statusBadge = !section.isActive ? 'HALL UNDER MAINTENANCE' : 'UNDER MAINTENANCE';
+      final reasonLine = (seat.statusReason?.trim().isNotEmpty ?? false)
+          ? '\nReason: ${seat.statusReason!.trim()}'
+          : '';
+      explanation = !section.isActive
+          ? '${section.name} is temporarily closed for maintenance. New seat transfers cannot be requested for desks in this hall.$reasonLine'
+          : '$deskLabel is temporarily closed for maintenance and cannot be selected or requested.$reasonLine';
+    } else if (isReserved) {
+      statusColor = const Color(0xFFF59E0B);
+      statusIcon = Icons.hourglass_top_rounded;
+      statusBadge = 'RESERVED / HELD';
+      final expiryText = seat.reservationExpiresAt != null
+          ? ' (hold active until ${DateFormat('dd MMM, hh:mm a').format(seat.reservationExpiresAt!)})'
+          : '';
+      final reasonLine = (seat.statusReason?.trim().isNotEmpty ?? false)
+          ? '\nNote: ${seat.statusReason!.trim()}'
+          : '';
+      explanation =
+          '$deskLabel is currently reserved$expiryText. Seat change requests and inquiries are disabled for reserved desks.$reasonLine';
+    } else {
+      statusColor = Colors.grey.shade700;
+      statusIcon = Icons.person_rounded;
+      statusBadge = 'OCCUPIED BY ANOTHER STUDENT';
+      explanation =
+          '$deskLabel is already assigned to an enrolled student and cannot be requested. Please pick any green available desk.';
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetCtx) {
+        final theme = Theme.of(sheetCtx);
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            MediaQuery.of(sheetCtx).padding.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$deskLabel • ${section.name}',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(statusIcon, size: 14, color: statusColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                statusBadge,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(sheetCtx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.25)),
+                ),
+                child: Text(
+                  explanation,
+                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
+                ),
+              ),
+              if (resolvedAmenities.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  'DESK AMENITIES',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.6,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: resolvedAmenities.map((item) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(item.icon, size: 13, color: theme.colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Text(item.shortLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(sheetCtx),
+                  child: const Text('Choose an Available Green Desk'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showSeatChangeRequestSheet({
     required BuildContext context,
     required String libraryId,
@@ -542,6 +752,68 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      Builder(
+                        builder: (_) {
+                          final library = ref.read(currentLibraryProvider).value;
+                          final amenities = AmenityCatalog.resolveEffectiveAmenities(
+                            library: library,
+                            section: targetSection,
+                            seat: targetSeat,
+                          );
+                          if (amenities.isEmpty) return const SizedBox.shrink();
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'DESK AMENITIES',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.6,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: amenities.map((item) {
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.surface,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(item.icon, size: 13, color: theme.colorScheme.primary),
+                                          const SizedBox(width: 4),
+                                          Text(item.shortLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 16),
 
                       Text(
@@ -553,7 +825,7 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                         controller: reasonController,
                         maxLines: 3,
                         decoration: const InputDecoration(
-                          hintText: 'e.g. Near power socket, quieter reading spot, closer to AC...',
+                          hintText: 'e.g. Better lighting, quieter corner, near desk power socket...',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -613,31 +885,67 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                       return;
                                     }
 
-                                    await FirebaseFirestore.instance
-                                        .collection('libraries')
-                                        .doc(libraryId)
-                                        .collection('requests')
-                                        .add({
-                                      'type': 'seat_change',
-                                      'status': 'pending',
-                                      'studentId': student.id,
-                                      'studentUserId': student.userId ?? FirebaseAuth.instance.currentUser?.uid ?? '',
-                                      'userId': FirebaseAuth.instance.currentUser?.uid ?? student.userId ?? '',
-                                      'studentEmail': student.email,
-                                      'studentName': student.name,
-                                      'studentPhone': student.phone,
-                                      'studentGender': student.gender.name,
-                                      'currentSeatId': student.seatId ?? '',
-                                      'currentSeatLabel': SeatHelper.formatSeatLabel(seatId: student.seatId, cols: targetSection.cols),
-                                      'currentSectionId': student.sectionId ?? '',
-                                      'currentSectionName': currentSectionName,
-                                      'targetSeatId': targetSeat.id,
-                                      'targetSeatLabel': SeatHelper.formatSeatLabel(rawLabel: targetSeat.label, includePrefix: false),
-                                      'targetSectionId': targetSection.id,
-                                      'targetSectionName': targetSection.name,
-                                      'reason': reasonController.text.trim(),
-                                      'createdAt': FieldValue.serverTimestamp(),
-                                    });
+                                    final lockCandidateId = curUid.isNotEmpty
+                                        ? curUid
+                                        : ((student.userId != null && student.userId!.isNotEmpty)
+                                            ? student.userId!
+                                            : student.id);
+                                    bool softLockAcquired = false;
+                                    if (targetSection.id.isNotEmpty && targetSeat.id.isNotEmpty) {
+                                      await ref.read(seatRepositoryProvider).softLockSeat(
+                                        libraryId: libraryId,
+                                        sectionId: targetSection.id,
+                                        seatId: targetSeat.id,
+                                        candidateId: lockCandidateId,
+                                        candidateName: student.name,
+                                        duration: const Duration(hours: 24),
+                                      );
+                                      softLockAcquired = true;
+                                    }
+
+                                    final normalizedEmail = student.email.trim().toLowerCase();
+                                    try {
+                                      await FirebaseFirestore.instance
+                                          .collection('libraries')
+                                          .doc(libraryId)
+                                          .collection('requests')
+                                          .add({
+                                        'type': 'seat_change',
+                                        'status': 'pending',
+                                        'studentId': student.id,
+                                        'studentUserId': student.userId ?? FirebaseAuth.instance.currentUser?.uid ?? '',
+                                        'userId': FirebaseAuth.instance.currentUser?.uid ?? student.userId ?? '',
+                                        'studentEmail': normalizedEmail,
+                                        'email': normalizedEmail,
+                                        'studentName': student.name,
+                                        'studentPhone': student.phone,
+                                        'studentGender': student.gender.name,
+                                        'currentSeatId': student.seatId ?? '',
+                                        'currentSeatLabel': SeatHelper.formatSeatLabel(seatId: student.seatId, cols: targetSection.cols),
+                                        'currentSectionId': student.sectionId ?? '',
+                                        'currentSectionName': currentSectionName,
+                                        'targetSeatId': targetSeat.id,
+                                        'targetSeatLabel': SeatHelper.formatSeatLabel(rawLabel: targetSeat.label, includePrefix: false),
+                                        'targetSectionId': targetSection.id,
+                                        'targetSectionName': targetSection.name,
+                                        'reason': reasonController.text.trim(),
+                                        'createdAt': FieldValue.serverTimestamp(),
+                                      });
+                                    } catch (_) {
+                                      if (softLockAcquired &&
+                                          targetSection.id.isNotEmpty &&
+                                          targetSeat.id.isNotEmpty) {
+                                        try {
+                                          await ref.read(seatRepositoryProvider).releaseSoftLock(
+                                            libraryId: libraryId,
+                                            sectionId: targetSection.id,
+                                            seatId: targetSeat.id,
+                                            expectedCandidateId: lockCandidateId,
+                                          );
+                                        } catch (_) {}
+                                      }
+                                      rethrow;
+                                    }
 
                                     // Industry Best Practice (Delta/BookMyShow/WeWork): Automatically close popup on submission success
                                     if (sheetContext.mounted) {
@@ -843,7 +1151,7 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                               children: [
                                 CircleAvatar(
                                   backgroundColor: theme.colorScheme.primary,
-                                  foregroundColor: Colors.white,
+                                  foregroundColor: theme.colorScheme.onPrimary,
                                   radius: 22,
                                   child: const Icon(Icons.event_seat_rounded, size: 24),
                                 ),
@@ -919,20 +1227,26 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                                   icon: Icons.event_seat_rounded,
                                   tooltip: 'Vacant desk. Tap to request an instant desk change.',
                                 ),
-                                if (pendingReqDoc != null)
-                                  _buildLegendItem(
-                                    context,
-                                    const Color(0xFFF59E0B),
-                                    'Requested',
-                                    icon: Icons.hourglass_top_rounded,
-                                    tooltip: 'Awaiting administrator review.',
-                                  ),
+                                _buildLegendItem(
+                                  context,
+                                  const Color(0xFFF59E0B),
+                                  pendingReqDoc != null ? 'Held / Requested' : 'Held / Pending',
+                                  icon: Icons.hourglass_top_rounded,
+                                  tooltip: 'Temporarily held by a pending application or awaiting review.',
+                                ),
                                 _buildLegendItem(
                                   context,
                                   Colors.grey.shade500,
                                   'Occupied',
                                   icon: Icons.person_rounded,
                                   tooltip: 'Currently assigned to another enrolled student.',
+                                ),
+                                _buildLegendItem(
+                                  context,
+                                  const Color(0xFFD97706),
+                                  'Maintenance',
+                                  icon: Icons.build_rounded,
+                                  tooltip: 'Desk temporarily closed for repair or maintenance.',
                                 ),
                                 _buildLegendItem(
                                   context,
@@ -1378,11 +1692,22 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                     (seat.id == pendingData['targetSeatId'] ||
                         (pendingTargetFormatted.isNotEmpty && seatFormatted == pendingTargetFormatted));
 
+                final curUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                final isHeldBySelf = seat.reservedCandidateId != null &&
+                    seat.reservedCandidateId!.isNotEmpty &&
+                    ((curUid.isNotEmpty && seat.reservedCandidateId == curUid) ||
+                        seat.reservedCandidateId == student.id ||
+                        (student.userId != null && seat.reservedCandidateId == student.userId));
+                final isReserved = !isMySeat &&
+                    !isPendingTarget &&
+                    seat.effectiveStatus == SeatStatus.reserved &&
+                    !isHeldBySelf;
+
                 final isOccupied = !isMySeat && !isPendingTarget &&
                     (seat.status == SeatStatus.occupied ||
                         (seat.studentId != null && seat.studentId!.isNotEmpty));
 
-                final isMaintenance = seat.status == SeatStatus.maintenance;
+                final isMaintenance = !section.isActive || seat.effectiveStatus == SeatStatus.maintenance;
 
                 final isGenderAllowed = _isEligibleForGender(student, section, seat);
 
@@ -1392,6 +1717,7 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                     seat: seat,
                     isMySeat: isMySeat,
                     isPendingTarget: isPendingTarget,
+                    isReserved: isReserved,
                     isOccupied: isOccupied,
                     isMaintenance: isMaintenance,
                     isGenderAllowed: isGenderAllowed,
@@ -1419,39 +1745,15 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
                       } else if (isWithinMonth) {
                         HapticFeedback.lightImpact();
                         _showMonthlyLimitDialog(context, approvedDate!, nextEligibleDate!, contactPhone);
-                      } else if (isOccupied) {
+                      } else if (isReserved || isOccupied || isMaintenance) {
                         HapticFeedback.lightImpact();
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Icons.person_rounded, color: Colors.white70, size: 18),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text('${SeatHelper.formatSeatLabel(rawLabel: seat.label)} is occupied by another student. Tap any green desk to select it.'),
-                                ),
-                              ],
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      } else if (isMaintenance) {
-                        HapticFeedback.lightImpact();
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Icons.build_rounded, color: Colors.amber, size: 18),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text('${SeatHelper.formatSeatLabel(rawLabel: seat.label)} is under routine maintenance. Please pick any green available desk.'),
-                                ),
-                              ],
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                          ),
+                        _showRestrictedDeskInfoSheet(
+                          context: context,
+                          seat: seat,
+                          section: section,
+                          isReserved: isReserved,
+                          isOccupied: isOccupied,
+                          isMaintenance: isMaintenance,
                         );
                       } else if (!isGenderAllowed) {
                         HapticFeedback.lightImpact();
@@ -1488,6 +1790,7 @@ class _StudentSeatTile extends StatelessWidget {
   final SeatModel seat;
   final bool isMySeat;
   final bool isPendingTarget;
+  final bool isReserved;
   final bool isOccupied;
   final bool isMaintenance;
   final bool isGenderAllowed;
@@ -1499,6 +1802,7 @@ class _StudentSeatTile extends StatelessWidget {
     required this.seat,
     required this.isMySeat,
     required this.isPendingTarget,
+    required this.isReserved,
     required this.isOccupied,
     required this.isMaintenance,
     required this.isGenderAllowed,
@@ -1558,6 +1862,17 @@ class _StudentSeatTile extends StatelessWidget {
           offset: const Offset(0, 2),
         ),
       ];
+    } else if (isReserved) {
+      gradient = const LinearGradient(
+        colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      bgColor = const Color(0xFFFFEDD5);
+      borderColor = const Color(0xFFF59E0B);
+      borderWidth = 1.4;
+      textColor = const Color(0xFFB45309);
+      icon = Icons.hourglass_top_rounded;
     } else if (isOccupied) {
       bgColor = isDark ? const Color(0xFF262626) : const Color(0xFFF3F4F6);
       borderColor = isDark ? const Color(0xFF3F3F46) : const Color(0xFFE5E7EB);
@@ -1674,6 +1989,27 @@ class _StudentSeatTile extends StatelessWidget {
                     'REQ',
                     style: TextStyle(
                       fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              )
+            else if (isReserved)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD97706),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'HELD',
+                    style: TextStyle(
+                      fontSize: 7.5,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       letterSpacing: 0.3,

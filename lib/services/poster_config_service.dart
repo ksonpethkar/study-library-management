@@ -1,45 +1,57 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
+import 'package:study_library/models/library_model.dart';
 
 class PosterConfigService {
-  static const List<Map<String, dynamic>> defaultAmenities = [
-    {'id': 'ac', 'label': 'Central AC', 'icon': '❄️', 'enabled': true},
-    {'id': 'wifi', 'label': 'High-Speed Wi-Fi', 'icon': '📶', 'enabled': true},
-    {'id': 'silence', 'label': 'Silence Zone', 'icon': '🤫', 'enabled': true},
-    {'id': 'ro_water', 'label': 'RO Drinking Water', 'icon': '💧', 'enabled': true},
-    {'id': 'power', 'label': 'Power Outlets', 'icon': '🔌', 'enabled': true},
-    {'id': 'open_24_7', 'label': 'Open 24/7 Hours', 'icon': '⏰', 'enabled': true},
-  ];
+  static List<Map<String, dynamic>> get defaultAmenities =>
+      AmenityCatalog.toStructuredAmenities(AmenityCatalog.safeDefaultLabels);
+
+  static List<Map<String, dynamic>> _extractLibraryAmenities(
+    String libraryId,
+    Map<String, dynamic>? libData,
+  ) {
+    if (libData == null) return defaultAmenities;
+    final lib = LibraryModel.fromJson({...libData, 'id': libraryId});
+    return AmenityCatalog.resolveEffectiveAmenities(library: lib)
+        .map((e) => e.toJson())
+        .toList();
+  }
 
   static Stream<List<Map<String, dynamic>>> streamAmenities(String libraryId) {
     if (libraryId.isEmpty) return Stream.value(defaultAmenities);
     return FirebaseFirestore.instance
         .collection('libraries')
         .doc(libraryId)
-        .collection('settings')
-        .doc('poster')
         .snapshots()
         .map((snap) {
       if (!snap.exists || snap.data() == null) return defaultAmenities;
-      final raw = snap.data()!['amenities'] as List<dynamic>?;
-      if (raw == null || raw.isEmpty) return defaultAmenities;
-      return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      return _extractLibraryAmenities(libraryId, snap.data());
     });
   }
 
   static Future<List<Map<String, dynamic>>> fetchAmenities(String libraryId) async {
     if (libraryId.isEmpty) return defaultAmenities;
     try {
-      final snap = await FirebaseFirestore.instance
+      final libSnap = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .get();
+      if (libSnap.exists && libSnap.data() != null) {
+        return _extractLibraryAmenities(libraryId, libSnap.data());
+      }
+      final posterSnap = await FirebaseFirestore.instance
           .collection('libraries')
           .doc(libraryId)
           .collection('settings')
           .doc('poster')
           .get();
-      if (snap.exists && snap.data() != null) {
-        final raw = snap.data()!['amenities'] as List<dynamic>?;
-        if (raw != null && raw.isNotEmpty) {
-          return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      if (posterSnap.exists && posterSnap.data() != null) {
+        final raw = posterSnap.data()!['amenities'] as List<dynamic>?;
+        if (raw != null) {
+          return AmenityCatalog.parseList(raw, skipDisabled: true)
+              .map((e) => e.toJson())
+              .toList();
         }
       }
     } catch (_) { /* intentionally silent */ }
@@ -48,21 +60,41 @@ class PosterConfigService {
 
   static Future<void> saveAmenities(String libraryId, List<Map<String, dynamic>> amenities) async {
     if (libraryId.isEmpty) return;
-    await FirebaseFirestore.instance
-        .collection('libraries')
-        .doc(libraryId)
-        .collection('settings')
-        .doc('poster')
-        .set({
-      'amenities': amenities,
+    final activeItems = AmenityCatalog.parseList(amenities, skipDisabled: true);
+    final structuredActive = activeItems.map((e) => e.toJson()).toList();
+    final canonicalLabels = activeItems.map((e) => e.label).toList();
+
+    final db = FirebaseFirestore.instance;
+    final batch = db.batch();
+    final libRef = db.collection('libraries').doc(libraryId);
+    final posterRef = libRef.collection('settings').doc('poster');
+
+    batch.set(libRef, {
+      'facilities': canonicalLabels,
+      'amenities': structuredActive,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+
+    batch.set(posterRef, {
+      'amenities': structuredActive,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await batch.commit();
   }
 
-  /// Opens the Amenity Badges Customizer Sheet for Admins
+  /// Opens the Amenity Badges Customizer Sheet for Admins using the canonical catalog.
   static Future<void> showCustomizer(BuildContext context, String libraryId) async {
     if (libraryId.isEmpty) return;
-    final currentAmenities = await fetchAmenities(libraryId);
+    final active = await fetchAmenities(libraryId);
+    final activeIds = active.map((a) => AmenityCatalog.normalizeId(a['id']?.toString() ?? a['label']?.toString() ?? '')).toSet();
+
+    final merged = <Map<String, dynamic>>[
+      ...active.map((m) => {...m, 'enabled': true}),
+      for (final item in AmenityCatalog.canonicalItems)
+        if (!activeIds.contains(item.id))
+          {...item.toJson(), 'enabled': false},
+    ];
     if (!context.mounted) return;
 
     await showModalBottomSheet(
@@ -71,7 +103,7 @@ class PosterConfigService {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => _AmenityCustomizerSheet(libraryId: libraryId, initialAmenities: currentAmenities),
+      builder: (ctx) => _AmenityCustomizerSheet(libraryId: libraryId, initialAmenities: merged),
     );
   }
 }
@@ -250,12 +282,6 @@ class _AmenityCustomizerSheetState extends State<_AmenityCustomizerSheet> {
                       IconButton(
                         icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
                         onPressed: () {
-                          if (_amenities.length <= 1) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('At least 1 amenity is required.')),
-                            );
-                            return;
-                          }
                           setState(() {
                             _amenities.removeAt(index);
                           });

@@ -140,6 +140,19 @@ class DocumentPickerService {
           );
         }
       }
+    } on FormatException catch (limitError) {
+      if (context != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(limitError.message),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return null;
+      }
+      rethrow;
     } catch (filePickerError) {
       debugPrint('[DocumentPickerService] FilePicker error: $filePickerError');
     }
@@ -177,6 +190,13 @@ class DocumentPickerService {
     bool? isPdf,
   }) {
     final pdfFlag = isPdf ?? mimeType.contains('pdf');
+    const int maxPdfBytes = 650 * 1024;
+    if (pdfFlag && bytes.lengthInBytes > maxPdfBytes) {
+      final sizeKb = (bytes.lengthInBytes / 1024.0).round();
+      throw FormatException(
+        'Selected PDF is $sizeKb KB, which exceeds the 650 KB limit. Please compress the PDF or upload a photo/screenshot of your ID instead.',
+      );
+    }
     Uint8List processedBytes = bytes;
     if (!pdfFlag && bytes.lengthInBytes > 60 * 1024) {
       try {

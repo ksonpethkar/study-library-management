@@ -12,6 +12,7 @@ import 'package:study_library/models/id_card_template_model.dart';
 import 'package:study_library/services/image_transparency_service.dart';
 import 'package:study_library/services/pdf_font_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/services/form_config_service.dart';
 
 enum IdCardPrintFormat {
   a4CutAndFold, // Single A4 sheet with Front and Back side-by-side with cut & fold guides (Default)
@@ -241,26 +242,15 @@ class IdCardPdfService {
     final pageTheme = await PdfFontService.getUniversalTheme(base: notoSans);
     final dateFormat = DateFormat('dd MMM yyyy');
 
-    // Load custom fields configured for ID card display (cached)
-    List<Map<String, dynamic>> customFields = _customFieldsCache[library.id] ?? [];
-    if (customFields.isEmpty) {
-      try {
-        final configDoc = await FirebaseFirestore.instance
-            .collection('libraries').doc(library.id)
-            .collection('settings').doc('form_config').get();
-        if (configDoc.exists) {
-          final data = configDoc.data()?['fields'] as List<dynamic>? ?? [];
-          customFields = data
-              .whereType<Map>()
-              .map((f) => Map<String, dynamic>.from(f))
-              .where((f) =>
-                  !(f['builtin'] as bool? ?? false) &&
-                  (f['showOnIdCard'] as bool? ?? false) &&
-                  (f['visible'] as bool? ?? true))
-              .toList();
-          _customFieldsCache[library.id] = customFields;
-        }
-      } catch (_) { /* intentionally silent */ }
+    // Load live form_config fields tagged for ID card display (always fresh, never stale-cached)
+    List<Map<String, dynamic>> customFields = [];
+    try {
+      final allConfigured = await FormConfigService.fetchFormConfig(library.id);
+      _customFieldsCache[library.id] = allConfigured;
+      customFields = FormConfigService.getSurfaceFields(allConfigured, onIdCard: true);
+    } catch (_) {
+      final cached = _customFieldsCache[library.id] ?? [];
+      customFields = FormConfigService.getSurfaceFields(cached, onIdCard: true);
     }
 
     // Fetch images asynchronously (with in-memory cache for instant theme rendering)
@@ -529,23 +519,12 @@ class IdCardPdfService {
     final secondaryColor = colors['secondary']!;
     final accentLight = colors['accentLight']!;
 
-    // Load custom fields configured for ID card display
+    // Load live form_config fields tagged for bulk ID card display
     List<Map<String, dynamic>> customFields = [];
     try {
-      final configDoc = await FirebaseFirestore.instance
-          .collection('libraries').doc(library.id)
-          .collection('settings').doc('form_config').get();
-      if (configDoc.exists) {
-        final data = configDoc.data()?['fields'] as List<dynamic>? ?? [];
-        customFields = data
-            .whereType<Map>()
-            .map((f) => Map<String, dynamic>.from(f))
-            .where((f) =>
-                !(f['builtin'] as bool? ?? false) &&
-                (f['showOnIdCard'] as bool? ?? false) &&
-                (f['visible'] as bool? ?? true))
-            .toList();
-      }
+      final allConfigured = await FormConfigService.fetchFormConfig(library.id);
+      _customFieldsCache[library.id] = allConfigured;
+      customFields = FormConfigService.getSurfaceFields(allConfigured, onIdCard: true);
     } catch (_) { /* intentionally silent */ }
 
     pw.ImageProvider? logoImage;
@@ -998,7 +977,7 @@ class IdCardPdfService {
                               ),
                               pw.SizedBox(height: 1.5),
 
-                              // Info list
+                              // Info list (respects form_config visibility + extra showOnIdCard fields)
                               pw.Column(
                                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                                 children: [
@@ -1010,6 +989,19 @@ class IdCardPdfService {
                                     _buildCleanInfoRow('College:', student.college),
                                   if (student.course.isNotEmpty)
                                     _buildCleanInfoRow('Course:', student.course),
+                                  for (final cf in customFields.where((f) {
+                                    final fid = (f['id'] ?? '').toString();
+                                    return fid != 'name' &&
+                                        fid != 'fatherName' &&
+                                        fid != 'phone' &&
+                                        fid != 'college' &&
+                                        fid != 'course';
+                                  }).take(3))
+                                    if (FormConfigService.resolveStudentFieldValue(student, (cf['id'] ?? '').toString()).isNotEmpty)
+                                      _buildCleanInfoRow(
+                                        '${sanitizeText((cf['label'] ?? cf['id']).toString())}:',
+                                        sanitizeText(FormConfigService.resolveStudentFieldValue(student, (cf['id'] ?? '').toString())),
+                                      ),
                                 ],
                               ),
                               pw.SizedBox(height: 2),

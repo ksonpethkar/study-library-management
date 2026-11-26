@@ -148,9 +148,9 @@ final studentWaitingQueueProvider =
       if (userPhone.isNotEmpty && sPhone.isNotEmpty && (userPhone == sPhone || userPhone.endsWith(sPhone) || sPhone.endsWith(userPhone))) {
         isMatch = true;
       }
-      if (email.isNotEmpty && entry.studentPhone.isNotEmpty && email.contains(entry.studentPhone)) {
-        isMatch = true;
-      }
+      if (email.isNotEmpty && sId.trim().toLowerCase() == email) isMatch = true;
+      // Never match phone numbers as substrings inside email addresses
+      // (e.g. "sj98191@gmail.com" would falsely match any student with "98191" in their phone).
 
       if (isMatch) {
         return StudentQueueInfo(

@@ -16,6 +16,10 @@ import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/services/meta_whatsapp_api_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/soundbox_service.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
+import 'package:study_library/models/app_notification_model.dart';
+import 'package:study_library/services/in_app_notification_toast.dart';
 
 class CommunicationsHubScreen extends ConsumerStatefulWidget {
   const CommunicationsHubScreen({super.key});
@@ -79,6 +83,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
   bool _isSendingMorningBriefing = false;
   bool _isSendingNightlySettlement = false;
   bool _isTestingCascade = false;
+  bool _hasInitializedTextFields = false;
   StreamSubscription? _commSettingsSub;
 
   @override
@@ -131,9 +136,10 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         if (kDebugMode) debugPrint('Library notification settings fetch fallback: $e');
       }
 
-      // 3. Load unified communications settings doc
+      // 3. Load unified communications settings doc + admin_secrets
       Map<String, dynamic> cChannels = {};
       Map<String, dynamic> cRules = {};
+      Map<String, dynamic> secretData = {};
       try {
         final commDoc = await firestore
             .collection('libraries')
@@ -148,29 +154,58 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       } catch (e) {
         if (kDebugMode) debugPrint('Communications settings fetch fallback: $e');
       }
+      try {
+        final secretDoc = await firestore
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('admin_secrets')
+            .doc('communications')
+            .get()
+            .timeout(const Duration(seconds: 4));
+        secretData = secretDoc.data() ?? {};
+      } catch (e) {
+        if (kDebugMode) debugPrint('Admin secrets fetch fallback: $e');
+      }
 
       if (mounted) {
         setState(() {
-          // Channels
+          // Channels booleans can safely stay reactive
           _pushEnabled = cChannels['pushEnabled'] as bool? ?? true;
           _smsEnabled = cChannels['smsEnabled'] as bool? ?? (mData['smsEnabled'] as bool? ?? false);
           _telegramEnabled = cChannels['telegramEnabled'] as bool? ?? (mData['telegramEnabled'] as bool? ?? false);
-          _telegramTokenController.text = (cChannels['telegramBotToken'] as String?) ?? (mData['telegramBotToken'] as String? ?? '');
-          _telegramChatIdController.text = (cChannels['telegramChatId'] as String?) ?? (mData['telegramChatId'] as String? ?? '');
           _whatsappEnabled = cChannels['whatsappEnabled'] as bool? ?? (mData['whatsappEnabled'] as bool? ?? true);
           _localBridgeEnabled = cChannels['localBridgeEnabled'] as bool? ?? (mData['localBridgeEnabled'] as bool? ?? false);
-          _localBridgeUrlController.text = (cChannels['localBridgeUrl'] as String?) ?? (mData['localBridgeUrl'] as String? ?? '');
           _customWebhookEnabled = cChannels['customWebhookEnabled'] as bool? ?? (mData['customWebhookEnabled'] as bool? ?? false);
-          _customWebhookUrlController.text = (cChannels['customWebhookUrl'] as String?) ?? (mData['customWebhookUrl'] as String? ?? '');
-
-          // Meta WhatsApp Cloud API & SMS Gateway
           _metaWhatsAppEnabled = cChannels['metaWhatsAppEnabled'] as bool? ?? (mData['metaWhatsAppEnabled'] as bool? ?? false);
-          _metaPhoneIdController.text = (cChannels['metaPhoneNumberId'] as String?) ?? (mData['metaPhoneNumberId'] as String? ?? '');
-          _metaTokenController.text = (cChannels['metaAccessToken'] as String?) ?? (mData['metaAccessToken'] as String? ?? '');
-
           _smsGatewayEnabled = cChannels['smsGatewayEnabled'] as bool? ?? (mData['smsGatewayEnabled'] as bool? ?? false);
-          _smsApiKeyController.text = (cChannels['smsApiKey'] as String?) ?? (mData['smsApiKey'] as String? ?? '');
-          _smsSenderIdController.text = (cChannels['smsSenderId'] as String?) ?? (mData['smsSenderId'] as String? ?? '');
+
+          // Populate sensitive text fields only on initial/explicit load so background snapshots never wipe unsaved edits
+          if (!silent || !_hasInitializedTextFields) {
+            _telegramTokenController.text = (secretData['telegramBotToken'] as String?) ??
+                (cChannels['telegramBotToken'] as String?) ??
+                (mData['telegramBotToken'] as String? ?? '');
+            _telegramChatIdController.text = (secretData['telegramChatId'] as String?) ??
+                (cChannels['telegramChatId'] as String?) ??
+                (mData['telegramChatId'] as String? ?? '');
+            _localBridgeUrlController.text = (cChannels['localBridgeUrl'] as String?) ??
+                (mData['localBridgeUrl'] as String? ?? '');
+            _customWebhookUrlController.text = (secretData['customWebhookUrl'] as String?) ??
+                (cChannels['customWebhookUrl'] as String?) ??
+                (mData['customWebhookUrl'] as String? ?? '');
+            _metaPhoneIdController.text = (secretData['metaPhoneNumberId'] as String?) ??
+                (cChannels['metaPhoneNumberId'] as String?) ??
+                (mData['metaPhoneNumberId'] as String? ?? '');
+            _metaTokenController.text = (secretData['metaAccessToken'] as String?) ??
+                (cChannels['metaAccessToken'] as String?) ??
+                (mData['metaAccessToken'] as String? ?? '');
+            _smsApiKeyController.text = (secretData['smsApiKey'] as String?) ??
+                (cChannels['smsApiKey'] as String?) ??
+                (mData['smsApiKey'] as String? ?? '');
+            _smsSenderIdController.text = (secretData['smsSenderId'] as String?) ??
+                (cChannels['smsSenderId'] as String?) ??
+                (mData['smsSenderId'] as String? ?? '');
+            _hasInitializedTextFields = true;
+          }
 
           // Rules
           _allNotifications = cRules['allNotifications'] as bool? ?? (nData['allNotifications'] as bool? ?? true);
@@ -270,17 +305,41 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
 
   Future<void> _triggerTestRenewalPush() async {
     try {
+      final libId = ref.read(currentLibraryIdProvider) ?? '';
       final lib = ref.read(currentLibraryProvider).value;
       final libName = lib?.name.isNotEmpty == true ? lib!.name : 'The Cozy Corner Study Centre';
-      await NotificationService.showNotification(
-        title: '📅 Test: Plan Expiring in 3 Days',
-        body: 'Hello Student, your membership for Seat #2 at $libName completes in 3 days. Renew now to retain your reserved desk!',
-        channelId: NotificationService.channelGeneral,
-      );
+      const title = '📅 Test: Plan Expiring in 3 Days';
+      final body = 'Hello Student, your membership for Desk #2 at $libName completes in 3 days. Renew now to retain your reserved desk!';
+
+      if (kIsWeb) {
+        if (mounted) {
+          InAppNotificationToast.show(
+            context,
+            libraryId: libId,
+            notification: AppNotificationModel(
+              id: 'test_renewal_${DateTime.now().millisecondsSinceEpoch}',
+              title: title,
+              body: body,
+              type: 'expiry',
+              read: false,
+              createdAt: DateTime.now(),
+              targetRole: 'student',
+            ),
+          );
+        }
+      } else {
+        await NotificationService.showNotification(
+          title: title,
+          body: body,
+          channelId: NotificationService.channelGeneral,
+        );
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Upcoming renewal reminder preview delivered to status bar! 📲'),
+          SnackBar(
+            content: Text(kIsWeb
+                ? 'Renewal reminder preview shown! Native status-bar push is active on Android APK.'
+                : 'Upcoming renewal reminder preview delivered to status bar! 📲'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
@@ -303,7 +362,38 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
     setState(() => _isSaving = true);
     final firestore = FirebaseFirestore.instance;
 
-    final channelsMap = {
+    // Strip raw API secrets from public settings/communications and store them exclusively in admin_secrets/communications
+    final publicChannelsMap = {
+      'pushEnabled': _pushEnabled,
+      'smsEnabled': _smsEnabled,
+      'telegramEnabled': _telegramEnabled,
+      'telegramBotToken': FieldValue.delete(),
+      'telegramChatId': FieldValue.delete(),
+      'whatsappEnabled': _whatsappEnabled,
+      'localBridgeEnabled': _localBridgeEnabled,
+      'localBridgeUrl': _localBridgeUrlController.text.trim(),
+      'customWebhookEnabled': _customWebhookEnabled,
+      'customWebhookUrl': FieldValue.delete(),
+      'metaWhatsAppEnabled': _metaWhatsAppEnabled,
+      'metaPhoneNumberId': FieldValue.delete(),
+      'metaAccessToken': FieldValue.delete(),
+      'smsGatewayEnabled': _smsGatewayEnabled,
+      'smsApiKey': FieldValue.delete(),
+      'smsSenderId': FieldValue.delete(),
+    };
+
+    final secretsMap = {
+      'telegramBotToken': _telegramTokenController.text.trim(),
+      'telegramChatId': _telegramChatIdController.text.trim(),
+      'customWebhookUrl': _customWebhookUrlController.text.trim(),
+      'metaPhoneNumberId': _metaPhoneIdController.text.trim(),
+      'metaAccessToken': _metaTokenController.text.trim(),
+      'smsApiKey': _smsApiKeyController.text.trim(),
+      'smsSenderId': _smsSenderIdController.text.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    final messagingFullMap = {
       'pushEnabled': _pushEnabled,
       'smsEnabled': _smsEnabled,
       'telegramEnabled': _telegramEnabled,
@@ -340,26 +430,34 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
     try {
       final batch = firestore.batch();
 
-      // 1. Unified communications doc
+      // 1. Unified non-secret communications doc (safe for automation rule checks)
       final commRef = firestore
           .collection('libraries')
           .doc(libraryId)
           .collection('settings')
           .doc('communications');
       batch.set(commRef, {
-        'channels': channelsMap,
+        'channels': publicChannelsMap,
         'rules': rulesMap,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // 2. Messaging doc for backward compatibility with MessagingHubService
+      // 2. Locked Admin Secrets doc (API tokens, bot keys & webhooks readable ONLY by Owner/Admin)
+      final secretRef = firestore
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('admin_secrets')
+          .doc('communications');
+      batch.set(secretRef, secretsMap, SetOptions(merge: true));
+
+      // 3. Messaging doc (locked to Owner/Staff in firestore.rules) for backward compatibility
       final msgRef = firestore
           .collection('libraries')
           .doc(libraryId)
           .collection('settings')
           .doc('messaging');
       batch.set(msgRef, {
-        ...channelsMap,
+        ...messagingFullMap,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -450,17 +548,41 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
 
   Future<void> _testLocalPush() async {
     try {
+      final libId = ref.read(currentLibraryIdProvider) ?? '';
       final lib = ref.read(currentLibraryProvider).value;
       final libName = lib?.name.isNotEmpty == true ? lib!.name : 'Study Library';
-      await NotificationService.showNotification(
-        title: '🔔 Test Push Notification',
-        body: 'Your device is successfully receiving notifications from $libName!',
-        channelId: NotificationService.channelGeneral,
-      );
+      const title = '🔔 Test Push Notification';
+      final body = 'Your device is successfully receiving notifications from $libName!';
+
+      if (kIsWeb) {
+        if (mounted) {
+          InAppNotificationToast.show(
+            context,
+            libraryId: libId,
+            notification: AppNotificationModel(
+              id: 'test_push_${DateTime.now().millisecondsSinceEpoch}',
+              title: title,
+              body: body,
+              type: 'general',
+              read: false,
+              createdAt: DateTime.now(),
+              targetRole: 'admin',
+            ),
+          );
+        }
+      } else {
+        await NotificationService.showNotification(
+          title: title,
+          body: body,
+          channelId: NotificationService.channelGeneral,
+        );
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Test notification dispatched to your status bar! 📲'),
+          SnackBar(
+            content: Text(kIsWeb
+                ? 'In-app banner shown! Status-bar push notifications fire on the Android app.'
+                : 'Test notification dispatched to your status bar! 📲'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
@@ -537,6 +659,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
     final ok = await metaService.testSmsConnection(
       apiKey: apiKey,
       testPhone: testPhone,
+      senderId: _smsSenderIdController.text.trim(),
       libraryName: lib?.name ?? 'Study Library',
     );
     if (mounted) {
@@ -545,7 +668,9 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         SnackBar(
           content: Text(ok
               ? 'SMS Gateway Test Ping Delivered to $testPhone! 📲'
-              : 'SMS Gateway delivery failed. Check your API key and account balance.'),
+              : (kIsWeb
+                  ? 'SMS Gateway failed (browsers may block direct CORS API requests to Fast2SMS — test on the Android APK).'
+                  : 'SMS Gateway delivery failed. Check your API key and account balance.')),
           backgroundColor: ok ? Colors.green : Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -666,7 +791,12 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 820),
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+          padding: EdgeInsets.fromLTRB(
+            16.0,
+            16.0,
+            16.0,
+            80.0 + MediaQuery.of(context).padding.bottom,
+          ),
       children: [
         // Info Banner
         Card(
@@ -1239,7 +1369,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                             Expanded(
                               child: Text(
                                 soundbox.formatAnnouncement(
-                                  amount: 700,
+                                  amount: 500,
                                   studentName: 'Shubham',
                                   seatLabel: '14',
                                   libraryName: libName,
@@ -1251,18 +1381,19 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Row(
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 8,
                         children: [
                           OutlinedButton.icon(
                             icon: const Icon(Icons.music_note_rounded, size: 16),
                             label: const Text('Test Chime'),
                             onPressed: () => soundbox.playChime(),
                           ),
-                          const SizedBox(width: 10),
                           FilledButton.icon(
                             style: FilledButton.styleFrom(backgroundColor: const Color(0xFF059669)),
                             icon: const Icon(Icons.volume_up_rounded, size: 16),
-                            label: const Text('Test ₹500 Announcement'),
+                            label: const Text('Test ₹500 Voice'),
                             onPressed: () => soundbox.testAnnouncement(soundbox.language, libraryName: libName),
                           ),
                         ],
@@ -1288,7 +1419,12 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 820),
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+          padding: EdgeInsets.fromLTRB(
+            16.0,
+            16.0,
+            16.0,
+            80.0 + MediaQuery.of(context).padding.bottom,
+          ),
       children: [
         // Master Automation Switch
         Card(
@@ -1678,6 +1814,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
         }
 
         final docs = snapshot.data?.docs ?? [];
+        final plans = ref.watch(plansStreamProvider).value ?? [];
+        final plansById = {for (final p in plans) p.id: p};
         final now = DateTime.now();
         final todayMid = DateTime(now.year, now.month, now.day);
         final todayNudgeKey = 'whatsapp_nudge_${DateFormat('yyyyMMdd').format(now)}';
@@ -1690,10 +1828,24 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
           final phone = data['phone'] as String? ?? '';
           final status = data['membershipStatus'] as String? ?? 'active';
           final planId = data['planId'] as String?;
-          final planName = data['customPlanName'] ?? data['planName'] ?? (planId != null ? planId.toUpperCase() : 'Monthly');
+          final matchedPlan = planId != null ? plansById[planId] : null;
+          final planName = (data['customPlanName'] as String?)?.isNotEmpty == true
+              ? data['customPlanName'] as String
+              : ((data['planName'] as String?)?.isNotEmpty == true
+                  ? data['planName'] as String
+                  : (matchedPlan?.name ?? 'Monthly'));
           final seatId = data['seatId'] as String?;
-          final seatLabel = data['seatLabel'] as String? ?? (seatId != null && seatId.isNotEmpty ? 'Seat #$seatId' : null);
-          final fee = (data['amount'] as num?)?.toDouble() ?? (data['totalPlanFee'] as num?)?.toDouble() ?? 0.0;
+          final rawSeatLabel = data['seatLabel'] as String?;
+          final seatLabel = (seatId != null && seatId.isNotEmpty) || (rawSeatLabel != null && rawSeatLabel.isNotEmpty)
+              ? SeatHelper.formatDeskLabel(seatId: seatId, rawLabel: rawSeatLabel)
+              : null;
+          final customFee = (data['customPlanFee'] as num?)?.toDouble();
+          final recordedAmt = (data['amount'] as num?)?.toDouble() ?? (data['totalPlanFee'] as num?)?.toDouble();
+          final fee = (customFee != null && customFee > 0)
+              ? customFee
+              : ((recordedAmt != null && recordedAmt > 0)
+                  ? recordedAmt
+                  : (matchedPlan?.price ?? 0.0));
           final remindedStages = List<String>.from(data['remindedStages'] as List<dynamic>? ?? []);
           final isNudgeSentToday = remindedStages.contains(todayNudgeKey);
 
@@ -1803,7 +1955,12 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 820),
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+              padding: EdgeInsets.fromLTRB(
+                16.0,
+                16.0,
+                16.0,
+                80.0 + MediaQuery.of(context).padding.bottom,
+              ),
               children: [
                 // Top Action Banner
                 Card(

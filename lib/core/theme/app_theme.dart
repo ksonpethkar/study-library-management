@@ -8,15 +8,23 @@ import '../providers/font_settings_provider.dart';
 class AppTheme {
   AppTheme._();
 
+  static final Map<String, ThemeData> _themeCache = {};
+
   /// Build a full ThemeData seeded from the library's accent color.
-  /// Falls back to [AppColors.primaryLight] / [AppColors.primaryDark] if seed is null.
+  /// Memoized by seedColor, brightness, and fontFamily to eliminate repeated typography allocations.
   static ThemeData fromSeed(
     Color seedColor, {
     Brightness brightness = Brightness.light,
     AppFontFamily fontFamily = AppFontFamily.modern,
   }) {
-    final colorScheme = buildColorScheme(seedColor, brightness);
-    return _build(colorScheme, brightness, fontFamily);
+    final key = '${seedColor.toARGB32()}_${brightness.name}_${fontFamily.name}';
+    return _themeCache.putIfAbsent(key, () {
+      if (_themeCache.length > 24) {
+        _themeCache.clear();
+      }
+      final colorScheme = buildColorScheme(seedColor, brightness);
+      return _build(colorScheme, brightness, fontFamily);
+    });
   }
 
   /// High-contrast ColorScheme builder that guarantees WCAG AAA compliant text

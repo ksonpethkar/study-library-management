@@ -1,103 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
-import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
 
 final revenueDataProvider = FutureProvider<List<_MonthlyRevenue>>((ref) async {
-  final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null || libraryId.isEmpty) return [];
+  final ledger = await ref.watch(unifiedFinancialLedgerProvider.future);
+  if (ledger.monthlyRevenueByYearMonth.isEmpty) return [];
 
-  final now = DateTime.now();
-  final monthData = <int, double>{};
-
-  // Last 6 months
-  for (int i = 5; i >= 0; i--) {
-    final month = DateTime(now.year, now.month - i, 1);
-    final key = month.year * 100 + month.month;
-    monthData[key] = 0;
-  }
-
-  final seenReceiptIds = <String>{};
-  final seenReceiptNumbers = <String>{};
-
-  DateTime? parseDate(dynamic dateRaw) {
-    if (dateRaw is String) return DateTime.tryParse(dateRaw);
-    if (dateRaw is int) return DateTime.fromMillisecondsSinceEpoch(dateRaw);
-    if (dateRaw is Timestamp) return dateRaw.toDate();
-    if (dateRaw != null && dateRaw.runtimeType.toString() == 'Timestamp') {
-      try {
-        return (dateRaw as dynamic).toDate();
-      } catch (_) {}
-    }
-    return null;
-  }
-
-  // 1. Process Payments
-  try {
-    final snap = await FirebaseFirestore.instance
-        .collection('libraries')
-        .doc(libraryId)
-        .collection('payments')
-        .get();
-
-    for (final doc in snap.docs) {
-      final data = doc.data();
-      final status = (data['status'] ?? '').toString().toLowerCase();
-      if (status == 'voided' || status == 'cancelled' || status == 'refunded' || data['isDeleted'] == true) {
-        continue;
-      }
-      final amount = (data['amount'] as num?)?.toDouble() ?? 0;
-      final date = parseDate(data['date'] ?? data['createdAt']);
-      if (date == null) continue;
-
-      final rId = data['receiptId'] as String?;
-      if (rId != null && rId.isNotEmpty) seenReceiptIds.add(rId);
-      final rNum = data['receiptNumber'] as String?;
-      if (rNum != null && rNum.isNotEmpty) seenReceiptNumbers.add(rNum);
-
-      final key = date.year * 100 + date.month;
-      if (monthData.containsKey(key)) {
-        monthData[key] = monthData[key]! + amount;
-      }
-    }
-  } catch (_) {}
-
-  // 2. Process any Orphan/Legacy Receipts
-  try {
-    final rSnap = await FirebaseFirestore.instance
-        .collection('libraries')
-        .doc(libraryId)
-        .collection('receipts')
-        .get();
-
-    for (final doc in rSnap.docs) {
-      final data = doc.data();
-      final status = (data['status'] ?? '').toString().toLowerCase();
-      if (status == 'voided' || data['deletedAt'] != null || data['isDeleted'] == true) {
-        continue;
-      }
-      final rNum = data['receiptNumber'] as String?;
-      if (seenReceiptIds.contains(doc.id) || (rNum != null && seenReceiptNumbers.contains(rNum))) {
-        continue; // Already counted in payments
-      }
-
-      final amount = (data['amount'] as num?)?.toDouble() ?? 0;
-      final date = parseDate(data['createdAt'] ?? data['date']);
-      if (date == null) continue;
-
-      final key = date.year * 100 + date.month;
-      if (monthData.containsKey(key)) {
-        monthData[key] = monthData[key]! + amount;
-      }
-    }
-  } catch (_) {}
-
-  final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return monthData.entries.map((e) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return ledger.monthlyRevenueByYearMonth.entries.map((e) {
     final month = e.key % 100;
     return _MonthlyRevenue(
       label: months[month - 1],

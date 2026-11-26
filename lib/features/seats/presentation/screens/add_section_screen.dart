@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/core/utils/app_validators.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
 
 import '../providers/seat_providers.dart';
 
@@ -42,6 +43,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
   String _sectionType = 'normal';
   String _floor = 'Ground Floor';
   List<String> _selectedAmenities = [];
+  bool _inheritLibraryAmenities = true;
   bool _isLoading = false;
 
   final List<Map<String, dynamic>> _colorOptions = [
@@ -65,17 +67,6 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
     'Terrace Wing',
   ];
 
-  static const List<Map<String, String>> _availableAmenities = [
-    {'id': 'AC', 'label': 'AC Zone ❄️'},
-    {'id': 'Power Sockets', 'label': 'Power Sockets 🔌'},
-    {'id': 'Ergonomic Chairs', 'label': 'Ergonomic Chairs 🪑'},
-    {'id': 'High-Speed Wi-Fi', 'label': 'Wi-Fi 📶'},
-    {'id': 'Locker Attached', 'label': 'Locker 🛅'},
-    {'id': 'Silent Zone', 'label': 'Silent Zone 🤫'},
-    {'id': 'CCTV Monitored', 'label': 'CCTV 📹'},
-    {'id': 'Natural Light', 'label': 'Natural Light ☀️'},
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -87,7 +78,11 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
       _rowsController.text = widget.section!.rows.toString();
       _colsController.text = widget.section!.cols.toString();
       _floor = widget.section!.floor ?? 'Ground Floor';
-      _selectedAmenities = List.from(widget.section!.amenities);
+      _selectedAmenities = widget.section!.amenities
+          .map(AmenityCatalog.normalizeId)
+          .toSet()
+          .toList();
+      _inheritLibraryAmenities = widget.section!.inheritLibraryAmenities;
       if (widget.section!.genderRestriction == 'male') {
         _genderRestriction = GenderRestriction.male;
       } else if (widget.section!.genderRestriction == 'female') {
@@ -289,6 +284,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
           genderRestriction: _genderRestriction.name,
           floor: _floor,
           amenities: _selectedAmenities,
+          inheritLibraryAmenities: _inheritLibraryAmenities,
           totalSeats: totalSeats,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
@@ -320,6 +316,7 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
           genderRestriction: _genderRestriction.name,
           floor: _floor,
           amenities: _selectedAmenities,
+          inheritLibraryAmenities: _inheritLibraryAmenities,
           totalSeats: currentSeatCount,
           rows: (currentSeatCount <= 10) ? 1 : (currentSeatCount / 10).ceil(),
           cols: 10,
@@ -893,23 +890,48 @@ class _AddSectionScreenState extends ConsumerState<AddSectionScreen> {
 
                     // ── AMENITIES CHECKLIST ────────────────────────────────
                     _StepHeader(number: isCreating ? '4' : '3', label: 'Section Amenities & Features'),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Inherit Library Amenities',
+                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        _inheritLibraryAmenities
+                            ? 'Automatically includes enabled facilities from Library Profile plus any extras below.'
+                            : 'Only the checked section amenities below apply to this hall.',
+                        style: TextStyle(fontSize: 11.5, color: theme.colorScheme.outline),
+                      ),
+                      value: _inheritLibraryAmenities,
+                      onChanged: (val) => setState(() => _inheritLibraryAmenities = val),
+                    ),
+                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _availableAmenities.map((amenity) {
-                        final id = amenity['id']!;
-                        final label = amenity['label']!;
-                        final isSelected = _selectedAmenities.contains(id);
+                      children: AmenityCatalog.canonicalItems.map((item) {
+                        final libraryItems = ref.watch(currentLibraryProvider).value?.effectiveAmenityItems ?? const [];
+                        final isInherited = _inheritLibraryAmenities &&
+                            libraryItems.any((libItem) => libItem.id == item.id);
+                        final isExplicit = _selectedAmenities.any(
+                          (s) => AmenityCatalog.normalizeId(s) == item.id,
+                        );
                         return FilterChip(
-                          label: Text(label),
-                          selected: isSelected,
+                          avatar: Icon(item.icon, size: 16),
+                          label: Text(
+                            isInherited && !isExplicit
+                                ? '${item.shortLabel} (Library)'
+                                : item.shortLabel,
+                          ),
+                          selected: isExplicit || isInherited,
                           onSelected: (val) {
                             setState(() {
+                              _selectedAmenities.removeWhere(
+                                (s) => AmenityCatalog.normalizeId(s) == item.id,
+                              );
                               if (val) {
-                                _selectedAmenities.add(id);
-                              } else {
-                                _selectedAmenities.remove(id);
+                                _selectedAmenities.add(item.id);
                               }
                             });
                           },

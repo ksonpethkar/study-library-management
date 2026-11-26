@@ -13,7 +13,8 @@ class SectionModel {
   final String sectionType; // 'normal', 'window', 'ac', 'premium'
   final String? genderRestriction; // 'any', 'male', 'female'
   final String? floor; // e.g. 'Ground Floor', '1st Floor'
-  final List<String> amenities; // ['AC', 'Power Sockets', 'Wi-Fi']
+  final List<String> amenities; // ['ac', 'power', 'wifi']
+  final bool inheritLibraryAmenities;
   final int? totalSeats;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -33,6 +34,7 @@ class SectionModel {
     this.genderRestriction = 'any',
     this.floor,
     this.amenities = const [],
+    this.inheritLibraryAmenities = true,
     this.totalSeats,
     required this.createdAt,
     required this.updatedAt,
@@ -58,6 +60,7 @@ class SectionModel {
       amenities: json['amenities'] is List
           ? (json['amenities'] as List).map((e) => e.toString()).toList()
           : const [],
+      inheritLibraryAmenities: json['inheritLibraryAmenities'] as bool? ?? true,
       totalSeats: json['totalSeats'] as int? ?? json['seatCount'] as int? ?? json['capacity'] as int?,
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now(),
       updatedAt: _parseDate(json['updatedAt']) ?? DateTime.now(),
@@ -80,6 +83,7 @@ class SectionModel {
       'genderRestriction': genderRestriction,
       if (floor != null) 'floor': floor,
       'amenities': amenities,
+      'inheritLibraryAmenities': inheritLibraryAmenities,
       if (totalSeats != null) 'totalSeats': totalSeats,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
@@ -101,6 +105,7 @@ class SectionModel {
     String? genderRestriction,
     String? floor,
     List<String>? amenities,
+    bool? inheritLibraryAmenities,
     int? totalSeats,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -120,6 +125,7 @@ class SectionModel {
       genderRestriction: genderRestriction ?? this.genderRestriction,
       floor: floor ?? this.floor,
       amenities: amenities ?? this.amenities,
+      inheritLibraryAmenities: inheritLibraryAmenities ?? this.inheritLibraryAmenities,
       totalSeats: totalSeats ?? this.totalSeats,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/features/auth/services/admin_whitelist_service.dart';
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/notification_service.dart';
 
@@ -93,7 +95,15 @@ final adminNotificationsStreamProvider = StreamProvider<List<AppNotificationMode
         final all = snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList();
         final filtered = all.where((n) {
           if (AppNotificationService.isLocallyDismissed(n.id)) return false;
-          return n.targetRole == 'admin' || n.targetRole == 'all';
+          // Announcements written by Admin are targeted to students; never clutter Admin Bell unless explicitly targetRole == 'admin'
+          if (n.type.toLowerCase() == 'announcement' && n.targetRole != 'admin') {
+            return false;
+          }
+          if (n.actionRoute != null && n.actionRoute!.startsWith('/student') && n.targetRole != 'admin') {
+            return false;
+          }
+          // Strict Admin Inbox Fence: only notifications explicitly addressed to 'admin'
+          return n.targetRole == 'admin';
         }).map((n) {
           if (AppNotificationService.isLocallyRead(n.id)) {
             return n.copyWith(read: true);
@@ -126,18 +136,18 @@ final studentNotificationsStreamProvider =
   AppNotificationService._ensureLocalPrefsLoaded(libraryId, effectiveId);
 
   // STRICT PRIVACY PROTECTION:
-  // If effectiveId is null or empty, this user is not authenticated.
-  // They MUST NOT receive any personal student alerts (receipts, admissions, feedback, seat changes).
+  // If effectiveId is null or empty, only query public broadcast announcements
+  // so Firestore rules never fail on restricted per-user/admin notifications.
   if (effectiveId == null || effectiveId.isEmpty) {
     return FirebaseFirestore.instance
         .collection('libraries')
         .doc(libraryId)
         .collection('notifications')
-        .orderBy('createdAt', descending: true)
-        .limit(20)
+        .where('type', isEqualTo: 'announcement')
         .snapshots()
         .map((snap) {
           final all = snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList();
+          all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return all.where((n) {
             if (n.targetRole == 'admin') return false; // STRICT ROLE FENCE
             if (AppNotificationService.isLocallyDismissed(n.id)) return false;
@@ -151,78 +161,123 @@ final studentNotificationsStreamProvider =
         });
   }
 
-  return FirebaseFirestore.instance
-      .collection('libraries')
-      .doc(libraryId)
-      .collection('notifications')
-      .orderBy('createdAt', descending: true)
-      .limit(50)
-      .snapshots()
-      .map((snap) {
-        final all = snap.docs.map((doc) => AppNotificationModel.fromFirestore(doc)).toList();
-        // Strict privacy filter:
-        // A student ONLY sees:
-        // 1. Notifications explicitly addressed to THIS specific student (targetUserId, metadata.studentId, or metadata.studentUserId/userId)
-        // 2. General public broadcasts intended for ALL users (type == 'announcement' with NO student-specific data)
-        final filtered = all.where((n) {
-          // 1. Strict Target Role Fence: A student MUST NEVER see notifications intended for admins!
-          if (n.targetRole == 'admin') return false;
+  final targetIds = <String>{
+    effectiveId,
+    if (authUid != null && authUid.isNotEmpty) authUid,
+    if (studentId != null && studentId.trim().isNotEmpty) studentId.trim(),
+  }.toList();
 
-          // 2. Strict Local Dismissal Fence: If dismissed locally by this student, hide it!
-          if (AppNotificationService.isLocallyDismissed(n.id)) return false;
+  // Merge strictly scoped personal stream(s) + public announcement stream
+  // using zero-index single-field queries matching Firestore rules.
+  return Stream<List<AppNotificationModel>>.multi((controller) {
+    final Map<String, AppNotificationModel> personalMap = {};
+    final Map<String, AppNotificationModel> broadcastMap = {};
 
-          final metaStudentId = n.metadata['studentId']?.toString().trim();
-          final metaUserId = (n.metadata['studentUserId'] ?? n.metadata['userId'])?.toString().trim();
+    void emitMerged() {
+      final combined = <String, AppNotificationModel>{
+        ...broadcastMap,
+        ...personalMap,
+      };
+      final all = combined.values.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-          if (n.targetUserId != null && n.targetUserId!.trim().isNotEmpty) {
-            final t = n.targetUserId!.trim();
-            final matchesDirect = t == effectiveId ||
-                (authUid != null && t == authUid) ||
-                (studentId != null && t == studentId);
-            if (matchesDirect) return true;
+      final filtered = all.where((n) {
+        if (n.targetRole == 'admin') return false;
+        if (AppNotificationService.isLocallyDismissed(n.id)) return false;
 
-            // Cross-ID resolution: Notification was addressed by studentId or authUid
-            if (studentId != null && metaStudentId != null && metaStudentId == studentId) return true;
-            if (metaStudentId != null && metaStudentId == effectiveId) return true;
-            if (authUid != null && metaUserId != null && metaUserId == authUid) return true;
-            if (metaUserId != null && metaUserId == effectiveId) return true;
+        final metaStudentId = n.metadata['studentId']?.toString().trim();
+        final metaUserId = (n.metadata['studentUserId'] ?? n.metadata['userId'])?.toString().trim();
 
-            return false;
+        if (n.targetUserId != null && n.targetUserId!.trim().isNotEmpty) {
+          final t = n.targetUserId!.trim();
+          final matchesDirect = t == effectiveId ||
+              (authUid != null && t == authUid) ||
+              (studentId != null && t == studentId);
+          if (matchesDirect) return true;
+          if (studentId != null && metaStudentId != null && metaStudentId == studentId) return true;
+          if (metaStudentId != null && metaStudentId == effectiveId) return true;
+          if (authUid != null && metaUserId != null && metaUserId == authUid) return true;
+          if (metaUserId != null && metaUserId == effectiveId) return true;
+          return false;
+        }
+
+        if ((studentId != null && metaStudentId != null && metaStudentId == studentId) ||
+            (authUid != null && metaUserId != null && metaUserId == authUid) ||
+            ((metaStudentId != null && metaStudentId == effectiveId) ||
+                (metaUserId != null && metaUserId == effectiveId))) {
+          return true;
+        }
+
+        final personalTypes = {
+          'payment',
+          'receipt',
+          'admission',
+          'seat',
+          'seat_change',
+          'feedback',
+          'feedback_reply',
+          'expiry',
+          'due',
+          'renewal',
+          'profile_update_request',
+        };
+        if (personalTypes.contains(n.type.toLowerCase())) {
+          return false;
+        }
+        return n.targetRole == 'all' || n.targetRole == 'student' || n.type == 'announcement';
+      }).map((n) {
+        if (AppNotificationService.isLocallyRead(n.id)) {
+          return n.copyWith(read: true);
+        }
+        return n;
+      }).toList();
+
+      if (!controller.isClosed) {
+        controller.add(_deduplicateNotifications(filtered, libraryId));
+      }
+    }
+
+    final notifsCol = FirebaseFirestore.instance
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('notifications');
+
+    final subs = <StreamSubscription>[];
+
+    subs.add(
+      notifsCol.where('targetUserId', whereIn: targetIds).snapshots().listen(
+        (snap) {
+          personalMap.clear();
+          for (final doc in snap.docs) {
+            final model = AppNotificationModel.fromFirestore(doc);
+            personalMap[doc.id] = model;
           }
+          emitMerged();
+        },
+        onError: (_) => emitMerged(),
+      ),
+    );
 
-          // Check if metadata matches this student even if targetUserId was omitted
-          if ((studentId != null && metaStudentId != null && metaStudentId == studentId) ||
-              (authUid != null && metaUserId != null && metaUserId == authUid) ||
-              ((metaStudentId != null && metaStudentId == effectiveId) ||
-                  (metaUserId != null && metaUserId == effectiveId))) {
-            return true;
+    subs.add(
+      notifsCol.where('type', isEqualTo: 'announcement').snapshots().listen(
+        (snap) {
+          broadcastMap.clear();
+          for (final doc in snap.docs) {
+            final model = AppNotificationModel.fromFirestore(doc);
+            broadcastMap[doc.id] = model;
           }
+          emitMerged();
+        },
+        onError: (_) => emitMerged(),
+      ),
+    );
 
-          final personalTypes = {
-            'payment',
-            'receipt',
-            'admission',
-            'seat',
-            'seat_change',
-            'feedback',
-            'feedback_reply',
-            'expiry',
-            'due',
-            'renewal',
-            'profile_update_request',
-          };
-          if (personalTypes.contains(n.type.toLowerCase())) {
-            return false; // Hard reject untargeted sensitive notifications
-          }
-          return n.targetRole == 'all' || n.targetRole == 'student' || n.type == 'announcement';
-        }).map((n) {
-          if (AppNotificationService.isLocallyRead(n.id)) {
-            return n.copyWith(read: true);
-          }
-          return n;
-        }).toList();
-        return _deduplicateNotifications(filtered, libraryId);
-      });
+    controller.onCancel = () async {
+      for (final s in subs) {
+        await s.cancel();
+      }
+    };
+  });
 });
 
 class AppNotificationService {
@@ -314,14 +369,14 @@ class AppNotificationService {
       final cleanTitle = title.replaceAll(RegExp(r'[^\w\s]'), '').trim().toLowerCase();
       final cleanBody = body.replaceAll(RegExp(r'[^\w\s]'), '').trim().toLowerCase();
 
-      // Deduplicate recent identical dispatches within 60 minutes to prevent double-writes
-      if (libraryId.isNotEmpty && type != 'general') {
+      // Deduplicate recent identical dispatches using scoped reads so students never fail admin rule fences
+      if (libraryId.isNotEmpty && type != 'general' && targetUserId != null && targetUserId.isNotEmpty) {
         try {
           final recentSnap = await _firestore
               .collection('libraries')
               .doc(libraryId)
               .collection('notifications')
-              .orderBy('createdAt', descending: true)
+              .where('targetUserId', isEqualTo: targetUserId)
               .limit(25)
               .get();
 
@@ -333,7 +388,7 @@ class AppNotificationService {
             final dCreated = (dData['createdAt'] as Timestamp?)?.toDate();
 
             if (dTitle == cleanTitle && dBody == cleanBody) {
-              if (targetUserId == null || targetUserId.isEmpty || dTarget == targetUserId || dTarget.isEmpty) {
+              if (dTarget == targetUserId || dTarget.isEmpty) {
                 if (dCreated != null && DateTime.now().difference(dCreated).inMinutes < 60) {
                   return true;
                 }
@@ -349,7 +404,8 @@ class AppNotificationService {
         } catch (_) {}
       }
 
-      // Check automation rules configured in Communications Hub
+      // Check automation rules & push channel configured in Communications Hub
+      bool pushChannelEnabled = true;
       if (libraryId.isNotEmpty) {
         try {
           final commDoc = await _firestore
@@ -358,16 +414,25 @@ class AppNotificationService {
               .collection('settings')
               .doc('communications')
               .get();
-          final rules = commDoc.data()?['rules'] as Map<String, dynamic>?;
+          final cData = commDoc.data();
+          final channels = cData?['channels'] as Map<String, dynamic>?;
+          if (channels != null) {
+            pushChannelEnabled = channels['pushEnabled'] as bool? ?? true;
+          }
+          final rules = cData?['rules'] as Map<String, dynamic>?;
           if (rules != null) {
             final allEnabled = rules['allNotifications'] as bool? ?? true;
             if (!allEnabled) return '';
 
-            final isAllowed = switch (type) {
-              'admission' => rules['newStudentRequest'] as bool? ?? true,
-              'expiry' => rules['planExpiring'] as bool? ?? true,
+            final normalizedType = type.toLowerCase();
+            final isAllowed = switch (normalizedType) {
+              'admission' || 'new_registration' => rules['newStudentRequest'] as bool? ?? true,
+              'expiry' || 'renewal_reminder' => (rules['planExpiring'] as bool? ?? true) &&
+                  (rules['multiStageRenewals'] as bool? ?? true),
               'announcement' => rules['announcementPush'] as bool? ?? true,
-              'payment' => rules['paymentReceipts'] as bool? ?? true,
+              'payment' || 'receipt' => rules['paymentReceipts'] as bool? ?? true,
+              'feedback' || 'seat_change' || 'profile_update_request' =>
+                rules['studentIssuesAlert'] as bool? ?? true,
               _ => true,
             };
             if (!isAllowed) return '';
@@ -402,40 +467,59 @@ class AppNotificationService {
         _ => NotificationService.channelGeneral,
       };
 
-      // Strict Device-Role Fencing:
+      // Strict Device-Role Fencing & Self-Notification Suppression:
       // Only show local Android status-bar notification on this device if the notification
-      // is actually intended for this device's current user/role.
-      // E.g., when a student submits an admission request, the admin-targeted alert
-      // ('targetRole == admin') must NEVER buzz or show on the student's phone!
-      bool shouldShowLocally = true;
+      // is actually intended for this device's current user/role, and NOT initiated locally.
+      // E.g., when an admin approves admission or assigns a desk, the student-targeted alert
+      // ('targetRole == student') must NEVER buzz or show on the admin's phone!
+      // Similarly, when a student submits an admission request, the admin-targeted alert
+      // ('targetRole == admin') must NEVER show on the student's phone!
+      bool shouldShowLocally = false;
       try {
         final prefs = await SharedPreferences.getInstance();
-        final currentRole = prefs.getString('cached_current_user_role') ??
-            prefs.getString('persisted_role') ??
-            'student';
+        final rawRole = prefs.getString('cached_current_user_role') ??
+            prefs.getString('persisted_role');
+        final currentEmail = FirebaseAuth.instance.currentUser?.email;
+        final isWhitelisted = await AdminWhitelistService.isEmailWhitelisted(currentEmail);
+        final currentRole = (rawRole == 'admin' || isWhitelisted) ? 'admin' : (rawRole ?? 'none');
         final currentUid = FirebaseAuth.instance.currentUser?.uid;
+        final cachedStudentDocId = prefs.getString('cached_student_id') ??
+            (libraryId.isNotEmpty && currentUid != null
+                ? prefs.getString('cached_student_doc_id_${libraryId}_$currentUid')
+                : null);
 
-        if (targetRole == 'admin') {
-          // If current device is NOT logged in as admin, NEVER show admin alert locally!
-          if (currentRole != 'admin') {
+        // Strict Role Fences:
+        if (currentRole == 'admin') {
+          // If current device is logged in as admin:
+          // NEVER show any student-targeted notification (admission approved, desk allocated, fee receipt, student announcements)
+          if (targetRole == 'student') {
             shouldShowLocally = false;
+          } else if (targetRole == 'admin') {
+            // Admin alerts (e.g. new registration submitted, feedback received) only show locally
+            // if not triggered by an action initiated by this admin.
+            final initiatorUid = metadata?['initiatedBy']?.toString() ?? metadata?['userId']?.toString();
+            final isSelfAction = (initiatorUid != null && initiatorUid == currentUid);
+            shouldShowLocally = !isSelfAction;
           }
-        } else if (targetRole == 'student') {
-          if (currentRole == 'admin') {
-            // Admins don't need personal student alerts popping up
+        } else if (currentRole == 'student') {
+          // If current device is logged in as student:
+          // NEVER show any admin-targeted notification!
+          if (targetRole == 'admin') {
             shouldShowLocally = false;
-          } else if (targetUserId != null && targetUserId.isNotEmpty && currentUid != null) {
-            final cachedStudentId = prefs.getString('cached_student_id');
-            if (targetUserId != currentUid && targetUserId != cachedStudentId) {
-              shouldShowLocally = false;
-            }
+          } else if (targetRole == 'student') {
+            // A student alert only shows on this phone if directly targeted to THIS student
+            final isDirectTarget = (targetUserId != null && targetUserId.isNotEmpty) &&
+                (targetUserId == currentUid || (cachedStudentDocId != null && targetUserId == cachedStudentDocId));
+            final initiatorUid = metadata?['initiatedBy']?.toString() ?? metadata?['userId']?.toString();
+            final isSelfAction = (initiatorUid != null && initiatorUid == currentUid);
+            shouldShowLocally = isDirectTarget && !isSelfAction;
           }
         }
       } catch (_) {
-        if (targetRole == 'admin') shouldShowLocally = false;
+        shouldShowLocally = false;
       }
 
-      if (shouldShowLocally) {
+      if (shouldShowLocally && pushChannelEnabled) {
         await NotificationService.showNotification(
           title: title,
           body: body,
@@ -484,16 +568,29 @@ class AppNotificationService {
       }
     }
 
-    // 2. Resilient Firestore update per document (avoids batch abort on permission checks)
+    // 2. Resilient Firestore update per document (scoped for student readers so rules stay strict)
     try {
-      final snap = await _firestore
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('notifications')
-          .where('read', isEqualTo: false)
-          .get();
-
       final currentAuthUid = FirebaseAuth.instance.currentUser?.uid;
+      final Query<Map<String, dynamic>> query;
+      if (targetRole == 'student' && (targetUserId != null && targetUserId.isNotEmpty || currentAuthUid != null)) {
+        final scopedIds = <String>{
+          if (targetUserId != null && targetUserId.isNotEmpty) targetUserId,
+          if (currentAuthUid != null && currentAuthUid.isNotEmpty) currentAuthUid,
+        }.toList();
+        query = _firestore
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('notifications')
+            .where('targetUserId', whereIn: scopedIds);
+      } else {
+        query = _firestore
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('notifications')
+            .where('read', isEqualTo: false);
+      }
+
+      final snap = await query.get();
 
       for (final doc in snap.docs) {
         final data = doc.data();
@@ -558,16 +655,29 @@ class AppNotificationService {
       }
     }
 
-    // 2. Resilient Firestore delete per document (avoids batch abort on permission checks)
+    // 2. Resilient Firestore delete per document (scoped for student readers so rules stay strict)
     try {
-      final snap = await _firestore
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('notifications')
-          .where('read', isEqualTo: true)
-          .get();
-
       final currentAuthUid = FirebaseAuth.instance.currentUser?.uid;
+      final Query<Map<String, dynamic>> query;
+      if (targetRole == 'student' && (targetUserId != null && targetUserId.isNotEmpty || currentAuthUid != null)) {
+        final scopedIds = <String>{
+          if (targetUserId != null && targetUserId.isNotEmpty) targetUserId,
+          if (currentAuthUid != null && currentAuthUid.isNotEmpty) currentAuthUid,
+        }.toList();
+        query = _firestore
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('notifications')
+            .where('targetUserId', whereIn: scopedIds);
+      } else {
+        query = _firestore
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('notifications')
+            .where('read', isEqualTo: true);
+      }
+
+      final snap = await query.get();
 
       for (final doc in snap.docs) {
         final data = doc.data();

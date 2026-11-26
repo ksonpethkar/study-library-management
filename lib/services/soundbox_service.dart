@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'soundbox_audio_stub.dart' if (dart.library.html) 'soundbox_audio_web.dart';
+import 'soundbox_audio_stub.dart' if (dart.library.js_interop) 'soundbox_audio_web.dart';
 
 /// Service for simulating a Paytm / PhonePe / Google Pay Soundbox terminal
 /// at library reception counters.

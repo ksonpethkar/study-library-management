@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/file_download_helper.dart';
+import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 
 enum ExportDateRange {
@@ -280,64 +281,72 @@ class DataExportService {
         return true;
       }).toList();
 
-      // Fetch custom fields configuration from form_config if present
+      // Fetch form configuration via unified normalizer (supports both builtin:false+id and legacy isCustom+key)
+      List<Map<String, dynamic>> configuredFields = List<Map<String, dynamic>>.from(FormConfigService.defaultBuiltinFields);
       List<Map<String, dynamic>> customFieldConfigs = [];
       try {
-        final formDoc = await _firestore
-            .collection('libraries')
-            .doc(libraryId)
-            .collection('settings')
-            .doc('form_config')
-            .get();
-        if (formDoc.exists && formDoc.data()?['fields'] != null) {
-          final rawFields = formDoc.data()!['fields'] as List<dynamic>;
-          for (final f in rawFields) {
-            if (f is Map<String, dynamic> && f['isCustom'] == true && f['visible'] != false) {
-              customFieldConfigs.add(f);
+        configuredFields = await FormConfigService.fetchFormConfig(libraryId);
+        customFieldConfigs = FormConfigService.getExportCustomFields(configuredFields);
+      } catch (_) {}
+
+      // Fallback: Scan student docs for any unconfigured customKeys
+      final dynamicKeys = <String>{};
+      final configuredCustomIds = customFieldConfigs
+          .map((f) => (f['id'] ?? f['key'] ?? '').toString())
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      for (final doc in filteredDocs) {
+        final cf = doc.data()['customFields'] as Map<String, dynamic>?;
+        if (cf != null) {
+          for (final k in cf.keys) {
+            if (!FormConfigService.isInternalKey(k) && !configuredCustomIds.contains(k)) {
+              dynamicKeys.add(k);
             }
           }
         }
-      } catch (_) {}
-
-      // Fallback: If no builder fields found, scan student docs for any customKeys
-      if (customFieldConfigs.isEmpty) {
-        final dynamicKeys = <String>{};
-        for (final doc in filteredDocs) {
-          final cf = doc.data()['customFields'] as Map<String, dynamic>?;
-          if (cf != null) dynamicKeys.addAll(cf.keys);
-        }
-        customFieldConfigs = dynamicKeys.map((k) => {'key': k, 'label': k}).toList();
       }
+      for (final orphanKey in dynamicKeys) {
+        customFieldConfigs.add({
+          'id': orphanKey,
+          'key': orphanKey,
+          'label': FormConfigService.formatFieldKey(orphanKey),
+        });
+      }
+
+      String headerLabel(String id, String fallback) =>
+          FormConfigService.getFieldLabel(configuredFields, id, fallback);
 
       final buf = StringBuffer();
       final headers = [
         'Membership ID',
-        'Student Name',
-        'Phone Number',
-        'Email Address',
-        'Gender',
+        headerLabel('name', 'Student Name'),
+        headerLabel('phone', 'Phone Number'),
+        headerLabel('email', 'Email Address'),
+        headerLabel('gender', 'Gender'),
         'Membership Status',
         'Assigned Seat',
-        'Section / Shift',
+        'Hall / Section',
         'Current Plan',
         'Plan Start Date',
         'Plan End Date',
         'Grace End Date',
         'Pending Due (₹)',
-        'Father / Guardian Name',
-        'Emergency Contact',
-        'Blood Group',
-        'Date of Birth',
+        headerLabel('fatherName', 'Father / Guardian Name'),
+        headerLabel('emergencyContact', 'Emergency Contact'),
+        headerLabel('bloodGroup', 'Blood Group'),
+        headerLabel('dob', 'Date of Birth'),
         'Gov ID Type',
-        'Gov ID Number',
-        'College / Institution',
-        'Course',
-        'Academic Year',
-        'Address',
-        'Pincode',
+        headerLabel('govId', 'Gov ID Number'),
+        headerLabel('prep', 'Target Exam / Goal'),
+        headerLabel('college', 'College / Institution'),
+        headerLabel('course', 'Course'),
+        headerLabel('year', 'Academic Year'),
+        headerLabel('rollNumber', 'Roll / Enroll Number'),
+        headerLabel('address', 'Address'),
+        headerLabel('pincode', 'Pincode'),
         'Joined Date',
         'Notes / Remarks',
-        ...customFieldConfigs.map((f) => (f['label'] as String?) ?? (f['key'] as String)),
+        ...customFieldConfigs.map((f) => (f['label'] ?? f['id'] ?? f['key']).toString()),
       ];
       buf.writeln(headers.map(_escapeCsv).join(','));
 
@@ -364,14 +373,20 @@ class DataExportService {
           _formatDate(d['dob'], includeTime: false),
           d['govIdType'] ?? '',
           d['govIdNumber'] ?? '',
+          d['targetExamName'] ?? customMap['prep'] ?? '',
           d['college'] ?? '',
           d['course'] ?? '',
           d['year'] ?? '',
+          d['rollNumber'] ?? customMap['rollNumber'] ?? '',
           d['address'] ?? '',
           d['pincode'] ?? '',
           _formatDate(d['createdAt']),
           d['notes'] ?? '',
-          ...customFieldConfigs.map((f) => customMap[f['key']] ?? ''),
+          ...customFieldConfigs.map((f) {
+            final fid = (f['id'] ?? f['key'] ?? '').toString();
+            final legacyKey = (f['key'] ?? '').toString();
+            return customMap[fid] ?? (legacyKey.isNotEmpty ? customMap[legacyKey] : null) ?? '';
+          }),
         ];
         buf.writeln(row.map(_escapeCsv).join(','));
       }
@@ -569,7 +584,7 @@ class DataExportService {
         'Phone Number',
         'Emergency Phone',
         'Assigned Seat',
-        'Section / Shift',
+        'Section / Hall',
         'Current Plan',
         'Membership Status',
         'Plan Expiry Date',
@@ -775,7 +790,7 @@ class DataExportService {
       final buf = StringBuffer();
       buf.writeln([
         'Seat Label',
-        'Section / Shift Name',
+        'Section / Hall Name',
         'Row',
         'Column',
         'Seat Status',
@@ -880,7 +895,7 @@ class DataExportService {
         'Queue Position',
         'Student Name',
         'Phone Number',
-        'Preferred Section / Shift',
+        'Preferred Section',
         'Gender Preference',
         'Registration Date',
         'Notified Date',
@@ -1167,7 +1182,7 @@ class DataExportService {
           color: Colors.red,
         ),
       ],
-      headers: const ['Mem #', 'Student Name', 'Phone', 'Seat', 'Shift', 'Plan', 'Expiry Date', 'Status', 'Pending Due'],
+      headers: const ['Mem #', 'Student Name', 'Phone', 'Seat', 'Section', 'Plan', 'Expiry Date', 'Status', 'Pending Due'],
       rows: rows,
       rowMetadata: metadata,
     );
@@ -1416,7 +1431,7 @@ class DataExportService {
           color: Colors.teal,
         ),
       ],
-      headers: const ['Student Name', 'Phone', 'Seat', 'Shift', 'Plan', 'Expiry Date', 'Overdue', 'Pending Due', 'Status'],
+      headers: const ['Student Name', 'Phone', 'Seat', 'Section', 'Plan', 'Expiry Date', 'Overdue', 'Pending Due', 'Status'],
       rows: rows,
       rowMetadata: metadata,
     );
@@ -1684,7 +1699,7 @@ class DataExportService {
     return ReportPreviewData(
       reportKey: 'waiting_list',
       title: 'Waiting List Queue Register',
-      subtitle: 'Candidate priority, preferred study shifts, and provisional seat holds',
+      subtitle: 'Candidate priority, preferred study halls, and provisional seat holds',
       badgeText: 'Waitlist',
       totalCount: docs.length,
       kpis: [
@@ -1703,7 +1718,7 @@ class DataExportService {
           color: Colors.teal,
         ),
         ReportKpi(
-          label: 'High Demand Shift',
+          label: 'High Demand Section',
           value: topSection,
           subtitle: 'Most requested section',
           icon: Icons.place_rounded,

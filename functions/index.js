@@ -9,6 +9,23 @@ const admin = require('firebase-admin');
 admin.initializeApp();
 const db = admin.firestore();
 
+async function getLibraryCommsRules(libraryId) {
+  try {
+    const commsDoc = await db.collection(`libraries/${libraryId}/settings`).doc('communications').get();
+    return commsDoc.data()?.rules || {};
+  } catch (_) {
+    return {};
+  }
+}
+
+async function getLibrarySecrets(libraryId) {
+  try {
+    const secretDoc = await db.collection(`libraries/${libraryId}/admin_secrets`).doc('communications').get();
+    if (secretDoc.exists) return secretDoc.data() || {};
+  } catch (_) {}
+  return {};
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // FUNCTION 1: Daily Membership Expiry & Multi-Stage Renewal Check
 // Runs every day at 8:00 AM IST (02:30 UTC)
@@ -31,6 +48,14 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
   const nowTs = admin.firestore.Timestamp.fromDate(now);
   const libName = libData?.name || 'Cozy Corner Centre';
   const studentsRef = db.collection(`libraries/${libraryId}/students`);
+
+  // Check Communications Hub automation rules before sending renewal nudges or cascading waitlist
+  const commsRules = await getLibraryCommsRules(libraryId);
+  const allowReminders = commsRules.allNotifications !== false &&
+      commsRules.multiStageRenewals !== false &&
+      commsRules.planExpiring !== false;
+  const allowWaitlistCascade = commsRules.allNotifications !== false &&
+      commsRules.waitlistCascade !== false;
 
   let libraryExpired = 0;
   let libraryGrace = 0;
@@ -67,8 +92,20 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
     plansSnap.forEach(p => { plansMap[p.id] = p.data(); });
   } catch (_) {}
 
-  const batch = db.batch();
+  const pendingBatches = [];
+  let batch = db.batch();
   let batchCount = 0;
+  const freedSeatsToCascade = [];
+
+  const queueBatchOp = async (fn) => {
+    fn(batch);
+    batchCount++;
+    if (batchCount >= 450) {
+      pendingBatches.push(batch.commit());
+      batch = db.batch();
+      batchCount = 0;
+    }
+  };
 
   for (const studentDoc of studentsSnap.docs) {
     const s = studentDoc.data();
@@ -96,7 +133,7 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
     const seatText = seatLabel ? `Seat #${seatLabel}` : 'your study desk';
 
     // ── STAGE 1: T-3 Days Reminder ────────────────────────────────────
-    if (daysLeft === 3 && currentStatus === 'active') {
+    if (allowReminders && daysLeft === 3 && currentStatus === 'active') {
       if (!remindedStages.includes('T-3')) {
         remindedStages.push('T-3');
         updatedStages = true;
@@ -113,11 +150,19 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
           read: false,
           actionRoute: '/app/student/membership',
         });
+
+        if (s.phone) {
+          await dispatchExternalCommsMessage(libraryId, {
+            phone: s.phone,
+            text: `📅 *Membership Expiring in 3 Days — ${libName}*\n\nHello *${s.name || 'Student'}*,\nYour study plan for ${seatText} expires in 3 days. Please renew early to retain your desk!`,
+            smsText: `[${libName}] Reminder: Your plan for ${seatText} expires in 3 days. Renew early to keep your seat.`,
+          });
+        }
       }
     }
 
     // ── STAGE 2: T-0 (Expires Today) ──────────────────────────────────
-    if (daysLeft === 0 && currentStatus === 'active') {
+    if (allowReminders && daysLeft === 0 && currentStatus === 'active') {
       if (!remindedStages.includes('T-0')) {
         remindedStages.push('T-0');
         updatedStages = true;
@@ -134,6 +179,14 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
           read: false,
           actionRoute: '/app/student/membership',
         });
+
+        if (s.phone) {
+          await dispatchExternalCommsMessage(libraryId, {
+            phone: s.phone,
+            text: `⚡ *Membership Expires Today — ${libName}*\n\nHello *${s.name || 'Student'}*,\nToday is the final day of your study plan for ${seatText}. Please renew today to continue uninterrupted access.`,
+            smsText: `[${libName}] Your study plan for ${seatText} expires today. Please renew to retain your desk.`,
+          });
+        }
       }
     }
 
@@ -155,12 +208,11 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
     }
 
     if (now > planEnd && now < graceEnd && currentStatus === 'active') {
-      batch.update(studentDoc.ref, {
+      await queueBatchOp((b) => b.update(studentDoc.ref, {
         membershipStatus: 'grace',
         graceEndDate: admin.firestore.Timestamp.fromDate(graceEnd),
         updatedAt: nowTs,
-      });
-      batchCount++;
+      }));
       libraryGrace++;
     }
 
@@ -168,7 +220,7 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
     const graceDiffMs = graceEnd.getTime() - now.getTime();
     const graceHoursLeft = graceDiffMs / (1000 * 60 * 60);
 
-    if (currentStatus === 'grace' && graceHoursLeft <= 24 && graceHoursLeft > 0) {
+    if (allowReminders && currentStatus === 'grace' && graceHoursLeft <= 24 && graceHoursLeft > 0) {
       if (!remindedStages.includes('T+2')) {
         remindedStages.push('T+2');
         updatedStages = true;
@@ -185,6 +237,14 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
           read: false,
           actionRoute: '/app/student/membership',
         });
+
+        if (s.phone) {
+          await dispatchExternalCommsMessage(libraryId, {
+            phone: s.phone,
+            text: `⚠️ *FINAL GRACE WARNING — ${libName}*\n\nHello *${s.name || 'Student'}*,\nYour grace period ends tomorrow! ${seatText} will be released to the waiting list unless renewed today.`,
+            smsText: `[${libName}] FINAL WARNING: Grace period ends tomorrow. Renew today or ${seatText} will be released.`,
+          });
+        }
       }
     }
 
@@ -203,12 +263,14 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
           .collection(`libraries/${libraryId}/sections/${s.sectionId}/seats`)
           .doc(s.seatId);
 
-        batch.update(seatRef, {
+        await queueBatchOp((b) => b.update(seatRef, {
           status: 'available',
           studentId: null,
           studentName: admin.firestore.FieldValue.delete(),
+          assignedAt: admin.firestore.FieldValue.delete(),
+          vacatedAt: nowTs,
           updatedAt: nowTs,
-        });
+        }));
 
         studentUpdate.seatId = null;
         studentUpdate.sectionId = null;
@@ -217,7 +279,7 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
 
         // Record to library audit trail for full operational traceability
         const auditRef = db.collection(`libraries/${libraryId}/audit_log`).doc();
-        batch.set(auditRef, {
+        await queueBatchOp((b) => b.set(auditRef, {
           action: 'expired_seat_release',
           entityType: 'seat',
           entityId: s.seatId,
@@ -231,24 +293,43 @@ async function performDailyMaintenanceForLibrary(libraryId, libData, now) {
             graceEndDate: graceEnd.toISOString(),
             releasedSeatId: s.seatId,
           },
-        });
+        }));
 
-        // Check and hold seat for #1 waiting list candidate (Phase 3)
-        triggerWaitlistHoldForFreedSeat(libraryId, s.sectionId, s.seatId, seatLabel, libName).catch(e => {
-          logger.warn('Waitlist hold trigger error:', e);
-        });
+        // Queue waitlist hold cascade to run AFTER batches commit so seat state is live & FIFO order stays deterministic
+        if (allowWaitlistCascade) {
+          freedSeatsToCascade.push({
+            sectionId: s.sectionId,
+            seatId: s.seatId,
+            seatLabel,
+          });
+        }
       }
 
-      batch.update(studentDoc.ref, studentUpdate);
-      batchCount++;
+      await queueBatchOp((b) => b.update(studentDoc.ref, studentUpdate));
     } else if (updatedStages) {
-      batch.update(studentDoc.ref, { remindedStages });
-      batchCount++;
+      await queueBatchOp((b) => b.update(studentDoc.ref, { remindedStages }));
     }
   }
 
   if (batchCount > 0) {
-    await batch.commit();
+    pendingBatches.push(batch.commit());
+  }
+  if (pendingBatches.length > 0) {
+    await Promise.all(pendingBatches);
+  }
+
+  for (const freed of freedSeatsToCascade) {
+    try {
+      await triggerWaitlistHoldForFreedSeat(
+        libraryId,
+        freed.sectionId,
+        freed.seatId,
+        freed.seatLabel,
+        libName
+      );
+    } catch (e) {
+      logger.warn('Waitlist hold trigger error:', e);
+    }
   }
 
   // Update library document with last maintenance summary report
@@ -339,6 +420,13 @@ exports.dailyMorningOwnerDigest = onSchedule(
 
       for (const libraryDoc of librariesSnap.docs) {
         const libraryId = libraryDoc.id;
+        const commsRules = await getLibraryCommsRules(libraryId);
+        if (commsRules.allNotifications === false ||
+            commsRules.morningBriefing === false ||
+            commsRules.dailyExpirySummary === false) {
+          logger.info(`Morning briefing skipped for library ${libraryId} (disabled in Communications Hub).`);
+          continue;
+        }
         const libData = libraryDoc.data() || {};
         const libName = libData.name || 'Cozy Corner Centre';
 
@@ -472,6 +560,11 @@ exports.dailyNightlyOwnerDigest = onSchedule(
 
       for (const libraryDoc of librariesSnap.docs) {
         const libraryId = libraryDoc.id;
+        const commsRules = await getLibraryCommsRules(libraryId);
+        if (commsRules.allNotifications === false || commsRules.nightlySettlement === false) {
+          logger.info(`Nightly settlement skipped for library ${libraryId} (disabled in Communications Hub).`);
+          continue;
+        }
         const libData = libraryDoc.data() || {};
         const libName = libData.name || 'Cozy Corner Centre';
 
@@ -569,68 +662,118 @@ exports.dailyNightlyOwnerDigest = onSchedule(
 exports.hourlyWaitingListCascadeCheck = onSchedule(
   { schedule: '0 * * * *', timeZone: 'Asia/Kolkata', region: 'us-central1' },
   async (event) => {
-    logger.info('Running hourly waiting list 2-hour hold cascade check');
+    logger.info('Running hourly reservation hold & waitlist cascade check');
     const now = admin.firestore.Timestamp.now();
+    const nowMs = Date.now();
 
     try {
       const librariesSnap = await db.collection('libraries').get();
 
       for (const libraryDoc of librariesSnap.docs) {
         const libraryId = libraryDoc.id;
+        const commsRules = await getLibraryCommsRules(libraryId);
+        const allowCascade = commsRules.allNotifications !== false && commsRules.waitlistCascade !== false;
         const sectionsSnap = await db.collection(`libraries/${libraryId}/sections`).get();
 
         for (const secDoc of sectionsSnap.docs) {
           const sectionId = secDoc.id;
-          const expiredHoldsSnap = await secDoc.ref
+          const reservedSnap = await secDoc.ref
             .collection('seats')
             .where('status', '==', 'reserved')
-            .where('reservationType', '==', 'waitlist_hold')
-            .where('reservationExpiresAt', '<', now)
             .get();
 
-          for (const seatDoc of expiredHoldsSnap.docs) {
-            const seat = seatDoc.data();
+          for (const seatDoc of reservedSnap.docs) {
+            const seat = seatDoc.data() || {};
+            const rawExpires = seat.reservationExpiresAt;
+            if (!rawExpires) continue;
+
+            let expiresMs = null;
+            if (typeof rawExpires.toMillis === 'function') {
+              expiresMs = rawExpires.toMillis();
+            } else if (rawExpires.toDate) {
+              expiresMs = rawExpires.toDate().getTime();
+            } else if (typeof rawExpires === 'string' || typeof rawExpires === 'number') {
+              const parsed = new Date(rawExpires);
+              if (!isNaN(parsed.getTime())) expiresMs = parsed.getTime();
+            }
+
+            if (expiresMs === null || expiresMs >= nowMs) continue;
+
+            const reservationType = (seat.reservationType || '').toString().toLowerCase();
             const prevCandidateId = seat.reservedCandidateId;
             const seatLabel = seat.label || seatDoc.id;
 
-            logger.info(`Waitlist hold expired for seat ${seatLabel} (Candidate: ${prevCandidateId}). Cascading...`);
+            if (reservationType === 'waitlist_hold') {
+              logger.info(`Waitlist hold expired for seat ${seatLabel} (Candidate: ${prevCandidateId}).`);
 
-            // Mark previous candidate as offer_expired
-            if (prevCandidateId) {
-              await db
-                .collection(`libraries/${libraryId}/waiting_list`)
-                .doc(prevCandidateId)
-                .update({
-                  status: 'offer_expired',
-                  offerExpiredAt: now,
-                })
-                .catch(() => {});
+              if (prevCandidateId) {
+                await db
+                  .collection(`libraries/${libraryId}/waiting_list`)
+                  .doc(prevCandidateId)
+                  .update({
+                    status: 'offer_expired',
+                    offerExpiredAt: now,
+                  })
+                  .catch(() => {});
 
-              // Record hold expiry to library audit trail
-              await db.collection(`libraries/${libraryId}/audit_log`).add({
-                action: 'waitlist_hold_expired',
-                entityType: 'waitlist',
-                entityId: prevCandidateId,
-                entityName: seatLabel,
-                actor: 'System Automation (Hourly Cron)',
-                performedBy: 'System Cascade Cron',
-                createdAt: admin.firestore.Timestamp.fromDate(now),
-                details: {
-                  seatId: seatDoc.id,
+                await db.collection(`libraries/${libraryId}/audit_log`).add({
+                  action: 'waitlist_hold_expired',
+                  entityType: 'waitlist',
+                  entityId: prevCandidateId,
+                  entityName: seatLabel,
+                  actor: 'System Automation (Hourly Cron)',
+                  performedBy: 'System Cascade Cron',
+                  createdAt: now,
+                  details: {
+                    seatId: seatDoc.id,
+                    sectionId,
+                    candidateId: prevCandidateId,
+                  },
+                }).catch(() => {});
+              }
+
+              if (allowCascade) {
+                await triggerWaitlistHoldForFreedSeat(
+                  libraryId,
                   sectionId,
-                  candidateId: prevCandidateId,
-                },
-              }).catch(() => {});
+                  seatDoc.id,
+                  seatLabel,
+                  libraryDoc.data()?.name || 'Cozy Corner'
+                );
+              } else {
+                await seatDoc.ref.update({
+                  status: 'available',
+                  studentId: null,
+                  reservationType: admin.firestore.FieldValue.delete(),
+                  reservedCandidateId: admin.firestore.FieldValue.delete(),
+                  reservedCandidateName: admin.firestore.FieldValue.delete(),
+                  reservationExpiresAt: admin.firestore.FieldValue.delete(),
+                  updatedAt: now,
+                });
+              }
+            } else {
+              // Expired admission_soft_lock / registration_hold / temporary hold
+              logger.info(`Cleaning expired ${reservationType || 'soft_lock'} reservation on seat ${seatLabel}.`);
+              if (allowCascade) {
+                await triggerWaitlistHoldForFreedSeat(
+                  libraryId,
+                  sectionId,
+                  seatDoc.id,
+                  seatLabel,
+                  libraryDoc.data()?.name || 'Cozy Corner'
+                );
+              } else {
+                await seatDoc.ref.update({
+                  status: 'available',
+                  studentId: null,
+                  reservationType: admin.firestore.FieldValue.delete(),
+                  reservedCandidateId: admin.firestore.FieldValue.delete(),
+                  reservedCandidateName: admin.firestore.FieldValue.delete(),
+                  reservationExpiresAt: admin.firestore.FieldValue.delete(),
+                  updatedAt: now,
+                });
+              }
             }
-
-            // Cascade to next candidate
-            await triggerWaitlistHoldForFreedSeat(
-              libraryId,
-              sectionId,
-              seatDoc.id,
-              seatLabel,
-              libraryDoc.data()?.name || 'Cozy Corner'
-            );
           }
         }
       }
@@ -680,12 +823,12 @@ async function triggerWaitlistHoldForFreedSeat(libraryId, sectionId, seatId, sea
       const expiresAt = new Date(Date.now() + holdingHours * 60 * 60 * 1000);
       const expiresAtTs = admin.firestore.Timestamp.fromDate(expiresAt);
 
-      // 1. Put seat on reservation hold
+      // 1. Put seat on reservation hold (strip candidate PII from public seat doc)
       await seatRef.update({
         status: 'reserved',
         reservationType: 'waitlist_hold',
         reservedCandidateId: candidate.id,
-        reservedCandidateName: candidate.studentName || 'Candidate',
+        reservedCandidateName: admin.firestore.FieldValue.delete(),
         reservationExpiresAt: expiresAtTs,
         updatedAt: admin.firestore.Timestamp.now(),
       });
@@ -722,7 +865,7 @@ async function triggerWaitlistHoldForFreedSeat(libraryId, sectionId, seatId, sea
         },
       });
 
-      logger.info(`Seat ${seatLabel} reserved for 2 hours for waitlist candidate ${candidate.studentName}`);
+      logger.info(`Seat ${seatLabel} reserved for ${holdingHours} hours for waitlist candidate ${candidate.studentName}`);
     } else {
       // No waitlist candidates ➔ revert seat to available
       await seatRef.update({
@@ -741,17 +884,99 @@ async function triggerWaitlistHoldForFreedSeat(libraryId, sectionId, seatId, sea
   }
 }
 
+// Normalize Indian 10-digit phone numbers to E.164 without '+'
+function normalizePhoneIN(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length === 10) return `91${digits}`;
+  if (digits.length === 11 && digits.startsWith('0')) return `91${digits.slice(1)}`;
+  return digits;
+}
+
+// Server-side WhatsApp Cloud API & Fast2SMS dispatcher (reads admin_secrets securely without exposing keys to client)
+async function dispatchExternalCommsMessage(libraryId, { phone, text, smsText }) {
+  const formattedPhone = normalizePhoneIN(phone);
+  if (!formattedPhone) return;
+
+  try {
+    const [secrets, msgDoc, commsDoc] = await Promise.all([
+      getLibrarySecrets(libraryId),
+      db.collection(`libraries/${libraryId}/settings`).doc('messaging').get(),
+      db.collection(`libraries/${libraryId}/settings`).doc('communications').get(),
+    ]);
+    const msgCfg = msgDoc.data() || {};
+    const commsChannels = commsDoc.data()?.channels || {};
+
+    const metaEnabled = commsChannels.metaWhatsAppEnabled ?? msgCfg.metaWhatsAppEnabled ?? false;
+    const metaPhoneId = String(secrets.metaPhoneNumberId || commsChannels.metaPhoneNumberId || msgCfg.metaPhoneNumberId || '').trim();
+    const metaToken = String(secrets.metaAccessToken || commsChannels.metaAccessToken || msgCfg.metaAccessToken || '').trim();
+
+    if (metaEnabled && metaPhoneId && metaToken && text) {
+      await fetch(`https://graph.facebook.com/v19.0/${metaPhoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${metaToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: formattedPhone,
+          type: 'text',
+          text: { preview_url: false, body: text },
+        }),
+        signal: AbortSignal.timeout(8000),
+      }).catch((e) => logger.warn(`Meta WhatsApp server dispatch failed for ${libraryId}:`, e.message));
+    }
+
+    const smsEnabled = commsChannels.smsGatewayEnabled ?? msgCfg.smsGatewayEnabled ?? false;
+    const smsKey = String(secrets.smsApiKey || commsChannels.smsApiKey || msgCfg.smsApiKey || '').trim();
+    const smsSender = String(secrets.smsSenderId || commsChannels.smsSenderId || msgCfg.smsSenderId || '').trim();
+    const tenDigit = formattedPhone.length > 10 ? formattedPhone.slice(-10) : formattedPhone;
+
+    if (smsEnabled && smsKey && tenDigit.length === 10 && (smsText || text)) {
+      const payload = {
+        route: smsSender ? 'dlt' : 'q',
+        ...(smsSender ? { sender_id: smsSender } : {}),
+        message: smsText || text,
+        language: 'english',
+        flash: 0,
+        numbers: tenDigit,
+      };
+      await fetch('https://www.fast2sms.com/dev/bulkV2', {
+        method: 'POST',
+        headers: {
+          authorization: smsKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(8000),
+      }).catch((e) => logger.warn(`SMS Gateway server dispatch failed for ${libraryId}:`, e.message));
+    }
+  } catch (err) {
+    logger.warn(`External comms dispatch skipped for ${libraryId}:`, err.message);
+  }
+}
+
 // Helper to dispatch Telegram messages using native fetch
 async function sendTelegramMessage(libraryId, htmlText) {
   try {
-    const msgDoc = await db.collection(`libraries/${libraryId}/settings`).doc('messaging').get();
-    const config = msgDoc.data() || {};
-    if (config.telegramEnabled && config.telegramBotToken && config.telegramChatId) {
-      await fetch(`https://api.telegram.org/bot${config.telegramBotToken}/sendMessage`, {
+    const [secrets, msgDoc, commsDoc] = await Promise.all([
+      getLibrarySecrets(libraryId),
+      db.collection(`libraries/${libraryId}/settings`).doc('messaging').get(),
+      db.collection(`libraries/${libraryId}/settings`).doc('communications').get(),
+    ]);
+    const msgConfig = msgDoc.data() || {};
+    const commsChannels = commsDoc.data()?.channels || {};
+    const telegramEnabled = commsChannels.telegramEnabled ?? msgConfig.telegramEnabled ?? false;
+    const botToken = secrets.telegramBotToken || msgConfig.telegramBotToken || commsChannels.telegramBotToken || '';
+    const chatId = secrets.telegramChatId || msgConfig.telegramChatId || commsChannels.telegramChatId || '';
+
+    if (telegramEnabled && botToken && chatId) {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: config.telegramChatId,
+          chat_id: chatId,
           text: htmlText,
           parse_mode: 'HTML',
         }),
@@ -772,12 +997,14 @@ exports.onPaymentCreated = onDocumentCreated(
     const { libraryId, paymentId } = event.params;
     const paymentData = event.data?.data();
     if (!paymentData) return;
+    if (paymentData.aggregateSyncedByClient === true) return;
 
     const status = (paymentData.status || 'paid').toLowerCase();
     if (status === 'voided' || status === 'cancelled') return;
 
     const isRefund = status === 'refunded';
-    const amount = (paymentData.amount ?? 0) * (isRefund ? -1 : 1);
+    const absAmount = Math.abs(Number(paymentData.amount || 0));
+    const amount = isRefund ? -absAmount : Number(paymentData.amount || 0);
 
     let dateObj = new Date();
     if (paymentData.date) {
@@ -795,7 +1022,7 @@ exports.onPaymentCreated = onDocumentCreated(
           transaction.set(aggregateRef, {
             totalRevenue: amount,
             totalPayments: isRefund ? 0 : 1,
-            totalRefunds: isRefund ? (paymentData.amount ?? 0) : 0,
+            totalRefunds: isRefund ? absAmount : 0,
             monthlyRevenue: { [month]: amount },
             lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
           });
@@ -805,7 +1032,7 @@ exports.onPaymentCreated = onDocumentCreated(
           transaction.update(aggregateRef, {
             totalRevenue: admin.firestore.FieldValue.increment(amount),
             totalPayments: isRefund ? admin.firestore.FieldValue.increment(0) : admin.firestore.FieldValue.increment(1),
-            totalRefunds: isRefund ? admin.firestore.FieldValue.increment(paymentData.amount ?? 0) : admin.firestore.FieldValue.increment(0),
+            totalRefunds: isRefund ? admin.firestore.FieldValue.increment(absAmount) : admin.firestore.FieldValue.increment(0),
             [`monthlyRevenue.${month}`]: currentMonthRevenue + amount,
             lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
           });
@@ -827,11 +1054,15 @@ exports.onPaymentUpdated = onDocumentUpdated(
     const before = event.data?.before?.data();
     const after = event.data?.after?.data();
     if (!before || !after) return;
+    const afterStatus = (after.status || 'paid').toLowerCase();
+    if (after.aggregateSyncedStatus && String(after.aggregateSyncedStatus).toLowerCase() === afterStatus) {
+      return;
+    }
 
     const getNetContribution = (p) => {
       const st = (p.status || 'paid').toLowerCase();
       if (st === 'voided' || st === 'cancelled') return 0;
-      if (st === 'refunded') return -Number(p.amount || 0);
+      if (st === 'refunded') return -Math.abs(Number(p.amount || 0));
       return Number(p.amount || 0);
     };
 
@@ -853,11 +1084,11 @@ exports.onPaymentUpdated = onDocumentUpdated(
 
         const data = aggregateDoc.data();
         const currentMonthRevenue = data.monthlyRevenue?.[month] ?? 0;
-        const isNewlyRefunded = (after.status || '').toLowerCase() === 'refunded' && (before.status || '').toLowerCase() !== 'refunded';
+        const isNewlyRefunded = afterStatus === 'refunded' && (before.status || '').toLowerCase() !== 'refunded';
 
         transaction.update(aggregateRef, {
           totalRevenue: admin.firestore.FieldValue.increment(delta),
-          totalRefunds: admin.firestore.FieldValue.increment(isNewlyRefunded ? Number(after.amount || 0) : 0),
+          totalRefunds: admin.firestore.FieldValue.increment(isNewlyRefunded ? Math.abs(Number(after.amount || 0)) : 0),
           [`monthlyRevenue.${month}`]: currentMonthRevenue + delta,
           lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -880,6 +1111,7 @@ exports.onRequestCreated = onDocumentCreated(
 
     const studentId = requestData.studentId;
     if (!studentId) return;
+    const reqType = (requestData.type || 'registration').toString().toLowerCase();
 
     const existingSnap = await db
       .collection(`libraries/${libraryId}/requests`)
@@ -887,10 +1119,24 @@ exports.onRequestCreated = onDocumentCreated(
       .where('status', '==', 'pending')
       .get();
 
-    const pendingDocs = existingSnap.docs.filter(d => d.id !== requestId);
-    if (pendingDocs.length > 0) {
-      logger.warn(`Student ${studentId} already has a pending request. Deleting duplicate ${requestId}`);
-      await event.data.ref.delete();
+    const sameTypeOlderDocs = existingSnap.docs.filter((d) => {
+      if (d.id === requestId) return false;
+      const dType = (d.data()?.type || 'registration').toString().toLowerCase();
+      return dType === reqType;
+    });
+    if (sameTypeOlderDocs.length > 0) {
+      logger.warn(
+        `Student ${studentId} submitted newer ${reqType} request ${requestId}; superseding ${sameTypeOlderDocs.length} older pending request(s).`
+      );
+      const batch = db.batch();
+      for (const oldDoc of sameTypeOlderDocs) {
+        batch.update(oldDoc.ref, {
+          status: 'superseded',
+          supersededBy: requestId,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
     }
   }
 );
@@ -912,37 +1158,54 @@ exports.onNotificationCreated = onDocumentCreated(
     const type = notif.type || 'general';
 
     try {
-      const libDoc = await db.collection('libraries').doc(libraryId).get();
+      const [libDoc, commsDoc, secrets] = await Promise.all([
+        db.collection('libraries').doc(libraryId).get(),
+        db.collection(`libraries/${libraryId}/settings`).doc('communications').get(),
+        getLibrarySecrets(libraryId),
+      ]);
       const libData = libDoc.data() || {};
+      const commsData = commsDoc.data() || {};
+      const channels = commsData.channels || {};
+      const rules = commsData.rules || {};
+      const pushEnabled = channels.pushEnabled !== false && rules.allNotifications !== false;
       const adminFcmToken = libData.adminFcmToken;
 
-      // 1. Dispatch to Admin if targeted
-      if (targetRole === 'admin' || targetRole === 'all') {
+      const isStudentAnnouncement =
+        (type === 'announcement' && targetRole !== 'admin') ||
+        notif.actionRoute === '/student/announcements' ||
+        (notif.actionRoute && notif.actionRoute.startsWith('/student'));
+
+      // 1. Dispatch to Admin ONLY if explicitly targeted to 'admin' (NEVER 'all', NEVER student alerts/announcements!)
+      if (targetRole === 'admin' && !isStudentAnnouncement) {
         const payload = {
           notification: { title, body },
           data: {
             notificationId,
             libraryId,
             type,
+            targetRole: 'admin',
+            targetUserId: targetUserId ? String(targetUserId) : '',
             actionRoute: notif.actionRoute || '',
           },
         };
 
-        if (adminFcmToken) {
+        if (pushEnabled) {
+          if (adminFcmToken) {
+            try {
+              await admin.messaging().send({
+                token: adminFcmToken,
+                ...payload,
+              });
+            } catch (_) {}
+          }
+
           try {
             await admin.messaging().send({
-              token: adminFcmToken,
+              topic: `admin-${libraryId}`,
               ...payload,
             });
           } catch (_) {}
         }
-
-        try {
-          await admin.messaging().send({
-            topic: `admin-${libraryId}`,
-            ...payload,
-          });
-        } catch (_) {}
 
         // Telegram alert for operational events
         if (type !== 'morning_digest' && type !== 'nightly_digest') {
@@ -952,11 +1215,46 @@ exports.onNotificationCreated = onDocumentCreated(
       }
 
       // 2. Dispatch to Student if targeted
-      if (targetRole === 'student' || targetRole === 'all') {
+      if (pushEnabled && (targetRole === 'student' || targetRole === 'all' || isStudentAnnouncement)) {
         if (targetUserId) {
+          let studentFcmToken = null;
+          let studentPhone = null;
           const studentDoc = await db.collection(`libraries/${libraryId}/students`).doc(targetUserId).get();
-          const studentFcmToken = studentDoc.data()?.fcmToken;
-          if (studentFcmToken) {
+          if (studentDoc.exists) {
+            studentFcmToken = studentDoc.data()?.fcmToken || null;
+            studentPhone = studentDoc.data()?.phone || null;
+          } else {
+            // targetUserId may be the Firebase Auth UID (studentUserId) or metadata.studentId
+            const metaStudentId = notif.metadata?.studentId;
+            if (metaStudentId) {
+              const metaDoc = await db.collection(`libraries/${libraryId}/students`).doc(String(metaStudentId)).get();
+              if (metaDoc.exists) {
+                studentFcmToken = metaDoc.data()?.fcmToken || null;
+                studentPhone = metaDoc.data()?.phone || null;
+              }
+            }
+            if (!studentFcmToken || !studentPhone) {
+              const qByUid = await db.collection(`libraries/${libraryId}/students`)
+                .where('userId', '==', String(targetUserId))
+                .limit(1)
+                .get();
+              if (!qByUid.empty) {
+                const qData = qByUid.docs[0].data();
+                studentFcmToken = studentFcmToken || qData?.fcmToken || null;
+                studentPhone = studentPhone || qData?.phone || null;
+              }
+            }
+          }
+          // Server-side WhatsApp/SMS dispatch for critical lifecycle events (never exposes secrets to client)
+          if (studentPhone && ['payment', 'receipt', 'admission', 'seat_change', 'renewal'].includes(type)) {
+            await dispatchExternalCommsMessage(libraryId, {
+              phone: studentPhone,
+              text: `*${title}*\n${body}\n\n_${libData.name || 'Cozy Corner'}_`,
+              smsText: `[${libData.name || 'Cozy Corner'}] ${title}: ${body}`,
+            });
+          }
+          // Anti-cross-device leak: never push a student-targeted alert onto the active admin phone token
+          if (studentFcmToken && studentFcmToken !== adminFcmToken) {
             try {
               await admin.messaging().send({
                 token: studentFcmToken,
@@ -965,19 +1263,26 @@ exports.onNotificationCreated = onDocumentCreated(
                   notificationId,
                   libraryId,
                   type,
+                  targetRole: 'student',
+                  targetUserId: String(targetUserId),
+                  actionRoute: notif.actionRoute || '',
                 },
               });
             } catch (_) {}
           }
-        } else if (type === 'announcement') {
+        } else if (type === 'announcement' || isStudentAnnouncement) {
           try {
+            // Send ONLY to student-specific topic so Admin devices/Chrome never receive student broadcasts
             await admin.messaging().send({
-              topic: `lib-${libraryId}`,
+              topic: `student-${libraryId}`,
               notification: { title, body },
               data: {
                 notificationId,
                 libraryId,
                 type: 'announcement',
+                targetRole: 'student',
+                targetUserId: '',
+                actionRoute: notif.actionRoute || '/student/announcements',
               },
             });
           } catch (_) {}
@@ -986,11 +1291,8 @@ exports.onNotificationCreated = onDocumentCreated(
 
       // 3. Dispatch to Custom Webhook if configured
       try {
-        const commsDoc = await db.collection(`libraries/${libraryId}/settings`).doc('communications').get();
-        const commsData = commsDoc.data() || {};
-        const channels = commsData.channels || {};
         const webhookEnabled = channels.customWebhookEnabled || commsData.customWebhookEnabled;
-        const webhookUrl = channels.customWebhookUrl || commsData.customWebhookUrl;
+        const webhookUrl = secrets.customWebhookUrl || channels.customWebhookUrl || commsData.customWebhookUrl;
 
         if (webhookEnabled && webhookUrl && typeof webhookUrl === 'string' && webhookUrl.startsWith('http')) {
           await fetch(webhookUrl, {

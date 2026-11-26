@@ -8,6 +8,7 @@ class InactivityLockService {
   InactivityLockService._();
 
   static DateTime _lastInteraction = DateTime.now();
+  static int _lastRecordedEpochMs = DateTime.now().millisecondsSinceEpoch;
   static DateTime? _pausedAt;
   static Timer? _idleCheckTimer;
   static VoidCallback? _onLockTriggered;
@@ -85,8 +86,12 @@ class InactivityLockService {
     _idleCheckTimer = Timer.periodic(const Duration(seconds: 15), (_) => _checkInactivity());
   }
 
-  /// Record user activity (tap, scroll, pointer move, keystroke)
+  /// Record user activity (tap, scroll, pointer move, keystroke).
+  /// Throttled to at most once every 1000ms to prevent frame churn during rapid scrolls/drags.
   static void recordInteraction() {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastRecordedEpochMs < 1000) return;
+    _lastRecordedEpochMs = nowMs;
     _lastInteraction = DateTime.now();
   }
 

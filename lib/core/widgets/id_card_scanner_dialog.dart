@@ -312,9 +312,39 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
 
   void _applyResult() {
     if (_frontResult == null && _backResult == null) return;
+    final f = _frontResult ?? _backResult!;
+    final b = _backResult;
+
+    final isIdValid = GovIdValidator.isValid(_detectedType, f.idNumber);
+    final isNameValid = GovIdValidator.isValidName(f.name);
+    final isFatherValid = f.fatherName != null && GovIdValidator.isValidName(f.fatherName);
+    final isDobValid = GovIdValidator.isValidDob(f.dob);
+    final rawPin = b?.pinCode ?? f.pinCode;
+    final isPinValid = GovIdValidator.isValidPinCode(rawPin);
+    final rawAddress = b?.address ?? f.address;
+    final isAddressValid = rawAddress != null && rawAddress.trim().length >= 8;
+
+    final sanitizedFront = OcrResult(
+      idNumber: isIdValid ? f.idNumber : null,
+      name: isNameValid ? f.name : null,
+      fatherName: isFatherValid ? f.fatherName : null,
+      dob: isDobValid ? f.dob : null,
+      gender: f.gender,
+      bloodGroup: f.bloodGroup ?? b?.bloodGroup,
+      phone: f.phone ?? b?.phone,
+      college: f.college,
+      course: f.course,
+      rollNumber: f.rollNumber,
+      vehicleClass: f.vehicleClass ?? b?.vehicleClass,
+      address: isAddressValid ? rawAddress : null,
+      pinCode: isPinValid ? rawPin : null,
+      confidence: f.confidence,
+      rawText: f.rawText,
+    );
+
     final finalResult = IdScanResult(
       detectedType: _detectedType,
-      frontResult: _frontResult ?? _backResult!,
+      frontResult: sanitizedFront,
       backResult: _backResult,
       frontImageBytes: _frontBytes,
       backImageBytes: _backBytes,
@@ -722,17 +752,17 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
     // 3. Completed: Show Extracted Details Summary & Auto-Fill CTA
     final f = _frontResult ?? _backResult;
     final b = _backResult;
-    final hasAddress = (b?.address != null && b!.address!.isNotEmpty) ||
-        (f?.address != null && f!.address!.isNotEmpty);
-    // Require a valid ID number OR a genuinely valid name — confidence fallback removed
-    // as it was too low (26%) and could show garbled government headers as extracted data.
-    final hasExtractedData = (f?.idNumber != null && f!.idNumber!.trim().isNotEmpty) ||
-        (f?.name != null && f!.name!.trim().isNotEmpty && GovIdValidator.isValidName(f.name));
 
     final isIdValid = GovIdValidator.isValid(_detectedType, f?.idNumber);
     final isNameValid = GovIdValidator.isValidName(f?.name);
+    final isFatherValid = f?.fatherName != null && GovIdValidator.isValidName(f?.fatherName);
     final isDobValid = GovIdValidator.isValidDob(f?.dob);
-    final isPinValid = GovIdValidator.isValidPinCode(b?.pinCode ?? f?.pinCode);
+    final rawPin = b?.pinCode ?? f?.pinCode;
+    final isPinValid = GovIdValidator.isValidPinCode(rawPin);
+    final rawAddress = b?.address ?? f?.address;
+    final isAddressValid = rawAddress != null && rawAddress.trim().length >= 8;
+
+    final hasExtractedData = isIdValid || isNameValid || isDobValid || isPinValid || isAddressValid;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -833,40 +863,47 @@ class _IdCardScannerDialogState extends State<IdCardScannerDialog> {
                   ],
                 ),
                 const Divider(height: 12),
-                _buildExtractedRow(
-                  'ID Number',
-                  f.idNumber,
-                  isValid: isIdValid,
-                  badgeText: isIdValid ? 'Checksum OK' : 'Check Digits',
-                ),
-                _buildExtractedRow(
-                  'Full Name',
-                  f.name,
-                  isValid: isNameValid,
-                  badgeText: isNameValid ? null : 'Review Name',
-                ),
-                _buildExtractedRow("Father's Name", f.fatherName),
-                _buildExtractedRow(
-                  'Date of Birth',
-                  f.dob,
-                  isValid: isDobValid,
-                  badgeText: isDobValid ? null : 'Review Date',
-                ),
-                _buildExtractedRow('Gender', f.gender),
-                _buildExtractedRow('Blood Group', f.bloodGroup ?? b?.bloodGroup),
-                _buildExtractedRow('Phone / Contact', f.phone ?? b?.phone),
-                _buildExtractedRow('Vehicle Class', f.vehicleClass ?? b?.vehicleClass),
-                if (hasAddress) ...[
-                  _buildExtractedRow('Address', b?.address ?? f.address),
+                if (isIdValid && f?.idNumber != null)
                   _buildExtractedRow(
-                    'PIN Code',
-                    b?.pinCode ?? f.pinCode,
-                    isValid: isPinValid,
-                    badgeText: isPinValid ? null : 'Check PIN',
+                    'ID Number',
+                    f!.idNumber,
+                    isValid: true,
+                    badgeText: 'Checksum OK',
                   ),
+                if (isNameValid && f?.name != null)
+                  _buildExtractedRow(
+                    'Full Name',
+                    f!.name,
+                    isValid: true,
+                  ),
+                if (isFatherValid && f?.fatherName != null)
+                  _buildExtractedRow("Father's Name", f!.fatherName),
+                if (isDobValid && f?.dob != null)
+                  _buildExtractedRow(
+                    'Date of Birth',
+                    f!.dob,
+                    isValid: true,
+                  ),
+                if (f?.gender != null && f!.gender!.trim().isNotEmpty)
+                  _buildExtractedRow('Gender', f.gender),
+                if (f?.bloodGroup != null || b?.bloodGroup != null)
+                  _buildExtractedRow('Blood Group', f?.bloodGroup ?? b?.bloodGroup),
+                if (f?.phone != null || b?.phone != null)
+                  _buildExtractedRow('Phone / Contact', f?.phone ?? b?.phone),
+                if (f?.vehicleClass != null || b?.vehicleClass != null)
+                  _buildExtractedRow('Vehicle Class', f?.vehicleClass ?? b?.vehicleClass),
+                if (isAddressValid) ...[
+                  _buildExtractedRow('Address', rawAddress),
+                  if (isPinValid && rawPin != null)
+                    _buildExtractedRow(
+                      'PIN Code',
+                      rawPin,
+                      isValid: true,
+                      badgeText: 'Valid PIN',
+                    ),
                 ],
-                if (f.college != null) _buildExtractedRow('College', f.college),
-                if (f.course != null) _buildExtractedRow('Course', f.course),
+                if (f?.college != null) _buildExtractedRow('College', f!.college),
+                if (f?.course != null) _buildExtractedRow('Course', f!.course),
               ],
             ),
           ),

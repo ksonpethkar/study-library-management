@@ -10,6 +10,7 @@ import 'package:study_library/models/expense_model.dart';
 import 'package:study_library/services/ocr_service.dart';
 import 'package:study_library/services/expense_ocr_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
 
 class AddExpenseDialog extends ConsumerStatefulWidget {
   final ExpenseModel? existingExpense;
@@ -106,8 +107,14 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                 title: const Text('Choose from Gallery / Files'),
                 subtitle: const Text('Pick bill photo, PDF screenshot, or invoice image'),
                 onTap: () async {
-                  final file = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1600);
-                  if (ctx.mounted) Navigator.pop(ctx, file);
+                  InactivityLockService.setExternalDialogActive(true);
+                  try {
+                    final file = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1600);
+                    if (ctx.mounted) Navigator.pop(ctx, file);
+                  } finally {
+                    InactivityLockService.setExternalDialogActive(false);
+                    InactivityLockService.recordInteraction();
+                  }
                 },
               ),
               ListTile(
@@ -115,8 +122,14 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                 title: const Text('Take Photo with Camera'),
                 subtitle: const Text('Photograph paper bill or meter slip'),
                 onTap: () async {
-                  final file = await picker.pickImage(source: ImageSource.camera, maxWidth: 1600);
-                  if (ctx.mounted) Navigator.pop(ctx, file);
+                  InactivityLockService.setExternalDialogActive(true);
+                  try {
+                    final file = await picker.pickImage(source: ImageSource.camera, maxWidth: 1600);
+                    if (ctx.mounted) Navigator.pop(ctx, file);
+                  } finally {
+                    InactivityLockService.setExternalDialogActive(false);
+                    InactivityLockService.recordInteraction();
+                  }
                 },
               ),
             ],
@@ -224,7 +237,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
       }
 
       ref.invalidate(expensesStreamProvider);
-      ref.invalidate(netProfitProvider);
+      ref.invalidate(unifiedFinancialLedgerProvider);
 
       if (mounted) {
         Navigator.of(context).pop();

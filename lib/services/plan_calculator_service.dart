@@ -545,19 +545,21 @@ class PlanCalculatorService {
     );
   }
 
-  /// Calculates study vacation / membership freeze validity extension (10 and 10+ days rule)
+  /// Calculates study vacation / membership freeze validity extension (configurable minFreezeDays rule)
   static FreezeCalculation calculateMembershipFreeze({
     required StudentModel student,
     required DateTime freezeStartDate,
     required DateTime freezeEndDate,
+    int minFreezeDays = 10,
   }) {
     final origEnd = student.planEndDate ?? DateTime.now();
     final cleanStart = DateTime(freezeStartDate.year, freezeStartDate.month, freezeStartDate.day);
     final cleanEnd = DateTime(freezeEndDate.year, freezeEndDate.month, freezeEndDate.day);
 
     final freezeDays = cleanEnd.difference(cleanStart).inDays + 1;
+    final effectiveMinDays = minFreezeDays < 1 ? 1 : minFreezeDays;
 
-    if (freezeDays < 10) {
+    if (freezeDays < effectiveMinDays) {
       return FreezeCalculation(
         originalEndDate: origEnd,
         freezeStartDate: cleanStart,
@@ -565,7 +567,7 @@ class PlanCalculatorService {
         freezeDays: freezeDays,
         newEndDate: origEnd,
         isValid: false,
-        message: 'Membership freeze is only permitted for 10 or more consecutive days ($freezeDays days selected).',
+        message: 'Membership freeze is only permitted for $effectiveMinDays or more consecutive days ($freezeDays days selected).',
       );
     }
 

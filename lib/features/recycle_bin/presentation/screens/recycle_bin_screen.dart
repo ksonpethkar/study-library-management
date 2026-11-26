@@ -8,6 +8,7 @@ import 'package:study_library/core/error/error_handler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 
 class _RecycleBinEntry {
   final String id;
@@ -81,6 +82,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
     restoreData.remove('expiresAt');
     restoreData.remove('deletedBy');
     restoreData.remove('originalData');
+    restoreData.remove('linkedPayments');
 
     if (type == 'plan') {
       restoreData['deletedAt'] = null;
@@ -148,24 +150,53 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
       batch.set(targetRef, restoreData, SetOptions(merge: true));
       batch.delete(libBinRef);
 
-      // If restoring a receipt, restore revenue aggregate
+      // If restoring a receipt, restore monthly & total revenue aggregate + any deleted linked payments
       if (type == 'receipt') {
         final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
-        if (amt > 0) {
-          final revRef = FirebaseFirestore.instance
-              .collection('libraries')
-              .doc(libraryId)
-              .collection('settings')
-              .doc('revenue_aggregate');
-          batch.set(revRef, {'totalRevenue': FieldValue.increment(amt)}, SetOptions(merge: true));
+        final recStatus = (restoreData['status'] ?? 'active').toString().toLowerCase();
+        if (amt > 0 && recStatus != 'voided') {
+          ReceiptRepository.addRevenueAggregateToBatch(
+            batch,
+            FirebaseFirestore.instance,
+            libraryId,
+            amountDelta: amt,
+            paymentsDelta: 1,
+            referenceDate: restoreData['createdAt'],
+          );
+        }
+        final linkedPayments = data['linkedPayments'];
+        if (linkedPayments is List) {
+          for (final rawPay in linkedPayments) {
+            if (rawPay is! Map) continue;
+            final pMap = Map<String, dynamic>.from(rawPay);
+            final payId = (pMap['id'] ?? '').toString();
+            final pRef = payId.isNotEmpty
+                ? FirebaseFirestore.instance.collection('libraries').doc(libraryId).collection('payments').doc(payId)
+                : FirebaseFirestore.instance.collection('libraries').doc(libraryId).collection('payments').doc();
+            pMap['id'] = pRef.id;
+            pMap['aggregateSyncedByClient'] = true;
+            batch.set(pRef, pMap, SetOptions(merge: true));
+          }
         }
       }
 
-      // If restoring an active payment, reduce the student's pending dues
+      // If restoring an active payment, reduce student pending dues & sync revenue aggregate
       if (type == 'payment') {
         final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
         final studentId = data['studentId'] as String?;
         final payStatus = (data['status'] as String? ?? '').toLowerCase();
+        if (amt > 0 && payStatus != 'voided' && payStatus != 'cancelled' && payStatus != 'refunded') {
+          restoreData['aggregateSyncedByClient'] = true;
+          batch.set(targetRef, restoreData, SetOptions(merge: true));
+          ReceiptRepository.addRevenueAggregateToBatch(
+            batch,
+            FirebaseFirestore.instance,
+            libraryId,
+            amountDelta: amt,
+            paymentsDelta: 1,
+            referenceDate: restoreData['date'] ?? restoreData['createdAt'],
+          );
+        }
         if (amt > 0 && studentId != null && studentId.isNotEmpty && payStatus != 'voided' && payStatus != 'refunded') {
           try {
             final sDoc = await FirebaseFirestore.instance

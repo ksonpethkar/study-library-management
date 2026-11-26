@@ -107,33 +107,49 @@ class MessagingHubService {
         _webhook = webhook ?? NotificationWebhookService(),
         _metaWhatsApp = metaWhatsApp ?? MetaWhatsAppApiService();
 
-  /// Fetches messaging configuration for the given library.
+  /// Fetches messaging configuration for the given library (merges admin_secrets over legacy docs).
   Future<MessagingConfig> getConfig(String libraryId) async {
     if (libraryId.isEmpty) return const MessagingConfig();
     try {
-      final doc = await _firestore
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('settings')
-          .doc('messaging')
-          .get();
-      return MessagingConfig.fromMap(doc.data());
+      final libRef = _firestore.collection('libraries').doc(libraryId);
+      final snaps = await Future.wait([
+        libRef.collection('settings').doc('messaging').get(),
+        libRef.collection('admin_secrets').doc('communications').get(),
+        libRef.collection('settings').doc('communications').get(),
+      ]);
+      final msgData = snaps[0].data() ?? {};
+      final secretData = snaps[1].data() ?? {};
+      final commsChannels = (snaps[2].data()?['channels'] as Map<String, dynamic>?) ?? {};
+      return MessagingConfig.fromMap({
+        ...commsChannels,
+        ...msgData,
+        ...secretData,
+      });
     } catch (e) {
       if (kDebugMode) debugPrint('Error loading messaging config: $e');
       return const MessagingConfig();
     }
   }
 
-  /// Saves updated messaging configuration.
+  /// Saves updated messaging configuration (persists secrets strictly in admin_secrets).
   Future<bool> saveConfig(String libraryId, MessagingConfig config) async {
     if (libraryId.isEmpty) return false;
     try {
-      await _firestore
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('settings')
-          .doc('messaging')
-          .set(config.toMap(), SetOptions(merge: true));
+      final libRef = _firestore.collection('libraries').doc(libraryId);
+      final fullMap = config.toMap();
+      final batch = _firestore.batch();
+      batch.set(libRef.collection('admin_secrets').doc('communications'), {
+        'telegramBotToken': config.telegramBotToken,
+        'telegramChatId': config.telegramChatId,
+        'metaPhoneNumberId': config.metaPhoneNumberId,
+        'metaAccessToken': config.metaAccessToken,
+        'smsApiKey': config.smsApiKey,
+        'smsSenderId': config.smsSenderId,
+        'customWebhookUrl': config.customWebhookUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      batch.set(libRef.collection('settings').doc('messaging'), fullMap, SetOptions(merge: true));
+      await batch.commit();
       return true;
     } catch (e) {
       if (kDebugMode) debugPrint('Error saving messaging config: $e');

@@ -1,8 +1,8 @@
 ﻿{
     "web":  {
-                "version":  "1.5.59",
-                "buildNumber":  2076,
-                "buildDate":  "2026-11-23"
+                "version":  "1.5.61",
+                "buildNumber":  2078,
+                "buildDate":  "2026-11-26"
             },
     "versionCode":  2076,
     "latestVersionCode":  2076,
@@ -13,11 +13,13 @@
     "apkType":  "64-Bit ARM (arm64-v8a) — High-Performance \u0026 Instant Download",
     "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-arm64-v8a.apk",
     "arm64ApkSize":  "55.1 MB",
-    "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary.apk",
     "legacy32DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-armeabi-v7a.apk",
+    "legacy32ApkSize":  "48.3 MB",
+    "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary.apk",
+    "universalApkSize":  "141.0 MB",
     "aabDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary.aab",
     "aabSize":  "107.5 MB",
-    "releaseNotes":  "v1.5.59 (Build 2076): Advanced visual physics release featuring 3D holographic specular sheen student smart pass with perspective tilt, live radar sonar ripples on desk map, tactile spring button physics (0.95x compression), rolling odometer text transitions, and soundbox announcement formatting discipline.",
+    "releaseNotes":  "v1.5.61 (Build 2078): Full Form Builder parity across Add/Edit, Registration, Profile, ID Cards, Receipts \u0026 CSV Exports; status-gated public/student seat maps with single canonical amenities; and live version-keyed What\u0027s New \u0026 dynamic APK/Web release links.",
     "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-arm64-v8a.apk",
     "mandatory":  false,
     "organization":  {
@@ -29,62 +31,151 @@
                          "accentColor":  "#5D4037",
                          "logoUrl":  "/app/favicon.png"
                      },
+    "changelog":  [
+                      {
+                          "version":  "1.5.61",
+                          "buildNumber":  2078,
+                          "date":  "2026-11-26",
+                          "summary":  "Unified Form Builder parity across every form, Digital ID card, receipt \u0026 export; status-gated seat maps \u0026 canonical amenities; and live version-keyed release notes.",
+                          "highlights":  [
+                                             "Unified Form Builder across Add/Edit, Registration, Profile, ID Cards, Receipts \u0026 CSV Exports",
+                                             "Status-gated seat selection \u0026 single canonical Library amenities everywhere",
+                                             "Version-keyed What\u0027s New \u0026 dynamic Web/APK download portal links"
+                                         ],
+                          "adminFeatures":  [
+                                                {
+                                                    "icon":  "tune",
+                                                    "badge":  "Form Builder",
+                                                    "title":  "Full Custom Field Parity Across Add, Edit, Cards \u0026 Exports",
+                                                    "description":  "Custom and built-in fields (Text, Long Text, Dropdown, Multi-Select, Date, Toggle, Regex Presets) now render live across Admin Add/Edit, Registration, Profile, ID Cards, Receipts, and CSV/Excel exports.",
+                                                    "actionRoute":  "/admin/settings/form-customizer",
+                                                    "actionLabel":  "Open Form Builder"
+                                                },
+                                                {
+                                                    "icon":  "seat",
+                                                    "badge":  "Seat \u0026 Amenity Sync",
+                                                    "title":  "Status-Gated Public Seat Maps \u0026 Single Amenity Catalog",
+                                                    "description":  "Reserved, Maintenance, and Occupied desks restrict booking on public/student seat maps, while Library Profile amenities act as the single canonical source of truth everywhere.",
+                                                    "actionRoute":  "/admin/seats",
+                                                    "actionLabel":  "Open Seat Map"
+                                                },
+                                                {
+                                                    "icon":  "system_update",
+                                                    "badge":  "Release Sync",
+                                                    "title":  "Unified Version-Keyed What\u0027s New \u0026 Dynamic APK/Web Links",
+                                                    "description":  "What\u0027s New highlights hydrate live per version across Web, APK, update banners, and the /download portal with verified release binary links.",
+                                                    "actionRoute":  "/admin/more",
+                                                    "actionLabel":  "Check Updates"
+                                                }
+                                            ],
+                          "studentFeatures":  [
+                                                  {
+                                                      "icon":  "tune",
+                                                      "badge":  "Smart Forms",
+                                                      "title":  "Upgraded Admission Forms \u0026 Full Profile Editing",
+                                                      "description":  "Registration \u0026 Profile Update forms now adapt dynamically with toggles, multi-select tags, custom validations, accurate blood group display, and Digital Pass custom tags.",
+                                                      "actionRoute":  "/student/profile",
+                                                      "actionLabel":  "View Profile"
+                                                  },
+                                                  {
+                                                      "icon":  "seat",
+                                                      "badge":  "Seat Map",
+                                                      "title":  "Clear Status-Gated Seat Selection \u0026 Genuine Amenities",
+                                                      "description":  "See exact hall availability (Reserved, Maintenance, Occupied vs Available) and genuine library-equipped amenities without accidental booking triggers.",
+                                                      "actionRoute":  "/student/seat-map",
+                                                      "actionLabel":  "View Seat Map"
+                                                  },
+                                                  {
+                                                      "icon":  "system_update",
+                                                      "badge":  "What\u0027s New",
+                                                      "title":  "Version-Accurate Release Notes Across Web \u0026 App",
+                                                      "description":  "See the exact new features added in each build right inside What\u0027s New and when reloading a fresh web or APK release.",
+                                                      "actionRoute":  "/student/home",
+                                                      "actionLabel":  "Go Home"
+                                                  }
+                                              ]
+                      },
+                      {
+                          "version":  "1.5.59",
+                          "buildNumber":  2076,
+                          "date":  "2026-11-23",
+                          "summary":  "3D Holographic Smart Pass specular tilt, live sonar radar desk map \u0026 spring micro-physics.",
+                          "adminFeatures":  [
+                                                {
+                                                    "icon":  "badge",
+                                                    "badge":  "Smart Pass",
+                                                    "title":  "3D Holographic Student Pass \u0026 Printable CR-80 PDFs",
+                                                    "description":  "Interactive 3D specular sheen virtual passes with live anti-screenshot ticker alongside printable CR-80 ID card PDFs and custom stamps.",
+                                                    "actionRoute":  "/admin/settings/id-card-template",
+                                                    "actionLabel":  "Customize Pass"
+                                                },
+                                                {
+                                                    "icon":  "card_membership",
+                                                    "badge":  "Plan Engine",
+                                                    "title":  "Dynamic Plan Transitions, Month-End Alignment \u0026 48h Undo",
+                                                    "description":  "Seamless plan upgrades/downgrades, surplus wallet balance carry-forward, and 1-click 48-hour atomic plan reversion.",
+                                                    "actionRoute":  "/admin/students",
+                                                    "actionLabel":  "Student Directory"
+                                                }
+                                            ],
+                          "studentFeatures":  [
+                                                  {
+                                                      "icon":  "badge",
+                                                      "badge":  "Digital Pass",
+                                                      "title":  "Interactive 3D Holographic Pass \u0026 Live Verification QR",
+                                                      "description":  "Your digital pass features tilt physics, live status verification (Active, Grace, Expired), and 1-tap reception sharing.",
+                                                      "actionRoute":  "/student/id-card",
+                                                      "actionLabel":  "View My Pass"
+                                                  },
+                                                  {
+                                                      "icon":  "receipt",
+                                                      "badge":  "Wallet \u0026 Plans",
+                                                      "title":  "Month-End Aligned Plans, Credit Wallet \u0026 PDF Receipts",
+                                                      "description":  "Fair pro-rata plan adjustments, preserved wallet credits, and downloadable official PDF payment receipts.",
+                                                      "actionRoute":  "/student/receipts",
+                                                      "actionLabel":  "My Receipts"
+                                                  }
+                                              ]
+                      }
+                  ],
     "studentFeatures":  [
                             {
-                                "icon":  "document_scanner",
-                                "badge":  "Form Builder",
-                                "title":  "Smart Admission Form \u0026 Custom Categories",
-                                "description":  "Category-grouped custom fields, native calendar date selection, numeric formatting, and dynamic dropdown options during registration."
+                                "icon":  "tune",
+                                "badge":  "Smart Forms",
+                                "title":  "Upgraded Admission Forms \u0026 Full Profile Editing",
+                                "description":  "Registration \u0026 Profile Update forms now adapt dynamically with toggles, multi-select tags, custom validations, accurate blood group display, and Digital Pass custom tags."
                             },
                             {
-                                "icon":  "event_seat",
-                                "badge":  "Study Freeze",
-                                "title":  "Membership Pause \u0026 Study Freeze Requests",
-                                "description":  "Request a temporary pause on your active study membership directly from your account during exam breaks or travel."
+                                "icon":  "seat",
+                                "badge":  "Seat Map",
+                                "title":  "Clear Status-Gated Seat Selection \u0026 Genuine Amenities",
+                                "description":  "See exact hall availability (Reserved, Maintenance, Occupied vs Available) and genuine library-equipped amenities without accidental booking triggers."
                             },
                             {
-                                "icon":  "badge",
-                                "badge":  "Smart Pass",
-                                "title":  "Real-Time Pass Validity \u0026 Dynamic Status",
-                                "description":  "Your digital student pass automatically updates to Active, Grace Period, or Expired with live anti-fraud verification."
-                            },
-                            {
-                                "icon":  "campaign",
-                                "badge":  "Notice Board",
-                                "title":  "Multi-Notice Carousel \u0026 Dedicated Notice Board",
-                                "description":  "Browse library announcements in a swipeable dashboard carousel and view full circulars in the circulars hub."
-                            },
-                            {
-                                "icon":  "navigation",
-                                "badge":  "Seamless Nav",
-                                "title":  "Smart Back Navigation \u0026 Double-Tap Exit Guard",
-                                "description":  "Smooth page transitions with dedicated back buttons and double-tap exit prevention across all student screens."
+                                "icon":  "system_update",
+                                "badge":  "What\u0027s New",
+                                "title":  "Version-Accurate Release Notes Across Web \u0026 App",
+                                "description":  "See the exact new features added in each build right inside What\u0027s New and when reloading a fresh web or APK release."
                             }
                         ],
     "adminFeatures":  [
                           {
-                              "icon":  "lock",
-                              "badge":  "Security Hardening",
-                              "title":  "Staff RBAC \u0026 Zero Superadmin Escalation",
-                              "description":  "Strict granular staff role permissions (canDeleteStudents, canViewRevenue, etc.) without granting unintended master privileges."
+                              "icon":  "tune",
+                              "badge":  "Form Builder",
+                              "title":  "Full Custom Field Parity Across Add, Edit, Cards \u0026 Exports",
+                              "description":  "Custom and built-in fields (Text, Long Text, Dropdown, Multi-Select, Date, Toggle, Regex Presets) now render live across Admin Add/Edit, Registration, Profile, ID Cards, Receipts, and CSV/Excel exports."
                           },
                           {
-                              "icon":  "sync",
-                              "badge":  "Full Backup",
-                              "title":  "Recursive Section Seats Backup \u0026 Restore",
-                              "description":  "Complete JSON database exports now recursively preserve all hall section desks and seat allocations."
-                          },
-                          {
-                              "icon":  "approval",
-                              "badge":  "Freeze Manager",
-                              "title":  "Study Freeze Review \u0026 Auto-Extension Engine",
-                              "description":  "Review and approve student freeze requests with automated plan recalculations and seat holding adjustments."
+                              "icon":  "seat",
+                              "badge":  "Seat \u0026 Amenity Sync",
+                              "title":  "Status-Gated Public Seat Maps \u0026 Single Amenity Catalog",
+                              "description":  "Reserved, Maintenance, and Occupied desks restrict booking on public/student seat maps, while Library Profile amenities act as the single canonical source of truth everywhere."
                           },
                           {
                               "icon":  "system_update",
-                              "badge":  "Auto-Lock",
-                              "title":  "Background App Auto-Lock \u0026 Session Revocation",
-                              "description":  "App automatically locks with PIN/Biometrics upon backgrounding, paired with real remote session revocation."
+                              "badge":  "Release Sync",
+                              "title":  "Unified Version-Keyed What\u0027s New \u0026 Dynamic APK/Web Links",
+                              "description":  "What\u0027s New highlights hydrate live per version across Web, APK, update banners, and the /download portal with verified release binary links."
                           }
                       ],
     "android":  {
@@ -92,9 +183,16 @@
                     "versionName":  "1.5.59+2076",
                     "apkSize":  "55.1 MB",
                     "arm64ApkSize":  "55.1 MB",
+                    "legacy32ApkSize":  "48.3 MB",
+                    "universalApkSize":  "141.0 MB",
+                    "aabSize":  "107.5 MB",
                     "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-arm64-v8a.apk",
                     "apkUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-arm64-v8a.apk",
                     "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-arm64-v8a.apk",
+                    "legacy32DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary-armeabi-v7a.apk",
+                    "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary.apk",
+                    "aabDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.59/StudyLibrary.aab",
+                    "releaseUrl":  "https://github.com/ksonpethkar/study-library-management/releases/tag/v1.5.59",
                     "releasedAt":  "2026-11-23T19:50:00.000Z",
                     "releaseNotes":  "v1.5.59 (Build 2076): Advanced visual physics release featuring 3D holographic specular sheen student smart pass with perspective tilt, live radar sonar ripples on desk map, tactile spring button physics (0.95x compression), rolling odometer text transitions, and soundbox announcement formatting discipline."
                 }

@@ -10,11 +10,11 @@ import 'package:study_library/models/student_model.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/security/audit_logger.dart';
-import 'package:flutter/services.dart';
 import 'package:study_library/core/utils/app_validators.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
+import 'package:study_library/core/widgets/dynamic_form_field_renderer.dart';
 import 'package:study_library/core/widgets/id_card_scanner_dialog.dart';
 
 class EditStudentScreen extends ConsumerStatefulWidget {
@@ -371,7 +371,14 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
 
     final theme = Theme.of(context);
     final formConfigAsync = ref.watch(formConfigStreamProvider);
-    final fieldsList = formConfigAsync.value ?? [];
+    final fieldsList = formConfigAsync.value ?? FormConfigService.defaultBuiltinFields;
+    syncCustomFieldControllers(fieldsList, _customControllers);
+
+    bool isReq(String id) => FormConfigService.isFieldRequired(fieldsList, id);
+    String fieldLabel(String id, String fallback) {
+      final lbl = FormConfigService.getFieldLabel(fieldsList, id, fallback);
+      return isReq(id) ? '$lbl *' : lbl;
+    }
 
     void handleBack() {
       if (context.canPop()) {
@@ -478,7 +485,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                             child: CircleAvatar(
                               radius: 18,
                               backgroundColor: theme.colorScheme.primary,
-                              child: const Icon(Icons.camera_alt_rounded, size: 18, color: Colors.white),
+                              child: Icon(Icons.camera_alt_rounded, size: 18, color: theme.colorScheme.onPrimary),
                             ),
                           ),
                         ),
@@ -568,11 +575,16 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     TextFormField(
                       controller: _fatherNameController,
                       decoration: InputDecoration(
-                        labelText: FormConfigService.getFieldLabel(fieldsList, 'fatherName', "Father's / Guardian's Name"),
+                        labelText: fieldLabel('fatherName', "Father's / Guardian's Name"),
                         prefixIcon: const Icon(Icons.family_restroom_rounded),
                         border: const OutlineInputBorder(),
                       ),
                       textCapitalization: TextCapitalization.words,
+                      validator: (v) => AppValidators.name(
+                        v,
+                        required: isReq('fatherName'),
+                        label: FormConfigService.getFieldLabel(fieldsList, 'fatherName', "Father's / Guardian's Name"),
+                      ),
                     ),
                   ],
                   if (FormConfigService.isFieldVisible(fieldsList, 'gender') ||
@@ -586,7 +598,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                               isExpanded: true,
                               initialValue: _gender,
                               decoration: InputDecoration(
-                                labelText: '${FormConfigService.getFieldLabel(fieldsList, 'gender', 'Gender')} *',
+                                labelText: fieldLabel('gender', 'Gender'),
                                 prefixIcon: const Icon(Icons.people_outline_rounded),
                                 border: const OutlineInputBorder(),
                               ),
@@ -605,16 +617,26 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                           const SizedBox(width: 12),
                         if (FormConfigService.isFieldVisible(fieldsList, 'dob'))
                           Expanded(
-                            child: InkWell(
-                              onTap: _pickDob,
-                              child: InputDecorator(
-                                decoration: InputDecoration(
-                                  labelText: FormConfigService.getFieldLabel(fieldsList, 'dob', 'Date of Birth'),
-                                  prefixIcon: const Icon(Icons.cake_outlined),
-                                  border: const OutlineInputBorder(),
-                                ),
-                                child: Text(
-                                  _dob != null ? DateFormat('dd/MM/yyyy').format(_dob!) : 'DD/MM/YYYY',
+                            child: FormField<DateTime>(
+                              initialValue: _dob,
+                              validator: (_) => isReq('dob') && _dob == null
+                                  ? '${FormConfigService.getFieldLabel(fieldsList, 'dob', 'Date of Birth')} is required'
+                                  : null,
+                              builder: (state) => InkWell(
+                                onTap: () async {
+                                  await _pickDob();
+                                  state.didChange(_dob);
+                                },
+                                child: InputDecorator(
+                                  decoration: InputDecoration(
+                                    labelText: fieldLabel('dob', 'Date of Birth'),
+                                    prefixIcon: const Icon(Icons.cake_outlined),
+                                    border: const OutlineInputBorder(),
+                                    errorText: state.errorText,
+                                  ),
+                                  child: Text(
+                                    _dob != null ? DateFormat('dd/MM/yyyy').format(_dob!) : 'DD/MM/YYYY',
+                                  ),
                                 ),
                               ),
                             ),
@@ -629,11 +651,14 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                       isExpanded: true,
                       initialValue: _bloodGroup,
                       decoration: InputDecoration(
-                        labelText: FormConfigService.getFieldLabel(fieldsList, 'bloodGroup', 'Blood Group'),
+                        labelText: fieldLabel('bloodGroup', 'Blood Group'),
                         prefixIcon: const Icon(Icons.bloodtype_rounded),
                         border: const OutlineInputBorder(),
                       ),
                       hint: const Text('Select Blood Group'),
+                      validator: isReq('bloodGroup')
+                          ? (v) => AppValidators.bloodGroup(v, required: true)
+                          : null,
                       items: const [
                         DropdownMenuItem(value: 'A+', child: Text('A+')),
                         DropdownMenuItem(value: 'A-', child: Text('A-')),
@@ -648,6 +673,12 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
+                  DynamicCategoryCustomFieldsSection(
+                    fields: fieldsList,
+                    category: FormFieldCategory.personal,
+                    controllers: _customControllers,
+                    onChanged: () => setState(() {}),
+                  ),
                   DropdownButtonFormField<MembershipStatus>(
                     isExpanded: true,
                     initialValue: _membershipStatus,
@@ -682,23 +713,31 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                   TextFormField(
                     controller: _phoneController,
                     decoration: InputDecoration(
-                      labelText: '${FormConfigService.getFieldLabel(fieldsList, 'phone', 'Mobile Number')} *',
+                      labelText: fieldLabel('phone', 'Mobile Number'),
                       prefixIcon: const Icon(Icons.phone_android_rounded),
                       border: const OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.phone,
-                    validator: (v) => (v == null || v.trim().length < 10) ? 'Valid phone required' : null,
+                    validator: (v) => AppValidators.phone(
+                      v,
+                      label: FormConfigService.getFieldLabel(fieldsList, 'phone', 'Mobile Number'),
+                    ),
                   ),
                   if (FormConfigService.isFieldVisible(fieldsList, 'email')) ...[
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _emailController,
                       decoration: InputDecoration(
-                        labelText: FormConfigService.getFieldLabel(fieldsList, 'email', 'Email Address'),
+                        labelText: fieldLabel('email', 'Email Address'),
                         prefixIcon: const Icon(Icons.email_outlined),
                         border: const OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.emailAddress,
+                      validator: (v) => AppValidators.email(
+                        v,
+                        required: isReq('email'),
+                        label: FormConfigService.getFieldLabel(fieldsList, 'email', 'Email Address'),
+                      ),
                     ),
                   ],
                   if (FormConfigService.isFieldVisible(fieldsList, 'address')) ...[
@@ -706,11 +745,16 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     TextFormField(
                       controller: _addressController,
                       decoration: InputDecoration(
-                        labelText: FormConfigService.getFieldLabel(fieldsList, 'address', 'Address'),
+                        labelText: fieldLabel('address', 'Address'),
                         prefixIcon: const Icon(Icons.home_outlined),
                         border: const OutlineInputBorder(),
                       ),
                       maxLines: 2,
+                      validator: (v) => AppValidators.address(
+                        v,
+                        required: isReq('address'),
+                        label: FormConfigService.getFieldLabel(fieldsList, 'address', 'Address'),
+                      ),
                     ),
                   ],
                   if (FormConfigService.isFieldVisible(fieldsList, 'pincode') ||
@@ -723,11 +767,17 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                             child: TextFormField(
                               controller: _pincodeController,
                               decoration: InputDecoration(
-                                labelText: FormConfigService.getFieldLabel(fieldsList, 'pincode', 'Pincode'),
+                                labelText: fieldLabel('pincode', 'Pincode'),
                                 prefixIcon: const Icon(Icons.pin_drop_outlined),
                                 border: const OutlineInputBorder(),
                               ),
                               keyboardType: TextInputType.number,
+                              inputFormatters: AppValidators.pincodeFormatters,
+                              validator: (v) => AppValidators.pinCode(
+                                v,
+                                required: isReq('pincode'),
+                                label: FormConfigService.getFieldLabel(fieldsList, 'pincode', 'Pincode'),
+                              ),
                             ),
                           ),
                         if (FormConfigService.isFieldVisible(fieldsList, 'pincode') &&
@@ -738,18 +788,33 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                             child: TextFormField(
                               controller: _emergencyController,
                               decoration: InputDecoration(
-                                labelText: FormConfigService.getFieldLabel(fieldsList, 'emergencyContact', 'Emergency Contact'),
+                                labelText: fieldLabel('emergencyContact', 'Emergency Contact'),
                                 prefixIcon: const Icon(Icons.contact_phone_outlined),
                                 border: const OutlineInputBorder(),
                               ),
                               keyboardType: TextInputType.phone,
+                              inputFormatters: AppValidators.phoneFormatters,
+                              validator: (v) => AppValidators.emergencyPhone(
+                                v,
+                                primaryPhone: _phoneController.text,
+                                required: isReq('emergencyContact'),
+                                label: FormConfigService.getFieldLabel(fieldsList, 'emergencyContact', 'Emergency Contact'),
+                              ),
                             ),
                           ),
                       ],
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  DynamicCategoryCustomFieldsSection(
+                    fields: fieldsList,
+                    category: FormFieldCategory.contact,
+                    controllers: _customControllers,
+                    onChanged: () => setState(() {}),
+                  ),
 
-                  if (FormConfigService.isFieldVisible(fieldsList, 'govId')) ...[
+                  if (FormConfigService.isFieldVisible(fieldsList, 'govId') ||
+                      FormConfigService.getCustomFieldsForCategory(fieldsList, FormFieldCategory.govId).isNotEmpty) ...[
                     const SizedBox(height: 24),
 
                     // Section 3: Identity & Verification
@@ -757,75 +822,85 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _buildSectionHeader(context, 'Identity Verification', Icons.school_outlined),
-                        TextButton.icon(
-                          onPressed: _openOcrScanner,
-                          icon: const Icon(Icons.document_scanner_outlined, size: 18),
-                          label: const Text('Scan ID Card'),
-                        ),
+                        if (FormConfigService.isFieldVisible(fieldsList, 'govId'))
+                          TextButton.icon(
+                            onPressed: _openOcrScanner,
+                            icon: const Icon(Icons.document_scanner_outlined, size: 18),
+                            label: const Text('Scan ID Card'),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: DropdownButtonFormField<GovIdType>(
-                            isExpanded: true,
-                            initialValue: _govIdType,
-                            decoration: InputDecoration(
-                              labelText: FormConfigService.getFieldLabel(fieldsList, 'govIdType', 'ID Type'),
-                              border: const OutlineInputBorder(),
+                    if (FormConfigService.isFieldVisible(fieldsList, 'govId'))
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<GovIdType>(
+                              isExpanded: true,
+                              initialValue: _govIdType,
+                              decoration: InputDecoration(
+                                labelText: FormConfigService.getFieldLabel(fieldsList, 'govIdType', 'ID Type'),
+                                border: const OutlineInputBorder(),
+                              ),
+                              items: GovIdType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.displayName))).toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() {
+                                    _govIdType = v;
+                                    _govIdNumberController.text = GovIdValidator.format(v, _govIdNumberController.text);
+                                  });
+                                }
+                              },
                             ),
-                            items: GovIdType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.displayName))).toList(),
-                            onChanged: (v) {
-                              if (v != null) {
-                                setState(() {
-                                  _govIdType = v;
-                                  _govIdNumberController.text = GovIdValidator.format(v, _govIdNumberController.text);
-                                });
-                              }
-                            },
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 3,
-                          child: ValueListenableBuilder<TextEditingValue>(
-                            valueListenable: _govIdNumberController,
-                            builder: (context, val, child) {
-                              final rawText = val.text.trim();
-                              final isValid = rawText.isNotEmpty &&
-                                  GovIdValidator.isValid(_govIdType, rawText);
-                              final showWarning = rawText.isNotEmpty && !isValid;
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 3,
+                            child: ValueListenableBuilder<TextEditingValue>(
+                              valueListenable: _govIdNumberController,
+                              builder: (context, val, child) {
+                                final rawText = val.text.trim();
+                                final isValid = rawText.isNotEmpty &&
+                                    GovIdValidator.isValid(_govIdType, rawText);
+                                final showWarning = rawText.isNotEmpty && !isValid;
 
-                              return TextFormField(
-                                controller: _govIdNumberController,
-                                keyboardType: GovIdValidator.keyboardType(_govIdType),
-                                inputFormatters: GovIdValidator.inputFormatters(_govIdType),
-                                decoration: InputDecoration(
-                                  labelText: FormConfigService.getFieldLabel(fieldsList, 'govIdNumber', 'ID Number'),
-                                  hintText: _govIdType.placeholder,
-                                  border: const OutlineInputBorder(),
-                                  suffixIcon: rawText.isEmpty
-                                      ? null
-                                      : isValid
-                                          ? const Tooltip(
-                                              message: 'Valid Checksum / Format Verified',
-                                              child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 20),
-                                            )
-                                          : showWarning
-                                              ? const Tooltip(
-                                                  message: 'Invalid format or checksum mismatch',
-                                                  child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 20),
-                                                )
-                                              : null,
-                                ),
-                              );
-                            },
+                                return TextFormField(
+                                  controller: _govIdNumberController,
+                                  keyboardType: GovIdValidator.keyboardType(_govIdType),
+                                  inputFormatters: GovIdValidator.inputFormatters(_govIdType),
+                                  validator: (v) => GovIdValidator.validate(_govIdType, v, isRequired: isReq('govId')),
+                                  decoration: InputDecoration(
+                                    labelText: fieldLabel('govId', 'ID Number'),
+                                    hintText: _govIdType.placeholder,
+                                    border: const OutlineInputBorder(),
+                                    suffixIcon: rawText.isEmpty
+                                        ? null
+                                        : isValid
+                                            ? const Tooltip(
+                                                message: 'Valid Checksum / Format Verified',
+                                                child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 20),
+                                              )
+                                            : showWarning
+                                                ? const Tooltip(
+                                                    message: 'Invalid format or checksum mismatch',
+                                                    child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 20),
+                                                  )
+                                                : null,
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    const SizedBox(height: 12),
+                    DynamicCategoryCustomFieldsSection(
+                      fields: fieldsList,
+                      category: FormFieldCategory.govId,
+                      controllers: _customControllers,
+                      onChanged: () => setState(() {}),
                     ),
                   ],
                   if (FormConfigService.isFieldVisible(fieldsList, 'college')) ...[
@@ -833,11 +908,11 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     TextFormField(
                       controller: _collegeController,
                       decoration: InputDecoration(
-                        labelText: FormConfigService.getFieldLabel(fieldsList, 'college', 'College / School'),
+                        labelText: fieldLabel('college', 'College / School'),
                         prefixIcon: const Icon(Icons.school),
                         border: const OutlineInputBorder(),
                       ),
-                      validator: AppValidators.collegeName,
+                      validator: (v) => AppValidators.collegeName(v, required: isReq('college')),
                     ),
                   ],
                   if (FormConfigService.isFieldVisible(fieldsList, 'course') ||
@@ -850,9 +925,15 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                             child: TextFormField(
                               controller: _courseController,
                               decoration: InputDecoration(
-                                labelText: FormConfigService.getFieldLabel(fieldsList, 'course', 'Course / Degree'),
+                                labelText: fieldLabel('course', 'Course / Degree'),
                                 border: const OutlineInputBorder(),
                               ),
+                              validator: isReq('course')
+                                  ? (v) => AppValidators.required(
+                                        v,
+                                        label: FormConfigService.getFieldLabel(fieldsList, 'course', 'Course / Degree'),
+                                      )
+                                  : null,
                             ),
                           ),
                         if (FormConfigService.isFieldVisible(fieldsList, 'course') &&
@@ -863,10 +944,10 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                             child: TextFormField(
                               controller: _yearController,
                               decoration: InputDecoration(
-                                labelText: FormConfigService.getFieldLabel(fieldsList, 'year', 'Year / Semester'),
+                                labelText: fieldLabel('year', 'Year / Semester'),
                                 border: const OutlineInputBorder(),
                               ),
-                              validator: AppValidators.yearOrSem,
+                              validator: (v) => AppValidators.yearOrSem(v, required: isReq('year')),
                             ),
                           ),
                       ],
@@ -883,12 +964,18 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                             child: TextFormField(
                               controller: _targetExamController,
                               decoration: InputDecoration(
-                                labelText: FormConfigService.getFieldLabel(fieldsList, 'prep', 'Target Exam / Competitive Goal'),
+                                labelText: fieldLabel('prep', 'Target Exam / Competitive Goal'),
                                 prefixIcon: const Icon(Icons.track_changes_rounded),
                                 border: const OutlineInputBorder(),
                                 hintText: 'e.g. RTO Exam, MPSC, UPSC, NEET',
                               ),
                               textCapitalization: TextCapitalization.words,
+                              validator: isReq('prep')
+                                  ? (v) => AppValidators.required(
+                                        v,
+                                        label: FormConfigService.getFieldLabel(fieldsList, 'prep', 'Target Exam'),
+                                      )
+                                  : null,
                             ),
                           ),
                         if (FormConfigService.isFieldVisible(fieldsList, 'prep') &&
@@ -899,59 +986,62 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                             child: TextFormField(
                               controller: _rollNumberController,
                               decoration: InputDecoration(
-                                labelText: FormConfigService.getFieldLabel(fieldsList, 'rollNumber', 'Roll / Enroll Number'),
+                                labelText: fieldLabel('rollNumber', 'Roll / Enroll Number'),
                                 prefixIcon: const Icon(Icons.badge_outlined),
                                 border: const OutlineInputBorder(),
                               ),
+                              validator: isReq('rollNumber')
+                                  ? (v) => AppValidators.required(
+                                        v,
+                                        label: FormConfigService.getFieldLabel(fieldsList, 'rollNumber', 'Roll / Enroll Number'),
+                                      )
+                                  : null,
                             ),
                           ),
                       ],
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  DynamicCategoryCustomFieldsSection(
+                    fields: fieldsList,
+                    category: FormFieldCategory.academics,
+                    controllers: _customControllers,
+                    onChanged: () => setState(() {}),
+                  ),
 
-                  if (FormConfigService.isFieldVisible(fieldsList, 'notes')) ...[
-                    const SizedBox(height: 24),
-
-                    // Section 4: Remarks
-                    _buildSectionHeader(context, 'Remarks & Notes', Icons.notes_rounded),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _notesController,
-                      decoration: InputDecoration(
-                        labelText: FormConfigService.getFieldLabel(fieldsList, 'notes', 'Notes & Remarks'),
-                        border: const OutlineInputBorder(),
-                      ),
-                      maxLines: 2,
+                  // Section 4: Admin Remarks & Notes (Always accessible for counter staff)
+                  const SizedBox(height: 24),
+                  _buildSectionHeader(context, 'Remarks & Notes', Icons.notes_rounded),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _notesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes & Remarks',
+                      border: OutlineInputBorder(),
                     ),
-                  ],
+                    maxLines: 2,
+                  ),
 
                   Builder(
                     builder: (context) {
-                      final formConfigAsync = ref.watch(formConfigStreamProvider);
-                      final fieldsList = formConfigAsync.value ?? [];
-                      const hardcodedKeys = {
+                      final configuredCustom = FormConfigService.getCustomFieldsForCategory(
+                        fieldsList,
+                        FormFieldCategory.custom,
+                      );
+                      final configuredIds = fieldsList.map((f) => (f['id'] ?? '').toString()).toSet();
+                      const builtinIds = {
                         'name', 'fatherName', 'gender', 'dob', 'bloodGroup',
-                        'phone', 'email', 'emergencyContact', 'address', 'pincode',
+                        'phone', 'email', 'emergencyContact', 'address', 'pincode', 'pinCode',
                         'govId', 'govIdType', 'govIdNumber',
                         'college', 'course', 'year', 'prep', 'rollNumber', 'notes'
                       };
-                      final customFields = fieldsList.where((f) {
-                        final id = f['id'] as String? ?? '';
-                        final isVis = f['visible'] as bool? ?? true;
-                        return !hardcodedKeys.contains(id) && isVis;
-                      }).toList();
+                      final legacyOrphanKeys = _customControllers.keys.where((k) =>
+                          !_isInternalKey(k) &&
+                          !builtinIds.contains(k) &&
+                          !configuredIds.contains(k)).toList();
 
-                      final allKeys = {
-                        ...customFields.map((f) => f['id'] as String),
-                        ..._customControllers.keys,
-                      }.where((k) => !_isInternalKey(k) && !hardcodedKeys.contains(k)).toList();
-
-                      if (allKeys.isEmpty) return const SizedBox.shrink();
-
-                      for (final fid in allKeys) {
-                        if (fid.isNotEmpty && !_customControllers.containsKey(fid)) {
-                          _customControllers[fid] = TextEditingController();
-                        }
+                      if (configuredCustom.isEmpty && legacyOrphanKeys.isEmpty) {
+                        return const SizedBox.shrink();
                       }
 
                       return Column(
@@ -960,12 +1050,17 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                           const SizedBox(height: 24),
                           _buildSectionHeader(context, 'Additional Information / Custom Fields', Icons.tune_rounded),
                           const SizedBox(height: 12),
-                          for (final fid in allKeys)
-                            Builder(
-                              builder: (ctx) {
-                                final f = customFields.where((el) => el['id'] == fid).firstOrNull ?? {'id': fid, 'label': _formatFieldKey(fid), 'type': 'Text'};
-                                return _buildCustomFieldItem(ctx, f);
-                              },
+                          DynamicCategoryCustomFieldsSection(
+                            fields: fieldsList,
+                            category: FormFieldCategory.custom,
+                            controllers: _customControllers,
+                            onChanged: () => setState(() {}),
+                          ),
+                          for (final fid in legacyOrphanKeys)
+                            DynamicFormFieldRenderer(
+                              field: {'id': fid, 'label': _formatFieldKey(fid), 'type': 'Text'},
+                              controller: _customControllers[fid]!,
+                              onChanged: () => setState(() {}),
                             ),
                         ],
                       );
@@ -1016,177 +1111,9 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
     );
   }
 
-  Widget _buildCustomFieldItem(BuildContext context, Map<String, dynamic> f) {
-    final id = f['id'] as String? ?? '';
-    final label = f['label'] as String? ?? id;
-    final isRequired = f['required'] as bool? ?? false;
-    final fType = f['type']?.toString() ?? 'Text';
-    final customPattern = f['pattern'] as String?;
-    final patternError = f['patternError'] as String?;
-    final ctrl = _customControllers[id] ??= TextEditingController();
-    final options = (f['options'] as List?)?.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList() ?? [];
+  static bool _isInternalKey(String key) => FormConfigService.isInternalKey(key);
 
-    if (fType == 'Dropdown' && options.isNotEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12.0),
-        child: DropdownButtonFormField<String>(
-          initialValue: options.contains(ctrl.text.trim()) ? ctrl.text.trim() : null,
-          decoration: InputDecoration(
-            labelText: '$label${isRequired ? ' *' : ''}',
-            prefixIcon: const Icon(Icons.arrow_drop_down_circle_outlined),
-            border: const OutlineInputBorder(),
-          ),
-          items: options
-              .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
-              .toList(),
-          onChanged: (val) {
-            if (val != null) {
-              setState(() => ctrl.text = val);
-            }
-          },
-          validator: isRequired
-              ? (v) => (v == null || v.trim().isEmpty) ? '$label is required' : null
-              : null,
-        ),
-      );
-    }
-
-    if (fType == 'Date') {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12.0),
-        child: InkWell(
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: DateTime.now(),
-              firstDate: DateTime(1920),
-              lastDate: DateTime(2100),
-            );
-            if (picked != null) {
-              final formatted = '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
-              setState(() => ctrl.text = formatted);
-            }
-          },
-          child: AbsorbPointer(
-            child: TextFormField(
-              controller: ctrl,
-              decoration: InputDecoration(
-                labelText: '$label${isRequired ? ' *' : ''}',
-                hintText: 'DD/MM/YYYY',
-                prefixIcon: const Icon(Icons.calendar_today_rounded),
-                border: const OutlineInputBorder(),
-              ),
-              validator: isRequired
-                  ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
-                  : null,
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (fType == 'Number') {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12.0),
-        child: TextFormField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(
-            labelText: '$label${isRequired ? ' *' : ''}',
-            prefixIcon: const Icon(Icons.numbers_rounded),
-            border: const OutlineInputBorder(),
-          ),
-          validator: (val) {
-            if (isRequired && (val == null || val.trim().isEmpty)) {
-              return '$label is required';
-            }
-            if (customPattern != null && customPattern.isNotEmpty) {
-              return AppValidators.validatePattern(
-                val,
-                customPattern,
-                errorMessage: patternError,
-                required: isRequired,
-                label: label,
-              );
-            }
-            return null;
-          },
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: TextFormField(
-        controller: ctrl,
-        decoration: InputDecoration(
-          labelText: '$label${isRequired ? ' *' : ''}',
-          prefixIcon: const Icon(Icons.edit_note_rounded),
-          border: const OutlineInputBorder(),
-        ),
-        validator: (val) {
-          if (isRequired && (val == null || val.trim().isEmpty)) {
-            return '$label is required';
-          }
-          if (customPattern != null && customPattern.isNotEmpty) {
-            return AppValidators.validatePattern(
-              val,
-              customPattern,
-              errorMessage: patternError,
-              required: isRequired,
-              label: label,
-            );
-          }
-          return null;
-        },
-      ),
-    );
-  }
-
-  static bool _isInternalKey(String key) {
-    final k = key.trim().toLowerCase();
-    return k.startsWith('_') ||
-        const {
-          'note',
-          'notes',
-          'originalrequestid',
-          'requestid',
-          'admissionrequestid',
-          'shift',
-          'shiftname',
-          'studentuserid',
-          'userid',
-          'libraryid',
-          'deletedat',
-          'adminnotes',
-          'isrefund',
-          'planname',
-          'planid',
-          'customplanname',
-          'systemaudit',
-          'fcmtoken',
-          'fcmtokens',
-          'deviceinfo',
-          'status',
-          'type',
-        }.contains(k);
-  }
-
-  static String _formatFieldKey(String key) {
-    if (key.isEmpty) return key;
-    final spaced = key
-        .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}')
-        .replaceAll('_', ' ')
-        .replaceAll('-', ' ')
-        .trim();
-    if (spaced.isEmpty) return key;
-    return spaced
-        .split(' ')
-        .where((w) => w.isNotEmpty)
-        .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
-        .join(' ');
-  }
+  static String _formatFieldKey(String key) => FormConfigService.formatFieldKey(key);
 
   Widget _buildMembershipStatusBadge(MembershipStatus status, {bool isSelectedView = false}) {
     final (Color color, IconData icon, String desc) = switch (status) {

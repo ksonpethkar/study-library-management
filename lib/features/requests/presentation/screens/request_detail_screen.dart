@@ -28,6 +28,9 @@ import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/models/receipt_model.dart';
+import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
+import 'package:study_library/services/form_config_service.dart';
 
 class RequestDetailScreen extends ConsumerStatefulWidget {
   final String requestId;
@@ -50,9 +53,251 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   bool _isRequestedSeatOccupied = false;
   String? _occupyingStudentName;
   String? _occupyingStudentId;
+  bool _isRequestedSeatHeldByOther = false;
+  String? _holdingCandidateName;
+  String? _holdingCandidateId;
+  List<String> _competingApplicantNames = const [];
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _requestSub;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _seatSub;
   String? _watchedSeatKey;
+
+  ({String? seatId, String? sectionId, String applicantUid, String studentId}) _extractTargetDesk(
+    Map<String, dynamic> reqData,
+  ) {
+    final studentDataMap = (reqData['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
+    final reqSeatId = (reqData['requestedSeatId'] ??
+            reqData['targetSeatId'] ??
+            studentDataMap['requestedSeatId'] ??
+            studentDataMap['seatId'] ??
+            reqData['seatId'])
+        ?.toString();
+    final reqSecId = (reqData['requestedSectionId'] ??
+            reqData['targetSectionId'] ??
+            studentDataMap['requestedSectionId'] ??
+            studentDataMap['sectionId'] ??
+            reqData['sectionId'])
+        ?.toString();
+    final applicantUid =
+        (reqData['userId'] ?? reqData['studentUserId'] ?? studentDataMap['userId'] ?? '').toString().trim();
+    final studentId = (reqData['studentId'] ??
+            reqData['createdStudentId'] ??
+            reqData['enrolledStudentId'] ??
+            studentDataMap['id'] ??
+            studentDataMap['studentId'] ??
+            '')
+        .toString()
+        .trim();
+    return (
+      seatId: reqSeatId,
+      sectionId: reqSecId,
+      applicantUid: applicantUid,
+      studentId: studentId,
+    );
+  }
+
+  Future<({
+    bool isOccupied,
+    String? occupantId,
+    String? occupantName,
+    bool isHeldByOther,
+    String? holderId,
+    String? holderName,
+    List<String> competingNames,
+  })> _resolveSeatConflictSnapshot({
+    required String libraryId,
+    required Map<String, dynamic> reqData,
+  }) async {
+    final reqStatus = (reqData['status'] ?? '').toString().toLowerCase().trim();
+    if (reqStatus == 'approved' || reqStatus == 'rejected' || reqStatus == 'cancelled') {
+      return (
+        isOccupied: false,
+        occupantId: null,
+        occupantName: null,
+        isHeldByOther: false,
+        holderId: null,
+        holderName: null,
+        competingNames: const <String>[],
+      );
+    }
+
+    final target = _extractTargetDesk(reqData);
+    final reqSeatId = target.seatId;
+    final reqSecId = target.sectionId;
+    final applicantUid = target.applicantUid;
+    final studentId = target.studentId;
+    final studentDataMap = (reqData['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
+    final reqPhone = (studentDataMap['phone'] ?? reqData['studentPhone'] ?? '').toString().trim();
+    final reqName = (studentDataMap['name'] ?? reqData['studentName'] ?? reqData['name'] ?? '').toString().trim().toLowerCase();
+    String cleanDigits(String p) => p.replaceAll(RegExp(r'\D'), '').replaceFirst(RegExp(r'^91'), '');
+
+    if (reqSeatId == null ||
+        reqSeatId.isEmpty ||
+        reqSecId == null ||
+        reqSecId.isEmpty ||
+        reqSeatId.toLowerCase().contains('auto')) {
+      return (
+        isOccupied: false,
+        occupantId: null,
+        occupantName: null,
+        isHeldByOther: false,
+        holderId: null,
+        holderName: null,
+        competingNames: const <String>[],
+      );
+    }
+
+    bool isOccupied = false;
+    String? occupantId;
+    String? occupantName;
+    bool isHeldByOther = false;
+    String? holderId;
+    String? holderName;
+    final List<String> competingNames = [];
+
+    try {
+      final seatDoc = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('sections')
+          .doc(reqSecId)
+          .collection('seats')
+          .doc(reqSeatId)
+          .get();
+
+      if (seatDoc.exists) {
+        final seatMap = seatDoc.data() ?? {};
+        final seatStatus = (seatMap['status'] ?? '').toString().toLowerCase();
+        final currentOccupant = (seatMap['studentId'] ?? '').toString().trim();
+
+        if (seatStatus == 'occupied' &&
+            currentOccupant.isNotEmpty &&
+            currentOccupant != applicantUid &&
+            currentOccupant != studentId) {
+          bool isActuallyActive = false;
+          try {
+            final occDoc = await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('students')
+                .doc(currentOccupant)
+                .get();
+            if (occDoc.exists) {
+              final occData = occDoc.data() ?? {};
+              final occStatus = (occData['membershipStatus'] as String?)?.toLowerCase();
+              final occSeatId = (occData['seatId'] ?? '').toString();
+              final occPhone = (occData['phone'] ?? '').toString().trim();
+              final occUid = (occData['userId'] ?? '').toString().trim();
+              final occName = (occData['name'] ?? '').toString().trim().toLowerCase();
+
+              final isActuallyInactive = occStatus == 'archived' ||
+                  occStatus == 'deleted' ||
+                  occStatus == 'inactive' ||
+                  occStatus == 'expired';
+              final isMovedAway = occSeatId.isNotEmpty && occSeatId != reqSeatId;
+              final isSameApplicant = (reqPhone.isNotEmpty && cleanDigits(occPhone) == cleanDigits(reqPhone)) ||
+                  (applicantUid.isNotEmpty && occUid == applicantUid) ||
+                  (studentId.isNotEmpty && (currentOccupant == studentId || occDoc.id == studentId)) ||
+                  (reqName.isNotEmpty && occName == reqName);
+
+              if (!isActuallyInactive && !isMovedAway && !isSameApplicant) {
+                isActuallyActive = true;
+                occupantName = occData['name']?.toString() ?? 'Enrolled Student';
+              }
+            }
+          } catch (_) {}
+
+          if (isActuallyActive) {
+            isOccupied = true;
+            occupantId = currentOccupant;
+          }
+        } else {
+          final seatModel = SeatModel.fromJson({'id': seatDoc.id, ...seatMap});
+          if (seatModel.hasActiveSoftLock) {
+            final rawHolder = (seatModel.reservedCandidateId ?? '').trim();
+            final isSameApplicant = rawHolder.isNotEmpty &&
+                (rawHolder == applicantUid || rawHolder == studentId);
+            if (!isSameApplicant) {
+              isHeldByOther = true;
+              holderId = rawHolder.isNotEmpty ? rawHolder : null;
+              holderName = seatModel.reservedCandidateName ?? 'Another Applicant';
+            }
+          }
+        }
+      }
+    } catch (seatErr) {
+      debugPrint('Error validating requested seat availability: $seatErr');
+    }
+
+    try {
+      final pendingSnap = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('requests')
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      for (final d in pendingSnap.docs) {
+        if (d.id == widget.requestId) continue;
+        final dData = d.data();
+        final dType = (dData['type'] ?? '').toString().toLowerCase();
+        if (dType != 'registration' &&
+            dType != 'newregistration' &&
+            dType != 'seat_change' &&
+            dType != 'seatchange') {
+          continue;
+        }
+        final dTarget = _extractTargetDesk(dData);
+        if (dTarget.seatId != reqSeatId) continue;
+        if (dTarget.sectionId != null &&
+            dTarget.sectionId!.isNotEmpty &&
+            dTarget.sectionId != reqSecId) {
+          continue;
+        }
+        final sameCandidate = (applicantUid.isNotEmpty && dTarget.applicantUid == applicantUid) ||
+            (studentId.isNotEmpty && dTarget.studentId == studentId);
+        if (sameCandidate) continue;
+
+        final cName = (dData['studentName'] ?? 'Another Applicant').toString().trim();
+        if (isHeldByOther &&
+            holderId != null &&
+            (holderName == null || holderName == 'Another Applicant') &&
+            (dTarget.applicantUid == holderId || dTarget.studentId == holderId) &&
+            cName.isNotEmpty) {
+          holderName = cName;
+        }
+        if (cName.isNotEmpty && !competingNames.contains(cName)) {
+          competingNames.add(cName);
+        }
+      }
+
+      if (isHeldByOther &&
+          holderId != null &&
+          (holderName == null || holderName == 'Another Applicant')) {
+        final wlDoc = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('waiting_list')
+            .doc(holderId)
+            .get();
+        final wlName = (wlDoc.data()?['studentName'] ?? '').toString().trim();
+        if (wlName.isNotEmpty) {
+          holderName = wlName;
+        }
+      }
+    } catch (reqErr) {
+      debugPrint('Error checking competing pending requests: $reqErr');
+    }
+
+    return (
+      isOccupied: isOccupied,
+      occupantId: occupantId,
+      occupantName: occupantName,
+      isHeldByOther: isHeldByOther,
+      holderId: holderId,
+      holderName: holderName,
+      competingNames: competingNames,
+    );
+  }
 
   @override
   void initState() {
@@ -105,17 +350,20 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
               final seatId = student.seatId;
               if (seatId != null && seatId.isNotEmpty) {
-                final seatDoc = await FirebaseFirestore.instance
-                    .collection('libraries')
-                    .doc(libraryId)
-                    .collection('seats')
-                    .doc(seatId)
-                    .get();
+                final resolvedSeat = await ref
+                    .read(seatRepositoryProvider)
+                    .findSeatInLibrary(
+                      libraryId,
+                      seatId,
+                      preferredSectionId: student.sectionId,
+                    );
 
-                if (seatDoc.exists) {
-                  final sMap = seatDoc.data()!;
+                if (resolvedSeat != null) {
+                  final sMap = resolvedSeat.data;
                   liveSeatLabel = sMap['label']?.toString() ?? sMap['number']?.toString();
-                  final secId = sMap['sectionId']?.toString();
+                  final secId = resolvedSeat.sectionId.isNotEmpty
+                      ? resolvedSeat.sectionId
+                      : sMap['sectionId']?.toString();
                   if (secId != null && secId.isNotEmpty) {
                     final secDoc = await FirebaseFirestore.instance
                         .collection('libraries')
@@ -149,81 +397,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         }
 
         // ── Phase 2: Live Desk Collision & Availability Detection ─────────────
-        final studentDataMap = (reqData?['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
-        final reqSeatId = (reqData?['requestedSeatId'] ?? studentDataMap['requestedSeatId'] ?? studentDataMap['seatId'] ?? reqData?['seatId'])?.toString();
-        final reqSecId = (reqData?['requestedSectionId'] ?? studentDataMap['requestedSectionId'] ?? studentDataMap['sectionId'] ?? reqData?['sectionId'])?.toString();
-        final applicantUid = (reqData?['userId'] ?? studentDataMap['userId'] ?? '').toString();
-
-        bool isSeatOccupied = false;
-        String? occupantName;
-        String? occupantId;
-
-        if (reqSeatId != null &&
-            reqSeatId.isNotEmpty &&
-            reqSecId != null &&
-            reqSecId.isNotEmpty &&
-            !reqSeatId.toLowerCase().contains('auto')) {
-          try {
-            final seatDoc = await FirebaseFirestore.instance
-                .collection('libraries')
-                .doc(libraryId)
-                .collection('sections')
-                .doc(reqSecId)
-                .collection('seats')
-                .doc(reqSeatId)
-                .get();
-
-            if (seatDoc.exists) {
-              final seatMap = seatDoc.data() ?? {};
-              final seatStatus = (seatMap['status'] ?? '').toString().toLowerCase();
-              final currentOccupant = (seatMap['studentId'] ?? '').toString();
-
-              if (seatStatus == 'occupied' &&
-                  currentOccupant.isNotEmpty &&
-                  currentOccupant != applicantUid &&
-                  currentOccupant != studentId) {
-                // Verify if this occupant actually exists, is active, and is actually assigned to THIS seat
-                bool isActuallyActive = false;
-                try {
-                  final occDoc = await FirebaseFirestore.instance
-                      .collection('libraries')
-                      .doc(libraryId)
-                      .collection('students')
-                      .doc(currentOccupant)
-                      .get();
-                  if (occDoc.exists) {
-                    final occData = occDoc.data() ?? {};
-                    final occStatus = (occData['membershipStatus'] as String?)?.toLowerCase();
-                    final occSeatId = (occData['seatId'] ?? '').toString();
-                    final occPhone = (occData['phone'] ?? '').toString().trim();
-                    final occUid = (occData['userId'] ?? '').toString().trim();
-                    final reqPhone = (studentDataMap['phone'] ?? reqData?['studentPhone'] ?? '').toString().trim();
-
-                    final isActuallyInactive = occStatus == 'archived' ||
-                        occStatus == 'deleted' ||
-                        occStatus == 'inactive' ||
-                        occStatus == 'expired';
-                    final isMovedAway = occSeatId.isNotEmpty && occSeatId != reqSeatId;
-                    final isSameApplicant = (reqPhone.isNotEmpty && occPhone == reqPhone) ||
-                        (applicantUid.isNotEmpty && occUid == applicantUid);
-
-                    if (!isActuallyInactive && !isMovedAway && !isSameApplicant) {
-                      isActuallyActive = true;
-                      occupantName = occData['name']?.toString() ?? 'Enrolled Student';
-                    }
-                  }
-                } catch (_) {}
-
-                if (isActuallyActive) {
-                  isSeatOccupied = true;
-                  occupantId = currentOccupant;
-                }
-              }
-            }
-          } catch (seatErr) {
-            debugPrint('Error validating requested seat availability: $seatErr');
-          }
-        }
+        final conflict = await _resolveSeatConflictSnapshot(
+          libraryId: libraryId,
+          reqData: reqData ?? const <String, dynamic>{},
+        );
 
         setState(() {
           _requestData = reqData;
@@ -231,9 +408,13 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           _liveSeatLabel = liveSeatLabel;
           _liveSectionName = liveSectionName;
           _currentPlanName = currentPlanName;
-          _isRequestedSeatOccupied = isSeatOccupied;
-          _occupyingStudentName = occupantName;
-          _occupyingStudentId = occupantId;
+          _isRequestedSeatOccupied = conflict.isOccupied;
+          _occupyingStudentName = conflict.occupantName;
+          _occupyingStudentId = conflict.occupantId;
+          _isRequestedSeatHeldByOther = conflict.isHeldByOther;
+          _holdingCandidateName = conflict.holderName;
+          _holdingCandidateId = conflict.holderId;
+          _competingApplicantNames = conflict.competingNames;
           _isLoading = false;
         });
 
@@ -265,20 +446,22 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   }
 
   void _bindLiveSeatWatch(String libraryId, Map<String, dynamic> reqData) {
-    final studentDataMap = (reqData['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
-    final reqSeatId = (reqData['requestedSeatId'] ?? studentDataMap['requestedSeatId'] ?? studentDataMap['seatId'] ?? reqData['seatId'])?.toString();
-    final reqSecId = (reqData['requestedSectionId'] ?? studentDataMap['requestedSectionId'] ?? studentDataMap['sectionId'] ?? reqData['sectionId'])?.toString();
-    final applicantUid = (reqData['userId'] ?? studentDataMap['userId'] ?? '').toString();
-    final studentId = (reqData['studentId'] ?? '').toString();
+    final target = _extractTargetDesk(reqData);
+    final reqSeatId = target.seatId;
+    final reqSecId = target.sectionId;
 
     if (reqSeatId == null || reqSeatId.isEmpty || reqSecId == null || reqSecId.isEmpty || reqSeatId.toLowerCase().contains('auto')) {
       _seatSub?.cancel();
       _watchedSeatKey = null;
-      if (_isRequestedSeatOccupied && mounted) {
+      if ((_isRequestedSeatOccupied || _isRequestedSeatHeldByOther || _competingApplicantNames.isNotEmpty) && mounted) {
         setState(() {
           _isRequestedSeatOccupied = false;
           _occupyingStudentId = null;
           _occupyingStudentName = null;
+          _isRequestedSeatHeldByOther = false;
+          _holdingCandidateId = null;
+          _holdingCandidateName = null;
+          _competingApplicantNames = const [];
         });
       }
       return;
@@ -299,43 +482,21 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         .snapshots()
         .listen((seatSnap) async {
       if (!seatSnap.exists || !mounted) return;
-      final seatMap = seatSnap.data() ?? {};
-      final seatStatus = (seatMap['status'] ?? '').toString().toLowerCase();
-      final currentOccupant = (seatMap['studentId'] ?? '').toString();
-
-      if (seatStatus == 'occupied' &&
-          currentOccupant.isNotEmpty &&
-          currentOccupant != applicantUid &&
-          currentOccupant != studentId) {
-        String occupantName = 'Enrolled Student';
-        try {
-          final occDoc = await FirebaseFirestore.instance
-              .collection('libraries')
-              .doc(libraryId)
-              .collection('students')
-              .doc(currentOccupant)
-              .get();
-          if (occDoc.exists) {
-            occupantName = occDoc.data()?['name']?.toString() ?? 'Enrolled Student';
-          }
-        } catch (_) {}
-
-        if (mounted) {
-          setState(() {
-            _isRequestedSeatOccupied = true;
-            _occupyingStudentId = currentOccupant;
-            _occupyingStudentName = occupantName;
-          });
-        }
-      } else {
-        if (mounted && _isRequestedSeatOccupied) {
-          setState(() {
-            _isRequestedSeatOccupied = false;
-            _occupyingStudentId = null;
-            _occupyingStudentName = null;
-          });
-        }
-      }
+      final latestReq = _requestData ?? reqData;
+      final conflict = await _resolveSeatConflictSnapshot(
+        libraryId: libraryId,
+        reqData: latestReq,
+      );
+      if (!mounted) return;
+      setState(() {
+        _isRequestedSeatOccupied = conflict.isOccupied;
+        _occupyingStudentId = conflict.occupantId;
+        _occupyingStudentName = conflict.occupantName;
+        _isRequestedSeatHeldByOther = conflict.isHeldByOther;
+        _holdingCandidateId = conflict.holderId;
+        _holdingCandidateName = conflict.holderName;
+        _competingApplicantNames = conflict.competingNames;
+      });
     });
   }
 
@@ -343,6 +504,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     bool allowSharedGovId = false,
     bool allowSharedPhone = false,
     bool mergeExistingPhone = true,
+    bool overrideSeatCollision = false,
   }) async {
     final String libraryId = ref.read(currentLibraryIdProvider) ?? '';
     if (libraryId.isEmpty || _requestData == null) return;
@@ -355,66 +517,56 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       final studentData = (data['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
 
       // ── Live Atomic Seat Verification right before approval ─────────────────
-      final liveSeatId = (data['requestedSeatId'] ?? studentData['requestedSeatId'] ?? studentData['seatId'] ?? data['seatId'])?.toString();
-      final liveSecId = (data['requestedSectionId'] ?? studentData['requestedSectionId'] ?? studentData['sectionId'] ?? data['sectionId'])?.toString();
-      final liveApplicantUid = (data['userId'] ?? studentData['userId'] ?? '').toString();
-      final liveStudentId = (data['studentId'] ?? '').toString();
-
-      if (liveSeatId != null && liveSeatId.isNotEmpty && liveSecId != null && liveSecId.isNotEmpty && !liveSeatId.toLowerCase().contains('auto')) {
-        try {
-          final seatSnap = await FirebaseFirestore.instance
-              .collection('libraries')
-              .doc(libraryId)
-              .collection('sections')
-              .doc(liveSecId)
-              .collection('seats')
-              .doc(liveSeatId)
-              .get();
-          if (seatSnap.exists) {
-            final sData = seatSnap.data() ?? {};
-            final sStatus = (sData['status'] ?? '').toString().toLowerCase();
-            final occ = (sData['studentId'] ?? '').toString();
-            if (sStatus == 'occupied' && occ.isNotEmpty && occ != liveApplicantUid && occ != liveStudentId) {
-              _isRequestedSeatOccupied = true;
-              _occupyingStudentId = occ;
-              try {
-                final occDoc = await FirebaseFirestore.instance
-                    .collection('libraries')
-                    .doc(libraryId)
-                    .collection('students')
-                    .doc(occ)
-                    .get();
-                if (occDoc.exists) {
-                  _occupyingStudentName = occDoc.data()?['name']?.toString() ?? 'Enrolled Student';
-                }
-              } catch (_) {}
-            }
-          }
-        } catch (_) {}
-      }
+      final liveConflict = await _resolveSeatConflictSnapshot(
+        libraryId: libraryId,
+        reqData: data,
+      );
+      _isRequestedSeatOccupied = liveConflict.isOccupied;
+      _occupyingStudentId = liveConflict.occupantId;
+      _occupyingStudentName = liveConflict.occupantName;
+      _isRequestedSeatHeldByOther = liveConflict.isHeldByOther;
+      _holdingCandidateId = liveConflict.holderId;
+      _holdingCandidateName = liveConflict.holderName;
+      _competingApplicantNames = liveConflict.competingNames;
 
       // ── Phase 2: Desk Collision Guard on Approval ───────────────────────────
-      if (_isRequestedSeatOccupied &&
+      final hasConflict = _isRequestedSeatOccupied ||
+          _isRequestedSeatHeldByOther ||
+          _competingApplicantNames.isNotEmpty;
+      if (hasConflict &&
+          !overrideSeatCollision &&
           (type == 'registration' ||
               type == 'newregistration' ||
               type == 'seat_change' ||
               type == 'seatchange')) {
         setState(() => _isProcessing = false);
         if (mounted) {
+          final reasons = <String>[
+            if (_isRequestedSeatOccupied)
+              '• Currently occupied by ${_occupyingStudentName ?? "another student"}${_occupyingStudentId != null ? " (ID: $_occupyingStudentId)" : ""}',
+            if (_isRequestedSeatHeldByOther)
+              '• Currently held under a pending lock by ${_holdingCandidateName ?? "another applicant"}',
+            if (_competingApplicantNames.isNotEmpty)
+              '• ${_competingApplicantNames.length} other pending application(s) also requested this desk (${_competingApplicantNames.join(", ")})',
+          ].join('\n');
+
           showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Desk Collision Conflict'),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: _isRequestedSeatOccupied ? Colors.red : Colors.amber.shade800,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Desk Collision Conflict')),
                 ],
               ),
               content: Text(
-                'The requested desk is currently occupied by ${_occupyingStudentName ?? "another student"}${_occupyingStudentId != null ? " (ID: $_occupyingStudentId)" : ""}.\n\n'
-                'To prevent allocation conflicts, please pick an available vacant desk or switch to Auto-Assign before approving.',
+                '$reasons\n\n'
+                'To prevent duplicate seat allocation, please pick another vacant desk, switch to Auto-Assign, or confirm override.',
               ),
               actions: [
                 TextButton(
@@ -441,11 +593,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
                   onPressed: () {
                     Navigator.of(ctx).pop();
-                    setState(() => _isRequestedSeatOccupied = false);
                     _approveRequest(
                       allowSharedGovId: allowSharedGovId,
                       allowSharedPhone: allowSharedPhone,
                       mergeExistingPhone: mergeExistingPhone,
+                      overrideSeatCollision: true,
                     );
                   },
                   icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
@@ -470,6 +622,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           allowSharedGovId: allowSharedGovId,
           allowSharedPhone: allowSharedPhone,
           mergeExistingPhone: mergeExistingPhone,
+          overrideSeatCollision: overrideSeatCollision,
         );
 
         // Fetch newly provisioned student data to resolve exact plan dates
@@ -511,6 +664,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           libraryId: libraryId,
           requestId: widget.requestId,
           preloadedData: data,
+          overrideSeatCollision: overrideSeatCollision,
         );
       } else if (type == 'profile_update') {
         final studentId = (data['studentId'] ?? '').toString();
@@ -522,6 +676,12 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           if (proposedData.containsKey('emergencyContact')) {
             updateFields['emergencyContact'] = proposedData['emergencyContact'];
           }
+          if (proposedData.containsKey('address')) {
+            updateFields['address'] = proposedData['address'];
+          }
+          if (proposedData.containsKey('pincode')) {
+            updateFields['pincode'] = proposedData['pincode'];
+          }
           if (proposedData.containsKey('college')) {
             updateFields['college'] = proposedData['college'];
           }
@@ -530,6 +690,16 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           }
           if (proposedData.containsKey('year')) {
             updateFields['year'] = proposedData['year'];
+          }
+          if (proposedData.containsKey('prep')) {
+            final p = proposedData['prep']?.toString().trim() ?? '';
+            updateFields['targetExamName'] = p.isEmpty ? null : p;
+            updateFields['customFields.prep'] = p;
+          }
+          if (proposedData.containsKey('rollNumber')) {
+            final r = proposedData['rollNumber']?.toString().trim() ?? '';
+            updateFields['rollNumber'] = r.isEmpty ? null : r;
+            updateFields['customFields.rollNumber'] = r;
           }
           if (proposedData.containsKey('customFields') && proposedData['customFields'] is Map) {
             final customMap = Map<String, dynamic>.from(proposedData['customFields'] as Map);
@@ -674,7 +844,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         final studentId = (data['studentId'] ?? '').toString();
         final paidAmount = (data['amount'] as num?)?.toDouble() ?? 0.0;
         final refNumber = (data['referenceNumber'] ?? data['utr'] ?? '').toString();
-        final payMode = (data['paymentMode'] ?? 'online').toString();
+        final payMode = (data['paymentMode'] ?? data['paymentMethod'] ?? 'UPI').toString();
 
         if (studentId.isNotEmpty && paidAmount > 0) {
           final studentRef = FirebaseFirestore.instance
@@ -684,7 +854,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               .doc(studentId);
 
           final studentSnap = await studentRef.get();
-          final currentDue = (studentSnap.data()?['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
+          final sData = studentSnap.data() ?? {};
+          final studentNameVal = (data['studentName'] ?? sData['name'] ?? 'Student').toString();
+          final resolvedUserId = (sData['userId'] ?? data['userId'] ?? data['studentUserId'] ?? '').toString();
+          final currentDue = (sData['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
           final newDue = (currentDue - paidAmount).clamp(0.0, double.infinity);
 
           await studentRef.update({
@@ -692,35 +865,89 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
-          // Generate payment record
-          final paymentDoc = FirebaseFirestore.instance
-              .collection('libraries')
-              .doc(libraryId)
-              .collection('payments')
-              .doc();
+          final currentLib = ref.read(currentLibraryProvider).value;
+          final gst = ReceiptRepository.calculateGstBreakdown(
+            amount: paidAmount,
+            isGstBilling: currentLib?.enableGstBilling == true,
+            gstRate: currentLib?.effectiveGstRate ?? 18.0,
+            sacCode: currentLib?.effectiveSacCode ?? '999293',
+            gstin: currentLib?.effectiveGstin ?? '',
+          );
 
-          await paymentDoc.set({
-            'id': paymentDoc.id,
-            'studentId': studentId,
-            'studentName': data['studentName'] ?? studentSnap.data()?['name'] ?? 'Student',
-            'amount': paidAmount,
-            'paymentDate': FieldValue.serverTimestamp(),
-            'paymentMethod': payMode,
-            'referenceNumber': refNumber,
-            'type': 'due_clearance',
-            'notes': 'Outstanding fee balance clearance via student portal',
-            'status': 'completed',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+          final receiptRepo = ReceiptRepository();
+          final receiptNum = await receiptRepo.getNextReceiptNumber(libraryId);
+          final nowDt = DateTime.now();
+          final validFromDt = StudentModel.parseDateStatic(sData['planStartDate']) ?? nowDt;
+          final validToDt = StudentModel.parseDateStatic(sData['planEndDate']) ?? nowDt;
+
+          final dueReceipt = ReceiptModel(
+            id: '',
+            libraryId: libraryId,
+            receiptNumber: receiptNum,
+            studentId: studentId,
+            studentUserId: resolvedUserId.isNotEmpty ? resolvedUserId : null,
+            planId: (sData['planId'] ?? 'due_clearance').toString(),
+            amount: paidAmount,
+            totalFee: currentDue > paidAmount ? currentDue : paidAmount,
+            paidAmount: paidAmount,
+            remainingDue: newDue,
+            paymentMethod: payMode,
+            validFrom: validFromDt,
+            validTo: validToDt,
+            isGstInvoice: gst.isGstInvoice,
+            gstin: gst.gstin.isNotEmpty ? gst.gstin : null,
+            sacCode: gst.isGstInvoice ? gst.sacCode : null,
+            gstRate: gst.isGstInvoice ? gst.gstRate : null,
+            taxableAmount: gst.taxableAmount,
+            cgstAmount: gst.cgstAmount,
+            sgstAmount: gst.sgstAmount,
+            customFields: {
+              'type': 'due_clearance',
+              'notes': 'Outstanding fee balance clearance via student portal',
+              if (refNumber.isNotEmpty) 'reference': refNumber,
+              if (gst.isGstInvoice) ...{
+                'isGstInvoice': true,
+                'gstin': gst.gstin,
+                'sacCode': gst.sacCode,
+                'gstRate': gst.gstRate,
+                'taxableAmount': gst.taxableAmount,
+                'cgstAmount': gst.cgstAmount,
+                'sgstAmount': gst.sgstAmount,
+              },
+            },
+            status: ReceiptStatus.active,
+            createdAt: nowDt,
+          );
+
+          final createdReceiptId = await receiptRepo.generateReceipt(
+            libraryId,
+            dueReceipt,
+            recordMatchingPayment: true,
+            extraPaymentFields: {
+              'studentName': studentNameVal,
+              if (refNumber.isNotEmpty) 'referenceNumber': refNumber,
+              'type': 'due_clearance',
+              'notes': 'Outstanding fee balance clearance via student portal',
+              'recordedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
+            },
+          );
 
           // Dispatch in-app notification to student
           AppNotificationService.sendNotification(
             libraryId: libraryId,
-            targetUserId: studentId,
+            targetUserId: resolvedUserId.isNotEmpty ? resolvedUserId : studentId,
             targetRole: 'student',
             title: 'Fee Dues Payment Confirmed! 💳',
-            body: 'Your payment of ₹${paidAmount.toInt()} has been verified and cleared by the counter.',
+            body: 'Your payment of ₹${paidAmount.toInt()} has been verified and cleared by the counter. Receipt #$receiptNum generated.',
             type: 'receipt',
+            actionRoute: Routes.studentReceipts,
+            metadata: {
+              'studentId': studentId,
+              'studentUserId': resolvedUserId,
+              'receiptId': createdReceiptId,
+              'receiptNumber': receiptNum,
+              'amount': paidAmount,
+            },
           ).ignore();
 
           AuditLogger().log(
@@ -731,6 +958,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             details: {
               'action': 'due_payment_cleared',
               'amount': paidAmount,
+              'receiptId': createdReceiptId,
+              'receiptNumber': receiptNum,
               'referenceNumber': refNumber,
               'remainingDue': newDue,
             },
@@ -741,7 +970,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             final libModel = ref.read(currentLibraryProvider).value;
             ref.read(soundboxServiceProvider).announcePayment(
               amount: paidAmount,
-              studentName: data['studentName'] ?? studentSnap.data()?['name'] ?? 'Student',
+              studentName: studentNameVal,
               libraryName: libModel?.name,
             );
           } catch (_) {}
@@ -1014,15 +1243,20 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         'rejectedAt': FieldValue.serverTimestamp(),
       });
 
-      // Release soft-locked desk if this was an admission with a reserved desk
-      final reqSeatId = (_requestData?['requestedSeatId'] ?? _requestData?['seatId'])?.toString();
-      final reqSecId = (_requestData?['requestedSectionId'] ?? _requestData?['sectionId'])?.toString();
+      // Release soft-locked desk ONLY if still held by this rejected applicant
+      final target = _requestData != null ? _extractTargetDesk(_requestData!) : null;
+      final reqSeatId = target?.seatId;
+      final reqSecId = target?.sectionId;
+      final expectedCand = (target != null && target.applicantUid.isNotEmpty)
+          ? target.applicantUid
+          : (target != null && target.studentId.isNotEmpty ? target.studentId : null);
       if (reqSeatId != null && reqSeatId.isNotEmpty && reqSecId != null && reqSecId.isNotEmpty) {
         try {
           await ref.read(seatRepositoryProvider).releaseSoftLock(
             libraryId: libraryId,
             sectionId: reqSecId,
             seatId: reqSeatId,
+            expectedCandidateId: expectedCand,
           );
         } catch (_) {}
       }
@@ -1271,13 +1505,28 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         (studentData['planPrice'] as num?)?.toDouble();
 
     final effectivePlanId = (data['planId'] ?? studentData['planId'])?.toString();
-    if (amount == null && effectivePlanId != null && effectivePlanId.isNotEmpty) {
+    final effectivePlanName = (data['planName'] ?? studentData['planName'] ?? data['plan'] ?? studentData['plan'])?.toString();
+    if (amount == null || amount <= 0) {
       final plans = ref.watch(plansStreamProvider).value ?? [];
-      final matchedPlan = plans.where((p) => p.id == effectivePlanId).firstOrNull;
+      final matchedPlan = plans.where((p) {
+        if (effectivePlanId != null && effectivePlanId.isNotEmpty) {
+          if (p.id == effectivePlanId || p.id.toLowerCase() == effectivePlanId.toLowerCase() || p.name.toLowerCase() == effectivePlanId.toLowerCase()) {
+            return true;
+          }
+        }
+        if (effectivePlanName != null && effectivePlanName.isNotEmpty) {
+          if (p.name.toLowerCase() == effectivePlanName.toLowerCase() || p.id.toLowerCase() == effectivePlanName.toLowerCase()) {
+            return true;
+          }
+        }
+        return false;
+      }).firstOrNull;
       if (matchedPlan != null) {
         final calc = PlanCalculatorService.calculateSmartPlan(plan: matchedPlan);
         amount = calc.proratedPrice;
         origPrice ??= matchedPlan.price;
+      } else if (origPrice != null && origPrice > 0) {
+        amount = origPrice;
       }
     }
     final paymentMethod = (data['paymentMethod'] ?? data['paymentMode'] ?? data['paymentModeLabel'] ?? '').toString();
@@ -1822,7 +2071,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Row(
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1871,7 +2124,6 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                       ),
                     ],
                   ),
-                  const Spacer(),
                   // Payment Mode Pill
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -2494,9 +2746,13 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             ),
             const Divider(height: 24),
             _buildDiffRow('Emergency Contact', (data['currentData'] as Map?)?['emergencyContact'], (data['proposedData'] as Map?)?['emergencyContact']),
+            _buildDiffRow('Residential Address', (data['currentData'] as Map?)?['address'], (data['proposedData'] as Map?)?['address']),
+            _buildDiffRow('Pincode', (data['currentData'] as Map?)?['pincode'], (data['proposedData'] as Map?)?['pincode']),
+            _buildDiffRow('Target Exam / Goal', (data['currentData'] as Map?)?['prep'], (data['proposedData'] as Map?)?['prep']),
             _buildDiffRow('College / Institution', (data['currentData'] as Map?)?['college'], (data['proposedData'] as Map?)?['college']),
             _buildDiffRow('Course', (data['currentData'] as Map?)?['course'], (data['proposedData'] as Map?)?['course']),
             _buildDiffRow('Year / Semester', (data['currentData'] as Map?)?['year'], (data['proposedData'] as Map?)?['year']),
+            _buildDiffRow('Roll / Enroll No.', (data['currentData'] as Map?)?['rollNumber'], (data['proposedData'] as Map?)?['rollNumber']),
             if ((data['proposedData'] as Map?)?['customFields'] is Map) ...[
               ...((data['proposedData'] as Map)['customFields'] as Map)
                   .entries
@@ -2504,7 +2760,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   .map((e) {
                 final curMap = (data['currentData'] as Map?)?['customFields'] as Map?;
                 final curVal = curMap?[e.key];
-                return _buildDiffRow(_formatFieldKey(e.key.toString()), curVal, e.value);
+                final fieldsList = ref.watch(formConfigStreamProvider).value ?? [];
+                final label = FormConfigService.getFieldLabel(fieldsList, e.key.toString(), _formatFieldKey(e.key.toString()));
+                return _buildDiffRow(label, curVal, e.value);
               }),
             ],
           ],
@@ -2619,6 +2877,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             'Cozy Hall')
         .toString();
     final isAuto = seatLabel.toLowerCase().contains('auto') || seatLabel.isEmpty;
+    final reqStatus = (data['status'] ?? '').toString().toLowerCase().trim();
+    final isApproved = reqStatus == 'approved';
+    final isRejected = reqStatus == 'rejected';
 
     return Card(
       elevation: 0,
@@ -2766,34 +3027,62 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              if (_isRequestedSeatOccupied)
+              if (!isApproved &&
+                  !isRejected &&
+                  (_isRequestedSeatOccupied ||
+                      _isRequestedSeatHeldByOther ||
+                      _competingApplicantNames.isNotEmpty))
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.08),
+                    color: (_isRequestedSeatOccupied ? Colors.red : Colors.amber).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red.shade300, width: 1.2),
+                    border: Border.all(
+                      color: _isRequestedSeatOccupied ? Colors.red.shade300 : Colors.amber.shade400,
+                      width: 1.2,
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: _isRequestedSeatOccupied ? Colors.red : Colors.amber.shade800,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Desk Collision Alert: ${SeatHelper.formatDeskLabel(rawLabel: seatLabel)} is Occupied!',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red),
+                              _isRequestedSeatOccupied
+                                  ? 'Desk Collision Alert: ${SeatHelper.formatDeskLabel(rawLabel: seatLabel)} is Occupied!'
+                                  : 'Desk Hold / Multiple Requests: ${SeatHelper.formatDeskLabel(rawLabel: seatLabel)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: _isRequestedSeatOccupied ? Colors.red : Colors.amber.shade900,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        'This desk is currently allocated to ${_occupyingStudentName ?? "another enrolled student"}. Approving now will create an allocation conflict.',
-                        style: TextStyle(fontSize: 12, color: Colors.red.shade900),
-                      ),
+                      if (_isRequestedSeatOccupied)
+                        Text(
+                          'This desk is currently allocated to ${_occupyingStudentName ?? "another enrolled student"}. Approving now will create an allocation conflict.',
+                          style: TextStyle(fontSize: 12, color: Colors.red.shade900),
+                        ),
+                      if (_isRequestedSeatHeldByOther)
+                        Text(
+                          'Currently held under an active lock by ${_holdingCandidateName ?? "another applicant"}${_holdingCandidateId != null ? " ($_holdingCandidateId)" : ""}.',
+                          style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                        ),
+                      if (_competingApplicantNames.isNotEmpty)
+                        Text(
+                          'Competing pending applications (${_competingApplicantNames.length}): ${_competingApplicantNames.join(", ")}.',
+                          style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                        ),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
@@ -2805,7 +3094,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                             label: const Text('Pick Another Desk'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: theme.colorScheme.primary,
-                              foregroundColor: Colors.white,
+                              foregroundColor: theme.colorScheme.onPrimary,
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                             ),
@@ -5208,44 +5497,12 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     bool enableSoundbox = true,
   }) async {
     try {
-      final receiptNum = 'REC${DateTime.now().year}${(DateTime.now().millisecondsSinceEpoch % 100000).toString().padLeft(5, '0')}';
-      final receiptRef = FirebaseFirestore.instance.collection('libraries').doc(libraryId).collection('receipts').doc();
-
-      final paymentRef = FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('payments')
-          .doc();
+      final receiptRepo = ReceiptRepository();
+      final receiptNum = await receiptRepo.getNextReceiptNumber(libraryId);
 
       final effectiveRef = (referenceNumber != null && referenceNumber.trim().isNotEmpty)
           ? referenceNumber.trim()
           : ((_requestData?['referenceNumber'] ?? '').toString().trim());
-
-      final paymentData = {
-        'id': paymentRef.id,
-        'studentId': studentId,
-        'amount': amount,
-        'method': paymentMethod,
-        'referenceNumber': effectiveRef.isNotEmpty ? effectiveRef : null,
-        'notes': notes,
-        'status': 'paid',
-        'date': FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'recordedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
-        'receiptId': receiptRef.id,
-      };
-
-      await paymentRef.set(paymentData);
-
-      // Subcollection copy for backwards compatibility
-      await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('students')
-          .doc(studentId)
-          .collection('payments')
-          .doc(paymentRef.id)
-          .set(paymentData);
 
       DateTime effectiveStartDate = planStartDate ?? DateTime.now();
       DateTime? effectiveEndDate = planEndDate;
@@ -5307,59 +5564,38 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             ?.toString();
 
         try {
-          if (targetSecId == null || targetSecId.trim().isEmpty) {
-            final sectionsSnap = await FirebaseFirestore.instance
-                .collection('libraries')
-                .doc(libraryId)
-                .collection('sections')
-                .get();
-
-            for (final sec in sectionsSnap.docs) {
-              final seatSnap = await sec.reference.collection('seats').doc(requestedDesk).get();
-              if (seatSnap.exists) {
-                targetSecId = sec.id;
-                break;
-              }
+          final seatRepo = ref.read(seatRepositoryProvider);
+          final resolved = await seatRepo.findSeatInLibrary(
+            libraryId,
+            requestedDesk,
+            preferredSectionId: targetSecId,
+          );
+          if (resolved != null) {
+            targetSecId = resolved.sectionId;
+            final seatData = resolved.data;
+            final occupant = (seatData['studentId'] ?? '').toString();
+            final seatStatus = (seatData['status'] ?? 'available').toString();
+            final resExpiresRaw = seatData['reservationExpiresAt'];
+            DateTime? resExpires;
+            if (resExpiresRaw is Timestamp) {
+              resExpires = resExpiresRaw.toDate();
+            } else if (resExpiresRaw is String) {
+              resExpires = DateTime.tryParse(resExpiresRaw);
             }
-          }
+            final isExpiredReservation = seatStatus == 'reserved' &&
+                (resExpires == null || resExpires.isBefore(DateTime.now()));
 
-          if (targetSecId != null && targetSecId.isNotEmpty) {
-            final seatRef = FirebaseFirestore.instance
-                .collection('libraries')
-                .doc(libraryId)
-                .collection('sections')
-                .doc(targetSecId)
-                .collection('seats')
-                .doc(requestedDesk);
-
-            final seatDoc = await seatRef.get();
-            if (seatDoc.exists) {
-              final seatData = seatDoc.data() ?? {};
-              final occupant = (seatData['studentId'] ?? '').toString();
-              final seatStatus = (seatData['status'] ?? 'available').toString();
-              final resExpiresRaw = seatData['reservationExpiresAt'];
-              DateTime? resExpires;
-              if (resExpiresRaw is Timestamp) {
-                resExpires = resExpiresRaw.toDate();
-              } else if (resExpiresRaw is String) {
-                resExpires = DateTime.tryParse(resExpiresRaw);
-              }
-              final isExpiredReservation = seatStatus == 'reserved' &&
-                  (resExpires == null || resExpires.isBefore(DateTime.now()));
-
-              if (occupant.isEmpty || occupant == studentId || seatStatus == 'available' || isExpiredReservation) {
-                final seatRepo = ref.read(seatRepositoryProvider);
-                await seatRepo.assignStudent(
-                  libraryId,
-                  targetSecId,
-                  requestedDesk,
-                  studentId,
-                  studentUserId: studentUserId,
-                  overrideSoftLock: true,
-                );
-                assignedSeatId = requestedDesk;
-                assignedSectionId = targetSecId;
-              }
+            if (occupant.isEmpty || occupant == studentId || seatStatus == 'available' || isExpiredReservation) {
+              await seatRepo.assignStudent(
+                libraryId,
+                targetSecId,
+                requestedDesk,
+                studentId,
+                studentUserId: studentUserId,
+                overrideSoftLock: true,
+              );
+              assignedSeatId = requestedDesk;
+              assignedSectionId = targetSecId;
             }
           }
         } catch (seatErr) {
@@ -5367,11 +5603,74 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         }
       }
 
-      // Activate the student upon recorded payment with seat restoration
+      // Compute GST if enabled on library, then atomically save receipt + payment + aggregate via ReceiptRepository
+      final currentLib = ref.read(currentLibraryProvider).value;
+      final gst = ReceiptRepository.calculateGstBreakdown(
+        amount: amount,
+        isGstBilling: currentLib?.enableGstBilling == true,
+        gstRate: currentLib?.effectiveGstRate ?? 18.0,
+        sacCode: currentLib?.effectiveSacCode ?? '999293',
+        gstin: currentLib?.effectiveGstin ?? '',
+      );
+
+      final receiptModel = ReceiptModel(
+        id: '',
+        libraryId: libraryId,
+        receiptNumber: receiptNum,
+        studentId: studentId,
+        studentUserId: studentUserId.isNotEmpty ? studentUserId : null,
+        planId: effectivePlanId,
+        amount: amount,
+        totalFee: amount,
+        paidAmount: amount,
+        remainingDue: 0.0,
+        paymentMethod: paymentMethod,
+        validFrom: effectiveStartDate,
+        validTo: effectiveEndDate,
+        isGstInvoice: gst.isGstInvoice,
+        gstin: gst.gstin.isNotEmpty ? gst.gstin : null,
+        sacCode: gst.isGstInvoice ? gst.sacCode : null,
+        gstRate: gst.isGstInvoice ? gst.gstRate : null,
+        taxableAmount: gst.taxableAmount,
+        cgstAmount: gst.cgstAmount,
+        sgstAmount: gst.sgstAmount,
+        customFields: {
+          if (effectiveRef.isNotEmpty) 'reference': effectiveRef,
+          'notes': ?(notes != null && notes.isNotEmpty ? notes : null),
+          if (gst.isGstInvoice) ...{
+            'isGstInvoice': true,
+            'gstin': gst.gstin,
+            'sacCode': gst.sacCode,
+            'gstRate': gst.gstRate,
+            'taxableAmount': gst.taxableAmount,
+            'cgstAmount': gst.cgstAmount,
+            'sgstAmount': gst.sgstAmount,
+          },
+        },
+        status: ReceiptStatus.active,
+        createdAt: DateTime.now(),
+      );
+
+      final createdReceiptId = await receiptRepo.generateReceipt(
+        libraryId,
+        receiptModel,
+        recordMatchingPayment: true,
+        extraPaymentFields: {
+          if (effectiveRef.isNotEmpty) 'referenceNumber': effectiveRef,
+          'notes': ?notes,
+          'recordedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
+        },
+      );
+
+      // Activate student and clear stale grace / reminder / settled due fields
       final Map<String, dynamic> studentUpdates = {
         'membershipStatus': MembershipStatus.active.name,
         'planStartDate': Timestamp.fromDate(effectiveStartDate),
         'planEndDate': Timestamp.fromDate(effectiveEndDate),
+        'graceEndDate': FieldValue.delete(),
+        'remindedStages': FieldValue.delete(),
+        if (_requestData?['clearedDue'] == true || (_requestData?['pendingDueAmount'] as num?)?.toDouble() != null)
+          'pendingDueBalance': 0.0,
         if (effectivePlanId.isNotEmpty) 'planId': effectivePlanId,
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -5394,36 +5693,16 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           .doc(studentId)
           .update(studentUpdates);
 
-      await receiptRef.set({
-        'id': receiptRef.id,
-        'receiptNumber': receiptNum,
-        'studentId': studentId,
-        'studentUserId': studentUserId,
-        'studentName': studentName,
-        'studentPhone': studentPhone,
-        'amount': amount,
-        'paymentMethod': paymentMethod,
-        'referenceNumber': effectiveRef.isNotEmpty ? effectiveRef : null,
-        'notes': notes,
-        'status': 'active',
-        'validFrom': Timestamp.fromDate(effectiveStartDate),
-        'validTo': Timestamp.fromDate(effectiveEndDate),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'libraryId': libraryId,
-        'planId': effectivePlanId,
-        'customFields': {},
-      });
-
       AuditLogger().log(
         action: AuditAction.created,
         entityType: AuditEntity.payment,
         libraryId: libraryId,
-        entityId: paymentRef.id,
+        entityId: createdReceiptId,
         entityName: studentName,
         details: {
           'amount': amount,
           'method': paymentMethod,
+          'receiptId': createdReceiptId,
           'receiptNumber': receiptNum,
           'referenceNumber': effectiveRef,
           'planStartDate': effectiveStartDate.toIso8601String(),
@@ -5433,8 +5712,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
       ref.invalidate(studentsStreamProvider);
 
-      // Soundbox counter announcement on verified admin payment recording
-      if (enableSoundbox) {
+      // Soundbox counter announcement ONLY on verified positive payment recording
+      if (enableSoundbox && amount > 0) {
         try {
           final libModel = ref.read(currentLibraryProvider).value;
           ref.read(soundboxServiceProvider).announcePayment(
@@ -5461,7 +5740,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             'studentId': studentId,
             'studentUserId': studentUserId,
             'userId': studentUserId,
-            'receiptId': receiptRef.id,
+            'receiptId': createdReceiptId,
             'receiptNumber': receiptNum,
             'amount': amount,
             'validTo': effectiveEndDate.toIso8601String(),

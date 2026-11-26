@@ -16,11 +16,13 @@ import 'package:study_library/features/plans/presentation/providers/plan_provide
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/settings/presentation/screens/id_card_customizer_screen.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/core/widgets/holographic_card_3d.dart';
+import 'package:study_library/core/widgets/organisational_seal_stamp.dart';
 
 class MyIdCardScreen extends ConsumerStatefulWidget {
   const MyIdCardScreen({super.key});
@@ -233,11 +235,15 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
           }
 
           final plans = plansAsync.value ?? [];
+          final formFields = ref.watch(formConfigStreamProvider).value ?? FormConfigService.defaultBuiltinFields;
           final plan = plans.where((p) => p.id == student.planId).firstOrNull;
           final planName = plan?.name ?? (student.customPlanName?.isNotEmpty == true ? student.customPlanName! : 'Standard Membership');
 
-          final seatText = SeatHelper.formatSeatLabel(seatId: student.seatId, rawLabel: _seatLabel, includePrefix: false);
-          final secText = _sectionName != null && _sectionName!.isNotEmpty ? ' ($_sectionName)' : '';
+          final hasActiveSeat = student.seatId != null && student.seatId!.isNotEmpty;
+          final seatText = hasActiveSeat
+              ? SeatHelper.formatSeatLabel(seatId: student.seatId, rawLabel: _seatLabel, includePrefix: false)
+              : 'Unassigned';
+          final secText = (hasActiveSeat && _sectionName != null && _sectionName!.isNotEmpty) ? ' ($_sectionName)' : '';
 
           final hasPhoto = student.photoUrl.isNotEmpty;
           final dynamicId = student.membershipNumber?.isNotEmpty == true
@@ -297,6 +303,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                           hasPhoto: hasPhoto,
                           dateFormat: dateFormat,
                           settings: savedSettings,
+                          formFields: formFields,
                           isFlipping: _flipController.isAnimating,
                         ),
                       ),
@@ -310,6 +317,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                           seatText: '$seatText$secText',
                           dateFormat: dateFormat,
                           settings: savedSettings,
+                          formFields: formFields,
                           isFlipping: _flipController.isAnimating,
                         ),
                       ),
@@ -803,19 +811,31 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     required bool hasPhoto,
     required DateFormat dateFormat,
     required IdCardTemplateSettings settings,
+    List<Map<String, dynamic>> formFields = FormConfigService.defaultBuiltinFields,
     bool isFlipping = false,
   }) {
     final effectiveStatus = student.effectiveMembershipStatus;
+    final isInactive = effectiveStatus == MembershipStatus.inactive ||
+        effectiveStatus == MembershipStatus.archived;
     final isExpired = effectiveStatus == MembershipStatus.expired;
     final isGrace = effectiveStatus == MembershipStatus.grace;
     final isBlocked = effectiveStatus == MembershipStatus.blocked;
-    final isPaymentPending = effectiveStatus == MembershipStatus.inactive ||
-        effectiveStatus == MembershipStatus.pending ||
-        (student.planEndDate == null && effectiveStatus != MembershipStatus.active);
+    final isPaymentPending = !isInactive &&
+        !isExpired &&
+        !isBlocked &&
+        (effectiveStatus == MembershipStatus.pending ||
+            (student.planEndDate == null && effectiveStatus != MembershipStatus.active));
+    final isPassActive = !isInactive && !isExpired && !isBlocked;
 
-    final validTillText = student.planEndDate != null
-        ? dateFormat.format(student.planEndDate!)
-        : (isPaymentPending ? 'Awaiting Payment' : 'Active');
+    final validTillText = isInactive
+        ? 'Inactive'
+        : (isBlocked
+            ? 'Suspended'
+            : (student.planEndDate != null
+                ? (isExpired
+                    ? 'Expired (${dateFormat.format(student.planEndDate!)})'
+                    : dateFormat.format(student.planEndDate!))
+                : (isPaymentPending ? 'Awaiting Payment' : 'Active')));
 
     final logoProvider = (library != null && library.logoUrl.isNotEmpty)
         ? ImageService.getImageProvider(library.logoUrl)
@@ -833,7 +853,8 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(maxWidth: 440, minHeight: 236),
+      height: 256,
+      constraints: const BoxConstraints(maxWidth: 440, minHeight: 256, maxHeight: 256),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
@@ -843,7 +864,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: (isExpired || isBlocked
+            color: (isInactive || isExpired || isBlocked
                     ? const Color(0xFFEF4444)
                     : isGrace || isPaymentPending
                         ? const Color(0xFFF59E0B)
@@ -854,12 +875,12 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
           ),
         ],
         border: Border.all(
-          color: isExpired || isBlocked
+          color: isInactive || isExpired || isBlocked
               ? const Color(0xFFEF4444).withValues(alpha: 0.75)
               : isGrace || isPaymentPending
                   ? const Color(0xFFF59E0B).withValues(alpha: 0.75)
                   : Colors.white.withValues(alpha: 0.25),
-          width: (isExpired || isBlocked || isGrace || isPaymentPending) ? 1.6 : 1.2,
+          width: (isInactive || isExpired || isBlocked || isGrace || isPaymentPending) ? 1.6 : 1.2,
         ),
       ),
       child: ClipRRect(
@@ -896,6 +917,21 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                             color: Colors.white,
                           ),
                   ),
+                ),
+              ),
+            ),
+
+            // 3. Official Organisational Rubber Seal Stamp (Laminated Card Overlay)
+            Positioned(
+              bottom: 24,
+              right: 10,
+              child: IgnorePointer(
+                child: OrganisationalSealStamp(
+                  libraryName: libraryName,
+                  locality: localityName,
+                  isInactive: !isPassActive,
+                  size: 46,
+                  rotation: -7,
                 ),
               ),
             ),
@@ -972,14 +1008,14 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isExpired || isBlocked
+                          color: isInactive || isExpired || isBlocked
                               ? const Color(0x33EF4444)
                               : isGrace || isPaymentPending
                                   ? const Color(0x33F59E0B)
                                   : const Color(0x3310B981),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isExpired || isBlocked
+                            color: isInactive || isExpired || isBlocked
                                 ? const Color(0x80EF4444)
                                 : isGrace || isPaymentPending
                                     ? const Color(0x80F59E0B)
@@ -987,17 +1023,19 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                           ),
                         ),
                         child: Text(
-                          isBlocked
-                              ? 'SUSPENDED'
-                              : isExpired
-                                  ? 'EXPIRED PASS'
-                                  : isGrace
-                                      ? 'GRACE PERIOD'
-                                      : isPaymentPending
-                                          ? 'AWAITING PAYMENT'
-                                          : 'ACTIVE PASS',
+                          isInactive
+                              ? 'INACTIVE PASS'
+                              : (isBlocked
+                                  ? 'SUSPENDED'
+                                  : (isExpired
+                                      ? 'EXPIRED PASS'
+                                      : (isGrace
+                                          ? 'GRACE PERIOD'
+                                          : (isPaymentPending
+                                              ? 'AWAITING PAYMENT'
+                                              : 'ACTIVE PASS')))),
                           style: TextStyle(
-                            color: isExpired || isBlocked
+                            color: isInactive || isExpired || isBlocked
                                 ? const Color(0xFFFCA5A5)
                                 : isGrace || isPaymentPending
                                     ? const Color(0xFFFDE68A)
@@ -1287,38 +1325,72 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                 ),
                               ),
 
-                            // College / Course / Blood Group
-                            if (student.college.isNotEmpty || student.course.isNotEmpty || (settings.showBloodGroup && student.bloodGroup != null && student.bloodGroup!.isNotEmpty)) ...[
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  if (student.course.isNotEmpty || student.college.isNotEmpty)
-                                    Expanded(
-                                      child: Text(
-                                        student.course.isNotEmpty ? student.course : student.college,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 9.5),
-                                      ),
-                                    ),
-                                  if (settings.showBloodGroup && student.bloodGroup != null && student.bloodGroup!.isNotEmpty) ...[
-                                    const SizedBox(width: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.shade900.withValues(alpha: 0.5),
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: Colors.red.shade300, width: 0.6),
-                                      ),
-                                      child: Text(
-                                        'Blood: ${student.bloodGroup}',
-                                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ],
+                            // College / Course / Blood Group / Custom ID Card Tags
+                            Builder(
+                              builder: (_) {
+                                final showBlood = settings.showBloodGroup &&
+                                    FormConfigService.isFieldVisible(formFields, 'bloodGroup') &&
+                                    student.bloodGroup != null &&
+                                    student.bloodGroup!.isNotEmpty;
+                                final extraCardTags = FormConfigService.getSurfaceFields(formFields, onIdCard: true)
+                                    .where((f) {
+                                      final fid = (f['id'] ?? '').toString();
+                                      return fid != 'name' &&
+                                          fid != 'phone' &&
+                                          fid != 'bloodGroup' &&
+                                          fid != 'fatherName' &&
+                                          fid != 'emergencyContact';
+                                    })
+                                    .map((f) {
+                                      final fid = (f['id'] ?? '').toString();
+                                      final val = FormConfigService.resolveStudentFieldValue(student, fid);
+                                      if (val.isEmpty) return '';
+                                      return '${f['label'] ?? fid}: $val';
+                                    })
+                                    .where((s) => s.isNotEmpty)
+                                    .take(2)
+                                    .join(' • ');
+                                final fallbackEdu = student.course.isNotEmpty
+                                    ? student.course
+                                    : student.college;
+                                final displayLine = extraCardTags.isNotEmpty ? extraCardTags : fallbackEdu;
+
+                                if (displayLine.isEmpty && !showBlood) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Row(
+                                    children: [
+                                      if (displayLine.isNotEmpty)
+                                        Expanded(
+                                          child: Text(
+                                            displayLine,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(color: Colors.white.withValues(alpha: 0.78), fontSize: 9.0, fontWeight: FontWeight.w500),
+                                          ),
+                                        ),
+                                      if (showBlood) ...[
+                                        if (displayLine.isNotEmpty) const SizedBox(width: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade900.withValues(alpha: 0.5),
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: Colors.red.shade300, width: 0.6),
+                                          ),
+                                          child: Text(
+                                            'Blood: ${student.bloodGroup}',
+                                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ),
@@ -1355,7 +1427,9 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                               color: Colors.black.withValues(alpha: 0.25),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: (isPaymentPending ? const Color(0xFFF59E0B) : const Color(0xFF10B981)).withValues(alpha: 0.4),
+                                color: (isInactive || isExpired || isBlocked)
+                                    ? const Color(0xFFEF4444).withValues(alpha: 0.5)
+                                    : (isPaymentPending ? const Color(0xFFF59E0B) : const Color(0xFF10B981)).withValues(alpha: 0.4),
                                 width: 0.6,
                               ),
                             ),
@@ -1366,15 +1440,21 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                   width: 4.5,
                                   height: 4.5,
                                   decoration: BoxDecoration(
-                                    color: isPaymentPending ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                                    color: (isInactive || isExpired || isBlocked)
+                                        ? const Color(0xFFEF4444)
+                                        : (isPaymentPending ? const Color(0xFFF59E0B) : const Color(0xFF10B981)),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
                                 const SizedBox(width: 3.5),
                                 Text(
-                                  isPaymentPending ? 'PENDING $timeStr' : 'LIVE $timeStr',
+                                  (isInactive || isExpired || isBlocked)
+                                      ? '● PASS INACTIVE'
+                                      : (isPaymentPending ? 'PENDING $timeStr' : 'LIVE $timeStr'),
                                   style: TextStyle(
-                                    color: isPaymentPending ? const Color(0xFFFDE68A) : const Color(0xFF6EE7B7),
+                                    color: (isInactive || isExpired || isBlocked)
+                                        ? const Color(0xFFFCA5A5)
+                                        : (isPaymentPending ? const Color(0xFFFDE68A) : const Color(0xFF6EE7B7)),
                                     fontSize: 8,
                                     fontFamily: 'monospace',
                                     fontWeight: FontWeight.bold,
@@ -1429,15 +1509,27 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     required String seatText,
     required DateFormat dateFormat,
     IdCardTemplateSettings settings = const IdCardTemplateSettings(),
+    List<Map<String, dynamic>> formFields = FormConfigService.defaultBuiltinFields,
     bool isFlipping = false,
   }) {
     final effectiveStatus = student.effectiveMembershipStatus;
+    final isInactive = effectiveStatus == MembershipStatus.inactive ||
+        effectiveStatus == MembershipStatus.archived;
     final isExpired = effectiveStatus == MembershipStatus.expired;
     final isGrace = effectiveStatus == MembershipStatus.grace;
     final isBlocked = effectiveStatus == MembershipStatus.blocked;
-    final isPaymentPending = effectiveStatus == MembershipStatus.inactive ||
-        effectiveStatus == MembershipStatus.pending ||
-        (student.planEndDate == null && effectiveStatus != MembershipStatus.active);
+    final isPaymentPending = !isInactive &&
+        !isExpired &&
+        !isBlocked &&
+        (effectiveStatus == MembershipStatus.pending ||
+            (student.planEndDate == null && effectiveStatus != MembershipStatus.active));
+    final isPassActive = !isInactive && !isExpired && !isBlocked;
+
+    final addressParts = (library?.address ?? '').split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+    final localityName = addressParts.length >= 3
+        ? addressParts.last.replaceAll(RegExp(r'-\d+'), '').trim()
+        : (addressParts.length == 2 ? addressParts[1] : (addressParts.isNotEmpty ? addressParts.first : ''));
+
     final accentColor = _getThemeAccent(activeTheme, Color(library?.accentColor ?? 0xFF1E3A8A), gradientColors);
 
     final effectiveHelpline = library?.effectiveHelpline.isNotEmpty == true
@@ -1454,7 +1546,8 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(maxWidth: 440, minHeight: 236),
+      height: 256,
+      constraints: const BoxConstraints(maxWidth: 440, minHeight: 256, maxHeight: 256),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
@@ -1464,7 +1557,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: (isExpired || isBlocked
+            color: (isInactive || isExpired || isBlocked
                     ? const Color(0xFFEF4444)
                     : isGrace
                         ? const Color(0xFFF59E0B)
@@ -1475,12 +1568,12 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
           ),
         ],
         border: Border.all(
-          color: isExpired || isBlocked
+          color: isInactive || isExpired || isBlocked
               ? const Color(0xFFEF4444).withValues(alpha: 0.75)
               : isGrace
                   ? const Color(0xFFF59E0B).withValues(alpha: 0.75)
                   : gradientColors.first.withValues(alpha: 0.5),
-          width: (isExpired || isBlocked || isGrace) ? 1.6 : 1.2,
+          width: (isInactive || isExpired || isBlocked || isGrace) ? 1.6 : 1.2,
         ),
       ),
       child: ClipRRect(
@@ -1653,19 +1746,19 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                   ),
                                 ),
                                 child: Text(
-                                  isBlocked
-                                      ? 'SUSPENDED'
-                                      : isExpired
-                                          ? 'EXPIRED'
-                                          : isGrace
-                                              ? 'GRACE'
-                                              : isPaymentPending
-                                                  ? 'PENDING'
-                                                  : 'MEMBER',
+                                  isInactive
+                                      ? 'INACTIVE'
+                                      : (isBlocked
+                                          ? 'SUSPENDED'
+                                          : (isExpired
+                                              ? 'EXPIRED'
+                                              : (isGrace
+                                                  ? 'GRACE'
+                                                  : (isPaymentPending ? 'PENDING' : 'MEMBER')))),
                                   style: TextStyle(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.bold,
-                                    color: isExpired || isBlocked
+                                    color: isInactive || isExpired || isBlocked
                                         ? const Color(0xFFF87171)
                                         : isGrace || isPaymentPending
                                             ? const Color(0xFFFDE68A)
@@ -1674,63 +1767,65 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 3),
-                              GestureDetector(
-                                onTap: () => _showEnlargedQrDialog(
-                                  context,
-                                  student: student,
-                                  membershipId: student.membershipNumber ?? '',
-                                  seatLabel: _seatLabel ?? student.seatId ?? 'Unassigned',
-                                  libraryName: library?.name ?? 'Study Centre',
-                                  library: library,
-                                ),
-                                child: MouseRegion(
-                                  cursor: SystemMouseCursors.click,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(8),
-                                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
-                                        ),
-                                        child: QrImageView(
-                                          data: jsonEncode({
-                                            'type': 'STUDENT_PASS',
-                                            'id': student.id,
-                                            'lib': library?.id ?? '',
-                                            'name': student.name,
-                                            'memNo': student.membershipNumber ?? '',
-                                            'phone': student.phone,
-                                            'bloodGroup': student.bloodGroup ?? '',
-                                            'emergency': student.emergencyContact,
-                                            'seat': _seatLabel ?? student.seatId ?? 'Unassigned',
-                                            'status': effectiveStatus.name.toUpperCase(),
-                                            'expiry': student.planEndDate != null ? DateFormat('dd/MM/yyyy').format(student.planEndDate!) : 'Active',
-                                          }),
-                                          version: QrVersions.auto,
-                                          size: 68,
-                                          eyeStyle: QrEyeStyle(
-                                            eyeShape: QrEyeShape.square,
-                                            color: gradientColors.last,
+                              if (settings.showBarcode) ...[
+                                const SizedBox(height: 3),
+                                GestureDetector(
+                                  onTap: () => _showEnlargedQrDialog(
+                                    context,
+                                    student: student,
+                                    membershipId: student.membershipNumber ?? '',
+                                    seatLabel: _seatLabel ?? student.seatId ?? 'Unassigned',
+                                    libraryName: library?.name ?? 'Study Centre',
+                                    library: library,
+                                  ),
+                                  child: MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(8),
+                                            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                          ),
+                                          child: QrImageView(
+                                            data: jsonEncode({
+                                              'type': 'STUDENT_PASS',
+                                              'id': student.id,
+                                              'lib': library?.id ?? '',
+                                              'name': student.name,
+                                              'memNo': student.membershipNumber ?? '',
+                                              'phone': student.phone,
+                                              'bloodGroup': student.bloodGroup ?? '',
+                                              'emergency': student.emergencyContact,
+                                              'seat': _seatLabel ?? student.seatId ?? 'Unassigned',
+                                              'status': effectiveStatus.name.toUpperCase(),
+                                              'expiry': student.planEndDate != null ? DateFormat('dd/MM/yyyy').format(student.planEndDate!) : 'Active',
+                                            }),
+                                            version: QrVersions.auto,
+                                            size: 54,
+                                            eyeStyle: QrEyeStyle(
+                                              eyeShape: QrEyeShape.square,
+                                              color: gradientColors.last,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '🔍 Tap to Zoom',
-                                        style: TextStyle(
-                                          fontSize: 7,
-                                          color: accentColor,
-                                          fontWeight: FontWeight.bold,
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '🔍 Tap to Zoom',
+                                          style: TextStyle(
+                                            fontSize: 7,
+                                            color: accentColor,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                               const SizedBox(height: 2),
                               const Text(
                                 'SCAN TO VERIFY',
@@ -1746,14 +1841,14 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
-                                  color: isExpired || isBlocked
+                                  color: isInactive || isExpired || isBlocked
                                       ? const Color(0x26EF4444)
                                       : isGrace
                                           ? const Color(0x26F59E0B)
                                           : const Color(0x2610B981),
                                   borderRadius: BorderRadius.circular(4),
                                   border: Border.all(
-                                    color: isExpired || isBlocked
+                                    color: isInactive || isExpired || isBlocked
                                         ? const Color(0x66EF4444)
                                         : isGrace
                                             ? const Color(0x66F59E0B)
@@ -1761,17 +1856,19 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                   ),
                                 ),
                                 child: Text(
-                                  isBlocked
-                                      ? '⊘ ACCESS SUSPENDED'
-                                      : isExpired
-                                          ? '✕ EXPIRED PASS'
-                                          : isGrace
-                                              ? '⏳ GRACE PERIOD'
-                                              : '★ VERIFIED PASS ★',
+                                  isInactive
+                                      ? '✕ INACTIVE PASS'
+                                      : (isBlocked
+                                          ? '⊘ ACCESS SUSPENDED'
+                                          : (isExpired
+                                              ? '✕ EXPIRED PASS'
+                                              : (isGrace
+                                                  ? '⏳ GRACE PERIOD'
+                                                  : '★ VERIFIED PASS ★'))),
                                   style: TextStyle(
                                     fontSize: 6.5,
                                     fontWeight: FontWeight.w900,
-                                    color: isExpired || isBlocked
+                                    color: isInactive || isExpired || isBlocked
                                         ? const Color(0xFFF87171)
                                         : isGrace
                                             ? const Color(0xFFFDE68A)
@@ -1783,7 +1880,39 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
+
+                      // Official Rubber Stamp & Authorized Signatory Block
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Authentic Certified Institutional Seal Stamp
+                            OrganisationalSealStamp(
+                              libraryName: library?.name ?? 'Study Centre',
+                              locality: localityName,
+                              isInactive: !isPassActive,
+                              size: 38,
+                              rotation: -6,
+                            ),
+                            // Authorized Signatory
+                            if (settings.showSignature)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(width: 80, height: 1, color: const Color(0xFF64748B)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    settings.signatureTitle.isNotEmpty ? settings.signatureTitle : 'Authorized Signatory',
+                                    style: const TextStyle(fontSize: 7.5, color: Color(0xFFCBD5E1), fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
 
                       // Bottom Contact Bar (Gated by admin settings)
                       if (settings.showHelpline)

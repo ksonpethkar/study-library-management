@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ExpiryNotificationService {
   static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
 
   static Future<void> initialize() async {
-    if (_initialized) return;
+    if (kIsWeb || _initialized) return;
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     await _plugin.initialize(
@@ -15,8 +17,23 @@ class ExpiryNotificationService {
     _initialized = true;
   }
 
-  /// Check for plans expiring within the configured reminder window and show notifications
+  /// Check for plans expiring within the configured reminder window and show notifications (Admin only, throttled to once per 12h)
   static Future<void> checkExpiringPlans(String libraryId, {int? customReminderDays}) async {
+    if (kIsWeb || libraryId.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final role = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+      if (role != 'admin') return; // Never blast admin bulk expiry alerts on student devices
+
+      final throttleKey = 'last_admin_expiry_notif_check_$libraryId';
+      final lastCheckMs = prefs.getInt(throttleKey) ?? 0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      if (nowMs - lastCheckMs < const Duration(hours: 12).inMilliseconds) return;
+      await prefs.setInt(throttleKey, nowMs);
+    } catch (_) {
+      return;
+    }
+
     await initialize();
 
     final now = DateTime.now();
@@ -98,14 +115,25 @@ class ExpiryNotificationService {
   }
 
   /// Single student self-check that evaluates plan validity and notifies student directly
-  /// without requiring an admin to open the dashboard.
+  /// without requiring an admin to open the dashboard (Student device only, throttled once per day).
   static Future<void> checkStudentSelfExpiry({
     required String studentName,
     required DateTime? planEndDate,
     required String seatLabel,
     int reminderDays = 3,
   }) async {
-    if (planEndDate == null) return;
+    if (kIsWeb || planEndDate == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final role = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+      if (role == 'admin') return; // Never trigger student self-expiry alerts on an admin device
+      final now = DateTime.now();
+      final dayKey = '${now.year}-${now.month}-${now.day}';
+      if (prefs.getString('last_student_self_expiry_notif_day') == dayKey) return;
+      await prefs.setString('last_student_self_expiry_notif_day', dayKey);
+    } catch (_) {
+      return;
+    }
     await initialize();
 
     final now = DateTime.now();

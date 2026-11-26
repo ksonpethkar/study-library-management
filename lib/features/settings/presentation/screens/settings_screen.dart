@@ -1425,12 +1425,12 @@ class SettingsScreen extends ConsumerWidget {
                           ],
                         ),
                       ],
-                      if (lib?.facilities.isNotEmpty == true) ...[
+                      if (lib?.effectiveFacilities.isNotEmpty == true) ...[
                         const SizedBox(height: 10),
                         Wrap(
                           spacing: 6,
                           runSpacing: 4,
-                          children: lib!.facilities.take(5).map((facility) {
+                          children: lib!.effectiveFacilities.take(5).map((facility) {
                             return Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(

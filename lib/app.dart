@@ -35,10 +35,29 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Apply native screenshot protection immediately on startup based on cached setting
-    isScreenshotProtectionEnabled().then((enabled) {
-      applyNativeSecureFlag(enabled);
+    // Apply native screenshot protection on startup:
+    // Strictly Student Portal only — Splash, Login, and Admin Portal stay unlocked.
+    SharedPreferences.getInstance().then((prefs) async {
+      final role = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+      if (role == 'student') {
+        final libId = prefs.getString('cached_current_library_id');
+        final enabled = await isScreenshotProtectionEnabled(libraryId: libId);
+        await applyNativeSecureFlag(enabled);
+      } else {
+        await applyNativeSecureFlag(false);
+      }
     }).catchError((_) {});
+
+    // Always bootstrap live security watcher on first frame (ref.listen skips initial provider values)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final initialLibId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+      if (initialLibId.isNotEmpty) {
+        TelemetryService.setLibrary(initialLibId);
+        loadScreenshotProtectionFromFirestore(initialLibId);
+        _watchScreenshotProtection(initialLibId);
+      }
+    });
 
     InactivityLockService.initialize(
       onLock: () async {
@@ -136,7 +155,12 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
           await prefs.setBool('screenshot_protection_global', enabled);
           await prefs.setBool('screenshot_protection_configured', true);
           await prefs.setBool('screenshot_protection_admin_disabled', !enabled);
-          await applyNativeSecureFlag(enabled);
+          final currentRole = ref.read(userRoleProvider);
+          if (currentRole == AppUserRole.student) {
+            await applyNativeSecureFlag(enabled);
+          } else {
+            await applyNativeSecureFlag(false);
+          }
         }
       }
     }, onError: (_) {});
@@ -168,6 +192,12 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
         candidateIds: [if (student?.id != null) student!.id, ?authUid],
         isAdmin: isAdmin,
       );
+      if (role == AppUserRole.student) {
+        final enabled = await isScreenshotProtectionEnabled(libraryId: libId);
+        await applyNativeSecureFlag(enabled);
+      } else {
+        await applyNativeSecureFlag(false);
+      }
       if (shouldLock && mounted) {
         await _saveCurrentRoute();
         final router = ref.read(appRouterProvider);
@@ -213,20 +243,33 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
       }
     });
 
+    // Dynamically update native screenshot protection based on active user role
+    ref.listen(userRoleProvider, (previous, next) async {
+      if (next == AppUserRole.admin) {
+        await applyNativeSecureFlag(false);
+      } else if (next == AppUserRole.student) {
+        final libId = ref.read(currentLibraryIdProvider);
+        final enabled = await isScreenshotProtectionEnabled(libraryId: libId);
+        await applyNativeSecureFlag(enabled);
+      }
+    });
+
     final themeMode = ref.watch(themeNotifierProvider);
     final fontSettings = ref.watch(fontSettingsProvider);
     final router = ref.watch(appRouterProvider);
 
-    // --- Dynamic brand color ---
-    // 1. Try live Firestore library first (updates instantly when admin changes color)
-    // 2. Fall back to cached value from SharedPreferences (available instantly on startup)
-    // 3. Final fallback: default brown from AppColors
-    final liveLibrary = ref.watch(currentLibraryProvider).value;
+    // --- Dynamic brand color & title (only watch accentColor/name so unrelated library fields don't rebuild root MaterialApp) ---
+    final libraryBranding = ref.watch(
+      currentLibraryProvider.select((asyncLib) {
+        final lib = asyncLib.value;
+        return (lib?.accentColor ?? 0, lib?.name ?? '');
+      }),
+    );
     final prefs = ref.watch(sharedPreferencesProvider);
 
     final Color seedColor;
-    if (liveLibrary != null && liveLibrary.accentColor != 0) {
-      seedColor = Color(liveLibrary.accentColor);
+    if (libraryBranding.$1 != 0) {
+      seedColor = Color(libraryBranding.$1);
     } else {
       final cached = prefs.getInt('cached_library_accent_color');
       seedColor = cached != null && cached != 0
@@ -235,8 +278,8 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
     }
 
     final cachedName = prefs.getString('cached_library_name');
-    final effectiveAppTitle = liveLibrary?.name.isNotEmpty == true
-        ? liveLibrary!.name
+    final effectiveAppTitle = libraryBranding.$2.isNotEmpty
+        ? libraryBranding.$2
         : (cachedName != null && cachedName.trim().isNotEmpty
             ? cachedName.trim()
             : 'The Cozy Corner Study Centre');

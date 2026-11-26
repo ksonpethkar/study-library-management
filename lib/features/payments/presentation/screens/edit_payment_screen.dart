@@ -575,7 +575,7 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
                         backgroundColor: theme.colorScheme.primary,
                         child: Text(
                           widget.student.name.isNotEmpty ? widget.student.name[0].toUpperCase() : 'S',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                          style: TextStyle(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 18),
                         ),
                       ),
                       const SizedBox(width: 14),

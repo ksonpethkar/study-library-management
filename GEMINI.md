@@ -989,3 +989,185 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
 6. **Mobile Viewport Wrapping for Header Actions ("Set Due / Set Amount"):**
    - Root Cause: Unconstrained horizontal `Row` containing "Admitted", "Adjust Dates", and "Set Due" clipped the "Set Due / Set Amount" button on narrow viewports (<390px).
    - Guardrail: Wrap all variable-width header action clusters in `Wrap(spacing: 10, runSpacing: 6)` and provide a minimum bottom scroll inset of `80 + MediaQuery.of(context).padding.bottom` across all scrollable views.
+
+---
+
+## 50. Dynamic Adjusted Dates Fee Math, Pro-Rata Engine & Direct Collection Flow (Learned Nov 2026)
+
+1. **Dynamic Pro-Rata Fee Calculation Engine:**
+   - Root Cause: When admin adjusted plan dates (e.g., Nov 15 to Nov 30 = 16 days), `_showAdjustDatesDialog` had `if (recalculateDueProRata && currentPendingDue > 0)`, which silently bypassed setting `pendingDueBalance` and `totalFee` when `currentPendingDue == 0`. When admin subsequently clicked "Record Fee", the payment screen had no knowledge of adjusted dates, defaulted `validFrom` to `DateTime.now()` (23 Nov), and billed 8 days (₹350) instead of 16 days (₹373).
+   - Guardrail: Always expose dynamic pro-rata fee math ($\text{Daily Rate} = \text{Plan Price} / \text{Standard Days}$, $\text{Pro-Rata Fee} = \text{Selected Days} \times \text{Daily Rate}$) and allow updating `pendingDueBalance` and `totalFee` whether existing dues are zero or positive.
+
+2. **Direct Collection Action (`Save & Collect Fee`):**
+   - Root Cause: Admin had to adjust dates, close the dialog, and separately find and tap "Record Fee", losing date context and forcing manual re-entry.
+   - Guardrail: Always provide a direct action button: `Save & Collect Fee (₹$due)` in date adjustment dialogs. Tapping it saves updates to Firestore, synchronizes active receipts, closes the dialog, and directly navigates to `RecordPaymentScreen` passing `initialStartDate`, `initialEndDate`, `overridePlanPrice`, and `overrideDue`.
+
+3. **Date Context Inheritance in `RecordPaymentScreen`:**
+   - Root Cause: `RecordPaymentScreen` lacked `initialStartDate` and `initialEndDate`, falling back to `DateTime.now()` or jumping to next month via advance continuity logic (`planEndDate + 1`).
+   - Guardrail: Always accept `initialStartDate` and `initialEndDate` in `RecordPaymentScreen`. When present, initialize `_customStartDate` and `_customCustomExpiryDate`, set `_extendValidity = false` (paying for configured cycle), and pre-calculate pro-rata fees from the selected plan's daily rate.
+
+4. **Retroactive Receipt Self-Healing in PDF & In-App Previews:**
+   - Root Cause: Receipts created mid-cycle burned transaction dates (e.g. `23/11/2026 to 30/11/2026`) into `validFrom`, conflicting with the student's actual subscription cycle (`15/11/2026 to 30/11/2026`).
+   - Guardrail: In `PdfService.generateReceiptPdf` and `receipt_preview_screen.dart`, when a receipt's `validTo` matches the student's `planEndDate` and `student.planStartDate` is earlier than `receipt.validFrom`, dynamically self-heal `effectiveValidFrom` to `student.planStartDate` and display `($cycleDays Days)` so all printed and previewed receipts accurately reflect the full subscription coverage.
+
+---
+
+## 51. Notification Audience Role Fencing & Student Portal Screenshot Protection (Learned Nov 2026)
+
+1. **Notification Audience Role Fencing & Self-Notification Suppression:**
+   - Root Cause: In `AppNotificationService.sendNotification`, `shouldShowLocally` defaulted to `true`. When an admin approved a student or assigned a desk on their Android phone, the method dispatched the Firestore write and immediately called `NotificationService.showNotification` locally on the sender's own device! Because `currentRole` fell back to `'student'`, the admin's phone popped up student-targeted alerts in the Android notification drawer: `"Admission Approved! 🎉 Hello Shubham katle!"` and `"Desk Allocated 🪑 You have been assigned to Seat #15."`. Similarly, announcements posted by admin buzzed the admin's own phone.
+   - Guardrails:
+     a) `shouldShowLocally` must default to `false`. The initiating device never needs a local status-bar notification for an action it just performed locally.
+     b) When `currentRole == 'admin'`: NEVER display student-targeted notifications (`targetRole == 'student'`), such as admission approvals, desk allocations, payment confirmations, or student broadcasts.
+     c) When `currentRole == 'student'`: NEVER display admin-targeted notifications (`targetRole == 'admin'`). Student notifications only display if `targetUserId` matches the student's Auth UID or student document ID, and the action was not initiated by the student.
+     d) On role persistence (`persistUserRole`) and startup (`SplashScreen`), automatically synchronize FCM topic subscriptions (`admin-$safeLibId` vs `student-$safeLibId`) to guarantee background pushes never deliver to the wrong role.
+
+2. **Screenshot Protection Role Separation (Student Protection Plane vs Admin Control Plane):**
+   - Root Cause: Screenshot Protection (`FLAG_SECURE`) was applied globally to the Android Activity window on startup (`app.dart`) and immediately upon toggling in `SecuritySettingsDialog`. Consequently, the Admin's phone was locked down from screenshots of admin reports, seat layouts, and student rosters, while `StudentHomeScreen` (which displays the digital smart pass, QR code, and desk info) and `MyReceiptsScreen` completely lacked `SecureScreenMixin` and were unblocked.
+   - Guardrails:
+     a) Admin Exemption: The Admin Portal must NEVER be blocked from taking screenshots (`applyNativeSecureFlag(false)`). Library owners and staff require screenshot capability for accounting, audit receipts, seat maps, and support.
+     b) Student Enforcement: Screenshot Protection controls exist in the Admin Portal (`SecuritySettingsDialog`), but the enforcement plane is exclusively the **Student Portal**.
+     c) When `role == 'student'`, enforce `FLAG_SECURE` on `StudentHomeScreen`, `MyIdCardScreen`, and `MyReceiptsScreen` whenever the library policy (`screenshotProtectionEnabled`, default: `true`) is active. When admin turns the toggle OFF, student screens are unblocked.
+
+---
+
+## 52. Ledger Truthfulness, Exclusive Desk Holds & Mixed-Case Applicant Onboarding Integrity (Learned Nov 2026)
+
+1. **Zero-Payment Approval Ledger Integrity & No Synthetic 90/91-Day Receipts:**
+   - Root Cause: Multiple surfaces treated any non-null `planId` (or unverified fallback `enteredAmount == 0 -> amount`) as paid:
+     a) `StudentProvisioningService` defaulted unpaid new admissions' `planStartDate`/`planEndDate` to 30 days and treated unpaid renewals (`paidAmount == 0` / `skipPayment: true`) as active paid extensions.
+     b) `RequestListScreen._openPaymentModal` fell back from `enteredAmount == 0` to `amount` and fired `SoundboxService.announcePayment` and WhatsApp payment confirmation even when ₹0 was collected.
+     c) `MyMembershipScreen._StudentTransactionsSection` and `MyReceiptsScreen` synthesized fake `CONFIRMED` ₹700/`91 Days` receipts whenever `receipts` was empty and `student.planId != null`, and `MyPaymentHistoryScreen` used `Filter.or(...)` causing silent index failures.
+   - Guardrails:
+     a) Centralize all student payment/receipt eligibility and ledger synthesis in `StudentLedgerHelper` (`isPaidAdmissionEligible`, `isConfirmedPaidStatus`, `shouldAnnounceApprovalPayment`, `resolveFallbackPlanEndDate`, `buildTransactionsLedger`, `computeTotalPaid`). Unpaid / `paymentPending` admissions MUST have zero confirmed history and `null` synthetic receipt.
+     b) NEVER fabricate a fallback `+90 days` or `+91 days` validity window (`resolveFallbackPlanEndDate` returns `null` when `planEndDate` is missing).
+     c) NEVER announce a Soundbox payment chime or dispatch a WhatsApp payment confirmation when collected `paidAmt <= 0` or outside `renewal` / `due_payment` collections.
+     d) Wrap variable-width plan chips and billing subtitles in `MyMembershipScreen` with `Expanded`/`Flexible` and `FittedBox` so right-edge badges (`Payment Pending` / `Starts on fee payment`) never clip on 360px viewports.
+
+2. **Exclusive Pre-Submit Seat Soft-Lock & Multi-Applicant Conflict Defense:**
+   - Root Cause: `SeatSelectionScreen` wrote to the nonexistent `/seats` flat path instead of `SeatRepository.softLockSeat` on `libraries/{libId}/sections/{secId}/seats/{seatId}`; `ReviewSubmitScreen` acquired the 24h lock only after `requestRef.set` and swallowed errors (`proceeding anyway`); `StudentSeatMapScreen` (`seat_change`) ignored `SeatStatus.reserved` and never locked seats; `RequestDetailScreen` ignored active soft-locks and competing pending requests and blindly called `releaseSoftLock` without checking `expectedCandidateId`; and `StudentProvisioningService` silently wiped `seatId: null` on collision.
+   - Guardrails:
+     a) Acquire transactional `SeatRepository.softLockSeat` BEFORE writing `requests/{id}` (in both `ReviewSubmitScreen` and `StudentSeatMapScreen`); if the request write fails, immediately roll back via `releaseSoftLock(..., expectedCandidateId: uid)`.
+     b) Strictly scope `firestore.rules` soft-lock writes on `/sections/{sectionId}/seats/{seatId}` so candidates can only hold an `available` or expired `reserved` desk with `status == 'reserved'` and `reservationType` in `['registration_hold', 'seat_change_hold']`, leaving all other fields immutable.
+     c) `releaseSoftLock` and `rejectRequest` must pass `expectedCandidateId` so rejecting Applicant B cannot release Applicant A's hold.
+     d) Block accidental double-booking at approval time (`RequestDetailScreen`, `RequestListScreen`, and `StudentProvisioningService` with `overrideSeatCollision = false`) when the desk is occupied, held by another user, or requested by competing pending applications.
+
+3. **Case-Insensitive Applicant Lookup, Redirect Draft Persistence & Router Stability (`Sj98191@gmail.com` Cluster):**
+   - Root Cause: `waiting_list_repository.dart` matched emails via `email.contains(entry.studentPhone)` (matching `98191` inside `Sj98191@gmail.com`); `ReviewSubmitScreen` / `RegistrationFormScreen` wrote mixed-case emails without top-level `email`/`studentEmail`/`userId`; `appRouterProvider` watched `userRoleProvider`, rebuilding `GoRouter(initialLocation: Routes.splash)` and bouncing students mid-flow back to Splash/Login; Web `signInWithRedirect` + `StudentRegistrationWizard` cleared in-progress wizard state; `functions/index.js` `onRequestCreated` deleted newly created requests whenever any older pending doc existed; and oversized PDFs exceeded Firestore's 1 MiB limit without clear early validation.
+   - Guardrails:
+     a) NEVER match phone numbers via substring search inside email addresses. Normalize `email.trim().toLowerCase()` everywhere (`RegistrationFormScreen`, `ReviewSubmitScreen`, `StudentSeatMapScreen`, `StudentProvisioningService`, `firestore.rules`) and include raw mixed-case fallback queries for legacy docs in Splash/Login/AuthRoleService.
+     b) Keep `GoRouter` persistent via `refreshListenable` + `ref.listen`; never `ref.watch(userRoleProvider)` directly inside `appRouterProvider`.
+     c) Persist `RegistrationDraftStorage` across Web OAuth redirects and hold `registrationSubmissionSuccessProvider` true until the confirmation screen `Done` action completes; protect wizard steps 2..6 with `PopScope`.
+     d) Reject > 650 KB PDFs upfront in `DocumentPickerService` (and > 940 KB total request payloads before soft-locking) and mark older same-type pending requests `'superseded'` in `onRequestCreated` instead of deleting newly submitted docs.
+
+---
+
+## 53. Announcement Role Isolation, Communications Hub Hardening & Backup Restore Resilience (Learned Nov 2026)
+
+1. **Announcement Role Isolation & Admin Topic Separation:**
+   - Root Cause: `announcement_list_screen.dart` dispatched announcements with `targetRole: 'all'`, `actionRoute: '/student/announcements'`, and topic `'lib-${libraryId}'`. Meanwhile, `NotificationService.subscribeToLibraryTopics` subscribed Admin devices to `lib-${libraryId}`, and `functions/index.js` (`onNotificationCreated`) sent `targetRole == 'all'` notifications directly to `adminFcmToken`, `admin-${libraryId}`, and Admin Telegram — causing Chrome Web push (`study-lib-m...`) and Admin notifications to buzz on the Admin's own phone whenever Admin posted a student circular.
+   - Guardrails:
+     a) Always dispatch student announcements with `targetRole: 'student'`, topic `'student-${libraryId}'`, and `metadata['initiatedBy']`.
+     b) In `subscribeToLibraryTopics`: when `isAdmin == true`, subscribe ONLY to `admin-$safeLibId` and explicitly unsubscribe from `lib-$safeLibId` and `student-$safeLibId`.
+     c) Exclude student-routed announcements (`type == 'announcement' && targetRole != 'admin'`) from `adminNotificationsStreamProvider` and from `onNotificationCreated` Admin/Telegram dispatch.
+
+2. **Communications Hub Layout Safety, Secret Isolation & Cross-Platform Webhooks:**
+   - Root Cause: Soundbox test buttons (`Test Chime` + `Test ₹500 Announcement`) sat inside an unconstrained `Row` causing right-edge clipping on mobile Web; `firestore.rules` allowed any authenticated student to read `settings/{id}` (including `settings/messaging` API tokens & webhooks); `NotificationWebhookService` used `dart:io` `HttpClient` (crashing on Flutter Web) and read an unused `settings/webhooks` path; scheduled Cloud Functions ignored automation rule toggles; and background snapshot listeners overwrote unsaved token inputs.
+   - Guardrails:
+     a) Wrap Soundbox preview/test buttons in responsive `Wrap(spacing: 10, runSpacing: 8)` with unified ₹500 sample amount.
+     b) Store secret keys (`telegramBotToken`, `metaAccessToken`, `smsApiKey`, `customWebhookUrl`) in `libraries/{libraryId}/admin_secrets/communications`, locked alongside `settings/messaging` & `settings/webhooks` exclusively to `isOwner(libraryId) || staffCan(libraryId, 'canManageSettings')` in `firestore.rules`. Strip raw API secrets from public `settings/communications`.
+     c) Use `package:http` in `NotificationWebhookService`, resolve real plan pricing & `SeatHelper.formatDeskLabel` in Action Queue, and honor `rules` toggles (`morningBriefing`, `nightlySettlement`, `waitlistCascade`, `multiStageRenewals`) inside `functions/index.js`.
+
+3. **Backup & Restore Integrity, Chunk Cleanup & Post-Restore Verification:**
+   - Root Cause: `_supportedCollections` omitted `expenses`, `feedback`, and `libraryProfile`; `SetOptions(merge: true)` could not revert fields added after a snapshot; shrinking same-day `daily_backups/{dateKey}` overwrites left stale trailing chunks in `chunks/` corrupting base64/GZip decoding; a single failed payment/staff validation aborted all 450 operations in a `WriteBatch`; cloud snapshot restore forgot to update `_statusText` percentages and only ticked progress every 450 writes; and `checkAndRunRollingBackup` shared one key across libraries.
+   - Guardrails:
+     a) Back up `expenses`, `feedback`, and safe root `libraryProfile` alongside existing collections, clean up stale chunks (`idx >= totalChunks`) during `saveDailyCloudSnapshot`, commit chunks in <=15-chunk batches (~6 MB) BEFORE writing final snapshot metadata, and scope `last_daily_cloud_backup_date_$libraryId` per library.
+     b) In `restoreFromJsonString`: flush in responsive batches (`50` on Web / `250` on mobile) with per-doc resilient fallback on batch error, support optional `exactMirror` (`Strict Snapshot Replace Mode`), invalidate core Riverpod providers after completion, and present a verified record count breakdown dialog (`_showRestoreSummaryDialog`).
+     c) Wrap manual restore `FilePicker.pickFiles` in `InactivityLockService.setExternalDialogActive(true/false)` so OS file dialog blur does not auto-lock the Admin.
+
+---
+
+## 54. Web Performance, Asset HTTP Caching, Encryption Memoization & Zero-Jank Frame Discipline (Learned Nov 2026)
+
+> [!CAUTION]
+> This section is **STRICT & PERMANENT** for every future build, deployment, and UI feature addition. Never reintroduce full-bundle cache prevention, uncached heavy crypto on UI threads, or per-frame offscreen GPU blur layers.
+
+1. **HTTP Asset & Bundle Caching Headers (`firebase.json`):**
+   - Root Cause: `"**"` and `"**/*.@(js|mjs)"` in `firebase.json` set `"Cache-Control": "no-cache, no-store, must-revalidate"`, forcing browsers to discard the 10.6 MB `main.dart.js`, 7.3 MB `canvaskit.wasm`, fonts, and icons and re-download them over the network on reloads and route transitions.
+   - Guardrails:
+     a) Allow long-lived HTTP caching (`public, max-age=604800, stale-while-revalidate=86400`) on `**/*.wasm` and static media/fonts (`png|jpg|jpeg|webp|gif|svg|ico|ttf|otf|woff|woff2`).
+     b) Use `public, max-age=0, must-revalidate` for `**/*.@(js|mjs)` so browsers retain `main.dart.js` on disk via ETag (`304 Not Modified`) while serving fresh code immediately on redeploys.
+     c) Restrict `no-cache, no-store, must-revalidate` strictly to entrypoints (`**/index.html`, `**/flutter_bootstrap.js`, `**/flutter_service_worker.js`, `**/version.json`, `update.json`).
+     d) Never leave bloated, unreferenced files (such as the removed 1.15 MB `logo_b64.txt`) inside `assets/`.
+
+2. **Non-Blocking Startup & On-Demand Heavy Scripts (`web/index.html`, `main.dart`, `splash_screen.dart`):**
+   - Root Cause: Eager synchronous CDN `<script>` tags (`tesseract.min.js`, `pdf.min.js`, `jsQR.min.js`) and an 8-family Google Fonts stylesheet blocked initial HTML parsing; `main.dart` awaited a 10s network `RemoteConfigService.initialize()` before `runApp()`; and `SplashScreen` awaited `checkForUpdate()` + an artificial `1600ms` delay.
+   - Guardrails:
+     a) Lazy-load optional heavy web libraries (`Tesseract`, `PDF.js`, `jsQR`) on demand inside their respective JS helper functions via `_loadExternalScript(...)`.
+     b) Load web fonts asynchronously (`rel="preload" as="style" ... onload="this.rel='stylesheet'"`).
+     c) Never block `runApp()` or splash navigation on network fetches (`RemoteConfigService.initialize(waitForFetch: false)`, `checkForUpdate().ignore()`, `runDailyMaintenance().ignore()`). Keep splash wait snappy (`200ms` web / `450ms` native).
+
+3. **Zero Synchronous 100k-Iteration PBKDF2 Loops on the UI Thread (`encryption_service.dart`):**
+   - Root Cause: `StudentRepository._parseStudentDoc` and `StudentPageNotifier._safeParseDoc` ran `EncryptionService.safeDecryptGovId()` synchronously for every student on every Firestore snapshot emission, re-executing **100,000 PBKDF2 HMAC-SHA256 iterations** per student without caching the derived AES key, freezing the JavaScript main thread for seconds.
+   - Guardrails:
+     a) Always memoize derived keys (`_derivedKeyCache`, `_legacyKeyCache`) per passphrase and cache decrypted values (`_decryptedValueCache`).
+     b) Never execute uncached key derivation inside synchronous `.map()` stream transformers or widget `build()` methods.
+
+4. **Zero-Jank Compositing, Memoized Themes & O(1) List/Grid Rendering:**
+   - Root Cause: `AdminShell` and `StudentShell` wrapped solid bottom `NavigationBar`s in `BackdropFilter(sigmaX: 16, sigmaY: 16)`; `StudyLibraryApp.build` watched the entire `currentLibraryProvider` and recalculated 30 `GoogleFonts` styles via unmemoized `AppTheme.fromSeed` calls; `SeatTile` instantiated 3 `AnimationController`s + multiple Gaussian `BoxShadow`s per seat (180+ controllers for 60 seats); `StudentListScreen` used `IntrinsicHeight` (`O(N^2)` double layout) and linear `allSeats` loops per card; `SentinelEchoVerifier` spun a 500ms `Timer.periodic` permanently on idle; and `ExpiryNotificationService.checkExpiringPlans` had previously executed `.get()` queries inside `build()` or on Web.
+   - Guardrails:
+     a) NEVER place `BackdropFilter` / `ImageFilter.blur` over persistent navigation bars or scrolling lists.
+     b) Memoize `AppTheme.fromSeed` in `_themeCache`, read theme/font prefs synchronously via `sharedPreferencesProvider`, and scope root `MaterialApp` rebuilds using `currentLibraryProvider.select(...)`.
+     c) NEVER use `IntrinsicHeight`, stacked per-tile `AnimationController`s (`PressableScale` + `AnimatedContainer` + `AnimatedOpacity`), or pervasive `BoxShadow` blurs inside `ListView.builder` / `GridView.builder` cells; precompute lookup maps once per `build()`.
+     d) Isolate infinite animations (`LiveRadarPulse`, `LiveRadarDot`, `PulsingGlowContainer`, `HolographicCard3D`) inside `RepaintBoundary` and stop background timers (`SentinelEchoVerifier`) when idle.
+     e) Guard mobile-only local notification services (`ExpiryNotificationService`) with `if (kIsWeb) return;` and NEVER perform Firestore `.get()` or notification side effects inside `Widget.build()`.
+
+5. **Unified Financial Collection Aggregation (`unifiedFinancialLedgerProvider`):**
+   - Root Cause: `netProfitProvider` and `revenueDataProvider` executed redundant sequential full-collection `.get()` scans across `payments` and `receipts` on every Admin Dashboard load and pull-to-refresh.
+   - Guardrails:
+     a) Fetch `payments`, `receipts`, and `expenses` ONCE in parallel via `Future.wait` inside `unifiedFinancialLedgerProvider`, and derive both `netProfitProvider` and `revenueDataProvider` from that single ledger pass.
+     b) Invalidate `unifiedFinancialLedgerProvider` after recording/updating payments or expenses so both Net Profit and Revenue Chart refresh together without duplicate reads.
+
+6. **Modern `package:web` + `dart:js_interop`, Scoped `Consumer` Boundaries & Deferred Route Splitting:**
+   - Root Cause: First-party web utilities used deprecated `dart:html` / `dart:js` (`eval`), dashboards watched secondary streams at top-level `build()` without downsampling AppBar logos (`ImageService.getAvatarProvider`), and rarely visited Admin tools bloated initial `main.dart.js`.
+   - Guardrails:
+     a) Use strictly `package:web` + `dart:js_interop` with `if (dart.library.js_interop)` conditional imports; NEVER reintroduce `dart:html`, `dart:js`, or `dart:js_util` anywhere in `lib/`.
+     b) Isolate localized banners and sub-cards (holidays, financial pulse, student notices, renewal/seat-change banners) inside scoped `Consumer` widgets and render circular avatars/logos with `ImageService.getAvatarProvider(...)`.
+     c) Import standalone heavy Admin screens (Bulk Import, Backup, Maintenance, Sentinel Diagnostics, Data Export, Audit Log, Recycle Bin, Revenue Dashboard, Template/Form Studios, QR Scanner) via `deferred as` + `_DeferredRouteLoader` in `app_router.dart` so `main.dart.js` stays lean on initial boot.
+
+
+
+
+
+---
+
+## 57. Dual-Portal Identical ID Pass Geometry, Official Seal Stamp, Inactive State Fencing & Clean OCR Protocol (Learned Nov 2026)
+
+1. **Dual-Face Identical ID Pass Geometry (440 x 256px Parity):**
+   - Root Cause: Front ID card was rendered with loose vertical constraints (~240px height) while back ID card rendered with ~340px height due to unconstrained terms, QR verification box, and contact tiles. Tapping "Flip to View Back Side" caused vertical layout jumps and clipping across Admin (IdCardPreviewScreen) and Student (MyIdCardScreen).
+   - Guardrails:
+     a) Both _buildCardFront and _buildCardBack MUST be constrained to identical dimensions: width: double.infinity, height: 256, constraints: const BoxConstraints(maxWidth: 440, minHeight: 256, maxHeight: 256).
+     b) Back card terms, emergency contacts, and signatory sections must scale smoothly inside this 256px boundary with zero RenderFlex overflow.
+
+2. **Strict Inactive & Expired State Fencing on ID Passes:**
+   - Root Cause: Inactive or suspended students (e.g. Shubham Katle CC20260017, Savita Wagesh Choudhari CC20260018) still showed green STUDENT PASS / ACTIVE PASS headers, active validity dates, live clock tickers (● LIVE 19:56:23), green Verified Digital Student Pass Active bottom cards, and stale unassigned seats (Seat: #15).
+   - Guardrails:
+     a) If student.status == 'inactive' or status == 'suspended' or status == 'expired':
+        - Header badge must render red INACTIVE PASS or SUSPENDED or EXPIRED PASS.
+        - Valid: date must display 'Inactive' / 'Suspended' / 'Expired'.
+        - Anti-screenshot live ticker must display static red ● PASS INACTIVE or ● PASS EXPIRED with zero pulsing live dot.
+        - Digital pass verification banner must display a red caution container: "Inactive Pass - Unassigned / Suspended".
+        - Back QR code status pill must display red INACTIVE / SUSPENDED and bottom badge must render ✕ INACTIVE PASS instead of ★ VERIFIED PASS ★.
+     b) Seat Allocation Fencing: If student.seatId == null || student.seatId.isEmpty, display 'Unassigned' - NEVER render stale or previously allocated desk numbers.
+
+3. **Official Institutional Double-Ring Rubber Seal Stamp (OrganisationalSealStamp):**
+   - Root Cause: ID passes lacked authentic library branding and seal stamps, rendering either no stamp or a flat 28px placeholder circle.
+   - Guardrails:
+     a) Render OrganisationalSealStamp on both front and back faces with dual concentric rings, curved library header text, locality text, and central status emblem (OFFICIALLY APPROVED in teal/green or INACTIVE / VOID in crimson/red).
+     b) Apply authentic -7 deg rotational tilt and rubber stamp text styling for high-trust verification.
+
+4. **Zero OCR Hallucination Leakage & Elimination of Unused Scanners:**
+   - Root Cause: Client-side Aadhaar QR parsing was inaccurate, and OCR auto-fill captured government headers (e.g., "GOVERNMENT OF INDIA", "Unique Identification Authority") into student name/address fields, and previewed dirty garbage text.
+   - Guardrails:
+     a) Completely eliminate client-side Aadhaar QR scanner tabs/buttons in favor of standard camera/gallery photo OCR and clean manual entry.
+     b) Enforce strict regex validation on extracted text (isIdValid, isNameValid, isDobValid, isPinValid, isAddressValid). If confidence is low or text contains administrative government boilerplate, discard it (null) and require user manual entry rather than filling false data.

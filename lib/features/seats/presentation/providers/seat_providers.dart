@@ -82,9 +82,9 @@ final occupancyProvider = StreamProvider<Map<String, int>>((ref) async* {
       final key = numOnly.isNotEmpty ? 'seat_num_$numOnly' : seat.id;
       if (seat.isOccupied || (seat.studentId != null && seat.studentId!.isNotEmpty)) {
         occupiedSeatKeys.add(key);
-      } else if (seat.status == SeatStatus.reserved || seat.hasActiveSoftLock) {
+      } else if (seat.hasActiveSoftLock) {
         reservedSeatKeys.add(key);
-      } else if (seat.status == SeatStatus.maintenance) {
+      } else if (seat.effectiveStatus == SeatStatus.maintenance) {
         maintenanceSeatKeys.add(key);
       }
     }

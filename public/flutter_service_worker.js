@@ -2,7 +2,7 @@
 
 /**
  * Cozy Corner Smart Study Library — Progressive Web App (PWA) Service Worker
- * Version: v1.5.50
+ * Version: v1.5.60
  *
  * Implements Scenario G offline resilience:
  * - Pre-caches fonts (Google Fonts, Noto Sans, Material Icons), icons, and app manifest
@@ -11,7 +11,7 @@
  * - Network-First with Cache Fallback for app shell during basement reading room network dropouts
  */
 
-const CACHE_NAME = 'cozy-corner-pwa-v1.5.50';
+const CACHE_NAME = 'cozy-corner-pwa-v1.5.60';
 
 const PRECACHE_ASSETS = [
   './manifest.json',

@@ -67,45 +67,47 @@ class _LiveRadarPulseState extends State<LiveRadarPulse>
       );
     }
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final progress = _controller.value;
-        return SizedBox(
-          width: widget.size * 2.2,
-          height: widget.size * 2.2,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Expanding radar wave
-              Container(
-                width: widget.size + (widget.size * 1.2 * progress),
-                height: widget.size + (widget.size * 1.2 * progress),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: widget.color.withValues(alpha: (1.0 - progress) * 0.45),
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final progress = _controller.value;
+          return SizedBox(
+            width: widget.size * 2.2,
+            height: widget.size * 2.2,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Expanding radar wave
+                Container(
+                  width: widget.size + (widget.size * 1.2 * progress),
+                  height: widget.size + (widget.size * 1.2 * progress),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.color.withValues(alpha: (1.0 - progress) * 0.45),
+                  ),
                 ),
-              ),
-              // Inner core glowing dot
-              Container(
-                width: widget.size,
-                height: widget.size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: widget.color,
-                  boxShadow: [
-                    BoxShadow(
-                      color: widget.color.withValues(alpha: 0.65),
-                      blurRadius: 5,
-                      spreadRadius: 1,
-                    ),
-                  ],
+                // Inner core glowing dot
+                Container(
+                  width: widget.size,
+                  height: widget.size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.color,
+                    boxShadow: [
+                      BoxShadow(
+                        color: widget.color.withValues(alpha: 0.65),
+                        blurRadius: 5,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class PaymentMethodsScreen extends ConsumerStatefulWidget {
   const PaymentMethodsScreen({super.key});
@@ -1470,49 +1472,46 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
                         if (_policiesExpanded) ...[
                           const SizedBox(height: 16),
 
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _gracePeriodController,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Grace Period (Days)',
-                                  hintText: '3',
-                                  prefixIcon: Icon(Icons.timelapse_rounded),
-                                  border: OutlineInputBorder(),
-                                  helperText: 'Days after expiry before seat is released',
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: _lateFineController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: const InputDecoration(
-                                  labelText: 'Late Fine (₹ / Day)',
-                                  hintText: '0',
-                                  prefixIcon: Icon(Icons.currency_rupee_rounded),
-                                  border: OutlineInputBorder(),
-                                  helperText: 'Optional late fee per overdue day',
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-
                         TextField(
-                          controller: _gstinController,
-                          textCapitalization: TextCapitalization.characters,
+                          controller: _lateFineController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           decoration: const InputDecoration(
-                            labelText: 'GSTIN / Tax ID (Optional)',
-                            hintText: 'e.g. 27AAAAA0000A1Z5',
-                            prefixIcon: Icon(Icons.receipt_rounded),
+                            labelText: 'Late Fine (₹ / Day)',
+                            hintText: '0',
+                            prefixIcon: Icon(Icons.currency_rupee_rounded),
                             border: OutlineInputBorder(),
-                            helperText: 'Printed on official fee receipts if registered',
+                            helperText: 'Optional late fee per overdue day (applied in Record Payment)',
                           ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Unified links to authoritative Grace Period & GSTIN screens (prevents duplicate inputs)
+                        ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: theme.colorScheme.outlineVariant),
+                          ),
+                          leading: const Icon(Icons.timelapse_rounded, size: 20),
+                          title: const Text('Grace Period & Plan Overrides', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          subtitle: const Text('Managed in Grace Period Settings', style: TextStyle(fontSize: 11.5)),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => context.push(Routes.adminGracePeriod),
+                        ),
+                        const SizedBox(height: 8),
+                        ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: theme.colorScheme.outlineVariant),
+                          ),
+                          leading: const Icon(Icons.receipt_rounded, size: 20),
+                          title: const Text('GSTIN, SAC Code & Tax Billing', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          subtitle: const Text('Managed in Library Profile Settings', style: TextStyle(fontSize: 11.5)),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => context.push(Routes.adminLibraryProfile),
                         ),
                         const SizedBox(height: 14),
 

@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
+import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/models/seat_model.dart';
@@ -594,6 +596,16 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
 
     final crossAxisCount = activeSection.cols > 0 ? activeSection.cols : 10;
     final minGridWidth = math.max(360.0, crossAxisCount * 54.0);
+    final library = ref.watch(currentLibraryProvider).value;
+    final resolvedAmenities = AmenityCatalog.resolveEffectiveAmenities(
+      library: library,
+      section: activeSection,
+    );
+    final badgeAmenity = resolvedAmenities.isNotEmpty ? resolvedAmenities.first : null;
+    final hasSilenceZone = resolvedAmenities.any((a) => a.id == 'silence');
+    final rearBannerText = (activeSection.notes?.trim().isNotEmpty ?? false)
+        ? activeSection.notes!.trim()
+        : (hasSilenceZone ? 'Quiet Study Zone • Rear Area' : 'Rear Study Area');
 
     return SingleChildScrollView(
       controller: scrollController,
@@ -627,16 +639,17 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
                     ),
                   ],
                 ),
-                const Row(
-                  children: [
-                    Icon(Icons.wifi_rounded, size: 14, color: Color(0xFF10B981)),
-                    SizedBox(width: 4),
-                    Text(
-                      'Wi-Fi Zone',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
-                    ),
-                  ],
-                ),
+                if (badgeAmenity != null)
+                  Row(
+                    children: [
+                      Icon(badgeAmenity.icon, size: 14, color: const Color(0xFF10B981)),
+                      const SizedBox(width: 4),
+                      Text(
+                        badgeAmenity.shortLabel,
+                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -696,7 +709,7 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
             ),
             child: Center(
               child: Text(
-                'Quiet Study Zone & Rear Area',
+                rearBannerText,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,

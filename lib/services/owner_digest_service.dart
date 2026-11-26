@@ -298,18 +298,24 @@ class OwnerDigestService {
         actionRoute: Routes.adminHome,
       );
 
-      // Fetch telegram credentials
-      final commDoc = await _firestore
-          .collection(FirestorePaths.libraries)
-          .doc(libraryId)
-          .collection('settings')
-          .doc('communications')
-          .get();
+      // Fetch telegram credentials (admin_secrets first, then legacy settings/communications & messaging)
+      final libRef = _firestore.collection(FirestorePaths.libraries).doc(libraryId);
+      final snaps = await Future.wait([
+        libRef.collection('admin_secrets').doc('communications').get(),
+        libRef.collection('settings').doc('communications').get(),
+        libRef.collection('settings').doc('messaging').get(),
+      ]);
 
-      final data = commDoc.data() ?? {};
+      final secrets = snaps[0].data() ?? {};
+      final data = snaps[1].data() ?? {};
       final channels = (data['channels'] as Map<String, dynamic>?) ?? {};
-      final botToken = channels['telegramBotToken'] as String? ?? '';
-      final chatId = channels['telegramChatId'] as String? ?? '';
+      final msgData = snaps[2].data() ?? {};
+      final botToken = (secrets['telegramBotToken'] as String?)?.isNotEmpty == true
+          ? secrets['telegramBotToken'] as String
+          : ((channels['telegramBotToken'] as String?) ?? (msgData['telegramBotToken'] as String?) ?? '');
+      final chatId = (secrets['telegramChatId'] as String?)?.isNotEmpty == true
+          ? secrets['telegramChatId'] as String
+          : ((channels['telegramChatId'] as String?) ?? (msgData['telegramChatId'] as String?) ?? '');
 
       if (botToken.isNotEmpty && chatId.isNotEmpty) {
         return await telegramService.sendMessage(
@@ -343,18 +349,24 @@ class OwnerDigestService {
         actionRoute: '/admin/revenue',
       );
 
-      // Fetch telegram credentials
-      final commDoc = await _firestore
-          .collection(FirestorePaths.libraries)
-          .doc(libraryId)
-          .collection('settings')
-          .doc('communications')
-          .get();
+      // Fetch telegram credentials (admin_secrets first, then legacy settings/communications & messaging)
+      final libRef = _firestore.collection(FirestorePaths.libraries).doc(libraryId);
+      final snaps = await Future.wait([
+        libRef.collection('admin_secrets').doc('communications').get(),
+        libRef.collection('settings').doc('communications').get(),
+        libRef.collection('settings').doc('messaging').get(),
+      ]);
 
-      final data = commDoc.data() ?? {};
+      final secrets = snaps[0].data() ?? {};
+      final data = snaps[1].data() ?? {};
       final channels = (data['channels'] as Map<String, dynamic>?) ?? {};
-      final botToken = channels['telegramBotToken'] as String? ?? '';
-      final chatId = channels['telegramChatId'] as String? ?? '';
+      final msgData = snaps[2].data() ?? {};
+      final botToken = (secrets['telegramBotToken'] as String?)?.isNotEmpty == true
+          ? secrets['telegramBotToken'] as String
+          : ((channels['telegramBotToken'] as String?) ?? (msgData['telegramBotToken'] as String?) ?? '');
+      final chatId = (secrets['telegramChatId'] as String?)?.isNotEmpty == true
+          ? secrets['telegramChatId'] as String
+          : ((channels['telegramChatId'] as String?) ?? (msgData['telegramChatId'] as String?) ?? '');
 
       if (botToken.isNotEmpty && chatId.isNotEmpty) {
         return await telegramService.sendMessage(

@@ -12,15 +12,18 @@ service firebase.storage {
       return request.auth.uid;
     }
 
-    function email() {
-      return request.auth.token.email;
+    function emailLower() {
+      return ('email' in request.auth.token && request.auth.token.email != null)
+          ? request.auth.token.email.lower()
+          : '';
     }
 
     function isMasterAdmin() {
       return isAuth() && (
-        email() in ['ksonpethkar@gmail.com', 'thecozycornersc@gmail.com'] ||
-        (firestore.exists(/databases/(default)/documents/admin_whitelist/$(email())) &&
-         firestore.get(/databases/(default)/documents/admin_whitelist/$(email())).data.isActive == true)
+        emailLower() in ['ksonpethkar@gmail.com', 'thecozycornersc@gmail.com'] ||
+        (emailLower() != '' &&
+         firestore.exists(/databases/(default)/documents/admin_whitelist/$(emailLower())) &&
+         firestore.get(/databases/(default)/documents/admin_whitelist/$(emailLower())).data.isActive == true)
       );
     }
 
@@ -40,6 +43,15 @@ service firebase.storage {
 
     function isOwnerOrStaff(libraryId) {
       return isOwner(libraryId) || isStaff(libraryId);
+    }
+
+    function isStudentDocOwner(libraryId, studentId) {
+      return isAuth() && (
+        uid() == studentId ||
+        (firestore.exists(/databases/(default)/documents/libraries/$(libraryId)/students/$(studentId)) &&
+         (firestore.get(/databases/(default)/documents/libraries/$(libraryId)/students/$(studentId)).data.get('userId', '') == uid() ||
+          firestore.get(/databases/(default)/documents/libraries/$(libraryId)/students/$(studentId)).data.get('studentUserId', '') == uid()))
+      );
     }
 
     function isImage() {
@@ -74,11 +86,21 @@ service firebase.storage {
       allow write: if isOwnerOrStaff(libraryId) && isImage() && isUnder2MB();
     }
 
-    // ── Student photos ────────────────────────────────────────────────────────
-    // Only the student themselves or library staff/owner can read/write
+    // ── Private identity documents & payment proofs (restricted per-student) ─
+    match /libraries/{libraryId}/students/{studentId}/gov_id/{allPaths=**} {
+      allow read: if isOwnerOrStaff(libraryId) || isStudentDocOwner(libraryId, studentId);
+      allow write: if (isOwnerOrStaff(libraryId) || isStudentDocOwner(libraryId, studentId)) && isImage() && isUnder5MB();
+    }
+
+    match /libraries/{libraryId}/students/{studentId}/proofs/{allPaths=**} {
+      allow read: if isOwnerOrStaff(libraryId) || isStudentDocOwner(libraryId, studentId);
+      allow write: if (isOwnerOrStaff(libraryId) || isStudentDocOwner(libraryId, studentId)) && isImage() && isUnder5MB();
+    }
+
+    // ── Student photos (supports both Auth UID and auto-generated student doc IDs) ──
     match /libraries/{libraryId}/students/{studentId}/{fileName} {
-      allow read: if isAuth() && (uid() == studentId || isOwnerOrStaff(libraryId));
-      allow write: if isAuth() && (uid() == studentId || isOwnerOrStaff(libraryId)) && isImage() && isUnder5MB();
+      allow read: if isOwnerOrStaff(libraryId) || isStudentDocOwner(libraryId, studentId);
+      allow write: if (isOwnerOrStaff(libraryId) || isStudentDocOwner(libraryId, studentId)) && isImage() && isUnder5MB();
     }
 
     // ── ID card assets ────────────────────────────────────────────────────────
@@ -94,7 +116,6 @@ service firebase.storage {
     }
 
     // ── General library assets (QR codes, exports, backups) ──────────────────
-    // SEC-4 FIX: Scoped to owner or active staff only (previously open to any auth user)
     match /libraries/{libraryId}/{allPaths=**} {
       allow read: if isOwnerOrStaff(libraryId);
       allow write: if isOwnerOrStaff(libraryId) && isUnder5MB();

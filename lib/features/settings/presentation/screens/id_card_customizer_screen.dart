@@ -42,6 +42,7 @@ class IdCardCustomizerScreen extends ConsumerStatefulWidget {
 class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen> {
   IdCardTemplateSettings _settings = const IdCardTemplateSettings();
   final _rulesController = TextEditingController();
+  final _signatureTitleController = TextEditingController(text: 'Authorized Signatory');
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -54,6 +55,7 @@ class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen>
   @override
   void dispose() {
     _rulesController.dispose();
+    _signatureTitleController.dispose();
     super.dispose();
   }
 
@@ -77,6 +79,7 @@ class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen>
         setState(() {
           _settings = s;
           _rulesController.text = s.customRulesText;
+          _signatureTitleController.text = s.signatureTitle.isNotEmpty ? s.signatureTitle : 'Authorized Signatory';
           _isLoading = false;
         });
       } else {
@@ -93,7 +96,11 @@ class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen>
 
     setState(() => _isSaving = true);
     try {
-      final updated = _settings.copyWith(customRulesText: _rulesController.text.trim());
+      final sigTitle = _signatureTitleController.text.trim();
+      final updated = _settings.copyWith(
+        customRulesText: _rulesController.text.trim(),
+        signatureTitle: sigTitle.isNotEmpty ? sigTitle : 'Authorized Signatory',
+      );
       final Map<String, dynamic> dataToSave = {
         ...updated.toJson(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -416,9 +423,35 @@ class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen>
                     onChanged: (v) => setState(() => _settings = _settings.copyWith(showValidTill: v)),
                   ),
                   SwitchListTile(
-                    title: const Text('Library Address & Helpline Footer'),
+                    title: const Text('Library Address Footer'),
                     value: _settings.showAddress,
                     onChanged: (v) => setState(() => _settings = _settings.copyWith(showAddress: v)),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Blood Group Badge'),
+                    subtitle: const Text('Show student blood group on card front'),
+                    value: _settings.showBloodGroup,
+                    onChanged: (v) => setState(() => _settings = _settings.copyWith(showBloodGroup: v)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _settings.backgroundStyle == 'cleanWhite' ? 'cleanWhite' : 'gradientMesh',
+                      decoration: InputDecoration(
+                        labelText: 'Card Background Style',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        isDense: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'gradientMesh', child: Text('Gradient Mesh (Premium)')),
+                        DropdownMenuItem(value: 'cleanWhite', child: Text('Clean Minimal Surface')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() => _settings = _settings.copyWith(backgroundStyle: v));
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -482,11 +515,36 @@ class _IdCardCustomizerScreenState extends ConsumerState<IdCardCustomizerScreen>
                     onChanged: (v) => setState(() => _settings = _settings.copyWith(showStamp: v)),
                   ),
                   SwitchListTile(
+                    title: const Text('Verification QR / Barcode'),
+                    subtitle: const Text('Show scannable student verification QR on back'),
+                    value: _settings.showBarcode,
+                    onChanged: (v) => setState(() => _settings = _settings.copyWith(showBarcode: v)),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Library Helpline & Address'),
+                    subtitle: const Text('Show library helpline phone & address on back'),
+                    value: _settings.showHelpline,
+                    onChanged: (v) => setState(() => _settings = _settings.copyWith(showHelpline: v)),
+                  ),
+                  SwitchListTile(
                     title: const Text('Authorized Signatory Line'),
                     subtitle: const Text('Display administrative signature authorization on back'),
                     value: _settings.showSignature,
                     onChanged: (v) => setState(() => _settings = _settings.copyWith(showSignature: v)),
                   ),
+                  if (_settings.showSignature) ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _signatureTitleController,
+                      onChanged: (v) => setState(() => _settings = _settings.copyWith(signatureTitle: v)),
+                      decoration: InputDecoration(
+                        labelText: 'Signatory Title',
+                        hintText: 'Authorized Signatory',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        isDense: true,
+                      ),
+                    ),
+                  ],
                   if (_settings.showRules) ...[
                     const SizedBox(height: 12),
                     TextField(

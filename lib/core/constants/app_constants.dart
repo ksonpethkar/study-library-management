@@ -1,9 +1,9 @@
-class AppConstants {
+﻿class AppConstants {
   static const String appName = 'The Cozy Corner Study Centre';
   // Note: Use PackageInfo.fromPlatform() for runtime version display.
   // This constant is kept as a compile-time fallback only.
-  static const String appVersion = '1.5.59';
-  static const int buildNumber = 2076;
+  static const String appVersion = '1.5.61';
+  static const int buildNumber = 2078;
 
   // Default values
   static const int minAge = 14;

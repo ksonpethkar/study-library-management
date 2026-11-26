@@ -1,115 +1,122 @@
+﻿# ==============================================================================
+# Cozy Corner - Automated Android Build, GitHub Release & CDN Verification Script
+# Builds arm64-v8a, armeabi-v7a, universal APK + AAB using cozycorner-release.jks,
+# publishes to GitHub release v<versionName>, verifies HTTP 200 on all asset URLs,
+# and only then updates update.json across all targets + deploys Firebase Hosting.
 # ==============================================================================
-# Cozy Corner - Automated Build, Upload and CDN Deployment Script
-# Auto-increments versionCode on every run so OTA banner triggers on all
-# devices that have an older installed build.
-# ==============================================================================
+
+$ErrorActionPreference = 'Stop'
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "  Cozy Corner - Automated Build and Release Pipeline" -ForegroundColor Cyan
+Write-Host "  Cozy Corner - Android Release & CDN Pipeline" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
-$Repo    = "ksonpethkar/study-library-management"
-$Tag     = "v1.0.0"
-$DestPath = "C:\Users\ksonp\Downloads\StudyLibrary.apk"
+$Repo = "ksonpethkar/study-library-management"
 
-# ── Auto-detect version from pubspec.yaml ────────────────────────────────────
+# ── Step 0: Sync constants & read version from pubspec.yaml ───────────────────
+& "$PSScriptRoot\update_version.ps1"
 $pubspec = Get-Content "pubspec.yaml" -Raw -Encoding UTF8
 $verMatch = [regex]::Match($pubspec, 'version:\s*([\d.]+)\+(\d+)')
-$versionName = if ($verMatch.Success) { $verMatch.Groups[1].Value } else { "1.1.0" }
-$versionCode = if ($verMatch.Success) { [int]$verMatch.Groups[2].Value } else { 2 }
-Write-Host "  App version: $versionName+$versionCode" -ForegroundColor Cyan
+if (-not $verMatch.Success) { throw "Failed to parse pubspec.yaml version" }
+$versionName = $verMatch.Groups[1].Value
+$versionCode = [int]$verMatch.Groups[2].Value
+$Tag = "v$versionName"
+Write-Host "  Target Release: $Tag (Build $versionCode)" -ForegroundColor Cyan
 
-# ── Step 1: Compile Optimized Production APK ─────────────────────────────────
+# ── Step 1: Compile Split APKs, Universal APK, and Play App Bundle ────────────
 if (-not $env:ANDROID_HOME) { $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk" }
 if (-not $env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT = "$env:LOCALAPPDATA\Android\Sdk" }
-Write-Host "`n[1/5] Compiling optimized mobile APK (flutter build apk --release --split-per-abi)..." -ForegroundColor Yellow
+
+Write-Host "`n[1/5] Building split APKs (arm64-v8a & armeabi-v7a)..." -ForegroundColor Yellow
 & flutter build apk --release --split-per-abi
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "`n[ERROR] Flutter build failed! Aborting." -ForegroundColor Red
-    exit 1
-}
+if ($LASTEXITCODE -ne 0) { throw "Split APK build failed!" }
 
-# Target modern 64-bit Android architecture (arm64-v8a)
-$ApkPath = "build\app\outputs\flutter-apk\app-arm64-v8a-release.apk"
-if (-not (Test-Path $ApkPath)) {
-    $ApkPath = "build\app\outputs\flutter-apk\app-release.apk"
-}
+Write-Host "`n[1b/5] Building universal APK..." -ForegroundColor Yellow
+& flutter build apk --release
+if ($LASTEXITCODE -ne 0) { throw "Universal APK build failed!" }
 
-# ── Step 2: Backup to Downloads and inspect size ──────────────────────────────
-Write-Host "`n[2/5] Copying fresh APK to $DestPath..." -ForegroundColor Yellow
-Copy-Item -Path $ApkPath -Destination $DestPath -Force
-Copy-Item -Path $ApkPath -Destination "..\CozyCorner-Release.apk" -Force
-$fileInfo = Get-Item $DestPath
-$sizeMB   = [math]::Round($fileInfo.Length / 1MB, 1)
-Write-Host "  Optimized APK Size: $sizeMB MB" -ForegroundColor Green
+Write-Host "`n[1c/5] Building release AAB..." -ForegroundColor Yellow
+& flutter build appbundle --release
+if ($LASTEXITCODE -ne 0) { throw "AAB build failed!" }
 
-# Update download page badge dynamically
-$downloadHtml = "public\download\index.html"
-if (Test-Path $downloadHtml) {
-    $htmlContent = Get-Content $downloadHtml -Raw -Encoding UTF8
-    $replacement = "<span class=`"badge`" id=`"apkSizeBadge`">$sizeMB MB (Optimized)</span>"
-    $newHtml = $htmlContent -replace '<span class="badge" id="apkSizeBadge">.*?</span>', $replacement
-    $verReplacement = "<span class=`"badge`" id=`"appVersionBadge`">v$versionName (Build $versionCode)</span>"
-    $newHtml = $newHtml -replace '<span class="badge" id="appVersionBadge">.*?</span>', $verReplacement
-    Set-Content -Path $downloadHtml -Value $newHtml -Encoding UTF8
-    Write-Host "  Updated $downloadHtml with size: $sizeMB MB and version: v$versionName (Build $versionCode)" -ForegroundColor Green
-}
+# ── Step 2: Stage canonical asset names & compute exact sizes ─────────────────
+$releaseDir = "build\release_assets"
+New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
 
-# ── Step 3: Upload to GitHub CDN Release ─────────────────────────────────────
-Write-Host "`n[3/5] Uploading APK to GitHub CDN ($Repo at tag $Tag)..." -ForegroundColor Yellow
-& gh release upload $Tag $DestPath --clobber --repo $Repo
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "`n[WARNING] GitHub upload had an issue. Continuing to hosting..." -ForegroundColor Yellow
+$arm64Out = "$releaseDir\StudyLibrary-arm64-v8a.apk"
+$arm32Out = "$releaseDir\StudyLibrary-armeabi-v7a.apk"
+$uniOut   = "$releaseDir\StudyLibrary.apk"
+$aabOut   = "$releaseDir\StudyLibrary.aab"
+
+Copy-Item "build\app\outputs\flutter-apk\app-arm64-v8a-release.apk" $arm64Out -Force
+Copy-Item "build\app\outputs\flutter-apk\app-armeabi-v7a-release.apk" $arm32Out -Force
+Copy-Item "build\app\outputs\flutter-apk\app-release.apk" $uniOut -Force
+Copy-Item "build\app\outputs\bundle\release\app-release.aab" $aabOut -Force
+
+$arm64MB = "$([math]::Round((Get-Item $arm64Out).Length / 1MB, 1)) MB"
+$arm32MB = "$([math]::Round((Get-Item $arm32Out).Length / 1MB, 1)) MB"
+$uniMB   = "$([math]::Round((Get-Item $uniOut).Length / 1MB, 1)) MB"
+$aabMB   = "$([math]::Round((Get-Item $aabOut).Length / 1MB, 1)) MB"
+Write-Host "  Assets staged: arm64=$arm64MB | arm32=$arm32MB | universal=$uniMB | aab=$aabMB" -ForegroundColor Green
+
+# ── Step 3: Publish to GitHub Release $Tag ────────────────────────────────────
+Write-Host "`n[3/5] Publishing release $Tag to GitHub ($Repo)..." -ForegroundColor Yellow
+$releaseExists = $false
+try {
+    & gh release view $Tag --repo $Repo | Out-Null
+    if ($LASTEXITCODE -eq 0) { $releaseExists = $true }
+} catch {}
+
+if ($releaseExists) {
+    & gh release upload $Tag $arm64Out $arm32Out $uniOut $aabOut --clobber --repo $Repo
+    if ($LASTEXITCODE -ne 0) { throw "gh release upload failed for $Tag" }
 } else {
-    Write-Host "  Uploaded successfully to CDN!" -ForegroundColor Green
+    & gh release create $Tag $arm64Out $arm32Out $uniOut $aabOut --repo $Repo --title "Cozy Corner Study Library $Tag (Build $versionCode)" --notes "Official signed release $Tag (Build $versionCode)."
+    if ($LASTEXITCODE -ne 0) { throw "gh release create failed for $Tag" }
 }
 
-# ── Step 4: Update update.json with correct Android APK version ─────────────
-Write-Host "`n[4/5] Updating public/update.json (v$versionName, code=$versionCode)..." -ForegroundColor Yellow
-$timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-
-$targetPath = if (Test-Path "public\update.json") { "public\update.json" } else { "update.json" }
-$currentJson = Get-Content $targetPath -Raw -Encoding UTF8 | ConvertFrom-Json
-
-# Update Android channel
-if (-not $currentJson.android) {
-    $currentJson | Add-Member -MemberType NoteProperty -Name "android" -Value ([PSCustomObject]@{})
+# ── Step 4: Verify HTTP 200 OK on all APK asset URLs before updating manifest ───
+Write-Host "`n[4/5] Verifying GitHub CDN asset URLs (HTTP 200 OK)..." -ForegroundColor Yellow
+$baseUrl = "https://github.com/$Repo/releases/download/$Tag"
+foreach ($assetName in @("StudyLibrary-arm64-v8a.apk", "StudyLibrary-armeabi-v7a.apk", "StudyLibrary.apk", "StudyLibrary.aab")) {
+    $checkUrl = "$baseUrl/$assetName"
+    $resp = Invoke-WebRequest -Uri $checkUrl -Method Head -MaximumRedirection 5 -UseBasicParsing
+    if ($resp.StatusCode -lt 200 -or $resp.StatusCode -ge 400) {
+        throw "CDN verification failed for $checkUrl (HTTP $($resp.StatusCode))"
+    }
+    Write-Host "  Verified ($($resp.StatusCode)): $assetName" -ForegroundColor Green
 }
-$currentJson.android.versionCode = $versionCode
-$currentJson.android.versionName = "$versionName+$versionCode"
-$currentJson.android.apkSize = "$sizeMB MB"
-$currentJson.android.downloadUrl = "https://github.com/$Repo/releases/download/v$versionName/StudyLibrary.apk"
-$currentJson.android.apkUrl = "https://github.com/$Repo/releases/download/v$versionName/StudyLibrary.apk"
-$currentJson.android.releasedAt = $timestamp
-$currentJson.android.releaseNotes = "v$versionName: Official release build $versionCode with real-time pass validity, desk radar, and instant check-in."
 
-# Update top-level legacy fallback fields
-$currentJson.versionCode = $versionCode
-$currentJson.latestVersionCode = $versionCode
-$currentJson.latestBuild = $versionCode
-$currentJson.latestVersion = $versionName
-$currentJson.versionName = "$versionName+$versionCode"
-$currentJson.apkSize = "$sizeMB MB"
-$currentJson.downloadUrl = "https://github.com/$Repo/releases/download/v$versionName/StudyLibrary.apk"
-
-$jsonString = $currentJson | ConvertTo-Json -Depth 10
-Set-Content -Path "public\update.json" -Value $jsonString -Encoding UTF8
-if (Test-Path "update.json") {
-    Set-Content -Path "update.json" -Value $jsonString -Encoding UTF8
+# Sync update.json android + top-level sizes & URLs across all mirrors
+& "$PSScriptRoot\update_version.ps1" -SyncAndroid
+foreach ($jsonPath in @("public\update.json", "update.json", "..\public\update.json", "..\update.json")) {
+    if (Test-Path $jsonPath) {
+        $j = Get-Content $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $j.apkSize = $arm64MB
+        $j.arm64ApkSize = $arm64MB
+        $j.legacy32ApkSize = $arm32MB
+        $j.universalApkSize = $uniMB
+        $j.aabSize = $aabMB
+        $j.android.apkSize = $arm64MB
+        $j.android.arm64ApkSize = $arm64MB
+        $j.android.legacy32ApkSize = $arm32MB
+        $j.android.universalApkSize = $uniMB
+        $j.android.aabSize = $aabMB
+        Set-Content -Path $jsonPath -Value ($j | ConvertTo-Json -Depth 12) -Encoding UTF8
+    }
 }
-Write-Host "  update.json written: android.versionCode=$versionCode, versionName=$versionName" -ForegroundColor Green
 
-# ── Step 5: Deploy to Firebase Hosting ───────────────────────────────────────
-Write-Host "`n[5/5] Deploying web portal to Firebase Hosting..." -ForegroundColor Yellow
-& firebase deploy --only hosting
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "`n==========================================================" -ForegroundColor Green
-    Write-Host "  PIPELINE COMPLETE AND LIVE!" -ForegroundColor Green
-    Write-Host "==========================================================" -ForegroundColor Green
-    Write-Host "Direct CDN Download: https://github.com/$Repo/releases/latest/download/StudyLibrary.apk" -ForegroundColor Cyan
-    Write-Host "Public Web Portal:   https://study-lib-mgmt-2026.web.app/download/" -ForegroundColor Cyan
-    Write-Host "Live Seat Map:       https://study-lib-mgmt-2026.web.app/seats/" -ForegroundColor Cyan
-    Write-Host "Update Feed:         https://study-lib-mgmt-2026.web.app/update.json" -ForegroundColor Cyan
-} else {
-    Write-Host "`n[ERROR] Firebase hosting deployment failed." -ForegroundColor Red
+# ── Step 5: Deploy Firebase Hosting ───────────────────────────────────────────
+Write-Host "`n[5/5] Deploying hosting portals to Firebase..." -ForegroundColor Yellow
+if (Test-Path "..\public\download") {
+    Copy-Item -Path "public\download\index.html" -Destination "..\public\download\index.html" -Force
 }
+if (Test-Path "..\public") {
+    Copy-Item -Path "public\index.html" -Destination "..\public\index.html" -Force
+}
+npx firebase deploy --only hosting --project study-lib-mgmt-2026
+if ($LASTEXITCODE -ne 0) { throw "Firebase Hosting deploy failed!" }
+
+Write-Host "`n==========================================================" -ForegroundColor Green
+Write-Host "  RELEASE $Tag (BUILD $versionCode) LIVE ON GITHUB & HOSTING!" -ForegroundColor Green
+Write-Host "==========================================================" -ForegroundColor Green

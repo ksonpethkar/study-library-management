@@ -8,9 +8,11 @@ import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
-import 'package:study_library/features/dashboard/presentation/screens/revenue_dashboard_screen.dart';
+import 'package:study_library/features/dashboard/presentation/screens/revenue_dashboard_screen.dart'
+    deferred as deferred_revenue;
 import '../../features/students/presentation/screens/edit_student_screen.dart';
-import '../../features/students/presentation/screens/bulk_import_screen.dart';
+import '../../features/students/presentation/screens/bulk_import_screen.dart'
+    deferred as deferred_bulk_import;
 import 'admin_shell.dart';
 import 'student_shell.dart';
 
@@ -39,30 +41,41 @@ import '../../features/receipts/presentation/screens/receipt_list_screen.dart';
 import '../../features/expenses/presentation/screens/expense_list_screen.dart';
 import '../../features/receipts/presentation/screens/receipt_preview_screen.dart';
 import '../../features/receipts/presentation/screens/generate_receipt_screen.dart';
-import '../../features/settings/presentation/screens/receipt_template_screen.dart';
-import '../../features/settings/presentation/screens/message_template_studio_screen.dart';
+import '../../features/settings/presentation/screens/receipt_template_screen.dart'
+    deferred as deferred_receipt_template;
+import '../../features/settings/presentation/screens/message_template_studio_screen.dart'
+    deferred as deferred_message_studio;
 import '../../features/requests/presentation/screens/request_list_screen.dart';
 import '../../features/requests/presentation/screens/request_detail_screen.dart';
 import '../../features/announcements/presentation/screens/announcement_list_screen.dart';
 import '../../features/holidays/presentation/screens/holiday_calendar_screen.dart';
 import '../../features/feedback/presentation/screens/feedback_list_screen.dart';
 import '../../features/settings/presentation/screens/library_profile_screen.dart';
-import '../../features/settings/presentation/screens/form_customizer_screen.dart';
+import '../../features/settings/presentation/screens/form_customizer_screen.dart'
+    deferred as deferred_form_customizer;
 import '../../features/settings/presentation/screens/payment_methods_screen.dart';
 import '../../features/settings/presentation/screens/communications_hub_screen.dart';
-import '../../features/backup/presentation/screens/backup_restore_screen.dart';
-import '../../features/maintenance/presentation/screens/maintenance_diagnostics_screen.dart';
-import '../../features/sentinel/presentation/screens/sentinel_diagnostic_screen.dart';
-import '../../features/audit_log/presentation/screens/audit_log_screen.dart';
-import '../../features/recycle_bin/presentation/screens/recycle_bin_screen.dart';
+import '../../features/backup/presentation/screens/backup_restore_screen.dart'
+    deferred as deferred_backup;
+import '../../features/maintenance/presentation/screens/maintenance_diagnostics_screen.dart'
+    deferred as deferred_maintenance;
+import '../../features/sentinel/presentation/screens/sentinel_diagnostic_screen.dart'
+    deferred as deferred_sentinel;
+import '../../features/audit_log/presentation/screens/audit_log_screen.dart'
+    deferred as deferred_audit_log;
+import '../../features/recycle_bin/presentation/screens/recycle_bin_screen.dart'
+    deferred as deferred_recycle_bin;
 import '../../features/settings/presentation/screens/rules_editor_screen.dart';
 import '../../features/waiting_list/presentation/screens/waiting_list_screen.dart';
 import '../../features/staff/presentation/screens/staff_list_screen.dart';
 import '../../features/qr_share/presentation/screens/qr_share_screen.dart';
-import '../../features/admin_qr/presentation/screens/admin_qr_scanner_screen.dart';
+import '../../features/admin_qr/presentation/screens/admin_qr_scanner_screen.dart'
+    deferred as deferred_qr_scanner;
 import '../../features/settings/presentation/screens/grace_period_screen.dart';
-import '../../features/settings/presentation/screens/id_card_customizer_screen.dart';
-import '../../features/settings/presentation/screens/data_export_screen.dart';
+import '../../features/settings/presentation/screens/id_card_customizer_screen.dart'
+    deferred as deferred_id_customizer;
+import '../../features/settings/presentation/screens/data_export_screen.dart'
+    deferred as deferred_data_export;
 
 import '../../features/student_app/presentation/screens/student_home_screen.dart';
 import '../../features/student_app/presentation/screens/my_membership_screen.dart';
@@ -185,22 +198,30 @@ void navigateViaRoot(String route) {
 final _adminShellNavigatorKey = GlobalKey<NavigatorState>();
 final _studentShellNavigatorKey = GlobalKey<NavigatorState>();
 
-
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void refresh() => notifyListeners();
+}
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  // Watch role changes so router refreshes when user signs in/out
-  final role = ref.watch(userRoleProvider);
-  final canViewRevenue = ref.watch(canViewRevenueProvider);
+  // Keep GoRouter instance persistent across role/permission updates so users
+  // are never bounced back to Routes.splash mid-flow.
+  final refreshNotifier = _RouterRefreshNotifier();
+  ref.listen<AppUserRole>(userRoleProvider, (_, _) => refreshNotifier.refresh());
+  ref.listen<bool>(canViewRevenueProvider, (_, _) => refreshNotifier.refresh());
+  ref.onDispose(refreshNotifier.dispose);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: Routes.splash,
+    refreshListenable: refreshNotifier,
     errorBuilder: (context, state) => NotFoundScreen(
       uri: state.uri,
       error: state.error,
     ),
     // ── Security: Role-based redirect guard ─────────────────────────────────
     redirect: (context, state) {
+      final role = ref.read(userRoleProvider);
+      final canViewRevenue = ref.read(canViewRevenueProvider);
       final uri = state.uri;
       final rawPath = uri.path;
 
@@ -458,7 +479,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         state: state, child: AddStudentScreen(initialData: state.extra as Map<String, dynamic>?),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminStudentImport, pageBuilder: (context, state) => AppPageTransitions.slideUp(
-        state: state, child: const BulkImportScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_bulk_import.loadLibrary,
+          builder: () => deferred_bulk_import.BulkImportScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminStudentDetail, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: StudentDetailScreen(
@@ -532,7 +557,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         state: state, child: const ReceiptListScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminRevenue, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const RevenueDashboardScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_revenue.loadLibrary,
+          builder: () => deferred_revenue.RevenueDashboardScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminExpenses, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const ExpenseListScreen(),
@@ -571,13 +600,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminReceiptTemplate, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const ReceiptTemplateScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_receipt_template.loadLibrary,
+          builder: () => deferred_receipt_template.ReceiptTemplateScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminMessageTemplates, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const MessageTemplateStudioScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_message_studio.loadLibrary,
+          builder: () => deferred_message_studio.MessageTemplateStudioScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminIdCardTemplate, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const IdCardCustomizerScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_id_customizer.loadLibrary,
+          builder: () => deferred_id_customizer.IdCardCustomizerScreen(),
+        ),
       )),
       GoRoute(
         path: Routes.adminReceiptPreview,
@@ -611,7 +652,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         state: state, child: const LibraryProfileScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminFormCustomizer, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const FormCustomizerScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_form_customizer.loadLibrary,
+          builder: () => deferred_form_customizer.FormCustomizerScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminPaymentMethods, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const PaymentMethodsScreen(),
@@ -626,22 +671,46 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         state: state, child: const CommunicationsHubScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminBackup, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const BackupRestoreScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_backup.loadLibrary,
+          builder: () => deferred_backup.BackupRestoreScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminMaintenance, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const MaintenanceDiagnosticsScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_maintenance.loadLibrary,
+          builder: () => deferred_maintenance.MaintenanceDiagnosticsScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.sentinelDiagnostics, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const SentinelDiagnosticScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_sentinel.loadLibrary,
+          builder: () => deferred_sentinel.SentinelDiagnosticScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminDataExport, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const DataExportScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_data_export.loadLibrary,
+          builder: () => deferred_data_export.DataExportScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminAuditLog, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const AuditLogScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_audit_log.loadLibrary,
+          builder: () => deferred_audit_log.AuditLogScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminRecycleBin, pageBuilder: (context, state) => AppPageTransitions.slideRight(
-        state: state, child: const RecycleBinScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_recycle_bin.loadLibrary,
+          builder: () => deferred_recycle_bin.RecycleBinScreen(),
+        ),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminRules, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const RulesEditorScreen(),
@@ -665,7 +734,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         state: state, child: const QrShareScreen(),
       )),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminQrScanner, pageBuilder: (context, state) => AppPageTransitions.slideUp(
-        state: state, child: const AdminQrScannerScreen(),
+        state: state,
+        child: _DeferredRouteLoader(
+          loadLibrary: deferred_qr_scanner.loadLibrary,
+          builder: () => deferred_qr_scanner.AdminQrScannerScreen(),
+        ),
       )),
 
       // Student Routes
@@ -712,9 +785,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       
       // Student Sub-routes
-      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.studentRegister, pageBuilder: (context, state) => AppPageTransitions.slideUp(
-        state: state, child: const StudentRegistrationWizard(),
-      )),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: Routes.studentRegister,
+        pageBuilder: (context, state) {
+          final qp = state.uri.queryParameters;
+          return AppPageTransitions.slideUp(
+            state: state,
+            child: StudentRegistrationWizard(
+              initialLibraryId: qp['lib'],
+              initialSectionId: qp['section'],
+              initialSeatId: qp['seat'],
+            ),
+          );
+        },
+      ),
       GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.studentSeatMap, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const StudentSeatMapScreen(),
       )),
@@ -802,6 +887,70 @@ class _PaymentRouteWrapperState extends ConsumerState<_PaymentRouteWrapper> {
       pendingDue: (_student!.pendingDueBalance != null && _student!.pendingDueBalance! > 0)
           ? _student!.pendingDueBalance
           : null,
+    );
+  }
+}
+
+class _DeferredRouteLoader extends StatefulWidget {
+  final Future<void> Function() loadLibrary;
+  final Widget Function() builder;
+
+  const _DeferredRouteLoader({
+    required this.loadLibrary,
+    required this.builder,
+  });
+
+  @override
+  State<_DeferredRouteLoader> createState() => _DeferredRouteLoaderState();
+}
+
+class _DeferredRouteLoaderState extends State<_DeferredRouteLoader> {
+  late Future<void> _loadFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFuture = widget.loadLibrary();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _loadFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done && !snapshot.hasError) {
+          return widget.builder();
+        }
+        if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off_rounded, size: 48, color: Colors.orange),
+                    const SizedBox(height: 12),
+                    const Text('Could not load this module. Please check your connection.'),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => setState(() {
+                        _loadFuture = widget.loadLibrary();
+                      }),
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      },
     );
   }
 }

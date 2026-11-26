@@ -27,6 +27,7 @@ class StudentProvisioningService {
     bool allowSharedGovId = false,
     bool allowSharedPhone = false,
     bool mergeExistingPhone = true,
+    bool overrideSeatCollision = false,
   }) async {
     if (libraryId.isEmpty || requestId.isEmpty) return null;
 
@@ -48,7 +49,8 @@ class StudentProvisioningService {
       final type = data['type'] as String? ?? 'registration';
       final studentData = (data['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
       final studentUserId = (studentData['userId'] ?? data['studentId'] ?? '').toString();
-      final studentEmail = (studentData['email'] ?? data['studentEmail'] ?? '').toString().trim();
+      final rawStudentEmail = (studentData['email'] ?? data['studentEmail'] ?? data['email'] ?? '').toString().trim();
+      final studentEmail = rawStudentEmail.toLowerCase();
       final requestedSeatId = (studentData['seatId'] ?? data['requestedSeatId'])?.toString();
       final requestedSectionId = (studentData['sectionId'] ?? data['requestedSectionId'])?.toString();
       final bool isPaid = data['isPaid'] == true ||
@@ -80,13 +82,22 @@ class StudentProvisioningService {
         }
 
         if (existingStudent == null && studentEmail.isNotEmpty) {
-          final queryByEmail = await _firestore
+          var queryByEmail = await _firestore
               .collection('libraries')
               .doc(libraryId)
               .collection('students')
               .where('email', isEqualTo: studentEmail)
               .limit(1)
               .get();
+          if (queryByEmail.docs.isEmpty && rawStudentEmail != studentEmail) {
+            queryByEmail = await _firestore
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('students')
+                .where('email', isEqualTo: rawStudentEmail)
+                .limit(1)
+                .get();
+          }
           if (queryByEmail.docs.isNotEmpty) {
             existingStudent = StudentModel.fromJson({
               ...queryByEmail.docs.first.data(),
@@ -242,12 +253,13 @@ class StudentProvisioningService {
             dob: StudentModel.parseDateStatic(studentData['dob']),
             bloodGroup: studentData['bloodGroup'] as String?,
             rollNumber: studentData['rollNumber'] as String?,
+            targetExamName: (studentData['targetExamName'] ?? studentData['prep'])?.toString(),
             seatId: requestedSeatId,
             sectionId: requestedSectionId,
             planId: planId,
             admissionDate: StudentModel.parseDateStatic(studentData['admissionDate'] ?? data['admissionDate'] ?? studentData['joiningDate'] ?? data['joiningDate']) ?? planStartDate ?? DateTime.now(),
-            planStartDate: isPaid ? planStartDate : (planStartDate ?? DateTime.now()),
-            planEndDate: isPaid ? planEndDate : planEndDate,
+            planStartDate: isPaid ? planStartDate : null,
+            planEndDate: isPaid ? planEndDate : null,
             membershipStatus: isPaid ? MembershipStatus.active : MembershipStatus.inactive,
             customFields: {
               ...extractedCustomFields,
@@ -270,8 +282,12 @@ class StudentProvisioningService {
           );
         }
 
-        // 3. Assign Seat if specified
-        if (requestedSeatId != null && requestedSectionId != null) {
+        // 3. Assign Seat if specified (never silently swallow conflicts!)
+        if (requestedSeatId != null &&
+            requestedSeatId.isNotEmpty &&
+            requestedSectionId != null &&
+            requestedSectionId.isNotEmpty &&
+            !requestedSeatId.toLowerCase().contains('auto')) {
           try {
             await _seatRepo.assignStudent(
               libraryId,
@@ -279,11 +295,15 @@ class StudentProvisioningService {
               requestedSeatId,
               createdStudentId,
               studentUserId: studentUserId,
-              overrideSoftLock: true,
+              overrideSoftLock: overrideSeatCollision || studentUserId.isNotEmpty,
             );
           } catch (e) {
             if (kDebugMode) debugPrint('Failed to assign seat during provisioning: $e');
-            // Clean up ghost seat assignment from student document so they are not tied to a non-existent or conflicting seat
+            if (!overrideSeatCollision) {
+              // Roll back request status & seat on student if collision blocks assignment
+              rethrow;
+            }
+            // Only when overrideSeatCollision explicitly skips seat check, clear ghost seat
             try {
               await _firestore
                   .collection('libraries')
@@ -486,16 +506,21 @@ class StudentProvisioningService {
               }
             }
 
-            // Create Payment and Receipt records
+            // Create Payment and Receipt records ONLY if a positive fee was actually collected
             String? paymentId;
             String? receiptId;
             String? recNum;
             double remainingDue = 0.0;
-            if (amount > 0 && !isPaid) {
+            final bool skipPayment = data['skipPayment'] == true;
+            final double collectedPaidAmount = skipPayment
+                ? 0.0
+                : ((data['paidAmount'] as num?)?.toDouble() ??
+                    (data['amount'] as num?)?.toDouble() ??
+                    amount);
+
+            if (collectedPaidAmount > 0 && !isPaid) {
               final double clearedDue = (data['pendingDueAmount'] as num?)?.toDouble() ?? 0.0;
-              final double paidAmount = (data['paidAmount'] as num?)?.toDouble() ??
-                  (data['amount'] as num?)?.toDouble() ??
-                  amount;
+              final double paidAmount = collectedPaidAmount;
               final double totalFee = (data['totalFee'] as num?)?.toDouble() ?? amount;
               remainingDue = (data['remainingDue'] as num?)?.toDouble() ??
                   ((totalFee - paidAmount) > 0 ? (totalFee - paidAmount) : 0.0);
@@ -505,6 +530,20 @@ class StudentProvisioningService {
                   ? 'Plan Renewal ($requestedPlanName) + Cleared Past Due (₹${clearedDue.toStringAsFixed(0)})'
                   : 'Plan Renewal - $requestedPlanName';
 
+              // Load library GST settings once for renewal receipts
+              Map<String, dynamic> libMeta = {};
+              try {
+                final lDoc = await _firestore.collection('libraries').doc(libraryId).get();
+                libMeta = lDoc.data() ?? {};
+              } catch (_) {}
+              final gst = ReceiptRepository.calculateGstBreakdown(
+                amount: paidAmount,
+                isGstBilling: libMeta['enableGstBilling'] == true,
+                gstRate: (libMeta['gstRate'] as num?)?.toDouble() ?? 18.0,
+                sacCode: (libMeta['sacCode'] as String?)?.isNotEmpty == true ? libMeta['sacCode'].toString() : '999293',
+                gstin: (libMeta['gstin'] ?? '').toString(),
+              );
+
               recNum = await _receiptRepo.getNextReceiptNumber(libraryId);
               final recRef = _firestore.collection('libraries').doc(libraryId).collection('receipts').doc();
               receiptId = recRef.id;
@@ -512,7 +551,8 @@ class StudentProvisioningService {
               final payRef = _firestore.collection('libraries').doc(libraryId).collection('payments').doc();
               paymentId = payRef.id;
 
-              await payRef.set({
+              final batch = _firestore.batch();
+              batch.set(payRef, {
                 'id': paymentId,
                 'studentId': targetStudentId,
                 if (studentUserId.isNotEmpty) 'studentUserId': studentUserId,
@@ -533,9 +573,10 @@ class StudentProvisioningService {
                 'createdAt': FieldValue.serverTimestamp(),
                 'notes': recDescription,
                 'requestId': requestId,
+                'aggregateSyncedByClient': true,
               });
 
-              await recRef.set({
+              batch.set(recRef, {
                 'id': recRef.id,
                 'libraryId': libraryId,
                 'receiptNumber': recNum,
@@ -557,15 +598,43 @@ class StudentProvisioningService {
                 'validFrom': Timestamp.fromDate(newStartDate),
                 'validTo': Timestamp.fromDate(newEndDate),
                 'planId': requestedPlanId.isNotEmpty ? requestedPlanId : (sData['planId'] ?? 'plan_renewal'),
+                if (gst.isGstInvoice) ...{
+                  'isGstInvoice': true,
+                  if (gst.gstin.isNotEmpty) 'gstin': gst.gstin,
+                  'sacCode': gst.sacCode,
+                  'gstRate': gst.gstRate,
+                  'taxableAmount': gst.taxableAmount,
+                  'cgstAmount': gst.cgstAmount,
+                  'sgstAmount': gst.sgstAmount,
+                },
                 'customFields': {
                   'planName': requestedPlanName,
                   'isRenewal': true,
                   'requestId': requestId,
                   if (refNumber != null && refNumber.isNotEmpty) 'referenceNumber': refNumber,
+                  if (gst.isGstInvoice) ...{
+                    'isGstInvoice': true,
+                    'gstin': gst.gstin,
+                    'sacCode': gst.sacCode,
+                    'gstRate': gst.gstRate,
+                    'taxableAmount': gst.taxableAmount,
+                    'cgstAmount': gst.cgstAmount,
+                    'sgstAmount': gst.sgstAmount,
+                  },
                 },
                 'createdAt': FieldValue.serverTimestamp(),
                 'updatedAt': FieldValue.serverTimestamp(),
               });
+
+              ReceiptRepository.addRevenueAggregateToBatch(
+                batch,
+                _firestore,
+                libraryId,
+                amountDelta: paidAmount,
+                paymentsDelta: 1,
+                referenceDate: DateTime.now(),
+              );
+              await batch.commit();
             }
 
             // Zero-Click Auto-Seat Allocation & Retention Engine
@@ -647,13 +716,15 @@ class StudentProvisioningService {
               }
             }
 
-            // Update student document to active status and new plan validity with restored seat
+            // Update student document ONLY to active when fee is genuinely paid/settled
+            final bool isRenewalFeeSettled = isPaid || collectedPaidAmount > 0;
             final Map<String, dynamic> studentUpdates = {
-              'membershipStatus': 'active',
-              'status': 'active',
-              'planStartDate': Timestamp.fromDate(newStartDate),
-              'planEndDate': Timestamp.fromDate(newEndDate),
-              'remindedStages': <String>[],
+              'membershipStatus': isRenewalFeeSettled ? 'active' : 'inactive',
+              'status': isRenewalFeeSettled ? 'active' : 'inactive',
+              if (isRenewalFeeSettled) 'planStartDate': Timestamp.fromDate(newStartDate),
+              if (isRenewalFeeSettled) 'planEndDate': Timestamp.fromDate(newEndDate),
+              if (isRenewalFeeSettled) 'remindedStages': <String>[],
+              if (!isRenewalFeeSettled) 'notes': 'Renewal Approved — Pending Fee Payment at Counter',
               'updatedAt': FieldValue.serverTimestamp(),
             };
             if (data['clearedDue'] == true || (data['pendingDueAmount'] as num?)?.toDouble() != null) {
@@ -692,16 +763,20 @@ class StudentProvisioningService {
             }
             createdStudentId = targetStudentId;
 
-            // Student Notification
+            // Student Notification — strictly reflect fee settlement status
             final studentName = data['studentName'] ?? sData['name'] ?? 'Student';
             AppNotificationService.sendNotification(
               libraryId: libraryId,
-              title: 'Plan Renewal Approved! 🎉',
-              body: 'Hello $studentName! Your renewal for $requestedPlanName has been approved. Your pass is now active!',
+              title: isRenewalFeeSettled
+                  ? 'Plan Renewal Approved! 🎉'
+                  : 'Renewal Approved — Payment Pending ⏳',
+              body: isRenewalFeeSettled
+                  ? 'Hello $studentName! Your renewal for $requestedPlanName has been approved. Your pass is now active!'
+                  : 'Hello $studentName! Your renewal request for $requestedPlanName is approved. Please pay your renewal fee at the counter to activate your pass.',
               type: 'renewal',
               targetRole: 'student',
               targetUserId: targetStudentId,
-              actionRoute: '/student/id-card',
+              actionRoute: isRenewalFeeSettled ? '/student/id-card' : '/student/membership',
             ).ignore();
           }
         }

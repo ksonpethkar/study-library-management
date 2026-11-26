@@ -54,7 +54,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         HapticFeedback.mediumImpact();
         await ref.read(expenseRepositoryProvider).deleteExpense(libraryId, expense.id);
         ref.invalidate(expensesStreamProvider);
-        ref.invalidate(netProfitProvider);
+        ref.invalidate(unifiedFinancialLedgerProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Expense deleted')),
@@ -99,7 +99,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             tooltip: 'Refresh',
             onPressed: () {
               ref.invalidate(expensesStreamProvider);
-              ref.invalidate(netProfitProvider);
+              ref.invalidate(unifiedFinancialLedgerProvider);
             },
           ),
         ],

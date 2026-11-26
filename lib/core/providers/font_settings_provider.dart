@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 
 enum AppFontScale {
   compact(factor: 0.88, label: 'Compact', percentage: '88%', description: 'High data density · Roster & seat matrix'),
@@ -81,6 +82,17 @@ class FontSettingsState {
       family: family ?? this.family,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FontSettingsState &&
+          runtimeType == other.runtimeType &&
+          scale == other.scale &&
+          family == other.family;
+
+  @override
+  int get hashCode => Object.hash(scale, family);
 }
 
 class FontSettingsNotifier extends Notifier<FontSettingsState> {
@@ -89,8 +101,21 @@ class FontSettingsNotifier extends Notifier<FontSettingsState> {
 
   @override
   FontSettingsState build() {
-    _loadFromPrefs();
-    return const FontSettingsState();
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      final scaleIndex = prefs.getInt(_scaleKey) ?? AppFontScale.standard.index;
+      final familyIndex = prefs.getInt(_familyKey) ?? AppFontFamily.modern.index;
+      final safeScale = (scaleIndex >= 0 && scaleIndex < AppFontScale.values.length)
+          ? AppFontScale.values[scaleIndex]
+          : AppFontScale.standard;
+      final safeFamily = (familyIndex >= 0 && familyIndex < AppFontFamily.values.length)
+          ? AppFontFamily.values[familyIndex]
+          : AppFontFamily.modern;
+      return FontSettingsState(scale: safeScale, family: safeFamily);
+    } catch (_) {
+      _loadFromPrefs();
+      return const FontSettingsState();
+    }
   }
 
   Future<void> _loadFromPrefs() async {

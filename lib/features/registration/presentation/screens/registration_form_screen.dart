@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/ocr_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
@@ -13,10 +11,10 @@ import '../../data/document_layout_classifier.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/utils/app_validators.dart';
 import 'package:study_library/services/form_config_service.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/widgets/cozy_pressable.dart';
+import 'package:study_library/core/widgets/dynamic_form_field_renderer.dart';
 import '../providers/registration_provider.dart';
 
 class RegistrationFormScreen extends ConsumerStatefulWidget {
@@ -169,68 +167,28 @@ class _RegistrationFormScreenState
     _prepController = TextEditingController(text: prepVal);
     trackIfFilled('prep', prepVal);
 
-    _loadCustomFields();
+    _syncControllersWithConfig(FormConfigService.defaultBuiltinFields);
   }
 
-  Future<void> _loadCustomFields() async {
+  void _syncControllersWithConfig(List<Map<String, dynamic>> fields) {
     final reg = ref.read(registrationNotifierProvider);
-    final libId = reg['libraryId'] as String? ?? ref.read(currentLibraryIdProvider);
-    if (libId == null || libId.isEmpty) return;
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libId)
-          .collection('settings')
-          .doc('form_config')
-          .get();
-
-      if (doc.exists && mounted) {
-        final data = doc.data();
-        if (data != null && data['fields'] is List) {
-          final fields = (data['fields'] as List)
-              .map((f) => Map<String, dynamic>.from(f as Map))
-              .toList();
-
-          setState(() {
-            _customFieldsConfig = fields;
-            for (final f in fields) {
-              final id = f['id'] as String? ?? '';
-              final isBuiltin = f['builtin'] as bool? ?? false;
-              if (!isBuiltin && id.isNotEmpty && !_customControllers.containsKey(id)) {
-                final existingVal = (reg['customFields'] as Map?)?[id]?.toString() ?? '';
-                _customControllers[id] = TextEditingController(text: existingVal);
-              }
-            }
-          });
-        }
-      }
-    } catch (_) { /* intentionally silent */ }
+    _customFieldsConfig = fields;
+    syncCustomFieldControllers(
+      fields,
+      _customControllers,
+      initialValues: reg['customFields'] is Map
+          ? Map<String, dynamic>.from(reg['customFields'] as Map)
+          : null,
+    );
   }
 
   bool _isFieldVisible(String fieldId) {
-    if (_customFieldsConfig.isNotEmpty) {
-      final match = _customFieldsConfig.where((f) => f['id'] == fieldId).firstOrNull;
-      if (match != null) {
-        return match['visible'] == true;
-      }
-      return false;
-    }
-    return const ['name', 'phone', 'email', 'govId', 'gender', 'address', 'prep'].contains(fieldId);
+    return FormConfigService.isFieldVisible(_customFieldsConfig, fieldId);
   }
 
   /// Returns whether a built-in field is required per admin form_config.
-  /// Falls back to the hardcoded defaults (name & phone = required) if config not loaded.
   bool _isFieldRequired(String fieldId) {
-    if (_customFieldsConfig.isEmpty) {
-      // Hardcoded defaults before config loads
-      return fieldId == 'name' || fieldId == 'phone';
-    }
-    final match = _customFieldsConfig.where((f) => f['id'] == fieldId).firstOrNull;
-    if (match != null) {
-      return match['required'] as bool? ?? false;
-    }
-    return false;
+    return FormConfigService.isFieldRequired(_customFieldsConfig, fieldId);
   }
 
   /// Builds a validator that respects the admin `required` flag for a field.
@@ -250,167 +208,25 @@ class _RegistrationFormScreenState
     return _isFieldRequired(id) ? '$l *' : l;
   }
 
-  Widget _buildCustomFieldInput(Map<String, dynamic> f) {
-    final id = f['id'] as String? ?? '';
-    final label = f['label'] as String? ?? id;
-    final isRequired = f['required'] as bool? ?? false;
-    final type = f['type'] as String? ?? 'Text';
-    final customPattern = f['pattern'] as String?;
-    final patternError = f['patternError'] as String?;
-    final ctrl = _customControllers[id];
-    if (ctrl == null) return const SizedBox.shrink();
-
-    if (type == 'Date') {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 14.0),
-        child: InkWell(
-          onTap: () async {
-            DateTime? initialDate;
-            try {
-              if (ctrl.text.isNotEmpty) {
-                initialDate = DateFormat('dd/MM/yyyy').parse(ctrl.text);
-              }
-            } catch (_) {}
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: initialDate ?? DateTime.now(),
-              firstDate: DateTime(1950),
-              lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-            );
-            if (picked != null) {
-              setState(() {
-                ctrl.text = DateFormat('dd/MM/yyyy').format(picked);
-              });
-            }
-          },
-          child: IgnorePointer(
-            child: TextFormField(
-              controller: ctrl,
-              decoration: InputDecoration(
-                labelText: '$label${isRequired ? ' *' : ''}',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.calendar_today_rounded, size: 20),
-                suffixIcon: const Icon(Icons.arrow_drop_down),
-              ),
-              validator: isRequired
-                  ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
-                  : null,
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (type == 'Number') {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 14.0),
-        child: TextFormField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(
-            labelText: '$label${isRequired ? ' *' : ''}',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.numbers_rounded, size: 20),
-          ),
-          validator: (val) {
-            if (isRequired && (val == null || val.trim().isEmpty)) {
-              return '$label is required';
-            }
-            if (customPattern != null && customPattern.isNotEmpty) {
-              return AppValidators.validatePattern(
-                val,
-                customPattern,
-                errorMessage: patternError,
-                required: isRequired,
-                label: label,
-              );
-            }
-            return null;
-          },
-        ),
-      );
-    }
-
-    if (type == 'Dropdown') {
-      final rawOptions = f['options'];
-      final List<String> options = (rawOptions is List)
-          ? rawOptions.map((e) => e?.toString().trim() ?? '').where((e) => e.isNotEmpty).toList()
-          : [];
-
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 14.0),
-        child: DropdownButtonFormField<String>(
-          initialValue: options.contains(ctrl.text) ? ctrl.text : null,
-          items: options
-              .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
-              .toList(),
-          onChanged: (val) {
-            setState(() {
-              ctrl.text = val ?? '';
-            });
-          },
-          decoration: InputDecoration(
-            labelText: '$label${isRequired ? ' *' : ''}',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.arrow_drop_down_circle_outlined, size: 20),
-          ),
-          validator: isRequired
-              ? (val) => (val == null || val.trim().isEmpty) ? '$label is required' : null
-              : null,
-        ),
-      );
-    }
-
-    // Default: Plain Text
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14.0),
-      child: TextFormField(
-        controller: ctrl,
-        decoration: InputDecoration(
-          labelText: '$label${isRequired ? ' *' : ''}',
-          border: const OutlineInputBorder(),
-        ),
-        validator: (val) {
-          if (isRequired && (val == null || val.trim().isEmpty)) {
-            return '$label is required';
-          }
-          if (customPattern != null && customPattern.isNotEmpty) {
-            return AppValidators.validatePattern(
-              val,
-              customPattern,
-              errorMessage: patternError,
-              required: isRequired,
-              label: label,
-            );
-          }
-          return null;
-        },
-      ),
-    );
-  }
-
   Widget _buildCategoryCustomFields(String category, {bool showSectionHeader = false, ThemeData? theme}) {
-    final customFields = _customFieldsConfig.where((f) {
-      final isBuiltin = f['builtin'] as bool? ?? false;
-      final cat = f['category']?.toString() ?? FormFieldCategory.custom;
-      final visible = f['visible'] as bool? ?? true;
-      return !isBuiltin && visible && cat == category;
-    }).toList();
-
+    final customFields = FormConfigService.getCustomFieldsForCategory(_customFieldsConfig, category);
     if (customFields.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (showSectionHeader && theme != null) ...[
-          const SizedBox(height: 16),
-          _sectionHeader(theme, 'Additional Information'),
-          const SizedBox(height: 12),
-        ],
-        ...customFields.map(_buildCustomFieldInput),
-      ],
+    return DynamicCategoryCustomFieldsSection(
+      fields: _customFieldsConfig,
+      category: category,
+      controllers: _customControllers,
+      onChanged: () => setState(() {}),
+      header: (showSectionHeader && theme != null)
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                _sectionHeader(theme, 'Additional Information'),
+                const SizedBox(height: 12),
+              ],
+            )
+          : null,
     );
   }
 
@@ -854,7 +670,7 @@ class _RegistrationFormScreenState
       'fatherName': _fatherNameController.text.trim(),
       'dob': _dobController.text.trim(),
       'phone': _phoneController.text.trim(),
-      'email': _emailController.text.trim(),
+      'email': _emailController.text.trim().toLowerCase(),
       'govIdType': _selectedGovIdType.name,           // fixed: was missing
       'govIdNumber': _idNumberController.text.trim(),
       'address': _addressController.text.trim(),
@@ -1028,7 +844,9 @@ class _RegistrationFormScreenState
     final hasOcr = autoCount > 0;
 
     final formConfigAsync = ref.watch(formConfigStreamProvider);
-    final isGovIdVisible = FormConfigService.isFieldVisible(formConfigAsync.value ?? [], 'govId');
+    final liveFormFields = formConfigAsync.value ?? FormConfigService.defaultBuiltinFields;
+    _syncControllersWithConfig(liveFormFields);
+    final isGovIdVisible = FormConfigService.isFieldVisible(liveFormFields, 'govId');
     final stepTitle = isGovIdVisible ? 'Step 2 of 6: Personal Details' : 'Step 1 of 5: Personal Details';
     final progressValue = isGovIdVisible ? 2 / 6 : 1 / 5;
 
@@ -1098,13 +916,13 @@ class _RegistrationFormScreenState
 
                     _field(
                       controller: _nameController,
-                      label: 'Full Name *',
+                      label: _label('name', 'Full Name'),
                       hintText: 'e.g. Rahul Sharma',
                       helperText: 'Full legal name as shown on Government ID',
                       trackKey: 'name',
                       icon: Icons.person_rounded,
                       capitalization: TextCapitalization.words,
-                      validator: (v) => AppValidators.name(v, label: 'Full Name'),
+                      validator: (v) => AppValidators.name(v, label: FormConfigService.getFieldLabel(_customFieldsConfig, 'name', 'Full Name')),
                     ),
                     if (FirebaseAuth.instance.currentUser?.displayName != null &&
                         _nameController.text.trim().isNotEmpty &&
@@ -1175,8 +993,19 @@ class _RegistrationFormScreenState
                             child: AbsorbPointer(
                               child: TextFormField(
                                 controller: _dobController,
+                                validator: (v) {
+                                  if (_isFieldRequired('dob') && (v == null || v.trim().isEmpty)) {
+                                    return '${FormConfigService.getFieldLabel(_customFieldsConfig, 'dob', 'Date of Birth')} is required';
+                                  }
+                                  if (v != null && v.trim().isNotEmpty) {
+                                    if (!GovIdValidator.isValidDob(v.trim())) {
+                                      return 'Enter valid date (Age 10-100)';
+                                    }
+                                  }
+                                  return null;
+                                },
                                 decoration: InputDecoration(
-                                  labelText: 'Date of Birth',
+                                  labelText: _label('dob', 'Date of Birth'),
                                   prefixIcon: const Icon(Icons.cake_rounded),
                                   border: const OutlineInputBorder(),
                                   suffixIcon: _buildValidationSuffix('dob', _dobController.text) ??
@@ -1202,10 +1031,10 @@ class _RegistrationFormScreenState
                         if (_isFieldVisible('gender')) ...[
                           DropdownButtonFormField<String>(
                             initialValue: _gender,
-                            decoration: const InputDecoration(
-                              labelText: 'Gender *',
-                              prefixIcon: Icon(Icons.people_outline_rounded),
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: _label('gender', 'Gender'),
+                              prefixIcon: const Icon(Icons.people_outline_rounded),
+                              border: const OutlineInputBorder(),
                             ),
                             items: const [
                               DropdownMenuItem(value: 'male', child: Text('Male')),
@@ -1253,7 +1082,7 @@ class _RegistrationFormScreenState
                                         return null;
                                       },
                                       decoration: InputDecoration(
-                                        labelText: 'Date of Birth',
+                                        labelText: _label('dob', 'Date of Birth'),
                                         prefixIcon: const Icon(Icons.cake_rounded),
                                         border: const OutlineInputBorder(),
                                         suffixIcon: _buildValidationSuffix('dob', _dobController.text) ??
@@ -1281,10 +1110,10 @@ class _RegistrationFormScreenState
                               Expanded(
                                 child: DropdownButtonFormField<String>(
                                   initialValue: _gender,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Gender *',
-                                    prefixIcon: Icon(Icons.people_outline_rounded),
-                                    border: OutlineInputBorder(),
+                                  decoration: InputDecoration(
+                                    labelText: _label('gender', 'Gender'),
+                                    prefixIcon: const Icon(Icons.people_outline_rounded),
+                                    border: const OutlineInputBorder(),
                                   ),
                                   items: const [
                                     DropdownMenuItem(
@@ -1344,12 +1173,17 @@ class _RegistrationFormScreenState
                     if (_isFieldVisible('bloodGroup')) ...[
                       DropdownButtonFormField<String>(
                         initialValue: _bloodGroupController.text.isNotEmpty ? _bloodGroupController.text : null,
-                        decoration: const InputDecoration(
-                          labelText: 'Blood Group',
-                          prefixIcon: Icon(Icons.bloodtype_rounded),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: _label('bloodGroup', 'Blood Group'),
+                          prefixIcon: const Icon(Icons.bloodtype_rounded),
+                          border: const OutlineInputBorder(),
                         ),
                         hint: const Text('Select Blood Group'),
+                        validator: _isFieldRequired('bloodGroup')
+                            ? (v) => (v == null || v.trim().isEmpty)
+                                ? '${FormConfigService.getFieldLabel(_customFieldsConfig, 'bloodGroup', 'Blood Group')} is required'
+                                : null
+                            : null,
                         items: const [
                           DropdownMenuItem(value: 'A+', child: Text('A+')),
                           DropdownMenuItem(value: 'A-', child: Text('A-')),
@@ -1376,20 +1210,20 @@ class _RegistrationFormScreenState
 
                     _field(
                       controller: _phoneController,
-                      label: 'Mobile Phone *',
+                      label: _label('phone', 'Mobile Phone'),
                       hintText: 'e.g. 9823456789',
                       helperText: '10-digit number for WhatsApp updates & admission alerts',
                       trackKey: 'phone',
                       icon: Icons.phone_android_rounded,
                       keyboardType: TextInputType.phone,
                       inputFormatters: AppValidators.phoneFormatters,
-                      validator: (v) => AppValidators.phone(v, label: 'Phone number'),
+                      validator: (v) => AppValidators.phone(v, label: FormConfigService.getFieldLabel(_customFieldsConfig, 'phone', 'Phone number')),
                     ),
                     if (_isFieldVisible('email')) ...[
                       const SizedBox(height: 14),
                       _field(
                         controller: _emailController,
-                        label: _isFieldRequired('email') ? 'Email Address *' : 'Email Address',
+                        label: _label('email', 'Email Address'),
                         hintText: 'e.g. student@gmail.com',
                         helperText: 'For digital receipts, renewal reminders & approval updates',
                         trackKey: 'email',
@@ -1775,34 +1609,43 @@ class _RegistrationFormScreenState
                         },
                       ),
                       const SizedBox(height: 14),
-                      // Category-aware custom fields for Government ID & KYC
+                    ],
+                    // Category-aware custom fields for Government ID & KYC (render even if govId built-in is hidden)
+                    if (FormConfigService.getCustomFieldsForCategory(_customFieldsConfig, FormFieldCategory.govId).isNotEmpty) ...[
+                      if (!_isFieldVisible('govId')) ...[
+                        _sectionHeader(theme, 'Identity & KYC Details'),
+                        const SizedBox(height: 12),
+                      ],
                       _buildCategoryCustomFields(FormFieldCategory.govId),
                       const SizedBox(height: 10),
                     ],
 
                     // ── Address ────────────────────────────────────────────
-                    if (_isFieldVisible('address')) ...[
+                    if (_isFieldVisible('address') || _isFieldVisible('pincode') || _isFieldVisible('pinCode')) ...[
                       _sectionHeader(theme, 'Address Details'),
                       const SizedBox(height: 12),
 
-                      _field(
-                        controller: _addressController,
-                        label: _isFieldRequired('address') ? 'Address *' : 'Address',
-                        hintText: 'e.g. Near Bus Stand, Station Road, Parli',
-                        helperText: 'Permanent or current hostel/PG residential address',
-                        trackKey: 'address',
-                        icon: Icons.home_outlined,
-                        maxLines: 2,
-                        validator: (v) => AppValidators.address(
-                          v,
-                          required: _isFieldRequired('address'),
+                      if (_isFieldVisible('address')) ...[
+                        _field(
+                          controller: _addressController,
+                          label: _label('address', 'Address'),
+                          hintText: 'e.g. Near Bus Stand, Station Road, Parli',
+                          helperText: 'Permanent or current hostel/PG residential address',
+                          trackKey: 'address',
+                          icon: Icons.home_outlined,
+                          maxLines: 2,
+                          validator: (v) => AppValidators.address(
+                            v,
+                            required: _isFieldRequired('address'),
+                            label: FormConfigService.getFieldLabel(_customFieldsConfig, 'address', 'Address'),
+                          ),
                         ),
-                      ),
+                      ],
                       if (_isFieldVisible('pincode') || _isFieldVisible('pinCode')) ...[
-                        const SizedBox(height: 14),
+                        if (_isFieldVisible('address')) const SizedBox(height: 14),
                         _field(
                           controller: _pinCodeController,
-                          label: (_isFieldRequired('pincode') || _isFieldRequired('pinCode')) ? 'PIN Code *' : 'PIN Code',
+                          label: _label('pincode', 'PIN Code'),
                           hintText: 'e.g. 431515',
                           helperText: '6-digit area postal PIN code',
                           trackKey: 'pinCode',
@@ -1812,17 +1655,25 @@ class _RegistrationFormScreenState
                           validator: (v) => AppValidators.pinCode(
                             v,
                             required: _isFieldRequired('pincode') || _isFieldRequired('pinCode'),
+                            label: FormConfigService.getFieldLabel(_customFieldsConfig, 'pincode', 'PIN code'),
                           ),
                         ),
                       ],
                       const SizedBox(height: 14),
-                      // Category-aware custom fields for Contact & Residence
+                    ],
+                    // Category-aware custom fields for Contact & Residence (independent of address built-in toggle)
+                    if (FormConfigService.getCustomFieldsForCategory(_customFieldsConfig, FormFieldCategory.contact).isNotEmpty) ...[
                       _buildCategoryCustomFields(FormFieldCategory.contact),
                       const SizedBox(height: 10),
                     ],
 
                     // ── Academic & Competitive Goals ─────────────────────────
-                    if (_isFieldVisible('prep') || _isFieldVisible('college') || _isFieldVisible('course') || _isFieldVisible('year') || _isFieldVisible('rollNumber')) ...[
+                    if (_isFieldVisible('prep') ||
+                        _isFieldVisible('college') ||
+                        _isFieldVisible('course') ||
+                        _isFieldVisible('year') ||
+                        _isFieldVisible('rollNumber') ||
+                        FormConfigService.getCustomFieldsForCategory(_customFieldsConfig, FormFieldCategory.academics).isNotEmpty) ...[
                       _sectionHeader(theme, 'Academic & Competitive Goals'),
                       const SizedBox(height: 12),
 
@@ -1960,7 +1811,6 @@ class _RegistrationFormScreenState
                           const SizedBox(height: 14),
                         ],
                       ],
-                      const SizedBox(height: 14),
                       // Category-aware custom fields for Academic & Competitive Goals
                       _buildCategoryCustomFields(FormFieldCategory.academics),
                       const SizedBox(height: 10),

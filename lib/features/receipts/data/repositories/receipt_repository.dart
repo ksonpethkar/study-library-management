@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/services/remote_config_service.dart';
 
@@ -72,10 +71,117 @@ class ReceiptRepository {
     }
   }
 
+  /// Single source of truth for inclusive GST computation across all fee paths.
+  static ({
+    bool isGstInvoice,
+    String gstin,
+    String sacCode,
+    double gstRate,
+    double? taxableAmount,
+    double? cgstAmount,
+    double? sgstAmount,
+  }) calculateGstBreakdown({
+    required double amount,
+    required bool isGstBilling,
+    double gstRate = 18.0,
+    String sacCode = '999293',
+    String gstin = '',
+  }) {
+    double? taxableAmount;
+    double? cgstAmount;
+    double? sgstAmount;
+    if (isGstBilling && amount > 0) {
+      taxableAmount = (amount / (1 + (gstRate / 100))).roundToDouble();
+      final totalTax = amount - taxableAmount;
+      cgstAmount = (totalTax / 2).roundToDouble();
+      sgstAmount = totalTax - cgstAmount;
+    }
+    return (
+      isGstInvoice: isGstBilling,
+      gstin: gstin.trim(),
+      sacCode: isGstBilling ? sacCode : '',
+      gstRate: isGstBilling ? gstRate : 0.0,
+      taxableAmount: taxableAmount,
+      cgstAmount: cgstAmount,
+      sgstAmount: sgstAmount,
+    );
+  }
+
+  static String resolveMonthKey(dynamic rawDate) {
+    DateTime? parsed;
+    if (rawDate is DateTime) {
+      parsed = rawDate;
+    } else if (rawDate is Timestamp) {
+      parsed = rawDate.toDate();
+    } else if (rawDate is String) {
+      parsed = DateTime.tryParse(rawDate);
+    } else if (rawDate is int) {
+      parsed = DateTime.fromMillisecondsSinceEpoch(rawDate);
+    }
+    return (parsed ?? DateTime.now()).toIso8601String().substring(0, 7);
+  }
+
+  static void addRevenueAggregateToBatch(
+    WriteBatch batch,
+    FirebaseFirestore firestore,
+    String libraryId, {
+    required double amountDelta,
+    int paymentsDelta = 0,
+    int refundsDelta = 0,
+    dynamic referenceDate,
+  }) {
+    if (libraryId.isEmpty) return;
+    if (amountDelta == 0 && paymentsDelta == 0 && refundsDelta == 0) return;
+    final month = resolveMonthKey(referenceDate);
+    final revRef = firestore
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('settings')
+        .doc('revenue_aggregate');
+    batch.set(
+      revRef,
+      {
+        if (amountDelta != 0) 'totalRevenue': FieldValue.increment(amountDelta),
+        if (paymentsDelta != 0) 'totalPayments': FieldValue.increment(paymentsDelta),
+        if (refundsDelta != 0) 'totalRefunds': FieldValue.increment(refundsDelta),
+        if (amountDelta != 0) 'monthlyRevenue.$month': FieldValue.increment(amountDelta),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  static Future<void> applyRevenueAggregateDelta(
+    FirebaseFirestore firestore,
+    String libraryId, {
+    required double amountDelta,
+    int paymentsDelta = 0,
+    int refundsDelta = 0,
+    dynamic referenceDate,
+  }) async {
+    if (libraryId.isEmpty) return;
+    if (amountDelta == 0 && paymentsDelta == 0 && refundsDelta == 0) return;
+    final month = resolveMonthKey(referenceDate);
+    await firestore
+        .collection('libraries')
+        .doc(libraryId)
+        .collection('settings')
+        .doc('revenue_aggregate')
+        .set({
+      if (amountDelta != 0) 'totalRevenue': FieldValue.increment(amountDelta),
+      if (paymentsDelta != 0) 'totalPayments': FieldValue.increment(paymentsDelta),
+      if (refundsDelta != 0) 'totalRefunds': FieldValue.increment(refundsDelta),
+      if (amountDelta != 0) 'monthlyRevenue.$month': FieldValue.increment(amountDelta),
+      'lastUpdated': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<String> generateReceipt(
     String libraryId,
     ReceiptModel receipt, {
     bool recordMatchingPayment = true,
+    bool updateRevenueAggregate = true,
+    Map<String, dynamic>? extraPaymentFields,
   }) async {
     final doc = _receiptsRef(libraryId).doc();
     String rNum = receipt.receiptNumber.trim();
@@ -89,46 +195,48 @@ class ReceiptRepository {
       createdAt: receipt.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
-    await doc.set(newReceipt.toJson());
 
-    // Atomically increment revenue aggregate
+    final batch = _firestore.batch();
+    batch.set(doc, newReceipt.toJson());
+
+    // Atomically increment revenue aggregate once on receipt creation
     final amt = newReceipt.amount;
-    final dateStr = (newReceipt.createdAt ?? DateTime.now()).toIso8601String();
-    final month = dateStr.substring(0, 7);
-    if (amt > 0) {
-      _firestore.collection('libraries').doc(libraryId).collection('settings').doc('revenue_aggregate').set({
-        'totalRevenue': FieldValue.increment(amt),
-        'totalPayments': FieldValue.increment(1),
-        'monthlyRevenue.$month': FieldValue.increment(amt),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)).ignore();
+    if (updateRevenueAggregate && amt > 0) {
+      addRevenueAggregateToBatch(
+        batch,
+        _firestore,
+        libraryId,
+        amountDelta: amt,
+        paymentsDelta: 1,
+        referenceDate: newReceipt.createdAt,
+      );
     }
 
-    // Atomically create matching payment document if not already recorded
+    // Atomically create matching payment document if not already recorded separately
     if (recordMatchingPayment) {
-      try {
-        final paymentDoc = _firestore.collection('libraries').doc(libraryId).collection('payments').doc();
-        await paymentDoc.set({
-          'id': paymentDoc.id,
-          'studentId': newReceipt.studentId,
-          if (newReceipt.studentUserId != null && newReceipt.studentUserId!.isNotEmpty)
-            'studentUserId': newReceipt.studentUserId,
-          'amount': newReceipt.amount,
-          'totalPlanFee': newReceipt.totalFee ?? newReceipt.amount,
-          'remainingDue': newReceipt.remainingDue ?? 0.0,
-          'installmentNumber': newReceipt.installmentNumber,
-          'method': newReceipt.paymentMethod.isNotEmpty ? newReceipt.paymentMethod : 'Cash',
-          'date': newReceipt.createdAt != null ? Timestamp.fromDate(newReceipt.createdAt!) : FieldValue.serverTimestamp(),
-          'receiptId': doc.id,
-          'receiptNumber': newReceipt.receiptNumber,
-          'status': 'paid',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      } catch (e) {
-        debugPrint('Failed to record matching payment for receipt ${doc.id}: $e');
-      }
+      final paymentDoc = _firestore.collection('libraries').doc(libraryId).collection('payments').doc();
+      batch.set(paymentDoc, {
+        'id': paymentDoc.id,
+        'studentId': newReceipt.studentId,
+        if (newReceipt.studentUserId != null && newReceipt.studentUserId!.isNotEmpty)
+          'studentUserId': newReceipt.studentUserId,
+        'amount': newReceipt.amount,
+        'totalPlanFee': newReceipt.totalFee ?? newReceipt.amount,
+        'remainingDue': newReceipt.remainingDue ?? 0.0,
+        'installmentNumber': newReceipt.installmentNumber,
+        'method': newReceipt.paymentMethod.isNotEmpty ? newReceipt.paymentMethod : 'Cash',
+        'paymentMethod': newReceipt.paymentMethod.isNotEmpty ? newReceipt.paymentMethod : 'Cash',
+        'date': newReceipt.createdAt != null ? Timestamp.fromDate(newReceipt.createdAt!) : FieldValue.serverTimestamp(),
+        'receiptId': doc.id,
+        'receiptNumber': newReceipt.receiptNumber,
+        'status': 'paid',
+        if (updateRevenueAggregate && amt > 0) 'aggregateSyncedByClient': true,
+        ...?extraPaymentFields,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
     }
 
+    await batch.commit();
     return doc.id;
   }
 
@@ -170,27 +278,25 @@ class ReceiptRepository {
       'updatedAt': DateTime.now().toIso8601String(),
     });
 
-    // Also sync linked payment and decrement revenue aggregate
+    // Also sync linked payment and decrement revenue aggregate cleanly
     final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
-    final createdAtRaw = data['createdAt'];
-    final dateStr = createdAtRaw is String ? createdAtRaw : (createdAtRaw is Timestamp ? createdAtRaw.toDate().toIso8601String() : DateTime.now().toIso8601String());
-    final month = dateStr.substring(0, 7);
-
     if (amt > 0) {
-      _firestore.collection('libraries').doc(libraryId).collection('settings').doc('revenue_aggregate').set({
-        'totalRevenue': FieldValue.increment(-amt),
-        'monthlyRevenue.$month': FieldValue.increment(-amt),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)).ignore();
+      applyRevenueAggregateDelta(
+        _firestore,
+        libraryId,
+        amountDelta: -amt,
+        referenceDate: data['createdAt'],
+      ).ignore();
     }
 
-    // Void any payment linked to this receipt
+    // Void any payment linked to this receipt and tag aggregateSyncedStatus so Cloud Triggers don't double-decrement
     try {
       final pSnap = await _firestore.collection('libraries').doc(libraryId).collection('payments')
           .where('receiptId', isEqualTo: receiptId).get();
       for (final pDoc in pSnap.docs) {
         await pDoc.reference.update({
           'status': 'voided',
+          'aggregateSyncedStatus': 'voided',
           'cancellationReason': reason ?? 'Receipt voided',
           'updatedAt': FieldValue.serverTimestamp(),
         });
@@ -237,6 +343,14 @@ class ReceiptRepository {
     final now = DateTime.now();
     final currentUser = FirebaseAuth.instance.currentUser;
 
+    // Fetch linked payments BEFORE batch commit so recycle bin retains them for symmetrical restore
+    final linkedPaymentSnaps = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+    try {
+      final pSnap = await _firestore.collection('libraries').doc(libraryId).collection('payments')
+          .where('receiptId', isEqualTo: receiptId).get();
+      linkedPaymentSnaps.addAll(pSnap.docs);
+    } catch (_) {}
+
     final batch = _firestore.batch();
 
     // 1. Write a copy to both library-scoped and global recycle_bin collections
@@ -250,6 +364,10 @@ class ReceiptRepository {
       'deletedBy': currentUser?.email ?? currentUser?.uid ?? 'admin',
       'displayName': 'Receipt #${data['receiptNumber'] ?? receiptId}',
       'expiresAt': now.add(const Duration(days: 30)).toIso8601String(),
+      if (linkedPaymentSnaps.isNotEmpty)
+        'linkedPayments': linkedPaymentSnaps
+            .map((p) => {'id': p.id, ...p.data()})
+            .toList(),
     };
 
     final libBinRef = _firestore
@@ -262,35 +380,31 @@ class ReceiptRepository {
     // 2. Hard-delete from receipts collection
     batch.delete(receiptRef);
 
+    // 3. Decrement revenue aggregate (unless already voided)
+    final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
+    final receiptStatusStr = (data['status'] ?? 'active').toString().toLowerCase();
+    if (amt > 0 && receiptStatusStr != ReceiptStatus.voided.name) {
+      addRevenueAggregateToBatch(
+        batch,
+        _firestore,
+        libraryId,
+        amountDelta: -amt,
+        paymentsDelta: -1,
+        referenceDate: data['createdAt'],
+      );
+    }
+
+    // 4. Delete linked payment records atomically
+    for (final pDoc in linkedPaymentSnaps) {
+      batch.delete(pDoc.reference);
+    }
+
     await batch.commit();
 
     try {
       final globalBinRef = _firestore.collection('recycle_bin').doc(receiptId);
       await globalBinRef.set(recycleBinData);
     } catch (_) {}
-
-    // 3. Decrement revenue aggregate
-    final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
-    final createdAtRaw = data['createdAt'];
-    final dateStr = createdAtRaw is String ? createdAtRaw : (createdAtRaw is Timestamp ? createdAtRaw.toDate().toIso8601String() : DateTime.now().toIso8601String());
-    final month = dateStr.substring(0, 7);
-
-    if (amt > 0) {
-      _firestore.collection('libraries').doc(libraryId).collection('settings').doc('revenue_aggregate').set({
-        'totalRevenue': FieldValue.increment(-amt),
-        'monthlyRevenue.$month': FieldValue.increment(-amt),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)).ignore();
-    }
-
-    // 4. Soft-delete / remove linked payment record
-    try {
-      final pSnap = await _firestore.collection('libraries').doc(libraryId).collection('payments')
-          .where('receiptId', isEqualTo: receiptId).get();
-      for (final pDoc in pSnap.docs) {
-        await pDoc.reference.delete();
-      }
-    } catch (_) { /* intentionally silent */ }
 
     // 5. Invariant Cascade: If deleted receipt was active, verify remaining active receipts
     final studentId = data['studentId'] as String?;

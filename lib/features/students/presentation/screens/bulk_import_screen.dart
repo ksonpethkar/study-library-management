@@ -15,6 +15,7 @@ import 'package:study_library/core/utils/sequence_counter.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/models/student_model.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
 
 enum ImportRowStatus {
   valid,
@@ -219,6 +220,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
   }
 
   Future<void> _pickAndAnalyzeFile() async {
+    InactivityLockService.setExternalDialogActive(true);
     try {
       final pickedFiles = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -258,6 +260,8 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
     } catch (e) {
       _showError('Failed to parse CSV file: ${AppErrorFormatter.toUserFriendly(e, actionContext: "import")}');
     } finally {
+      InactivityLockService.setExternalDialogActive(false);
+      InactivityLockService.recordInteraction();
       if (mounted) {
         setState(() => _isAnalyzing = false);
       }
@@ -1078,7 +1082,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen>
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: theme.colorScheme.onPrimary,
                       ),
                       onPressed: () {
                         context.go('/admin/students');

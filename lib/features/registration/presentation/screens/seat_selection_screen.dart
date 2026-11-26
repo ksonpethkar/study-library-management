@@ -2,12 +2,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
 import '../providers/registration_provider.dart';
 import 'package:study_library/services/form_config_service.dart';
@@ -22,6 +23,7 @@ class SeatSelectionScreen extends ConsumerStatefulWidget {
 
 class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
   String? _selectedSectionId;
+  bool _deepLinkApplied = false;
 
   bool _isEligibleForGender({
     required String studentGenderStr,
@@ -123,7 +125,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
     );
   }
 
-  void _onDeskTap({
+  Future<void> _onDeskTap({
     required BuildContext context,
     required SeatModel seat,
     required SectionModel section,
@@ -132,59 +134,65 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
     required bool isReserved,
     required bool isMaintenance,
     required bool isGenderAllowed,
-  }) {
+  }) async {
     if (isOccupied) {
       HapticFeedback.lightImpact();
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.lock_rounded, color: Colors.white70, size: 18),
-              const SizedBox(width: 8),
-              Text('Desk #${seat.label} is currently occupied. Please choose an available desk.'),
-            ],
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
+      _showRestrictedDeskDialog(
+        context: context,
+        seat: seat,
+        section: section,
+        icon: Icons.lock_rounded,
+        color: Colors.grey.shade700,
+        title: '${SeatHelper.formatDeskLabel(rawLabel: seat.label)} Is Occupied',
+        message:
+            'This desk is already assigned to an enrolled student and cannot be booked or inquired about.\n\nPlease choose an available green desk or tap "Auto-Assign".',
       );
       return;
     }
 
     if (isReserved) {
-      HapticFeedback.lightImpact();
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.timer_outlined, color: Colors.amber, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('Desk #${seat.label} is temporarily held under a 10-min reservation. Please select another desk or check back shortly.'),
-              ),
-            ],
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
+      HapticFeedback.mediumImpact();
+      final exp = seat.reservationExpiresAt;
+      final remainingText = exp != null && exp.isAfter(DateTime.now())
+          ? () {
+              final mins = exp.difference(DateTime.now()).inMinutes;
+              if (mins >= 60) return 'held for another ${(mins / 60).ceil()}h';
+              return 'held for ${mins < 1 ? 1 : mins} min';
+            }()
+          : 'currently reserved';
+      final noteLine = (seat.statusReason?.trim().isNotEmpty ?? false)
+          ? '\nReason: ${seat.statusReason!.trim()}'
+          : '';
+      _showRestrictedDeskDialog(
+        context: context,
+        seat: seat,
+        section: section,
+        icon: Icons.timer_outlined,
+        color: const Color(0xFFF59E0B),
+        title: '${SeatHelper.formatDeskLabel(rawLabel: seat.label)} Is Reserved',
+        message:
+            'Another applicant has held this desk or management has reserved it ($remainingText).$noteLine\n\nPlease choose any other available green desk or tap "Auto-Assign".',
       );
       return;
     }
 
     if (isMaintenance) {
       HapticFeedback.lightImpact();
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.build_rounded, color: Colors.amber, size: 18),
-              const SizedBox(width: 8),
-              Text('Desk #${seat.label} is currently under maintenance.'),
-            ],
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
+      final noteLine = (seat.statusReason?.trim().isNotEmpty ?? false)
+          ? '\nReason: ${seat.statusReason!.trim()}'
+          : '';
+      _showRestrictedDeskDialog(
+        context: context,
+        seat: seat,
+        section: section,
+        icon: Icons.build_rounded,
+        color: const Color(0xFFD97706),
+        title: !section.isActive
+            ? '${section.name} Under Maintenance'
+            : '${SeatHelper.formatDeskLabel(rawLabel: seat.label)} Under Maintenance',
+        message: !section.isActive
+            ? 'This hall is temporarily closed for maintenance. No desks in ${section.name} can be selected right now.$noteLine'
+            : 'This desk is temporarily out of service for maintenance and cannot be selected.$noteLine',
       );
       return;
     }
@@ -199,41 +207,57 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
       return;
     }
 
-    // Available & Eligible -> Select this desk!
+    // Available & Eligible -> Acquire transactional soft-lock on sections/{secId}/seats/{seatId}
     HapticFeedback.selectionClick();
-    final prevSeatId = ref.read(selectedSeatDetailsProvider).seatId;
+    final prevDetails = ref.read(selectedSeatDetailsProvider);
+    final prevSeatId = prevDetails.seatId;
+    final prevSectionId = prevDetails.sectionId;
     final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    final curUser = FirebaseAuth.instance.currentUser;
+    final applicantName = (ref.read(registrationNotifierProvider)['name']?.toString().trim().isNotEmpty == true)
+        ? ref.read(registrationNotifierProvider)['name'].toString().trim()
+        : (curUser?.displayName ?? 'Applicant');
 
-    // Release previously held seat if switching
-    if (prevSeatId != null && prevSeatId != seat.id && libId.isNotEmpty) {
-      FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libId)
-          .collection('seats')
-          .doc(prevSeatId)
-          .update({
-        'status': 'available',
-        'reservationType': null,
-        'reservationExpiresAt': null,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }).catchError((_) {});
+    if (libId.isNotEmpty && curUser != null) {
+      // Release previous hold owned by this user on the correct nested section seat doc
+      if (prevSeatId != null &&
+          prevSeatId.isNotEmpty &&
+          prevSectionId != null &&
+          prevSectionId.isNotEmpty &&
+          (prevSeatId != seat.id || prevSectionId != section.id)) {
+        ref.read(seatRepositoryProvider).releaseSoftLock(
+          libraryId: libId,
+          sectionId: prevSectionId,
+          seatId: prevSeatId,
+          expectedCandidateId: curUser.uid,
+        ).ignore();
+      }
+
+      try {
+        await ref.read(seatRepositoryProvider).softLockSeat(
+          libraryId: libId,
+          sectionId: section.id,
+          seatId: seat.id,
+          candidateId: curUser.uid,
+          candidateName: applicantName,
+          duration: const Duration(minutes: 10),
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+        final errText = e.toString().replaceFirst('Exception: ', '');
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errText),
+            backgroundColor: Colors.orange.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
     }
 
-    // Apply temporary 5-minute soft lock (Cart Timer) to prevent registration collision
-    if (libId.isNotEmpty) {
-      FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libId)
-          .collection('seats')
-          .doc(seat.id)
-          .update({
-        'status': 'reserved',
-        'reservationType': 'registration_hold',
-        'reservationExpiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(minutes: 5))),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }).catchError((_) {});
-    }
-
+    if (!context.mounted) return;
     ref.read(selectedSeatDetailsProvider.notifier).selectSeat(
       seatId: seat.id,
       seatLabel: seat.label,
@@ -248,7 +272,13 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
           children: [
             const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 20),
             const SizedBox(width: 8),
-            Text('Selected Desk #${seat.label} (Held for 5 mins)!'),
+            Expanded(
+              child: Text(
+                curUser != null
+                    ? 'Selected ${SeatHelper.formatDeskLabel(rawLabel: seat.label)} (Held for 10 mins)!'
+                    : 'Selected ${SeatHelper.formatDeskLabel(rawLabel: seat.label)} (Will lock upon Sign-In & Submit)!',
+              ),
+            ),
           ],
         ),
         backgroundColor: const Color(0xFF1E293B),
@@ -258,24 +288,99 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
     );
   }
 
+  void _showRestrictedDeskDialog({
+    required BuildContext context,
+    required SeatModel seat,
+    required SectionModel section,
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String message,
+  }) {
+    final library = ref.read(currentLibraryProvider).value;
+    final amenities = AmenityCatalog.resolveEffectiveAmenities(
+      library: library,
+      section: section,
+      seat: seat,
+    );
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message, style: const TextStyle(fontSize: 13.5, height: 1.45)),
+            if (amenities.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'DESK AMENITIES',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: amenities.map((item) {
+                  return Chip(
+                    avatar: Icon(item.icon, size: 14),
+                    label: Text(item.shortLabel, style: const TextStyle(fontSize: 11)),
+                    visualDensity: VisualDensity.compact,
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Choose Another Desk'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onAutoAssignTap({required SectionModel section}) {
     HapticFeedback.mediumImpact();
-    final prevSeatId = ref.read(selectedSeatDetailsProvider).seatId;
+    final prevDetails = ref.read(selectedSeatDetailsProvider);
+    final prevSeatId = prevDetails.seatId;
+    final prevSectionId = prevDetails.sectionId;
     final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    final curUid = FirebaseAuth.instance.currentUser?.uid;
 
-    // Release previously held seat if switching to auto-assign
-    if (prevSeatId != null && libId.isNotEmpty) {
-      FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libId)
-          .collection('seats')
-          .doc(prevSeatId)
-          .update({
-        'status': 'available',
-        'reservationType': null,
-        'reservationExpiresAt': null,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }).catchError((_) {});
+    // Release previously held seat on the correct nested section seat doc
+    if (prevSeatId != null &&
+        prevSeatId.isNotEmpty &&
+        prevSectionId != null &&
+        prevSectionId.isNotEmpty &&
+        libId.isNotEmpty &&
+        curUid != null &&
+        curUid.isNotEmpty) {
+      ref.read(seatRepositoryProvider).releaseSoftLock(
+        libraryId: libId,
+        sectionId: prevSectionId,
+        seatId: prevSeatId,
+        expectedCandidateId: curUid,
+      ).ignore();
     }
 
     ref.read(selectedSeatDetailsProvider.notifier).selectAutoAssign(
@@ -380,10 +485,22 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
             );
           }
 
+          final deepLink = ref.watch(registrationDeepLinkProvider);
+          if (_selectedSectionId == null &&
+              deepLink.sectionId != null &&
+              sections.any((s) => s.id == deepLink.sectionId)) {
+            _selectedSectionId = deepLink.sectionId;
+          }
+
           // Active section
           final currentSection = sections.firstWhere(
             (s) => s.id == _selectedSectionId,
             orElse: () => sections.first,
+          );
+          final library = ref.watch(currentLibraryProvider).value;
+          final resolvedSectionAmenities = AmenityCatalog.resolveEffectiveAmenities(
+            library: library,
+            section: currentSection,
           );
           final currentSeats = ref.watch(seatsProvider(currentSection.id)).value ?? [];
           final hasBoySeats = currentSection.genderRestriction?.toLowerCase() == 'male' ||
@@ -653,21 +770,75 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                             ),
                             const SizedBox(height: 12),
 
-                            // Legend Bar
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 8,
-                              children: [
-                                _buildLegendItem(color: const Color(0xFF10B981), label: 'Available'),
-                                _buildLegendItem(color: const Color(0xFFEF4444), label: 'Occupied'),
-                                _buildLegendItem(color: const Color(0xFFF59E0B), label: 'Maintenance'),
-                                _buildLegendItem(color: const Color(0xFF8B5CF6), label: 'Selected'),
-                                if (hasBoySeats)
-                                  _buildLegendItem(color: const Color(0xFF3B82F6), label: '♂ Boys Reserved', isIcon: true, icon: Icons.male_rounded),
-                                if (hasGirlSeats)
-                                  _buildLegendItem(color: const Color(0xFFEC4899), label: '♀ Girls Reserved', isIcon: true, icon: Icons.female_rounded),
-                              ],
+                            // Compact Single-Line Horizontal Legend Strip (Saves vertical space on mobile)
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(
+                                children: [
+                                  _buildLegendItem(color: const Color(0xFF10B981), label: 'Available'),
+                                  const SizedBox(width: 12),
+                                  _buildLegendItem(color: const Color(0xFFF59E0B), label: 'Held'),
+                                  const SizedBox(width: 12),
+                                  _buildLegendItem(color: const Color(0xFFEF4444), label: 'Occupied'),
+                                  const SizedBox(width: 12),
+                                  _buildLegendItem(color: const Color(0xFFD97706), label: 'Maint.'),
+                                  const SizedBox(width: 12),
+                                  _buildLegendItem(color: const Color(0xFF8B5CF6), label: 'Selected'),
+                                  if (hasBoySeats) ...[
+                                    const SizedBox(width: 12),
+                                    _buildLegendItem(color: const Color(0xFF3B82F6), label: '♂ Boys', isIcon: true, icon: Icons.male_rounded),
+                                  ],
+                                  if (hasGirlSeats) ...[
+                                    const SizedBox(width: 12),
+                                    _buildLegendItem(color: const Color(0xFFEC4899), label: '♀ Girls', isIcon: true, icon: Icons.female_rounded),
+                                  ],
+                                ],
+                              ),
                             ),
+                            if (!currentSection.isActive) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade100,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.amber.shade400),
+                                ),
+                                child: Text(
+                                  '${currentSection.name} is currently under maintenance. Desks in this hall cannot be selected.',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber.shade900),
+                                ),
+                              ),
+                            ],
+                            if (resolvedSectionAmenities.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: resolvedSectionAmenities.map((item) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(item.icon, size: 12, color: theme.colorScheme.primary),
+                                        const SizedBox(width: 4),
+                                        Text(item.shortLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
                             const Divider(height: 24),
 
                             // Seats Grid
@@ -907,6 +1078,43 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
         }
 
         final sortedSeats = [...seats]..sort(SeatHelper.compareSeats);
+        final deepLink = ref.read(registrationDeepLinkProvider);
+        if (!_deepLinkApplied &&
+            deepLink.seatId != null &&
+            deepLink.seatId!.isNotEmpty &&
+            (deepLink.sectionId == null || deepLink.sectionId!.isEmpty || deepLink.sectionId == section.id)) {
+          _deepLinkApplied = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final targetNum = SeatHelper.formatSeatNumberOnly(rawLabel: deepLink.seatId);
+            final matched = sortedSeats.where((s) {
+              if (s.id == deepLink.seatId || s.label == deepLink.seatId) return true;
+              final sNum = SeatHelper.formatSeatNumberOnly(seatId: s.id, rawLabel: s.label, cols: section.cols);
+              return targetNum.isNotEmpty && sNum == targetNum;
+            }).firstOrNull;
+            if (matched == null) return;
+            final curUid = FirebaseAuth.instance.currentUser?.uid;
+            final isHeldByMe = curUid != null && curUid.isNotEmpty && matched.reservedCandidateId == curUid;
+            final mOccupied = matched.isOccupied;
+            final mReserved = matched.effectiveStatus == SeatStatus.reserved && !isHeldByMe;
+            final mMaint = !section.isActive || matched.effectiveStatus == SeatStatus.maintenance;
+            final mGender = _isEligibleForGender(
+              studentGenderStr: studentGenderStr,
+              section: section,
+              seat: matched,
+            );
+            _onDeskTap(
+              context: context,
+              seat: matched,
+              section: section,
+              studentGenderStr: studentGenderStr,
+              isOccupied: mOccupied,
+              isReserved: mReserved,
+              isMaintenance: mMaint,
+              isGenderAllowed: mGender,
+            );
+          });
+        }
         final screenWidth = MediaQuery.of(context).size.width;
         final crossAxisCount = section.cols > 0 ? section.cols : 10;
         // On mobile phones (< 500px), a 10-column grid requires at least 44px per desk (440px total)
@@ -927,9 +1135,13 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
           ),
           itemBuilder: (context, index) {
             final seat = sortedSeats[index];
+            final curUid = FirebaseAuth.instance.currentUser?.uid;
             final isOccupied = seat.isOccupied;
-            final isReserved = seat.hasActiveSoftLock;
-            final isMaintenance = seat.effectiveStatus == SeatStatus.maintenance;
+            final isHeldByMe = curUid != null &&
+                curUid.isNotEmpty &&
+                seat.reservedCandidateId == curUid;
+            final isReserved = seat.effectiveStatus == SeatStatus.reserved && !isHeldByMe;
+            final isMaintenance = !section.isActive || seat.effectiveStatus == SeatStatus.maintenance;
             final isSelected = !seatDetails.isAutoAssign &&
                 (seat.id == seatDetails.seatId || seat.label == seatDetails.seatLabel);
 

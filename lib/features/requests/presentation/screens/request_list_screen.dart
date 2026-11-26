@@ -17,6 +17,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/utils/student_ledger_helper.dart';
 
 /// Data representation of a student request from raw Firestore data.
 class StudentRequestItem {
@@ -94,60 +95,71 @@ class StudentRequestItem {
     this.cycleEndDate,
   });
 
+  static String? _asStr(dynamic val) {
+    if (val == null) return null;
+    final s = val.toString();
+    return s;
+  }
+
   factory StudentRequestItem.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
     final data = doc.data() ?? {};
-    final studentData = (data['studentData'] as Map?)?.cast<String, dynamic>() ?? {};
+    final rawStudentData = data['studentData'];
+    final studentData = rawStudentData is Map
+        ? rawStudentData.map((k, v) => MapEntry(k.toString(), v))
+        : <String, dynamic>{};
 
     // Support both direct fields and nested studentData fallback
     String studentName = 'Student';
-    if (data['studentName'] is String && (data['studentName'] as String).trim().isNotEmpty) {
-      studentName = (data['studentName'] as String).trim();
-    } else if (studentData['name'] != null && studentData['name'].toString().trim().isNotEmpty) {
-      studentName = studentData['name'].toString().trim();
+    final rawName = _asStr(data['studentName'])?.trim();
+    final rawNestedName = _asStr(studentData['name'])?.trim();
+    if (rawName != null && rawName.isNotEmpty) {
+      studentName = rawName;
+    } else if (rawNestedName != null && rawNestedName.isNotEmpty) {
+      studentName = rawNestedName;
     }
 
-    final rawCurrentSeat = (data['currentSeatLabel'] ?? data['currentSeatId'] ?? studentData['currentSeatId']) as String?;
-    final rawTargetSeat = (data['targetSeatLabel'] ?? data['targetSeatId'] ?? data['seatId'] ?? studentData['targetSeatId']) as String?;
-    final rawPhoto = (data['photoUrl'] ?? studentData['photoUrl'] ?? data['photo'] ?? studentData['photo']) as String?;
+    final rawCurrentSeat = _asStr(data['currentSeatLabel'] ?? data['currentSeatId'] ?? studentData['currentSeatId']);
+    final rawTargetSeat = _asStr(data['targetSeatLabel'] ?? data['requestedSeatLabel'] ?? data['targetSeatId'] ?? data['requestedSeatId'] ?? data['seatId'] ?? studentData['targetSeatId'] ?? studentData['seatId']);
+    final rawPhoto = _asStr(data['photoUrl'] ?? studentData['photoUrl'] ?? data['photo'] ?? studentData['photo']);
 
     return StudentRequestItem(
       id: doc.id,
-      type: data['type'] as String? ?? 'General Request',
-      message: (data['message'] ?? data['reason'] ?? '') as String? ?? '',
+      type: _asStr(data['type']) ?? 'General Request',
+      message: _asStr(data['message'] ?? data['reason']) ?? '',
       studentName: studentName,
-      studentId: data['studentId'] as String? ?? '',
-      studentPhone: (data['studentPhone'] ?? studentData['phone']) as String?,
-      studentEmail: (data['studentEmail'] ?? studentData['email']) as String?,
-      membershipNumber: (data['membershipNumber'] ?? studentData['membershipNumber']) as String?,
+      studentId: _asStr(data['studentId']) ?? '',
+      studentPhone: _asStr(data['studentPhone'] ?? studentData['phone']),
+      studentEmail: _asStr(data['email'] ?? data['studentEmail'] ?? studentData['email']),
+      membershipNumber: _asStr(data['membershipNumber'] ?? studentData['membershipNumber']),
       currentSeatLabel: rawCurrentSeat != null ? SeatHelper.formatDeskLabel(rawLabel: rawCurrentSeat) : null,
-      currentSectionName: (data['currentSectionName'] ?? studentData['currentSectionName']) as String?,
+      currentSectionName: _asStr(data['currentSectionName'] ?? studentData['currentSectionName']),
       targetSeatLabel: rawTargetSeat != null ? SeatHelper.formatDeskLabel(rawLabel: rawTargetSeat) : null,
-      targetSectionName: (data['targetSectionName'] ?? studentData['targetSectionName']) as String?,
-      targetSeatId: (data['targetSeatId'] ?? data['requestedSeatId'] ?? data['seatId'] ?? studentData['targetSeatId'] ?? studentData['seatId'])?.toString(),
-      targetSectionId: (data['targetSectionId'] ?? data['requestedSectionId'] ?? data['sectionId'] ?? studentData['targetSectionId'] ?? studentData['sectionId'])?.toString(),
-      reason: (data['reason'] ?? data['message']) as String?,
-      status: (data['status'] as String? ?? 'pending').trim().toLowerCase(),
+      targetSectionName: _asStr(data['targetSectionName'] ?? data['requestedSectionName'] ?? studentData['targetSectionName'] ?? studentData['requestedSectionName']),
+      targetSeatId: _asStr(data['targetSeatId'] ?? data['requestedSeatId'] ?? data['seatId'] ?? studentData['targetSeatId'] ?? studentData['seatId']),
+      targetSectionId: _asStr(data['targetSectionId'] ?? data['requestedSectionId'] ?? data['sectionId'] ?? studentData['targetSectionId'] ?? studentData['sectionId']),
+      reason: _asStr(data['reason'] ?? data['message']),
+      status: (_asStr(data['status']) ?? 'pending').trim().toLowerCase(),
       createdAt: _parseDate(data['createdAt']),
-      rejectionReason: (data['rejectionReason'] ?? data['rejectReason']) as String?,
-      requestedPlanName: (data['requestedPlanName'] ?? studentData['requestedPlanName'] ?? data['planName']) as String?,
-      requestedPlanId: (data['requestedPlanId'] ?? data['planId']) as String?,
-      amount: (data['amount'] as num?)?.toDouble() ??
-          (studentData['amount'] as num?)?.toDouble() ??
-          (data['proratedFee'] as num?)?.toDouble() ??
-          (studentData['proratedFee'] as num?)?.toDouble() ??
-          (data['totalPayable'] as num?)?.toDouble() ??
-          (data['planPrice'] as num?)?.toDouble() ??
-          (studentData['planPrice'] as num?)?.toDouble(),
-      paymentMethod: (data['paymentMethod'] ?? data['paymentMode'] ?? data['method']) as String?,
-      paymentModeLabel: (data['paymentModeLabel'] ?? data['paymentMode'] ?? data['paymentMethod']) as String?,
-      referenceNumber: (data['referenceNumber'] ?? data['reference']) as String?,
-      studentUserId: (data['studentUserId'] ?? data['userId'] ?? studentData['userId']) as String?,
+      rejectionReason: _asStr(data['rejectionReason'] ?? data['rejectReason']),
+      requestedPlanName: _asStr(data['requestedPlanName'] ?? studentData['requestedPlanName'] ?? data['planName'] ?? studentData['planName']),
+      requestedPlanId: _asStr(data['requestedPlanId'] ?? data['planId'] ?? studentData['planId']),
+      amount: _asDouble(data['amount'] ?? studentData['amount'] ?? data['proratedFee'] ?? studentData['proratedFee'] ?? data['totalPayable'] ?? data['planPrice'] ?? studentData['planPrice']),
+      paymentMethod: _asStr(data['paymentMethod'] ?? data['paymentMode'] ?? data['method']),
+      paymentModeLabel: _asStr(data['paymentModeLabel'] ?? data['paymentMode'] ?? data['paymentMethod']),
+      referenceNumber: _asStr(data['referenceNumber'] ?? data['reference']),
+      studentUserId: _asStr(data['studentUserId'] ?? data['userId'] ?? studentData['userId']),
       photoUrl: rawPhoto,
-      cycleStartDate: _parseDate(data['cycleStartDate']),
-      cycleEndDate: _parseDate(data['cycleEndDate']),
+      cycleStartDate: _parseDate(data['cycleStartDate'] ?? studentData['cycleStartDate']),
+      cycleEndDate: _parseDate(data['cycleEndDate'] ?? studentData['cycleEndDate']),
     );
+  }
+
+  static double? _asDouble(dynamic val) {
+    if (val == null) return null;
+    if (val is num) return val.toDouble();
+    return double.tryParse(val.toString().trim());
   }
 
   static DateTime? _parseDate(dynamic date) {
@@ -173,9 +185,14 @@ final requestsStreamProvider = StreamProvider.autoDispose<List<StudentRequestIte
       .collection('requests')
       .snapshots()
       .map((snapshot) {
-    final list = snapshot.docs
-        .map((doc) => StudentRequestItem.fromFirestore(doc))
-        .toList();
+    final list = <StudentRequestItem>[];
+    for (final doc in snapshot.docs) {
+      try {
+        list.add(StudentRequestItem.fromFirestore(doc));
+      } catch (e) {
+        debugPrint('Skipping malformed request doc ${doc.id}: $e');
+      }
+    }
 
     // Sort in Dart by createdAt descending (no composite index needed)
     list.sort((a, b) {
@@ -1164,8 +1181,87 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
     if (libraryId == null || libraryId.isEmpty) return;
 
     if (newStatus == 'approved') {
-      final isRenewal = requestItem != null &&
-          (requestItem.type.toLowerCase() == 'renewal' || requestItem.type.toLowerCase() == 'plan_renewal');
+      final reqTypeLower = requestItem?.type.toLowerCase().trim() ?? '';
+      final isRenewal = reqTypeLower == 'renewal' || reqTypeLower == 'plan_renewal';
+      final isDuePayment = reqTypeLower == 'due_payment' || reqTypeLower == 'due_clearance';
+      final isAdmissionOrSeat = reqTypeLower == 'registration' ||
+          reqTypeLower == 'newregistration' ||
+          reqTypeLower == 'seat_change' ||
+          reqTypeLower == 'seatchange';
+
+      // Pre-check live desk collision & competing pending requests before approving
+      if (isAdmissionOrSeat && requestItem != null) {
+        final targetSeatId = requestItem.targetSeatId;
+        final targetSectionId = requestItem.targetSectionId;
+        if (targetSeatId != null &&
+            targetSeatId.isNotEmpty &&
+            targetSectionId != null &&
+            targetSectionId.isNotEmpty &&
+            !targetSeatId.toLowerCase().contains('auto')) {
+          try {
+            final seatSnap = await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('sections')
+                .doc(targetSectionId)
+                .collection('seats')
+                .doc(targetSeatId)
+                .get();
+
+            final seatData = seatSnap.data() ?? {};
+            final seatStatus = (seatData['status'] ?? 'available').toString().toLowerCase();
+            final occupant = (seatData['studentId'] ?? '').toString();
+            final reservedCand = (seatData['reservedCandidateId'] ?? '').toString();
+            final resExpiresRaw = seatData['reservationExpiresAt'];
+            DateTime? resExpires;
+            if (resExpiresRaw is Timestamp) {
+              resExpires = resExpiresRaw.toDate();
+            } else if (resExpiresRaw is String) {
+              resExpires = DateTime.tryParse(resExpiresRaw);
+            }
+            final isReservedByOther = seatStatus == 'reserved' &&
+                (resExpires == null || resExpires.isAfter(DateTime.now())) &&
+                reservedCand.isNotEmpty &&
+                reservedCand != requestItem.studentId &&
+                reservedCand != requestItem.studentUserId;
+            final isOccupiedByOther = seatStatus == 'occupied' &&
+                occupant.isNotEmpty &&
+                occupant != requestItem.studentId &&
+                occupant != requestItem.studentUserId;
+
+            if (isOccupiedByOther || isReservedByOther) {
+              if (context.mounted) {
+                await showDialog<void>(
+                  context: context,
+                  builder: (dCtx) => AlertDialog(
+                    title: const Text('Desk Conflict Detected'),
+                    content: Text(
+                      isOccupiedByOther
+                          ? '${SeatHelper.formatDeskLabel(rawLabel: requestItem.targetSeatLabel ?? targetSeatId)} is already occupied by another student. Open Request Details to pick an available desk or switch to Auto-Assign.'
+                          : '${SeatHelper.formatDeskLabel(rawLabel: requestItem.targetSeatLabel ?? targetSeatId)} is currently held by another applicant. Open Request Details to resolve the conflict.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dCtx).pop(),
+                        child: const Text('Close'),
+                      ),
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.of(dCtx).pop();
+                          context.push('/admin/requests/$requestId');
+                        },
+                        child: const Text('Open Details'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return;
+            }
+          } catch (_) {}
+        }
+      }
+
       final amount = requestItem?.amount ?? 0.0;
       final planName = requestItem?.requestedPlanName ?? 'Standard Plan';
       final studentName = requestItem?.studentName ?? 'Student';
@@ -1177,17 +1273,18 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
           : 'UPI';
 
       final payingAmountController = TextEditingController(
-        text: amount > 0 ? amount.toStringAsFixed(0) : '0',
+        text: (isRenewal || isDuePayment) && amount > 0 ? amount.toStringAsFixed(0) : '0',
       );
       final refController = TextEditingController(
         text: requestItem?.referenceNumber ?? '',
       );
       bool sendWhatsAppReceipt = true;
-      double enteredAmount = amount;
+      double enteredAmount = (isRenewal || isDuePayment) ? amount : 0.0;
       double remainingDue = 0.0;
 
       bool isSubmitting = false;
 
+      if (!context.mounted) return;
       final confirmed = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
@@ -1271,27 +1368,27 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                                 Text(planName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                               ],
                             ),
-                            if (requestItem.currentSeatLabel != null) ...[
+                            if (requestItem?.currentSeatLabel != null) ...[
                               const SizedBox(height: 6),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text('Assigned Desk:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
                                   Text(
-                                    '${SeatHelper.formatDeskLabel(rawLabel: requestItem.currentSeatLabel)} • ${requestItem.currentSectionName ?? "Cozy Hall"}',
+                                    '${SeatHelper.formatDeskLabel(rawLabel: requestItem!.currentSeatLabel)} • ${requestItem.currentSectionName ?? "Cozy Hall"}',
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF059669)),
                                   ),
                                 ],
                               ),
                             ],
-                            if (requestItem.cycleStartDate != null && requestItem.cycleEndDate != null) ...[
+                            if (requestItem?.cycleStartDate != null && requestItem?.cycleEndDate != null) ...[
                               const SizedBox(height: 6),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text('Validity Cycle:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
                                   Text(
-                                    '${DateFormat('dd MMM yyyy').format(requestItem.cycleStartDate!)} ➔ ${DateFormat('dd MMM yyyy').format(requestItem.cycleEndDate!)}',
+                                    '${DateFormat('dd MMM yyyy').format(requestItem!.cycleStartDate!)} ➔ ${DateFormat('dd MMM yyyy').format(requestItem.cycleEndDate!)}',
                                     style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
                                   ),
                                 ],
@@ -1422,7 +1519,9 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                       ),
                     ] else ...[
                       Text(
-                        'Are you sure you want to approve this request? The student will be provisioned and assigned accordingly.',
+                        reqTypeLower == 'registration' || reqTypeLower == 'newregistration'
+                            ? 'Approving creates the student profile and holds their desk as Payment Pending (inactive until fee is collected). No fee receipt or Soundbox chime will trigger until payment is recorded.'
+                            : 'Are you sure you want to approve this request? The student will be updated accordingly.',
                         style: Theme.of(ctx).textTheme.bodyMedium,
                       ),
                     ],
@@ -1449,7 +1548,10 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                                 : () async {
                                     setModalState(() => isSubmitting = true);
                                     try {
-                                      final paidAmt = enteredAmount > 0 ? enteredAmount : amount;
+                                      // Exact collected fee: 0 stays 0 (never fallback 0 -> plan amount!)
+                                      final double paidAmt = (isRenewal || isDuePayment)
+                                          ? (double.tryParse(payingAmountController.text.trim()) ?? 0.0)
+                                          : 0.0;
                                       final remDue = remainingDue;
                                       final refNum = refController.text.trim();
 
@@ -1460,13 +1562,14 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                                             .collection('requests')
                                             .doc(requestId)
                                             .update({
-                                          'paymentMethod': selectedPaymentMethod,
-                                          'method': selectedPaymentMethod,
+                                          if (paidAmt > 0) 'paymentMethod': selectedPaymentMethod,
+                                          if (paidAmt > 0) 'method': selectedPaymentMethod,
                                           'paidAmount': paidAmt,
+                                          'skipPayment': paidAmt <= 0,
                                           'totalFee': amount,
                                           'remainingDue': remDue,
-                                          if (refNum.isNotEmpty) 'referenceNumber': refNum,
-                                          if (refNum.isNotEmpty) 'transactionId': refNum,
+                                          if (paidAmt > 0 && refNum.isNotEmpty) 'referenceNumber': refNum,
+                                          if (paidAmt > 0 && refNum.isNotEmpty) 'transactionId': refNum,
                                         });
                                       }
 
@@ -1478,16 +1581,22 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                                         mergeExistingPhone: true,
                                       );
 
-                                      // Reception Soundbox Audio Chime
-                                      try {
-                                        ref.read(soundboxServiceProvider).announcePayment(
-                                          amount: paidAmt,
-                                          studentName: studentName,
-                                        );
-                                      } catch (_) {}
+                                      // Soundbox chime ONLY when a real payment (> 0) was collected
+                                      if (StudentLedgerHelper.shouldAnnounceApprovalPayment(
+                                        isRenewal: isRenewal,
+                                        isDuePayment: isDuePayment,
+                                        collectedAmount: paidAmt,
+                                      )) {
+                                        try {
+                                          ref.read(soundboxServiceProvider).announcePayment(
+                                            amount: paidAmt,
+                                            studentName: studentName,
+                                          );
+                                        } catch (_) {}
+                                      }
 
-                                      // WhatsApp Receipt Dispatch
-                                      if (isRenewal && sendWhatsAppReceipt && phone.isNotEmpty) {
+                                      // WhatsApp Receipt Dispatch ONLY if payment > 0 was collected
+                                      if (isRenewal && paidAmt > 0 && sendWhatsAppReceipt && phone.isNotEmpty) {
                                         try {
                                           final currentLib = ref.read(currentLibraryProvider).value;
                                           final libName = currentLib?.name ?? 'The Cozy Corner Study Centre';
@@ -1498,12 +1607,12 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                                             paidAmt,
                                             refNum.isNotEmpty ? refNum : 'Official Receipt',
                                             planName: planName,
-                                            seatLabel: requestItem.currentSeatLabel,
-                                            validFromDate: requestItem.cycleStartDate != null
-                                                ? DateFormat('dd MMM yyyy').format(requestItem.cycleStartDate!)
+                                            seatLabel: requestItem?.currentSeatLabel,
+                                            validFromDate: requestItem?.cycleStartDate != null
+                                                ? DateFormat('dd MMM yyyy').format(requestItem!.cycleStartDate!)
                                                 : null,
-                                            expiryDate: requestItem.cycleEndDate != null
-                                                ? DateFormat('dd MMM yyyy').format(requestItem.cycleEndDate!)
+                                            expiryDate: requestItem?.cycleEndDate != null
+                                                ? DateFormat('dd MMM yyyy').format(requestItem!.cycleEndDate!)
                                                 : null,
                                             paymentMethod: selectedPaymentMethod,
                                             remainingDue: remDue > 0 ? remDue : null,
@@ -1527,7 +1636,9 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                                     height: 20,
                                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                   )
-                                : Text(isRenewal ? 'Collect & Approve' : 'Approve'),
+                                : Text(isRenewal
+                                    ? (enteredAmount > 0 ? 'Collect & Approve' : 'Approve Without Payment')
+                                    : 'Approve'),
                           ),
                         ),
                       ],
@@ -1565,12 +1676,18 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
         // Immediate Seat Reservation Release to prevent soft-lock leaks
         final reqSeatId = requestItem?.targetSeatId;
         final reqSecId = requestItem?.targetSectionId;
+        final expectedCand = (requestItem?.studentUserId?.isNotEmpty == true)
+            ? requestItem!.studentUserId
+            : (requestItem != null && requestItem.studentId.isNotEmpty
+                ? requestItem.studentId
+                : null);
         if (reqSeatId != null && reqSeatId.isNotEmpty && reqSecId != null && reqSecId.isNotEmpty) {
           try {
             await ref.read(seatRepositoryProvider).releaseSoftLock(
               libraryId: libraryId,
               sectionId: reqSecId,
               seatId: reqSeatId,
+              expectedCandidateId: expectedCand,
             );
           } catch (_) {}
         }

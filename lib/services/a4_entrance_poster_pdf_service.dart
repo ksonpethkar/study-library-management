@@ -453,41 +453,42 @@ class A4EntrancePosterPdfService {
                         ),
 
                         // ── 3. Full-Width Amenities Grid ───────────────────
-                        pw.Column(
-                          children: [
-                            pw.Text(
-                              'LIBRARY AMENITIES & FACILITIES',
-                              style: pw.TextStyle(
-                                fontSize: 10,
-                                fontWeight: pw.FontWeight.bold,
-                                color: const PdfColor.fromInt(0xFF64748B),
-                                letterSpacing: 1.2,
+                        if (activeAmenities.isNotEmpty)
+                          pw.Column(
+                            children: [
+                              pw.Text(
+                                'LIBRARY AMENITIES & FACILITIES',
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: const PdfColor.fromInt(0xFF64748B),
+                                  letterSpacing: 1.2,
+                                ),
                               ),
-                            ),
-                            pw.SizedBox(height: 8),
-                            // Row 1 of amenities
-                            pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                              children: [
-                                for (int i = 0; i < 3; i++)
-                                  if (i < activeAmenities.length)
-                                    buildAmenityCard(activeAmenities[i]),
-                              ],
-                            ),
-                            // Row 2 of amenities
-                            if (activeAmenities.length > 3) ...[
-                              pw.SizedBox(height: 6),
+                              pw.SizedBox(height: 8),
+                              // Row 1 of amenities
                               pw.Row(
                                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                                 children: [
-                                  for (int i = 3; i < 6; i++)
+                                  for (int i = 0; i < 3; i++)
                                     if (i < activeAmenities.length)
                                       buildAmenityCard(activeAmenities[i]),
                                 ],
                               ),
+                              // Row 2 of amenities
+                              if (activeAmenities.length > 3) ...[
+                                pw.SizedBox(height: 6),
+                                pw.Row(
+                                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    for (int i = 3; i < 6; i++)
+                                      if (i < activeAmenities.length)
+                                        buildAmenityCard(activeAmenities[i]),
+                                  ],
+                                ),
+                              ],
                             ],
-                          ],
-                        ),
+                          ),
                       ],
                     ),
                   ),

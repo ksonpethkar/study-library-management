@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
+import 'package:study_library/core/constants/app_constants.dart';
 
 enum UpdateStatus { upToDate, optionalUpdate, forceUpdate, checkFailed }
 
@@ -44,19 +45,42 @@ class UpdateInfo {
     required bool isIos,
     required bool isWeb,
   }) {
+    List<String> extractNotes(dynamic rawNotes) {
+      if (rawNotes is List) {
+        return rawNotes.map((e) => e.toString().trim()).where((s) => s.isNotEmpty).toList();
+      }
+      if (rawNotes is String && rawNotes.trim().isNotEmpty) {
+        return rawNotes.split(RegExp(r'\.\s+')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      }
+      return [];
+    }
+
+    // Resolve highlights from unified `changelog` entry first so UpdateBanner & WhatsNew stay synced
+    List<String> resolveChangelogHighlights(String targetVer, int targetCode) {
+      final rawChangelog = json['changelog'];
+      if (rawChangelog is List && rawChangelog.isNotEmpty) {
+        final entries = rawChangelog.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+        final match = entries.where((e) {
+          final v = (e['version'] ?? '').toString().trim();
+          final b = (e['buildNumber'] as num?)?.toInt() ?? 0;
+          return (targetCode > 0 && b == targetCode) ||
+              (targetVer.isNotEmpty && targetVer.split('+').first == v);
+        }).firstOrNull ?? entries.first;
+
+        final hl = extractNotes(match['highlights'] ?? match['summary']);
+        if (hl.isNotEmpty) return hl;
+      }
+      return [];
+    }
+
     if (isWeb) {
       final webData = json['web'] as Map<String, dynamic>?;
       if (webData != null) {
-        final rawNotes = webData['releaseNotes'] ?? json['releaseNotes'];
-        List<String> notes = [];
-        if (rawNotes is List) {
-          notes = rawNotes.map((e) => e.toString()).toList();
-        } else if (rawNotes is String && rawNotes.isNotEmpty) {
-          notes = rawNotes.split(RegExp(r'\.\s+')).where((s) => s.trim().isNotEmpty).toList();
-        }
-
         final vCode = (webData['buildNumber'] as num?)?.toInt() ?? 0;
-        final vName = (webData['version'] ?? '1.5.53').toString();
+        final vName = (webData['version'] ?? AppConstants.appVersion).toString();
+        final changelogNotes = resolveChangelogHighlights(vName, vCode);
+        final rawNotes = webData['releaseNotes'] ?? json['releaseNotes'];
+        final notes = changelogNotes.isNotEmpty ? changelogNotes : extractNotes(rawNotes);
 
         return UpdateInfo(
           versionCode: vCode,
@@ -87,27 +111,22 @@ class UpdateInfo {
     final nested = json[platformKey] as Map<String, dynamic>?;
     final data = nested ?? json;
 
-    final rawNotes = data['releaseNotes'];
-    List<String> notes;
-    if (rawNotes is List) {
-      notes = rawNotes.map((e) => e.toString()).toList();
-    } else if (rawNotes is String && rawNotes.isNotEmpty) {
-      notes = rawNotes.split(RegExp(r'\.\s+')).where((s) => s.trim().isNotEmpty).toList();
-    } else {
-      notes = [];
-    }
-
     final vCode = (data['versionCode'] as num?)?.toInt() ??
         (data['latestVersionCode'] as num?)?.toInt() ??
         (data['latestBuild'] as num?)?.toInt() ??
         0;
     final vName = (data['versionName'] ?? data['latestVersion'] ?? '').toString();
-    final downloadLink = (data['apkUrl'] ??
+    final changelogNotes = resolveChangelogHighlights(vName, vCode);
+    final rawNotes = data['releaseNotes'] ?? json['releaseNotes'];
+    final notes = changelogNotes.isNotEmpty ? changelogNotes : extractNotes(rawNotes);
+
+    final downloadLink = (data['arm64DownloadUrl'] ??
+            data['apkUrl'] ??
             data['downloadUrl'] ??
             (isIos ? data['iosUrl'] : null) ??
             '')
         .toString();
-    final size = (data['apkSize'] ?? '51.8 MB').toString();
+    final size = (data['arm64ApkSize'] ?? data['apkSize'] ?? '55.1 MB').toString();
 
     return UpdateInfo(
       versionCode: vCode,
@@ -117,7 +136,7 @@ class UpdateInfo {
       isForceUpdate: data['forceUpdate'] == true,
       message: 'Version ${vName.isNotEmpty ? vName : '?'} is ready to install.',
       releaseNotes: notes,
-      apkSize: size.isNotEmpty && size != 'null' ? size : '51.8 MB',
+      apkSize: size.isNotEmpty && size != 'null' ? size : '55.1 MB',
       isWebUpdate: false,
     );
   }
@@ -283,7 +302,7 @@ class ForceUpdateService extends Notifier<UpdateState> {
         // because version.json is requested relative to the subroute path, hitting index.html rewrites.
         // If packageInfo.buildNumber is empty or 0, fallback to current release build number (2073).
         final parsedWebCode = int.tryParse(packageInfo.buildNumber) ?? 0;
-        final currentWebCode = parsedWebCode > 0 ? parsedWebCode : 2073;
+        final currentWebCode = parsedWebCode > 0 ? parsedWebCode : AppConstants.buildNumber;
         final hasNewerWebVersion = updateInfo.versionCode > currentWebCode;
 
         if (hasNewerWebVersion) {

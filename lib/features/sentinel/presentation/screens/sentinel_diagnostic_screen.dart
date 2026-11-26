@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/sentinel/sentinel_models.dart';
@@ -108,6 +109,60 @@ class _SentinelDiagnosticScreenState extends ConsumerState<SentinelDiagnosticScr
     }
   }
 
+  Future<void> _shareWhatsAppReport(
+    SentinelHealthMetrics metrics,
+    List<SentinelAnomaly> anomalies,
+  ) async {
+    AppHaptics.light();
+    final dateStr = DateFormat('dd-MMM-yyyy HH:mm').format(DateTime.now());
+    final statusEmoji = metrics.score >= 90 ? '🟢' : (metrics.score >= 70 ? '🟡' : '🔴');
+
+    final buffer = StringBuffer();
+    buffer.writeln('🛡️ *Cozy Corner System Health Report*');
+    buffer.writeln('📅 $dateStr');
+    buffer.writeln('$statusEmoji *Health Score:* ${metrics.score.toStringAsFixed(0)}% (${metrics.statusText})');
+    buffer.writeln('🚨 Critical Issues: ${metrics.criticalCount}');
+    buffer.writeln('⚠️ Warnings: ${metrics.warningCount}');
+    buffer.writeln('ℹ️ Advisories: ${metrics.advisoryCount}');
+    buffer.writeln();
+
+    if (anomalies.isEmpty) {
+      buffer.writeln('✅ *All 11 operational invariants are 100% healthy!* Zero anomalies detected.');
+    } else {
+      buffer.writeln('*Detected Anomalies (${anomalies.length}):*');
+      for (final a in anomalies.take(8)) {
+        final severityTag = a.severity == SentinelSeverity.critical
+            ? '🚨 CRITICAL'
+            : (a.severity == SentinelSeverity.warning ? '⚠️ WARNING' : 'ℹ️ ADVISORY');
+        buffer.writeln('• [$severityTag] *${a.title}*');
+        buffer.writeln('  _${a.description}_');
+        if (a.remediationSuggestion != null) {
+          buffer.writeln('  👉 Fix: ${a.remediationSuggestion}');
+        }
+        buffer.writeln();
+      }
+      if (anomalies.length > 8) {
+        buffer.writeln('...and ${anomalies.length - 8} more issues.');
+      }
+    }
+
+    buffer.writeln('🔗 *Sentinel Live Dashboard:*');
+    buffer.writeln('https://study-lib-mgmt-2026.web.app/app/admin/sentinel');
+
+    final url = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(buffer.toString())}');
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open WhatsApp: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final metrics = ref.watch(sentinelMetricsProvider);
@@ -147,6 +202,11 @@ class _SentinelDiagnosticScreenState extends ConsumerState<SentinelDiagnosticScr
               ],
             ),
             actions: [
+              IconButton(
+                tooltip: 'Send Diagnostic Report via WhatsApp (व्हॉट्सॲपवर अहवाल पाठवा)',
+                icon: const Icon(Icons.share_rounded),
+                onPressed: () => _shareWhatsAppReport(metrics, anomalies),
+              ),
               IconButton(
                 tooltip: 'Run Deep Scan (सखोल तपासणी)',
                 icon: metrics.isScanning

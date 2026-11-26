@@ -18,6 +18,7 @@ import 'package:study_library/services/image_transparency_service.dart';
 import 'package:study_library/core/widgets/brand_color_picker_dialog.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/features/settings/presentation/providers/settings_provider.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
 
 class ReceiptTemplateScreen extends ConsumerStatefulWidget {
   const ReceiptTemplateScreen({super.key});
@@ -245,6 +246,7 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
     if (source == null) return;
 
     setState(() => _isUploadingStamp = true);
+    InactivityLockService.setExternalDialogActive(true);
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: source, maxWidth: 800, imageQuality: 80);
@@ -274,6 +276,8 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
         AppSnackbar.showError(context, e);
       }
     } finally {
+      InactivityLockService.setExternalDialogActive(false);
+      InactivityLockService.recordInteraction();
       if (mounted) setState(() => _isUploadingStamp = false);
     }
   }
@@ -346,6 +350,7 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
     final source = action == 'camera' ? ImageSource.camera : ImageSource.gallery;
 
     setState(() => _isUploadingWatermark = true);
+    InactivityLockService.setExternalDialogActive(true);
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: source, maxWidth: 800, imageQuality: 80);
@@ -375,6 +380,8 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
         AppSnackbar.showError(context, e);
       }
     } finally {
+      InactivityLockService.setExternalDialogActive(false);
+      InactivityLockService.recordInteraction();
       if (mounted) setState(() => _isUploadingWatermark = false);
     }
   }

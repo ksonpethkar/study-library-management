@@ -123,8 +123,19 @@ class MembershipAutomationService {
       int releasedSeats = 0;
       final newlyReleasedSeats = <Map<String, String>>[];
 
-      final batch = _firestore.batch();
-      bool hasBatchOps = false;
+      var batch = _firestore.batch();
+      int batchOpCount = 0;
+      final pendingBatches = <Future<void>>[];
+
+      void queueOp(void Function(WriteBatch b) op) {
+        op(batch);
+        batchOpCount++;
+        if (batchOpCount >= 450) {
+          pendingBatches.add(batch.commit());
+          batch = _firestore.batch();
+          batchOpCount = 0;
+        }
+      }
 
       for (final doc in studentsSnap.docs) {
         final studentData = doc.data();
@@ -243,8 +254,7 @@ class MembershipAutomationService {
         }
 
         if (updatedStages) {
-          batch.update(doc.reference, {'remindedStages': remindedStages});
-          hasBatchOps = true;
+          queueOp((b) => b.update(doc.reference, {'remindedStages': remindedStages}));
         }
 
         // ── SCENARIO A: Expired past grace period ──────────────────────────
@@ -267,11 +277,14 @@ class MembershipAutomationService {
                 .collection('seats')
                 .doc(seatId);
 
-            batch.update(seatRef, {
+            queueOp((b) => b.update(seatRef, {
               'status': SeatStatus.available.name,
               'studentId': null,
               'studentName': FieldValue.delete(),
-            });
+              'assignedAt': FieldValue.delete(),
+              'vacatedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }));
 
             studentUpdate['seatId'] = null;
             studentUpdate['sectionId'] = null;
@@ -285,8 +298,7 @@ class MembershipAutomationService {
             });
           }
 
-          batch.update(doc.reference, studentUpdate);
-          hasBatchOps = true;
+          queueOp((b) => b.update(doc.reference, studentUpdate));
 
           // Student Notification: Post-Grace Expiry & Seat Released
           libRef.collection('notifications').add({
@@ -302,7 +314,7 @@ class MembershipAutomationService {
 
           // Write audit log entry
           final auditRef = libRef.collection('audit_log').doc();
-          batch.set(auditRef, {
+          queueOp((b) => b.set(auditRef, {
             'action': 'expired',
             'entityType': 'student',
             'entityId': doc.id,
@@ -314,19 +326,18 @@ class MembershipAutomationService {
               'releasedSeatId': seatId,
               'reason': 'Plan and grace period expired',
             },
-          });
+          }));
         }
         // ── SCENARIO B: Plan expired, currently in grace period ────────────
         else if (now.isAfter(planEnd) &&
             now.isBefore(graceEnd) &&
             currentStatus != MembershipStatus.grace.name) {
           enteredGrace++;
-          batch.update(doc.reference, {
+          queueOp((b) => b.update(doc.reference, {
             'membershipStatus': MembershipStatus.grace.name,
             'graceEndDate': Timestamp.fromDate(graceEnd),
             'updatedAt': FieldValue.serverTimestamp(),
-          });
-          hasBatchOps = true;
+          }));
 
           // Student Notification: Entered Grace Period
           final formattedGraceEnd = DateFormat('dd MMM yyyy').format(graceEnd);
@@ -343,7 +354,7 @@ class MembershipAutomationService {
 
           // Write audit log entry
           final auditRef = libRef.collection('audit_log').doc();
-          batch.set(auditRef, {
+          queueOp((b) => b.set(auditRef, {
             'action': 'updated',
             'entityType': 'student',
             'entityId': doc.id,
@@ -353,7 +364,7 @@ class MembershipAutomationService {
               'studentName': studentName,
               'note': 'Plan expired. Entered grace period until ${graceEnd.toLocal().toString().split(" ")[0]}',
             },
-          });
+          }));
         }
       }
 
@@ -374,12 +385,11 @@ class MembershipAutomationService {
             fEnd = DateTime.tryParse(rawFreezeEnd);
           }
           if (fEnd != null && now.isAfter(fEnd)) {
-            batch.update(doc.reference, {
+            queueOp((b) => b.update(doc.reference, {
               'isFrozen': false,
               'freezeStatus': 'completed',
               'updatedAt': FieldValue.serverTimestamp(),
-            });
-            hasBatchOps = true;
+            }));
 
             // Notify student that study freeze has concluded
             libRef.collection('notifications').add({
@@ -407,13 +417,16 @@ class MembershipAutomationService {
         'source': 'client_automation_service',
       };
 
-      batch.set(libRef, {
+      queueOp((b) => b.set(libRef, {
         'lastAutomationRunAt': now.toIso8601String(),
         'lastMaintenanceReport': report,
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true)));
 
-      if (hasBatchOps) {
-        await batch.commit();
+      if (batchOpCount > 0) {
+        pendingBatches.add(batch.commit());
+      }
+      if (pendingBatches.isNotEmpty) {
+        await Future.wait(pendingBatches);
       }
 
       // Phase 3 Automation Cascade: Link Seat Release directly to Waiting List Promotion Pipeline

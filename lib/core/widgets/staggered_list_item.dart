@@ -26,7 +26,7 @@ class StaggeredListItem extends StatelessWidget {
     super.key,
     required this.index,
     required this.child,
-    this.maxDelayIndex = 15,
+    this.maxDelayIndex = 4,
   });
 
   @override
@@ -35,15 +35,15 @@ class StaggeredListItem extends StatelessWidget {
     return child
         .animate()
         .fadeIn(
-          duration: 350.ms,
-          delay: (clampedIndex * 50).ms,
+          duration: 160.ms,
+          delay: (clampedIndex * 20).ms,
           curve: Curves.easeOutCubic,
         )
         .slideY(
-          begin: 0.05,
+          begin: 0.03,
           end: 0,
-          duration: 350.ms,
-          delay: (clampedIndex * 50).ms,
+          duration: 160.ms,
+          delay: (clampedIndex * 20).ms,
           curve: Curves.easeOutCubic,
         );
   }

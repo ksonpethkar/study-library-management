@@ -158,7 +158,7 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
                           child: CircleAvatar(
                             radius: 22,
                             backgroundColor: theme.colorScheme.primary,
-                            child: const Icon(Icons.camera_alt_rounded, size: 20, color: Colors.white),
+                            child: Icon(Icons.camera_alt_rounded, size: 20, color: theme.colorScheme.onPrimary),
                           ),
                         ),
                       ],
@@ -194,7 +194,7 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
                           onPressed: _onNext,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: theme.colorScheme.primary,
-                            foregroundColor: Colors.white,
+                            foregroundColor: theme.colorScheme.onPrimary,
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           ),
                           child: FittedBox(

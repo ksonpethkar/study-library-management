@@ -15,6 +15,7 @@ import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/core/widgets/brand_color_picker_dialog.dart';
 import 'package:study_library/core/providers/font_settings_provider.dart';
 import 'package:study_library/features/settings/presentation/widgets/typography_settings_sheet.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
 
 class LibraryProfileScreen extends ConsumerStatefulWidget {
   const LibraryProfileScreen({super.key});
@@ -47,29 +48,8 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
   final _managerContactController = TextEditingController();
   bool _showManagerDetails = false;
 
-  // 4. Facilities
-  static const List<String> _standardFacilities = [
-    'High-Speed Wi-Fi',
-    'Power Sockets at Desk',
-    'Purified RO Water',
-    'Silent Study Zone',
-    'CCTV Surveillance',
-    'Ergonomic Chairs',
-    'Air Conditioning (AC)',
-    'Personal Locker',
-    'Pantry & Cafeteria',
-    'Daily Newspapers & Magazines',
-    'Two-Wheeler / Car Parking',
-  ];
-
-  List<String> _selectedFacilities = [
-    'High-Speed Wi-Fi',
-    'Power Sockets at Desk',
-    'Purified RO Water',
-    'Silent Study Zone',
-    'CCTV Surveillance',
-    'Ergonomic Chairs',
-  ];
+  // 4. Facilities (Canonical Catalog backed)
+  List<String> _selectedFacilities = List<String>.from(AmenityCatalog.safeDefaultLabels);
 
   // 5. In-Place Advanced Overrides (Preserved for 100% backward compatibility)
   final _welcomeController = TextEditingController();
@@ -212,8 +192,10 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         _managerContactController.text = data['managerContact'] ?? '';
         _showManagerDetails = _managerNameController.text.isNotEmpty || _managerContactController.text.isNotEmpty;
 
-        if (data['facilities'] is List) {
-          _selectedFacilities = (data['facilities'] as List).map((e) => e.toString()).toList();
+        if (data['amenities'] is List && (data['amenities'] as List).isNotEmpty) {
+          _selectedFacilities = AmenityCatalog.toCanonicalLabels(data['amenities'] as List);
+        } else if (data['facilities'] is List) {
+          _selectedFacilities = AmenityCatalog.toCanonicalLabels(data['facilities'] as List);
         }
         _addressController.text = data['address'] ?? '';
         _googleMapsController.text = data['googleMapsUrl'] ?? data['mapsUrl'] ?? (data['socialLinks'] is Map ? (data['socialLinks']['maps'] ?? '') : '');
@@ -380,6 +362,9 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       final ownerName = _ownerNameController.text.trim().isNotEmpty ? _ownerNameController.text.trim() : adminName;
       final tagline = _taglineController.text.trim();
       final welcomeMessage = tagline.isNotEmpty ? tagline : 'Welcome to ${_nameController.text.trim()}';
+      final structuredAmenities = AmenityCatalog.toStructuredAmenities(_selectedFacilities);
+      final canonicalFacilities = structuredAmenities.map((e) => e['label'].toString()).toList();
+      _selectedFacilities = canonicalFacilities;
 
       await FirebaseFirestore.instance
           .collection('libraries')
@@ -392,7 +377,8 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         'adminContact': primaryPhone,
         'managerName': _showManagerDetails ? _managerNameController.text.trim() : '',
         'managerContact': _showManagerDetails ? _managerContactController.text.trim() : '',
-        'facilities': _selectedFacilities,
+        'facilities': canonicalFacilities,
+        'amenities': structuredAmenities,
         'address': _addressController.text.trim(),
         'googleMapsUrl': _googleMapsController.text.trim(),
         'mapsUrl': _googleMapsController.text.trim(),
@@ -422,6 +408,17 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         'accentColor': _selectedAccentColor,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      // Mirror canonical amenities to settings/poster so Entrance Poster & A4 PDF stay synced
+      FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('poster')
+          .set({
+        'amenities': structuredAmenities,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)).ignore();
 
       // Also sync UPI ID to payment_methods subcollection if present
       if (_upiIdController.text.trim().isNotEmpty) {
@@ -523,9 +520,15 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       ),
     );
     if (result != null && result.isNotEmpty && mounted) {
+      final resolved = AmenityCatalog.fromDynamic(result);
+      final normalizedLabel = resolved?.label ?? result;
+      final normalizedId = resolved?.id ?? AmenityCatalog.normalizeId(result);
       setState(() {
-        if (!_selectedFacilities.contains(result)) {
-          _selectedFacilities.add(result);
+        final alreadySelected = _selectedFacilities.any(
+          (f) => AmenityCatalog.normalizeId(f) == normalizedId,
+        );
+        if (!alreadySelected) {
+          _selectedFacilities.add(normalizedLabel);
         }
       });
     }
@@ -560,37 +563,19 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
   }
 
   List<Widget> _buildCategorizedFacilities(ThemeData theme) {
-    const facilityCategories = <String, List<Map<String, dynamic>>>{
-      'Study Ambience & Environment': [
-        {'name': 'Silent Study Zone', 'icon': Icons.volume_off_rounded},
-        {'name': 'Ergonomic Chairs', 'icon': Icons.chair_rounded},
-        {'name': 'Air Conditioning (AC)', 'icon': Icons.ac_unit_rounded},
-      ],
-      'Power & Connectivity': [
-        {'name': 'High-Speed Wi-Fi', 'icon': Icons.wifi_rounded},
-        {'name': 'Power Sockets at Desk', 'icon': Icons.power_rounded},
-      ],
-      'Safety & Refreshments': [
-        {'name': 'Purified RO Water', 'icon': Icons.water_drop_rounded},
-        {'name': 'CCTV Surveillance', 'icon': Icons.videocam_rounded},
-        {'name': 'Pantry & Cafeteria', 'icon': Icons.coffee_rounded},
-      ],
-      'Convenience & Amenities': [
-        {'name': 'Personal Locker', 'icon': Icons.lock_rounded},
-        {'name': 'Two-Wheeler / Car Parking', 'icon': Icons.local_parking_rounded},
-        {'name': 'Daily Newspapers & Magazines', 'icon': Icons.menu_book_rounded},
-      ],
-    };
-
-    final standardNames = _standardFacilities.toSet();
-
+    final canonicalIds = AmenityCatalog.canonicalItems.map((e) => e.id).toSet();
     final customFacilities = _selectedFacilities
-        .where((f) => !standardNames.contains(f))
+        .where((f) => !canonicalIds.contains(AmenityCatalog.normalizeId(f)))
         .toList();
 
     final widgets = <Widget>[];
 
-    facilityCategories.forEach((categoryTitle, items) {
+    for (final categoryTitle in AmenityCatalog.categoriesOrder) {
+      final items = AmenityCatalog.canonicalItems
+          .where((item) => item.category == categoryTitle)
+          .toList();
+      if (items.isEmpty) continue;
+
       widgets.add(
         Padding(
           padding: const EdgeInsets.only(top: 8.0, bottom: 6.0),
@@ -624,16 +609,18 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
           spacing: 8,
           runSpacing: 8,
           children: items.map((item) {
-            final name = item['name'] as String;
-            final icon = item['icon'] as IconData;
-            final isSelected = _selectedFacilities.contains(name);
+            final isSelected = _selectedFacilities.any(
+              (s) => AmenityCatalog.normalizeId(s) == item.id,
+            );
 
             return FilterChip(
               selected: isSelected,
               showCheckmark: true,
-              avatar: isSelected ? null : Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+              avatar: isSelected
+                  ? null
+                  : Icon(item.icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
               label: Text(
-                name,
+                item.label,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -652,10 +639,11 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
               checkmarkColor: theme.colorScheme.primary,
               onSelected: (selected) {
                 setState(() {
+                  _selectedFacilities.removeWhere(
+                    (s) => AmenityCatalog.normalizeId(s) == item.id,
+                  );
                   if (selected) {
-                    if (!_selectedFacilities.contains(name)) _selectedFacilities.add(name);
-                  } else {
-                    _selectedFacilities.remove(name);
+                    _selectedFacilities.add(item.label);
                   }
                 });
               },
@@ -665,7 +653,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       );
 
       widgets.add(const SizedBox(height: 8));
-    });
+    }
 
     if (customFacilities.isNotEmpty) {
       widgets.add(
@@ -1907,7 +1895,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                                 subtitle: Text(
                                   _showManagerDetails
                                       ? 'Custom supervisor phone shown in student emergency rails'
-                                      : 'Tap to configure separate shift manager or receptionist',
+                                      : 'Tap to configure separate hall manager or receptionist',
                                   style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
                                 ),
                                 children: [

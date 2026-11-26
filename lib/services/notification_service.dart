@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/utils/permission_utils.dart';
 import 'package:study_library/core/router/app_router.dart';
 
@@ -117,18 +118,24 @@ class NotificationService {
       }
     }
 
-    // Show notification when app is in foreground
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    // Show notification when app is in foreground — strictly gated by active device role & recipient ID
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       final notification = message.notification;
-      if (notification != null) {
-        final channelId = message.data['channel_id'] ?? channelFeeAlerts;
-        _showLocalNotification(
-          title: notification.title ?? 'Library Notice',
-          body: notification.body ?? '',
-          payload: message.data.toString(),
-          channelId: channelId,
-        );
-      }
+      if (notification == null) return;
+
+      final canDisplay = await _shouldDisplayIncomingPush(message.data);
+      if (!canDisplay) return;
+
+      final channelId = message.data['channel_id'] ?? channelFeeAlerts;
+      final routePayload = (message.data['actionRoute'] ?? '').toString().isNotEmpty
+          ? message.data['actionRoute'].toString()
+          : message.data.toString();
+      _showLocalNotification(
+        title: notification.title ?? 'Library Notice',
+        body: notification.body ?? '',
+        payload: routePayload,
+        channelId: channelId,
+      );
     });
 
     // NF-3: Listen for token rotation and keep Firestore user doc in sync
@@ -149,6 +156,51 @@ class NotificationService {
             });
       }
     });
+  }
+
+  static Future<bool> _shouldDisplayIncomingPush(Map<String, dynamic> data) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final role = prefs.getString('cached_current_user_role') ??
+          prefs.getString('persisted_role') ??
+          'none';
+      if (role == 'none') return false;
+
+      final targetRole = (data['targetRole'] ?? '').toString().toLowerCase();
+      final msgType = (data['type'] ?? '').toString().toLowerCase();
+      final actionRoute = (data['actionRoute'] ?? '').toString().toLowerCase();
+      final targetUserId = (data['targetUserId'] ?? '').toString().trim();
+
+      if (role == 'admin') {
+        if (targetRole == 'student' ||
+            targetRole == 'all' ||
+            msgType == 'announcement' ||
+            actionRoute.startsWith('/student')) {
+          return false;
+        }
+        return targetRole == 'admin';
+      }
+
+      if (role == 'student') {
+        if (targetRole == 'admin' || actionRoute.startsWith('/admin')) {
+          return false;
+        }
+        if (targetUserId.isNotEmpty) {
+          final currentUid = FirebaseAuth.instance.currentUser?.uid;
+          final libId = prefs.getString('cached_current_library_id') ?? '';
+          final cachedDocId = (libId.isNotEmpty && currentUid != null)
+              ? prefs.getString('cached_student_doc_id_${libId}_$currentUid')
+              : null;
+          if (targetUserId != currentUid && targetUserId != cachedDocId) {
+            return false;
+          }
+        }
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<void> _showLocalNotification({
@@ -175,6 +227,12 @@ class NotificationService {
     String channelId = channelFeeAlerts,
     int? badgeNumber,
   }) async {
+    // FlutterLocalNotificationsPlugin is only initialized on native mobile platforms in main.dart
+    if (kIsWeb) return;
+    if (!_initialized) {
+      await initialize();
+    }
+
     // BigTextStyleInformation ensures the short message is rendered clearly without truncation in the Android notification shade
     final bigTextStyle = BigTextStyleInformation(
       body,
@@ -257,9 +315,8 @@ class NotificationService {
   }
 
   /// Subscribes device to library topics based on user role:
-  /// - `lib-$libraryId` (all library members for announcements)
-  /// - `admin-$libraryId` (staff / admin desk notices)
-  /// - `student-$libraryId` (student-targeted announcements)
+  /// - `admin-$libraryId` (staff / admin desk notices ONLY)
+  /// - `lib-$libraryId` & `student-$libraryId` (student-targeted announcements ONLY)
   static Future<void> subscribeToLibraryTopics({
     required String libraryId,
     required bool isAdmin,
@@ -268,11 +325,12 @@ class NotificationService {
     try {
       final safeLibId = libraryId.replaceAll(RegExp(r'[^a-zA-Z0-9-_.~%]'), '_');
       final messaging = FirebaseMessaging.instance;
-      await messaging.subscribeToTopic('lib-$safeLibId');
       if (isAdmin) {
         await messaging.subscribeToTopic('admin-$safeLibId');
         await messaging.unsubscribeFromTopic('student-$safeLibId');
+        await messaging.unsubscribeFromTopic('lib-$safeLibId');
       } else {
+        await messaging.subscribeToTopic('lib-$safeLibId');
         await messaging.subscribeToTopic('student-$safeLibId');
         await messaging.unsubscribeFromTopic('admin-$safeLibId');
       }

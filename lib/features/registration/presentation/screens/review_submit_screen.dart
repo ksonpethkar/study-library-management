@@ -98,8 +98,10 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
           FilledButton.icon(
             onPressed: () async {
               try {
+                await RegistrationDraftStorage.saveDraft(ref);
                 final authRepo = ref.read(authRepositoryProvider);
                 await authRepo.signInWithGoogle();
+                await RegistrationDraftStorage.clearDraft();
                 if (ctx.mounted) Navigator.pop(ctx, true);
               } catch (e) {
                 if (ctx.mounted) {
@@ -355,6 +357,12 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
       final resolvedPlanName = plans.where((p) => p.id == selectedPlanId).firstOrNull?.name ?? 'Monthly Full-Day';
       final seatDetails = ref.read(selectedSeatDetailsProvider);
 
+      // Normalize email once so every top-level & nested lookup matches case-insensitively
+      final rawEmail = (regData['email'] != null && regData['email'].toString().trim().isNotEmpty)
+          ? regData['email'].toString()
+          : (currentUser.email ?? '');
+      final normalizedEmail = rawEmail.trim().toLowerCase();
+
       // Create request doc in Firestore
       final requestRef = FirebaseFirestore.instance
           .collection('libraries')
@@ -372,9 +380,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'name': regData['name'] ?? '',
         'fatherName': regData['fatherName'] ?? '',
         'phone': regData['phone'] ?? '',
-        'email': (regData['email'] != null && regData['email'].toString().isNotEmpty)
-            ? regData['email']
-            : (currentUser.email ?? ''),
+        'email': normalizedEmail,
         'gender': regData['gender'] ?? 'male',
         'address': regData['address'] ?? '',
         'pincode': regData['pincode'] ?? regData['pinCode'] ?? '',
@@ -411,13 +417,17 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'sectionId': seatDetails.sectionId,
       };
 
-      await requestRef.set({
+      final requestPayload = <String, dynamic>{
         'id': requestRef.id,
         'type': 'registration',
         'status': 'pending',
         'studentName': regData['name'] ?? currentUser.displayName ?? 'New Student',
         'studentPhone': regData['phone'] ?? '',
         'studentId': currentUser.uid,
+        'userId': currentUser.uid,
+        'studentUserId': currentUser.uid,
+        'email': normalizedEmail,
+        'studentEmail': normalizedEmail,
         'studentData': studentData,
         'planId': selectedPlanId,
         'planName': resolvedPlanName,
@@ -438,22 +448,77 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'message': 'New student registration request submitted via app',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
 
-      // Place 24-hour soft-lock on the desk so other applicants or walk-ins cannot claim it while under review
-      if (seatDetails.hasSelection && !seatDetails.isAutoAssign && (seatDetails.seatId?.isNotEmpty == true) && (seatDetails.sectionId?.isNotEmpty == true)) {
-        try {
-          await ref.read(seatRepositoryProvider).softLockSeat(
-            libraryId: libraryId,
-            sectionId: seatDetails.sectionId!,
-            seatId: seatDetails.seatId!,
-            candidateId: currentUser.uid,
-            candidateName: regData['name'] ?? 'Applicant',
-            duration: const Duration(hours: 24),
-          );
-        } catch (e) {
-          if (kDebugMode) debugPrint('Seat soft-lock error (proceeding anyway): $e');
+      // Pre-flight payload byte budget guard against Firestore's 1 MiB document ceiling
+      int estimateBytes(dynamic value) {
+        if (value == null) return 4;
+        if (value is String) {
+          var bytes = 0;
+          for (final code in value.codeUnits) {
+            bytes += code < 0x80 ? 1 : 3;
+          }
+          return bytes + 8;
         }
+        if (value is num || value is bool) return 8;
+        if (value is Map) {
+          var sum = 16;
+          for (final entry in value.entries) {
+            sum += entry.key.toString().length + 8 + estimateBytes(entry.value);
+          }
+          return sum;
+        }
+        if (value is Iterable) {
+          var sum = 8;
+          for (final item in value) {
+            sum += estimateBytes(item);
+          }
+          return sum;
+        }
+        return 32;
+      }
+
+      final estimatedBytes = estimateBytes(requestPayload);
+      if (estimatedBytes > 940000) {
+        final approxKb = (estimatedBytes / 1024).round();
+        throw Exception(
+          'Attached photo or ID documents are too large (~$approxKb KB). Please upload a smaller image or compressed PDF under 650 KB and retry.',
+        );
+      }
+
+      // Acquire transactional 24-hour soft-lock BEFORE writing the request so two
+      // applicants cannot claim or submit requests for the exact same desk.
+      final bool hasExplicitDesk = seatDetails.hasSelection &&
+          !seatDetails.isAutoAssign &&
+          (seatDetails.seatId?.isNotEmpty == true) &&
+          (seatDetails.sectionId?.isNotEmpty == true);
+      bool softLockAcquired = false;
+      if (hasExplicitDesk) {
+        await ref.read(seatRepositoryProvider).softLockSeat(
+          libraryId: libraryId,
+          sectionId: seatDetails.sectionId!,
+          seatId: seatDetails.seatId!,
+          candidateId: currentUser.uid,
+          candidateName: regData['name'] ?? 'Applicant',
+          duration: const Duration(hours: 24),
+        );
+        softLockAcquired = true;
+      }
+
+      try {
+        await requestRef.set(requestPayload);
+      } catch (e) {
+        if (softLockAcquired && hasExplicitDesk) {
+          try {
+            await ref.read(seatRepositoryProvider).releaseSoftLock(
+              libraryId: libraryId,
+              sectionId: seatDetails.sectionId!,
+              seatId: seatDetails.seatId!,
+              expectedCandidateId: currentUser.uid,
+            );
+          } catch (_) {}
+        }
+        rethrow;
       }
 
       // Notify admin via unified notification service & queue
@@ -513,6 +578,10 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
       final savedPlanName = resolvedPlanName;
       final savedSeatLabel = seatDetails.isAutoAssign ? 'Auto-Assign' : seatDetails.seatLabel;
 
+      // Hold the success screen open until the student clicks Done
+      ref.read(registrationSubmissionSuccessProvider.notifier).setSuccess(true);
+      RegistrationDraftStorage.clearDraft().ignore();
+
       // Clear registration state
       ref.read(registrationNotifierProvider.notifier).clear();
       ref.read(ocrResultProvider.notifier).clear();
@@ -559,18 +628,55 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         message = 'Submission failed after $_maxAttempts attempts. Please contact library admin.';
       }
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          duration: const Duration(seconds: 6),
-          backgroundColor: Colors.red.shade700,
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: _handleSubmit,
+      final lowerMsg = message.toLowerCase();
+      final isDeskConflict = lowerMsg.contains('selected by another') ||
+          lowerMsg.contains('already occupied') ||
+          lowerMsg.contains('no longer available') ||
+          lowerMsg.contains('held by another');
+
+      if (isDeskConflict) {
+        showDialog<void>(
+          context: context,
+          builder: (dCtx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            title: Row(
+              children: [
+                Icon(Icons.event_seat_rounded, color: Colors.amber.shade800),
+                const SizedBox(width: 8),
+                const Expanded(child: Text('Desk No Longer Available')),
+              ],
+            ),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dCtx).pop(),
+                child: const Text('Close'),
+              ),
+              FilledButton.icon(
+                icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                label: const Text('Pick Another Desk'),
+                onPressed: () {
+                  Navigator.of(dCtx).pop();
+                  ref.read(registrationStepProvider.notifier).goTo(5);
+                },
+              ),
+            ],
           ),
-        ),
-      );
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 6),
+            backgroundColor: Colors.red.shade700,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _handleSubmit,
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -598,6 +704,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
             libraryName: libraryVal?.name,
             libraryHelpline: libraryVal?.phone,
             onDone: () async {
+              ref.read(registrationSubmissionSuccessProvider.notifier).setSuccess(false);
               final user = FirebaseAuth.instance.currentUser;
               if (user != null) {
                 final libId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
@@ -688,109 +795,117 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
                       const SizedBox(height: 24),
 
                       // Personal Info Card
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Personal & Academic Details', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                              const Divider(height: 20),
-                              if (regData['fatherName'] != null && regData['fatherName'].isNotEmpty)
-                                _buildSummaryRow('Father / Guardian', regData['fatherName']),
-                              if (regData['dob'] != null && regData['dob'].toString().trim().isNotEmpty)
-                                _buildSummaryRow('Date of Birth', regData['dob'].toString()),
-                              if (regData['gender'] != null && regData['gender'].toString().trim().isNotEmpty)
-                                _buildSummaryRow('Gender', regData['gender'].toString().toUpperCase()),
-                              if (regData['bloodGroup'] != null && regData['bloodGroup'].toString().trim().isNotEmpty)
-                                _buildSummaryRow('Blood Group', regData['bloodGroup'].toString()),
-                              if (regData['email'] != null && regData['email'].isNotEmpty)
-                                _buildSummaryRow('Email', regData['email']),
-                              if (regData['emergencyContact'] != null && regData['emergencyContact'].toString().trim().isNotEmpty)
-                                _buildSummaryRow('Emergency Contact', regData['emergencyContact'].toString()),
-                              if (regData['govIdNumber'] != null && regData['govIdNumber'].toString().trim().isNotEmpty) ...[
-                                Builder(
-                                  builder: (ctx) {
-                                    final rawType = (regData['govIdType'] ?? 'aadhaar').toString().toLowerCase();
-                                    final idType = GovIdType.values.firstWhere(
-                                      (t) => t.name.toLowerCase() == rawType,
-                                      orElse: () => GovIdType.aadhaar,
-                                    );
-                                    final numStr = regData['govIdNumber'].toString().trim();
-                                    final isValid = GovIdValidator.isValid(idType, numStr);
-                                    return _buildSummaryRow(
-                                      'Government ID',
-                                      '${idType.displayName} - $numStr',
-                                      trailing: Padding(
-                                        padding: const EdgeInsets.only(left: 6),
-                                        child: isValid
-                                            ? const Tooltip(
-                                                message: 'Checksum / Format Verified',
-                                                child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 16),
-                                              )
-                                            : const Tooltip(
-                                                message: 'Unverified / Checksum mismatch',
-                                                child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 16),
-                                              ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                              if (regData['address'] != null && regData['address'].isNotEmpty)
-                                _buildSummaryRow('Address', regData['address']),
-                              if (regData['pincode'] != null && regData['pincode'].toString().trim().isNotEmpty)
-                                _buildSummaryRow('PIN Code', regData['pincode'].toString()),
-                              if (regData['prep'] != null && regData['prep'].toString().trim().isNotEmpty)
-                                _buildSummaryRow('Target Goal / Exam', regData['prep'].toString()),
-                              if (regData['college'] != null && regData['college'].isNotEmpty)
-                                _buildSummaryRow('College', regData['college']),
-                              if (regData['course'] != null && regData['course'].isNotEmpty)
-                                _buildSummaryRow('Course', regData['course']),
-                              if (regData['year'] != null && regData['year'].toString().trim().isNotEmpty)
-                                _buildSummaryRow('Study Year / Semester', regData['year'].toString()),
-                              if (regData['rollNumber'] != null && regData['rollNumber'].toString().trim().isNotEmpty)
-                                _buildSummaryRow('Roll Number', regData['rollNumber'].toString()),
-                              Builder(
-                                builder: (ctx) {
-                                  final custom = regData['customFields'] as Map?;
-                                  if (custom == null || custom.isEmpty) return const SizedBox.shrink();
-                                  final formConfigAsync = ref.watch(formConfigStreamProvider);
-                                  final fieldsList = formConfigAsync.value ?? [];
-                                  final nonEmpties = custom.entries.where(
-                                    (e) => e.value != null && e.value.toString().trim().isNotEmpty,
-                                  ).toList();
-                                  if (nonEmpties.isEmpty) return const SizedBox.shrink();
+                      Builder(
+                        builder: (context) {
+                          final formConfigAsync = ref.watch(formConfigStreamProvider);
+                          final fieldsList = formConfigAsync.value ?? FormConfigService.defaultBuiltinFields;
 
-                                  return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 8),
-                                      const Divider(height: 16),
-                                      Text(
-                                        'Additional Information',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      ...nonEmpties.map((e) {
-                                        final label = FormConfigService.getFieldLabel(
-                                          fieldsList,
-                                          e.key.toString(),
-                                          e.key.toString(),
+                          bool vis(String id) => FormConfigService.isFieldVisible(fieldsList, id);
+                          String lbl(String id, String fallback) => FormConfigService.getFieldLabel(fieldsList, id, fallback);
+
+                          return Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Personal & Academic Details', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                  const Divider(height: 20),
+                                  if (vis('fatherName') && regData['fatherName'] != null && regData['fatherName'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('fatherName', 'Father / Guardian'), regData['fatherName'].toString()),
+                                  if (vis('dob') && regData['dob'] != null && regData['dob'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('dob', 'Date of Birth'), regData['dob'].toString()),
+                                  if (vis('gender') && regData['gender'] != null && regData['gender'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('gender', 'Gender'), regData['gender'].toString().toUpperCase()),
+                                  if (vis('bloodGroup') && regData['bloodGroup'] != null && regData['bloodGroup'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('bloodGroup', 'Blood Group'), regData['bloodGroup'].toString()),
+                                  if (vis('email') && regData['email'] != null && regData['email'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('email', 'Email'), regData['email'].toString()),
+                                  if (vis('emergencyContact') && regData['emergencyContact'] != null && regData['emergencyContact'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('emergencyContact', 'Emergency Contact'), regData['emergencyContact'].toString()),
+                                  if (vis('govId') && regData['govIdNumber'] != null && regData['govIdNumber'].toString().trim().isNotEmpty) ...[
+                                    Builder(
+                                      builder: (ctx) {
+                                        final rawType = (regData['govIdType'] ?? 'aadhaar').toString().toLowerCase();
+                                        final idType = GovIdType.values.firstWhere(
+                                          (t) => t.name.toLowerCase() == rawType,
+                                          orElse: () => GovIdType.aadhaar,
                                         );
-                                        return _buildSummaryRow(label, e.value.toString());
-                                      }),
-                                    ],
-                                  );
-                                },
+                                        final numStr = regData['govIdNumber'].toString().trim();
+                                        final isValid = GovIdValidator.isValid(idType, numStr);
+                                        return _buildSummaryRow(
+                                          lbl('govId', 'Government ID'),
+                                          '${idType.displayName} - $numStr',
+                                          trailing: Padding(
+                                            padding: const EdgeInsets.only(left: 6),
+                                            child: isValid
+                                                ? const Tooltip(
+                                                    message: 'Checksum / Format Verified',
+                                                    child: Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 16),
+                                                  )
+                                                : const Tooltip(
+                                                    message: 'Unverified / Checksum mismatch',
+                                                    child: Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 16),
+                                                  ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                  if (vis('address') && regData['address'] != null && regData['address'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('address', 'Address'), regData['address'].toString()),
+                                  if ((vis('pincode') || vis('pinCode')) && regData['pincode'] != null && regData['pincode'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('pincode', 'PIN Code'), regData['pincode'].toString()),
+                                  if (vis('prep') && regData['prep'] != null && regData['prep'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('prep', 'Target Goal / Exam'), regData['prep'].toString()),
+                                  if (vis('college') && regData['college'] != null && regData['college'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('college', 'College'), regData['college'].toString()),
+                                  if (vis('course') && regData['course'] != null && regData['course'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('course', 'Course'), regData['course'].toString()),
+                                  if (vis('year') && regData['year'] != null && regData['year'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('year', 'Study Year / Semester'), regData['year'].toString()),
+                                  if (vis('rollNumber') && regData['rollNumber'] != null && regData['rollNumber'].toString().trim().isNotEmpty)
+                                    _buildSummaryRow(lbl('rollNumber', 'Roll Number'), regData['rollNumber'].toString()),
+                                  Builder(
+                                    builder: (ctx) {
+                                      final custom = regData['customFields'] as Map?;
+                                      if (custom == null || custom.isEmpty) return const SizedBox.shrink();
+                                      final nonEmpties = custom.entries.where((e) {
+                                        final k = e.key.toString();
+                                        if (FormConfigService.isInternalKey(k)) return false;
+                                        if (e.value == null || e.value.toString().trim().isEmpty) return false;
+                                        return FormConfigService.isFieldVisible(fieldsList, k);
+                                      }).toList();
+                                      if (nonEmpties.isEmpty) return const SizedBox.shrink();
+
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const SizedBox(height: 8),
+                                          const Divider(height: 16),
+                                          Text(
+                                            'Additional Information',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          ...nonEmpties.map((e) {
+                                            final k = e.key.toString();
+                                            final label = lbl(k, FormConfigService.formatFieldKey(k));
+                                            return _buildSummaryRow(label, e.value.toString());
+                                          }),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
 

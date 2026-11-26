@@ -9,14 +9,15 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
 import 'package:study_library/features/receipts/presentation/widgets/receipt_action_sheet.dart';
-import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/payment_model.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/core/utils/student_ledger_helper.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MyReceiptsScreen extends ConsumerStatefulWidget {
@@ -26,7 +27,7 @@ class MyReceiptsScreen extends ConsumerStatefulWidget {
   ConsumerState<MyReceiptsScreen> createState() => _MyReceiptsScreenState();
 }
 
-class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
+class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> with SecureScreenMixin {
   bool _isGenerating = false;
   String _activePaymentFilter = 'all';
 
@@ -39,7 +40,11 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
     setState(() => _isGenerating = true);
     try {
       final startDate = student.planStartDate ?? student.createdAt ?? DateTime.now();
-      final endDate = student.planEndDate ?? startDate.add(const Duration(days: 30));
+      final matchedPlan = (ref.read(plansStreamProvider).value ?? [])
+          .where((p) => p.id == student.planId)
+          .firstOrNull;
+      final endDate = student.planEndDate ??
+          StudentLedgerHelper.resolveFallbackPlanEndDate(startDate: startDate, plan: matchedPlan);
 
       final uniqueSuffix = student.membershipNumber?.isNotEmpty == true
           ? student.membershipNumber!
@@ -66,8 +71,8 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
         updatedAt: DateTime.now(),
       );
 
-      // Best effort background persist, completely non-blocking
-      ReceiptRepository().generateReceipt(libraryId, newReceipt).ignore();
+      // Synthetic pass receipt is rendered strictly read-only for offline/UI preview;
+      // students must never create ledger/payment/aggregate records from the receipt viewer.
 
       if (mounted) {
         Navigator.of(context, rootNavigator: true).push(
@@ -187,58 +192,29 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                 if (r.studentUserId != null && r.studentUserId == effectiveUid) return true;
                 if (effectiveUid.isNotEmpty && r.studentId == effectiveUid) return true;
                 if (student.membershipNumber != null && r.studentId == student.membershipNumber) return true;
-                return true;
+                return false;
               }).toList()
                 ..sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
 
-              // Resilient fallback: If no official receipt doc exists, but student has a genuine active paid plan enrollment,
-              // synthesize the official enrollment receipt ONLY for active members who have actually paid!
-              final hasPaidAdmission = student.membershipStatus == MembershipStatus.active &&
-                  student.planStartDate != null &&
-                  student.planEndDate != null;
-
-              if (receipts.isEmpty && hasPaidAdmission) {
-                final plans = plansAsync.value ?? [];
-                final matchedPlan = plans.where((p) => p.id == student.planId).firstOrNull;
-                final planName = matchedPlan?.name ?? student.customPlanName ?? 'Quarterly Study Pass';
-                final planPrice = matchedPlan?.price ?? student.customPlanFee ?? 2000.0;
-                final startDate = student.planStartDate!;
-                final endDate = student.planEndDate!;
-
-                final uniqueSuffix = student.membershipNumber?.isNotEmpty == true
-                    ? student.membershipNumber!
-                    : (student.id.length >= 6 ? student.id.substring(0, 6).toUpperCase() : student.id.toUpperCase());
-
-                receipts.add(
-                  ReceiptModel(
-                    id: 'active_enrollment_${student.id}',
-                    libraryId: libraryId,
-                    receiptNumber: 'REC-${startDate.year}-$uniqueSuffix',
-                    studentId: student.id,
-                    studentUserId: effectiveUid,
-                    planId: student.planId ?? 'membership_enrollment',
-                    amount: planPrice > 0 ? planPrice : 2000.0,
-                    totalFee: planPrice > 0 ? planPrice : 2000.0,
-                    paidAmount: planPrice > 0 ? planPrice : 2000.0,
-                    remainingDue: 0.0,
-                    paymentMethod: 'Desk / Confirmed',
-                    validFrom: startDate,
-                    validTo: endDate,
-                    status: ReceiptStatus.active,
-                    customFields: {
-                      'planName': planName,
-                      if (student.seatId != null) 'seatLabel': SeatHelper.formatSeatLabel(seatId: student.seatId),
-                      'admissionType': 'Official Enrollment Receipt',
-                    },
-                    createdAt: startDate,
-                    updatedAt: startDate,
-                  ),
+              // Synthesize fallback enrollment receipt ONLY for verified active paid members via shared helper
+              if (receipts.isEmpty) {
+                final synthetic = StudentLedgerHelper.buildSyntheticEnrollmentReceipt(
+                  libraryId: libraryId,
+                  student: student,
+                  plans: plansAsync.value ?? [],
+                  effectiveUid: effectiveUid,
                 );
+                if (synthetic != null) {
+                  receipts.add(synthetic);
+                }
               }
 
               // If receipts found in Firestore or active admission synthesized, display them
               if (receipts.isNotEmpty) {
-                final totalInvestment = receipts.fold<double>(0.0, (acc, r) => acc + r.amount);
+                final totalInvestment = receipts.fold<double>(
+                  0.0,
+                  (acc, r) => StudentLedgerHelper.isConfirmedPaidStatus(r.status.name) ? acc + r.amount : acc,
+                );
                 return RefreshIndicator(
                   onRefresh: () async {
                     setState(() {});

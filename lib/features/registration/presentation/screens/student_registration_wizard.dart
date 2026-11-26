@@ -26,7 +26,16 @@ import 'seat_selection_screen.dart';
 import 'review_submit_screen.dart';
 
 class StudentRegistrationWizard extends ConsumerStatefulWidget {
-  const StudentRegistrationWizard({super.key});
+  final String? initialLibraryId;
+  final String? initialSectionId;
+  final String? initialSeatId;
+
+  const StudentRegistrationWizard({
+    super.key,
+    this.initialLibraryId,
+    this.initialSectionId,
+    this.initialSeatId,
+  });
 
   @override
   ConsumerState<StudentRegistrationWizard> createState() =>
@@ -48,15 +57,83 @@ class _StudentRegistrationWizardState
   @override
   void initState() {
     super.initState();
-    // Guardrail: Clear all stale registration data, prior photos, and seat choices
-    // to prevent cross-profile contamination when registering on shared devices.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ref.read(registrationNotifierProvider.notifier).clear();
-        ref.read(ocrResultProvider.notifier).clear();
-        ref.read(selectedSeatDetailsProvider.notifier).clear();
-        ref.read(selectedPlanProvider.notifier).clear();
-        ref.read(registrationStepProvider.notifier).reset();
+    // Restore pending OAuth-redirect draft if returning from mobile Google Sign-In;
+    // otherwise reset stale data to prevent cross-profile contamination.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final restored = await RegistrationDraftStorage.restoreDraft(ref);
+      if (!mounted || restored) return;
+      if (ref.read(registrationSubmissionSuccessProvider)) return;
+      ref.read(registrationNotifierProvider.notifier).clear();
+      ref.read(ocrResultProvider.notifier).clear();
+      ref.read(selectedSeatDetailsProvider.notifier).clear();
+      ref.read(selectedPlanProvider.notifier).clear();
+      ref.read(registrationStepProvider.notifier).reset();
+      ref.read(registrationSubmissionSuccessProvider.notifier).setSuccess(false);
+
+      final initLib = widget.initialLibraryId?.trim();
+      if (initLib != null && initLib.isNotEmpty) {
+        ref.read(currentLibraryIdProvider.notifier).set(initLib);
+      }
+
+      final initSeat = widget.initialSeatId?.trim();
+      final initSec = widget.initialSectionId?.trim();
+      if ((initLib != null && initLib.isNotEmpty) ||
+          (initSec != null && initSec.isNotEmpty) ||
+          (initSeat != null && initSeat.isNotEmpty)) {
+        ref.read(registrationDeepLinkProvider.notifier).setTarget(
+          libraryId: initLib,
+          sectionId: initSec,
+          seatId: initSeat,
+        );
+      }
+      if (initSeat != null && initSeat.isNotEmpty && initSec != null && initSec.isNotEmpty) {
+        try {
+          final targetLib = (initLib != null && initLib.isNotEmpty)
+              ? initLib
+              : (ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId);
+          final seatSnap = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(targetLib)
+              .collection('sections')
+              .doc(initSec)
+              .collection('seats')
+              .doc(initSeat)
+              .get();
+          final secSnap = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(targetLib)
+              .collection('sections')
+              .doc(initSec)
+              .get();
+          if (!mounted) return;
+          final isSecActive = secSnap.exists ? (secSnap.data()?['isActive'] != false) : true;
+          if (seatSnap.exists && isSecActive) {
+            final sData = seatSnap.data() ?? {};
+            final statusStr = (sData['status'] ?? 'available').toString().toLowerCase();
+            final occId = (sData['studentId'] ?? '').toString().trim();
+            final expiresRaw = sData['reservationExpiresAt'];
+            DateTime? expiresAt;
+            if (expiresRaw is Timestamp) {
+              expiresAt = expiresRaw.toDate();
+            } else if (expiresRaw is String) {
+              expiresAt = DateTime.tryParse(expiresRaw);
+            }
+            final isExpiredHold = statusStr == 'reserved' &&
+                expiresAt != null &&
+                expiresAt.isBefore(DateTime.now());
+            if ((statusStr == 'available' || isExpiredHold) && occId.isEmpty) {
+              final rawLabel = (sData['label'] ?? initSeat).toString();
+              final secName = (secSnap.data()?['name'] ?? '').toString();
+              ref.read(selectedSeatDetailsProvider.notifier).selectSeat(
+                seatId: initSeat,
+                seatLabel: SeatHelper.formatSeatLabel(rawLabel: rawLabel, includePrefix: false),
+                sectionId: initSec,
+                sectionName: secName,
+              );
+            }
+          }
+        } catch (_) {}
       }
     });
   }
@@ -187,8 +264,10 @@ class _StudentRegistrationWizardState
     }
 
     // 2. Check if user ALREADY has an admission request pending approval
+    // (Skip overriding while ReviewSubmitScreen is holding the confirmation screen open.)
+    final isHoldingSubmissionSuccess = ref.watch(registrationSubmissionSuccessProvider);
     final pendingRequest = pendingRequestAsync.value;
-    if (pendingRequest != null && !_bypassFullCapacity) {
+    if (pendingRequest != null && !_bypassFullCapacity && !isHoldingSubmissionSuccess) {
       return _buildPendingApplicationView(pendingRequest, libraryName, libraryPhone);
     }
 
@@ -225,23 +304,27 @@ class _StudentRegistrationWizardState
 
     // Standard registration wizard (adapts dynamically if govId is disabled)
     final step = ref.watch(registrationStepProvider);
+    final Widget stepWidget = switch (step) {
+      1 => isGovIdVisible ? const IdScanScreen() : const RegistrationFormScreen(),
+      2 => const RegistrationFormScreen(),
+      3 => const PhotoUploadScreen(),
+      4 => const PlanSelectionScreen(),
+      5 => const SeatSelectionScreen(),
+      6 => const ReviewSubmitScreen(),
+      _ => isGovIdVisible ? const IdScanScreen() : const RegistrationFormScreen(),
+    };
 
-    switch (step) {
-      case 1:
-        return isGovIdVisible ? const IdScanScreen() : const RegistrationFormScreen();
-      case 2:
-        return const RegistrationFormScreen();
-      case 3:
-        return const PhotoUploadScreen();
-      case 4:
-        return const PlanSelectionScreen();
-      case 5:
-        return const SeatSelectionScreen();
-      case 6:
-        return const ReviewSubmitScreen();
-      default:
-        return isGovIdVisible ? const IdScanScreen() : const RegistrationFormScreen();
-    }
+    final bool canExitRoute = step <= 1 || (step == 2 && !isGovIdVisible);
+    return PopScope(
+      canPop: canExitRoute,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (step > 1) {
+          ref.read(registrationStepProvider.notifier).previous();
+        }
+      },
+      child: stepWidget,
+    );
   }
 
   /// ── 0a. ALREADY ENROLLED STUDENT VIEW ──

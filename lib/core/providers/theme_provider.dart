@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 
 class ThemeNotifier extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {
-    _loadTheme();
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      final themeIndex = prefs.getInt('themeMode') ?? ThemeMode.light.index;
+      if (themeIndex >= 0 && themeIndex < ThemeMode.values.length) {
+        return ThemeMode.values[themeIndex];
+      }
+    } catch (_) {
+      _loadTheme();
+    }
     return ThemeMode.light;
   }
 

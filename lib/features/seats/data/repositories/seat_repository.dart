@@ -354,6 +354,59 @@ class SeatRepository {
     }
   }
 
+  /// Shared payload for releasing/clearing stale occupancy & soft-lock fields on a desk.
+  Map<String, dynamic> _clearSeatOccupancyFields({bool markVacated = false}) {
+    return {
+      'studentId': null,
+      'studentName': FieldValue.delete(),
+      'assignedAt': FieldValue.delete(),
+      if (markVacated) 'vacatedAt': FieldValue.serverTimestamp(),
+      'reservationType': FieldValue.delete(),
+      'reservedCandidateId': FieldValue.delete(),
+      'reservedCandidateName': FieldValue.delete(),
+      'reservationExpiresAt': FieldValue.delete(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+  }
+
+  /// Resolves a seat document under nested `sections/{sectionId}/seats/{seatId}`.
+  Future<({String sectionId, Map<String, dynamic> data})?> findSeatInLibrary(
+    String libraryId,
+    String seatId, {
+    String? preferredSectionId,
+  }) async {
+    if (libraryId.isEmpty || seatId.isEmpty) return null;
+    try {
+      if (preferredSectionId != null && preferredSectionId.isNotEmpty) {
+        final directSnap = await _firestore
+            .collection(FirestorePaths.libraries)
+            .doc(libraryId)
+            .collection(FirestorePaths.sections)
+            .doc(preferredSectionId)
+            .collection(FirestorePaths.seats)
+            .doc(seatId)
+            .get();
+        if (directSnap.exists && directSnap.data() != null) {
+          return (sectionId: preferredSectionId, data: directSnap.data()!);
+        }
+      }
+
+      final sectionsSnap = await _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .get();
+      for (final secDoc in sectionsSnap.docs) {
+        if (secDoc.id == preferredSectionId) continue;
+        final seatSnap = await secDoc.reference.collection(FirestorePaths.seats).doc(seatId).get();
+        if (seatSnap.exists && seatSnap.data() != null) {
+          return (sectionId: secDoc.id, data: seatSnap.data()!);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> updateSeatStatus(
     String libraryId,
     String sectionId,
@@ -361,6 +414,13 @@ class SeatRepository {
     SeatStatus status,
   ) async {
     try {
+      final updates = <String, dynamic>{
+        'status': status.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (status == SeatStatus.available || status == SeatStatus.maintenance) {
+        updates.addAll(_clearSeatOccupancyFields(markVacated: status == SeatStatus.available));
+      }
       await _firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
@@ -368,10 +428,7 @@ class SeatRepository {
           .doc(sectionId)
           .collection(FirestorePaths.seats)
           .doc(seatId)
-          .update({
-            'status': status.name,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+          .update(updates);
     } catch (e) {
       throw Exception('Failed to update seat status.');
     }
@@ -504,9 +561,7 @@ class SeatRepository {
           throw Exception('Target seat does not exist.');
         }
 
-        final studentSnap = await tx.get(studentRef);
-        final studentData = studentSnap.data() ?? {};
-        final assignedStudentName = (studentData['name'] as String?)?.trim();
+        await tx.get(studentRef);
 
         final targetData = targetSeatSnap.data() ?? {};
         final currentOccupant = targetData['studentId'] as String?;
@@ -606,17 +661,22 @@ class SeatRepository {
         for (final staleRef in staleStudentRefs) {
           tx.update(staleRef, {
             'seatId': FieldValue.delete(),
+            'seatNumber': FieldValue.delete(),
+            'seatLabel': FieldValue.delete(),
+            'assignedSeat': FieldValue.delete(),
+            'seat': FieldValue.delete(),
+            'sectionId': FieldValue.delete(),
+            'sectionName': FieldValue.delete(),
             'previousSeatId': seatId,
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }
 
-        // Occupy target seat and purge any stale reservation fields
+        // Occupy target seat and purge any stale PII or reservation fields
         tx.update(targetSeatRef, {
           'status': SeatStatus.occupied.name,
           'studentId': studentId,
-          if (assignedStudentName != null && assignedStudentName.isNotEmpty)
-            'studentName': assignedStudentName,
+          'studentName': FieldValue.delete(),
           'assignedAt': FieldValue.serverTimestamp(),
           'vacatedAt': FieldValue.delete(),
           'reservationType': FieldValue.delete(),
@@ -701,7 +761,12 @@ class SeatRepository {
 
       batch.update(studentRef, {
         'seatId': null,
+        'seatNumber': FieldValue.delete(),
+        'seatLabel': FieldValue.delete(),
+        'assignedSeat': FieldValue.delete(),
+        'seat': FieldValue.delete(),
         'sectionId': null,
+        'sectionName': FieldValue.delete(),
         'previousSeatId': seatId,
         'previousSectionId': sectionId,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -783,14 +848,40 @@ class SeatRepository {
 
       await _firestore.runTransaction((tx) async {
         // READS FIRST
+        final fromSeatSnap = await tx.get(fromSeatRef);
         final toSeatSnap = await tx.get(toSeatRef);
+        final studentSnap = await tx.get(studentRef);
         if (!toSeatSnap.exists) {
           throw Exception('Destination seat does not exist.');
         }
 
+        final studentData = studentSnap.data() ?? {};
+        final resolvedUserId = (studentData['userId'] as String?)?.trim();
+
         final toData = toSeatSnap.data() ?? {};
         final currentOccupant = toData['studentId'] as String?;
         final currentStatus = toData['status'] as String?;
+        final resExpiresRaw = toData['reservationExpiresAt'];
+        DateTime? resExpires;
+        if (resExpiresRaw is Timestamp) {
+          resExpires = resExpiresRaw.toDate();
+        } else if (resExpiresRaw is String) {
+          resExpires = DateTime.tryParse(resExpiresRaw);
+        }
+
+        if (currentStatus == SeatStatus.maintenance.name) {
+          throw Exception('Destination seat is under maintenance.');
+        }
+
+        final isSoftLockActive = currentStatus == SeatStatus.reserved.name &&
+            (resExpires == null || resExpires.isAfter(DateTime.now()));
+        final reservedCandidateId = toData['reservedCandidateId'] as String?;
+        final isReservedForSame = reservedCandidateId != null &&
+            (reservedCandidateId == studentId ||
+                (resolvedUserId != null && resolvedUserId.isNotEmpty && reservedCandidateId == resolvedUserId));
+        if (isSoftLockActive && !isReservedForSame) {
+          throw Exception('Destination seat is temporarily reserved or on waitlist hold.');
+        }
 
         if (currentStatus == SeatStatus.occupied.name &&
             currentOccupant != null &&
@@ -803,15 +894,23 @@ class SeatRepository {
         changedToLabel = toSeatLabel.toString();
 
         // WRITES
-        tx.update(fromSeatRef, {
-          'status': SeatStatus.available.name,
-          'studentId': null,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        if (fromSeatSnap.exists) {
+          tx.update(fromSeatRef, {
+            'status': SeatStatus.available.name,
+            ..._clearSeatOccupancyFields(markVacated: true),
+          });
+        }
 
         tx.update(toSeatRef, {
           'status': SeatStatus.occupied.name,
           'studentId': studentId,
+          'studentName': FieldValue.delete(),
+          'assignedAt': FieldValue.serverTimestamp(),
+          'vacatedAt': FieldValue.delete(),
+          'reservationType': FieldValue.delete(),
+          'reservedCandidateId': FieldValue.delete(),
+          'reservedCandidateName': FieldValue.delete(),
+          'reservationExpiresAt': FieldValue.delete(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
@@ -1046,7 +1145,7 @@ class SeatRepository {
           'status': SeatStatus.reserved.name,
           'reservationType': 'admission_soft_lock',
           'reservedCandidateId': candidateId,
-          'reservedCandidateName': candidateName,
+          'reservedCandidateName': FieldValue.delete(),
           'reservationExpiresAt': Timestamp.fromDate(DateTime.now().add(duration)),
           'updatedAt': FieldValue.serverTimestamp(),
         });
@@ -1062,6 +1161,7 @@ class SeatRepository {
     required String libraryId,
     required String sectionId,
     required String seatId,
+    String? expectedCandidateId,
   }) async {
     try {
       final seatRef = _firestore
@@ -1072,13 +1172,28 @@ class SeatRepository {
           .collection(FirestorePaths.seats)
           .doc(seatId);
 
-      await seatRef.update({
-        'status': SeatStatus.available.name,
-        'reservationType': FieldValue.delete(),
-        'reservedCandidateId': FieldValue.delete(),
-        'reservedCandidateName': FieldValue.delete(),
-        'reservationExpiresAt': FieldValue.delete(),
-        'updatedAt': FieldValue.serverTimestamp(),
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(seatRef);
+        if (!snap.exists) return;
+        final data = snap.data() ?? {};
+        final status = (data['status'] ?? '').toString().toLowerCase();
+        // Never release an occupied or maintenance desk or another candidate's active lock
+        if (status != SeatStatus.reserved.name) return;
+        final reservedCand = (data['reservedCandidateId'] ?? '').toString();
+        if (expectedCandidateId != null &&
+            expectedCandidateId.isNotEmpty &&
+            reservedCand.isNotEmpty &&
+            reservedCand != expectedCandidateId) {
+          return;
+        }
+        tx.update(seatRef, {
+          'status': SeatStatus.available.name,
+          'reservationType': FieldValue.delete(),
+          'reservedCandidateId': FieldValue.delete(),
+          'reservedCandidateName': FieldValue.delete(),
+          'reservationExpiresAt': FieldValue.delete(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
     } catch (e) {
       debugPrint('Failed to release soft-lock seat: $e');
@@ -1311,21 +1426,9 @@ class SeatRepository {
         .collection(FirestorePaths.seats)
         .snapshots()
         .map((snapshot) {
-          final list = snapshot.docs.map((doc) {
-            final seat = SeatModel.fromJson({...doc.data(), 'id': doc.id});
-            // Auto-heal expired soft-locks in background so Firestore state stays in sync
-            if (seat.status == SeatStatus.reserved && !seat.isCurrentlyReserved) {
-              doc.reference.update({
-                'status': SeatStatus.available.name,
-                'reservationType': FieldValue.delete(),
-                'reservedCandidateId': FieldValue.delete(),
-                'reservedCandidateName': FieldValue.delete(),
-                'reservationExpiresAt': FieldValue.delete(),
-                'updatedAt': FieldValue.serverTimestamp(),
-              }).catchError((_) {});
-            }
-            return seat;
-          }).toList();
+          final list = snapshot.docs
+              .map((doc) => SeatModel.fromJson({...doc.data(), 'id': doc.id}))
+              .toList();
           list.sort(SeatHelper.compareSeats);
           return list;
         });
@@ -1342,20 +1445,9 @@ class SeatRepository {
         .doc(sectionId)
         .collection(FirestorePaths.seats)
         .get();
-    final list = snapshot.docs.map((doc) {
-      final seat = SeatModel.fromJson({...doc.data(), 'id': doc.id});
-      if (seat.status == SeatStatus.reserved && !seat.isCurrentlyReserved) {
-        doc.reference.update({
-          'status': SeatStatus.available.name,
-          'reservationType': FieldValue.delete(),
-          'reservedCandidateId': FieldValue.delete(),
-          'reservedCandidateName': FieldValue.delete(),
-          'reservationExpiresAt': FieldValue.delete(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }).catchError((_) {});
-      }
-      return seat;
-    }).toList();
+    final list = snapshot.docs
+        .map((doc) => SeatModel.fromJson({...doc.data(), 'id': doc.id}))
+        .toList();
     list.sort(SeatHelper.compareSeats);
     return list;
   }
@@ -1583,10 +1675,12 @@ class SeatRepository {
                 healedStudents++;
                 hasBatchOps = true;
               }
-              // Ensure seat has student's proper name
-              if (studentName != sData['name']) {
+              // Strip legacy studentName/reservedCandidateName PII from public seat docs
+              if ((studentName != null && studentName.isNotEmpty) ||
+                  (seatData['reservedCandidateName'] != null)) {
                 batch.update(seatDoc.reference, {
-                  'studentName': sData['name'] ?? '',
+                  'studentName': FieldValue.delete(),
+                  'reservedCandidateName': FieldValue.delete(),
                   'updatedAt': FieldValue.serverTimestamp(),
                 });
                 healedSeats++;

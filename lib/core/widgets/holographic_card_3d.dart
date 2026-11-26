@@ -74,10 +74,17 @@ class _HolographicCard3DState extends State<HolographicCard3D>
     // Map hover position from -1.0 to 1.0
     final dx = (event.localPosition.dx / size.width) * 2 - 1.0;
     final dy = (event.localPosition.dy / size.height) * 2 - 1.0;
+    final targetY = (dx * widget.maxTiltAngle).clamp(-widget.maxTiltAngle, widget.maxTiltAngle);
+    final targetX = (-dy * widget.maxTiltAngle).clamp(-widget.maxTiltAngle, widget.maxTiltAngle);
+
+    // Throttle sub-pixel jitter so high-DPI mouse movement does not trigger 120Hz rebuilds
+    if ((targetY - _tiltY).abs() < 0.01 && (targetX - _tiltX).abs() < 0.01) {
+      return;
+    }
 
     setState(() {
-      _tiltY = (dx * widget.maxTiltAngle).clamp(-widget.maxTiltAngle, widget.maxTiltAngle);
-      _tiltX = (-dy * widget.maxTiltAngle).clamp(-widget.maxTiltAngle, widget.maxTiltAngle);
+      _tiltY = targetY;
+      _tiltX = targetX;
     });
   }
 
@@ -106,94 +113,96 @@ class _HolographicCard3DState extends State<HolographicCard3D>
   Widget build(BuildContext context) {
     final radius = widget.borderRadius ?? BorderRadius.circular(20);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardSize = Size(constraints.maxWidth, constraints.maxHeight);
+    return RepaintBoundary(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardSize = Size(constraints.maxWidth, constraints.maxHeight);
 
-        return MouseRegion(
-          onHover: (e) => _onHover(e, cardSize),
-          onExit: _onHoverExit,
-          child: GestureDetector(
-            onPanUpdate: _onPanUpdate,
-            onPanEnd: _onPanEnd,
-            onTap: widget.onFlipTap,
-            behavior: HitTestBehavior.opaque,
-            child: AnimatedBuilder(
-              animation: _flipAnimation,
-              builder: (context, _) {
-                final flipProgress = _flipAnimation.value;
-                final isBackVisible = flipProgress >= 0.5;
-                final flipAngle = flipProgress * math.pi;
+          return MouseRegion(
+            onHover: (e) => _onHover(e, cardSize),
+            onExit: _onHoverExit,
+            child: GestureDetector(
+              onPanUpdate: _onPanUpdate,
+              onPanEnd: _onPanEnd,
+              onTap: widget.onFlipTap,
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedBuilder(
+                animation: _flipAnimation,
+                builder: (context, _) {
+                  final flipProgress = _flipAnimation.value;
+                  final isBackVisible = flipProgress >= 0.5;
+                  final flipAngle = flipProgress * math.pi;
 
-                // Base 3D Perspective Matrix
-                final transform = Matrix4.identity()
-                  ..setEntry(3, 2, 0.0012) // Optical camera perspective
-                  ..rotateX(_tiltX)
-                  ..rotateY(_tiltY + flipAngle);
+                  // Base 3D Perspective Matrix
+                  final transform = Matrix4.identity()
+                    ..setEntry(3, 2, 0.0012) // Optical camera perspective
+                    ..rotateX(_tiltX)
+                    ..rotateY(_tiltY + flipAngle);
 
-                // Intensity of specular reflection based on tilt displacement
-                final tiltIntensity = (_tiltX.abs() + _tiltY.abs()) / (widget.maxTiltAngle * 2);
+                  // Intensity of specular reflection based on tilt displacement
+                  final tiltIntensity = (_tiltX.abs() + _tiltY.abs()) / (widget.maxTiltAngle * 2);
 
-                return Transform(
-                  transform: transform,
-                  alignment: Alignment.center,
-                  child: Stack(
-                    children: [
-                      // Render front or back based on flip angle
-                      if (!isBackVisible)
-                        widget.front
-                      else if (widget.back != null)
-                        Transform(
-                          transform: Matrix4.identity()..rotateY(math.pi),
-                          alignment: Alignment.center,
-                          child: widget.back!,
-                        )
-                      else
-                        widget.front,
+                  return Transform(
+                    transform: transform,
+                    alignment: Alignment.center,
+                    child: Stack(
+                      children: [
+                        // Render front or back based on flip angle
+                        if (!isBackVisible)
+                          widget.front
+                        else if (widget.back != null)
+                          Transform(
+                            transform: Matrix4.identity()..rotateY(math.pi),
+                            alignment: Alignment.center,
+                            child: widget.back!,
+                          )
+                        else
+                          widget.front,
 
-                      // Holographic Specular Lighting Overlap
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: ClipRRect(
-                            borderRadius: radius,
-                            child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 180),
-                              opacity: (tiltIntensity * 0.40).clamp(0.0, 0.40),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment(
-                                      -1.2 + (_tiltY * 5),
-                                      -1.2 + (_tiltX * 5),
+                        // Holographic Specular Lighting Overlap
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: ClipRRect(
+                              borderRadius: radius,
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 180),
+                                opacity: (tiltIntensity * 0.40).clamp(0.0, 0.40),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment(
+                                        -1.2 + (_tiltY * 5),
+                                        -1.2 + (_tiltX * 5),
+                                      ),
+                                      end: Alignment(
+                                        1.2 + (_tiltY * 5),
+                                        1.2 + (_tiltX * 5),
+                                      ),
+                                      colors: [
+                                        Colors.transparent,
+                                        Colors.white.withValues(alpha: 0.35),
+                                        Colors.cyanAccent.withValues(alpha: 0.25),
+                                        Colors.purpleAccent.withValues(alpha: 0.20),
+                                        Colors.amberAccent.withValues(alpha: 0.25),
+                                        Colors.transparent,
+                                      ],
+                                      stops: const [0.0, 0.30, 0.48, 0.65, 0.82, 1.0],
                                     ),
-                                    end: Alignment(
-                                      1.2 + (_tiltY * 5),
-                                      1.2 + (_tiltX * 5),
-                                    ),
-                                    colors: [
-                                      Colors.transparent,
-                                      Colors.white.withValues(alpha: 0.35),
-                                      Colors.cyanAccent.withValues(alpha: 0.25),
-                                      Colors.purpleAccent.withValues(alpha: 0.20),
-                                      Colors.amberAccent.withValues(alpha: 0.25),
-                                      Colors.transparent,
-                                    ],
-                                    stops: const [0.0, 0.30, 0.48, 0.65, 0.82, 1.0],
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

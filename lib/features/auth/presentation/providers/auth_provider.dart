@@ -8,6 +8,7 @@ import 'package:study_library/features/onboarding/data/repositories/library_repo
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/models/staff_model.dart';
 import 'package:study_library/services/remote_config_service.dart';
+import 'package:study_library/services/notification_service.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('sharedPreferencesProvider must be overridden in ProviderScope');
@@ -255,6 +256,14 @@ Future<void> persistUserRole({
       'displayName': displayName,
       'lastLoginAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+
+    // Keep FCM topics synchronized with the active authenticated role
+    if (libraryId.isNotEmpty && role != AppUserRole.none) {
+      await NotificationService.subscribeToLibraryTopics(
+        libraryId: libraryId,
+        isAdmin: role == AppUserRole.admin,
+      );
+    }
   } catch (_) { /* intentionally silent */ }
 }
 

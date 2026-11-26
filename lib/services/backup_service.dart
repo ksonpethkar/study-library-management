@@ -8,6 +8,23 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Summary report returned after completing a backup restore.
+class BackupRestoreSummary {
+  final int totalRestored;
+  final int totalSkipped;
+  final Map<String, int> collectionCounts;
+  final List<String> skippedDetails;
+  final bool exactMirrorMode;
+
+  const BackupRestoreSummary({
+    required this.totalRestored,
+    required this.totalSkipped,
+    required this.collectionCounts,
+    this.skippedDetails = const [],
+    this.exactMirrorMode = false,
+  });
+}
+
 /// BackupService provides functionality to export and import library data to/from JSON.
 /// Fully cross-platform: works seamlessly on Web, Android, iOS, Windows, and macOS.
 class BackupService {
@@ -23,6 +40,8 @@ class BackupService {
     'plans',
     'receipts',
     'payments',
+    'expenses',
+    'feedback',
     'settings',
     'announcements',
     'holidays',
@@ -102,6 +121,19 @@ class BackupService {
       'timestamp': DateTime.now().toIso8601String(),
     };
 
+    // Export safe root library metadata (name, address, contact, UPI, billing config, etc.)
+    try {
+      final libDoc = await _firestore.collection('libraries').doc(libraryId).get();
+      if (libDoc.exists && libDoc.data() != null) {
+        final rawLib = Map<String, dynamic>.from(libDoc.data()!)
+          ..remove('adminFcmToken')
+          ..remove('adminFcmUpdatedAt');
+        data['libraryProfile'] = _encodeValue(rawLib);
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Backup: could not read root library profile — $e');
+    }
+
     for (final col in _supportedCollections) {
       try {
         final snapshot = await _firestore
@@ -163,15 +195,28 @@ class BackupService {
   }
 
   /// Restores library data from in-memory byte list (Web, Mobile, Desktop).
-  Future<void> restoreFromBackupBytes(String libraryId, List<int> bytes,
-      {void Function(double)? onProgress}) async {
+  Future<BackupRestoreSummary> restoreFromBackupBytes(
+    String libraryId,
+    List<int> bytes, {
+    void Function(double)? onProgress,
+    bool exactMirror = false,
+  }) async {
     final jsonString = utf8.decode(bytes);
-    await restoreFromJsonString(libraryId, jsonString, onProgress: onProgress);
+    return await restoreFromJsonString(
+      libraryId,
+      jsonString,
+      onProgress: onProgress,
+      exactMirror: exactMirror,
+    );
   }
 
-  /// Restores library data directly from a JSON string.
-  Future<void> restoreFromJsonString(String libraryId, String jsonString,
-      {void Function(double)? onProgress}) async {
+  /// Restores library data directly from a JSON string with resilient batch fallback & real-time progress.
+  Future<BackupRestoreSummary> restoreFromJsonString(
+    String libraryId,
+    String jsonString, {
+    void Function(double)? onProgress,
+    bool exactMirror = false,
+  }) async {
     try {
       final data = await compute(_jsonDecodeWorker, jsonString);
 
@@ -183,6 +228,9 @@ class BackupService {
 
       // Count total operations for progress
       int totalOperations = 0;
+      if (data['libraryProfile'] is Map) {
+        totalOperations += 1;
+      }
       for (final col in _supportedCollections) {
         if (data[col] != null) {
           final list = data[col] as List<dynamic>;
@@ -196,18 +244,92 @@ class BackupService {
           }
         }
       }
-      if (totalOperations == 0) return;
+      if (totalOperations == 0) {
+        return BackupRestoreSummary(
+          totalRestored: 0,
+          totalSkipped: 0,
+          collectionCounts: const {},
+          exactMirrorMode: exactMirror,
+        );
+      }
 
+      int totalRestored = 0;
+      int totalSkipped = 0;
       int completedOperations = 0;
-      WriteBatch batch = _firestore.batch();
-      int batchCount = 0;
+      final Map<String, int> collectionCounts = {};
+      final List<String> skippedDetails = [];
+
+      // Restore root library profile safely (never overwrites ownerId)
+      if (data['libraryProfile'] is Map) {
+        try {
+          final rawProfile = Map<String, dynamic>.from(data['libraryProfile'] as Map)
+            ..remove('ownerId')
+            ..remove('adminFcmToken')
+            ..remove('adminFcmUpdatedAt');
+          final decodedProfile = _decodeValue(rawProfile) as Map<String, dynamic>;
+          await _firestore
+              .collection('libraries')
+              .doc(libraryId)
+              .set(decodedProfile, SetOptions(merge: true));
+          totalRestored++;
+          collectionCounts['libraryProfile'] = 1;
+        } catch (e) {
+          totalSkipped++;
+          skippedDetails.add('libraryProfile: $e');
+        }
+        completedOperations++;
+        onProgress?.call((completedOperations / totalOperations).clamp(0.01, 0.99));
+      }
+
+      // Use smaller batches on Web for smooth progress updates and network resilience over 3G/4G
+      final int batchLimit = kIsWeb ? 50 : 250;
+      final SetOptions writeOpts = SetOptions(merge: !exactMirror);
+
+      final List<({String col, String id, DocumentReference<Map<String, dynamic>> ref, Map<String, dynamic> data})> pendingOps = [];
+
+      Future<void> flushBatch() async {
+        if (pendingOps.isEmpty) return;
+        final batch = _firestore.batch();
+        for (final op in pendingOps) {
+          batch.set(op.ref, op.data, writeOpts);
+        }
+        try {
+          await batch.commit();
+          for (final op in pendingOps) {
+            totalRestored++;
+            collectionCounts[op.col] = (collectionCounts[op.col] ?? 0) + 1;
+          }
+        } catch (_) {
+          // Resilient fallback: isolate individual failures (e.g., restricted staff or invalid legacy payment)
+          // so one bad record never aborts an entire batch of healthy documents.
+          for (final op in pendingOps) {
+            try {
+              await op.ref.set(op.data, writeOpts);
+              totalRestored++;
+              collectionCounts[op.col] = (collectionCounts[op.col] ?? 0) + 1;
+            } catch (docErr) {
+              totalSkipped++;
+              if (skippedDetails.length < 15) {
+                skippedDetails.add('${op.col}/${op.id}: $docErr');
+              }
+            }
+          }
+        } finally {
+          completedOperations += pendingOps.length;
+          pendingOps.clear();
+          onProgress?.call((completedOperations / totalOperations).clamp(0.01, 1.0));
+          // Yield to UI event loop on Flutter Web so progress bar & animation stay fluid
+          await Future.delayed(Duration.zero);
+        }
+      }
 
       for (final col in _supportedCollections) {
         if (data[col] == null) continue;
         final list = data[col] as List<dynamic>;
 
         for (final item in list) {
-          final docData = item as Map<String, dynamic>;
+          if (item is! Map) continue;
+          final docData = Map<String, dynamic>.from(item);
 
           // v2 backups store the real Firestore ID in '__docId__'
           // v1 backups (old format) stored it in 'id' field
@@ -226,19 +348,22 @@ class BackupService {
               .doc(libraryId)
               .collection(col)
               .doc(docId);
-          batch.set(docRef, decodedData, SetOptions(merge: true));
-          batchCount++;
-          completedOperations++;
+          pendingOps.add((col: col, id: docId, ref: docRef, data: decodedData));
+
+          if (pendingOps.length >= batchLimit) {
+            await flushBatch();
+          }
 
           // Restore subcollection seats if present (preserves section layout & desks)
           if (col == 'sections' && docData['__sub_seats__'] is List) {
             final subSeats = docData['__sub_seats__'] as List<dynamic>;
             for (final seatItem in subSeats) {
-              if (seatItem is! Map<String, dynamic>) continue;
-              final seatDocId = (seatItem['__docId__'] as String?) ?? (seatItem['id'] as String?);
+              if (seatItem is! Map) continue;
+              final seatMap = Map<String, dynamic>.from(seatItem);
+              final seatDocId = (seatMap['__docId__'] as String?) ?? (seatMap['id'] as String?);
               if (seatDocId == null || seatDocId.isEmpty) continue;
 
-              final cleanSeat = Map<String, dynamic>.from(seatItem)..remove('__docId__');
+              final cleanSeat = Map<String, dynamic>.from(seatMap)..remove('__docId__');
               final decodedSeat = _decodeValue(cleanSeat) as Map<String, dynamic>;
 
               final seatRef = _firestore
@@ -249,45 +374,49 @@ class BackupService {
                   .collection('seats')
                   .doc(seatDocId);
 
-              batch.set(seatRef, decodedSeat, SetOptions(merge: true));
-              batchCount++;
-              completedOperations++;
+              pendingOps.add((col: 'section_seats', id: '$docId/$seatDocId', ref: seatRef, data: decodedSeat));
 
-              if (batchCount >= 450) {
-                await batch.commit();
-                batch = _firestore.batch();
-                batchCount = 0;
-                onProgress?.call(completedOperations / totalOperations);
+              if (pendingOps.length >= batchLimit) {
+                await flushBatch();
               }
             }
-          }
-
-          // Firestore batches are limited to 500 operations
-          if (batchCount >= 450) {
-            await batch.commit();
-            batch = _firestore.batch(); // Create fresh batch
-            batchCount = 0;
-            onProgress?.call(completedOperations / totalOperations);
           }
         }
       }
 
-      if (batchCount > 0) {
-        await batch.commit();
-        onProgress?.call(1.0);
+      if (pendingOps.isNotEmpty) {
+        await flushBatch();
       }
+      onProgress?.call(1.0);
+
+      return BackupRestoreSummary(
+        totalRestored: totalRestored,
+        totalSkipped: totalSkipped,
+        collectionCounts: collectionCounts,
+        skippedDetails: skippedDetails,
+        exactMirrorMode: exactMirror,
+      );
     } catch (e) {
       throw Exception('Failed to restore backup: $e');
     }
   }
 
   /// Restores library data from a JSON backup file (Mobile / Desktop).
-  Future<void> restoreFromBackup(String libraryId, File backupFile,
-      {void Function(double)? onProgress}) async {
+  Future<BackupRestoreSummary> restoreFromBackup(
+    String libraryId,
+    File backupFile, {
+    void Function(double)? onProgress,
+    bool exactMirror = false,
+  }) async {
     try {
       if (!await backupFile.exists()) throw Exception('Backup file not found.');
       final bytes = await backupFile.readAsBytes();
-      await restoreFromBackupBytes(libraryId, bytes, onProgress: onProgress);
+      return await restoreFromBackupBytes(
+        libraryId,
+        bytes,
+        onProgress: onProgress,
+        exactMirror: exactMirror,
+      );
     } catch (e) {
       throw Exception('Failed to restore backup: $e');
     }
@@ -336,7 +465,45 @@ class BackupService {
         .collection('daily_backups')
         .doc(dateKey);
 
-    // 1. Save metadata document (lightweight, under 1 KB, loads instantly in list view)
+    // 1. Delete any stale trailing chunks from an earlier larger snapshot on the same day
+    try {
+      final existingChunks = await snapshotRef.collection('chunks').get();
+      if (existingChunks.docs.isNotEmpty) {
+        final delBatch = _firestore.batch();
+        int delCount = 0;
+        for (final cDoc in existingChunks.docs) {
+          final idx = int.tryParse(cDoc.id);
+          if (idx == null || idx >= totalChunks) {
+            delBatch.delete(cDoc.reference);
+            delCount++;
+          }
+        }
+        if (delCount > 0) await delBatch.commit();
+      }
+    } catch (_) {}
+
+    // 2. Commit payload chunks in safe batches (max 15 chunks = ~6 MB per batch, well under Firestore 10 MB limit)
+    const int chunksPerBatch = 15;
+    for (int startIdx = 0; startIdx < totalChunks; startIdx += chunksPerBatch) {
+      final WriteBatch chunkBatch = _firestore.batch();
+      final int endIdx = (startIdx + chunksPerBatch < totalChunks) ? startIdx + chunksPerBatch : totalChunks;
+      for (int i = startIdx; i < endIdx; i++) {
+        final start = i * _maxChunkChars;
+        final end = (start + _maxChunkChars < base64Payload.length)
+            ? start + _maxChunkChars
+            : base64Payload.length;
+        final chunkStr = base64Payload.substring(start, end);
+
+        final chunkDocRef = snapshotRef.collection('chunks').doc(i.toString());
+        chunkBatch.set(chunkDocRef, {
+          'index': i,
+          'data': chunkStr,
+        });
+      }
+      await chunkBatch.commit();
+    }
+
+    // 3. Save metadata document AFTER all chunks succeed so list readers never hit partial snapshots
     await snapshotRef.set({
       'dateKey': dateKey,
       'createdAt': FieldValue.serverTimestamp(),
@@ -345,24 +512,8 @@ class BackupService {
       'chunkCount': totalChunks,
       'isCompressed': isCompressed,
       'formatVersion': 3,
+      'isComplete': true,
     });
-
-    // 2. Save payload chunks into the subcollection
-    WriteBatch batch = _firestore.batch();
-    for (int i = 0; i < totalChunks; i++) {
-      final start = i * _maxChunkChars;
-      final end = (start + _maxChunkChars < base64Payload.length)
-          ? start + _maxChunkChars
-          : base64Payload.length;
-      final chunkStr = base64Payload.substring(start, end);
-
-      final chunkDocRef = snapshotRef.collection('chunks').doc(i.toString());
-      batch.set(chunkDocRef, {
-        'index': i,
-        'data': chunkStr,
-      });
-    }
-    await batch.commit();
 
     // 3. Keep rolling last 7 days: clean older snapshots and their subcollections
     try {
@@ -441,18 +592,20 @@ class BackupService {
   /// Automatically snapshots library collections every day without interrupting the user.
   Future<void> checkAndRunRollingBackup(String libraryId) async {
     try {
+      if (libraryId.isEmpty) return;
       final prefs = await SharedPreferences.getInstance();
       final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final lastDate = prefs.getString(_keyLastDailyBackup);
+      final scopedKey = '${_keyLastDailyBackup}_$libraryId';
+      final lastDate = prefs.getString(scopedKey);
 
       if (lastDate == todayStr) {
-        // Already backed up today
+        // Already backed up today for this library
         return;
       }
 
       await saveDailyCloudSnapshot(libraryId);
-      await prefs.setString(_keyLastDailyBackup, todayStr);
-      if (kDebugMode) debugPrint('Daily automated backup snapshot created for $todayStr');
+      await prefs.setString(scopedKey, todayStr);
+      if (kDebugMode) debugPrint('Daily automated backup snapshot created for $libraryId on $todayStr');
     } catch (e) {
       if (kDebugMode) debugPrint('Silent auto-backup error: $e');
     }

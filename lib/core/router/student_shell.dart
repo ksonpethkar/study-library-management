@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/utils/app_haptics.dart';
+import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/features/settings/presentation/providers/settings_provider.dart';
@@ -37,6 +37,12 @@ class _StudentShellState extends ConsumerState<StudentShell> with WidgetsBinding
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final libId = ref.read(currentLibraryIdProvider);
+      if (libId != null && libId.isNotEmpty) {
+        loadScreenshotProtectionFromFirestore(libId);
+      }
+    });
     QuickActionsService.initializeForStudent(context, (shortcut) {
       if (!mounted) return;
       switch (shortcut) {
@@ -71,6 +77,7 @@ class _StudentShellState extends ConsumerState<StudentShell> with WidgetsBinding
 
   @override
   void dispose() {
+    applyNativeSecureFlag(false);
     WidgetsBinding.instance.removeObserver(this);
     InactivityLockService.dispose();
     super.dispose();
@@ -190,51 +197,46 @@ class _StudentShellState extends ConsumerState<StudentShell> with WidgetsBinding
         bottomNavigationBar: isMainTab
             ? SafeArea(
                 top: false,
-                child: ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
-                        border: Border(
-                          top: BorderSide(
-                            color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
-                            width: 0.5,
-                          ),
-                        ),
-                      ),
-                      child: NavigationBar(
-                        backgroundColor: Colors.transparent,
-                        surfaceTintColor: Colors.transparent,
-                        selectedIndex: _getSelectedIndex(context),
-                        onDestinationSelected: (index) {
-                          AppHaptics.light();
-                          _onItemTapped(context, index);
-                        },
-                        destinations: const [
-                          NavigationDestination(
-                            icon: Icon(Icons.home_outlined),
-                            selectedIcon: Icon(Icons.home_rounded),
-                            label: 'Home',
-                          ),
-                          NavigationDestination(
-                            icon: Icon(Icons.card_membership_outlined),
-                            selectedIcon: Icon(Icons.card_membership_rounded),
-                            label: 'Membership',
-                          ),
-                          NavigationDestination(
-                            icon: Icon(Icons.receipt_long_outlined),
-                            selectedIcon: Icon(Icons.receipt_long_rounded),
-                            label: 'Receipts',
-                          ),
-                          NavigationDestination(
-                            icon: Icon(Icons.person_outline_rounded),
-                            selectedIcon: Icon(Icons.person_rounded),
-                            label: 'Profile',
-                          ),
-                        ],
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    border: Border(
+                      top: BorderSide(
+                        color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                        width: 0.5,
                       ),
                     ),
+                  ),
+                  child: NavigationBar(
+                    backgroundColor: Colors.transparent,
+                    surfaceTintColor: Colors.transparent,
+                    selectedIndex: _getSelectedIndex(context),
+                    onDestinationSelected: (index) {
+                      AppHaptics.light();
+                      _onItemTapped(context, index);
+                    },
+                    destinations: const [
+                      NavigationDestination(
+                        icon: Icon(Icons.home_outlined),
+                        selectedIcon: Icon(Icons.home_rounded),
+                        label: 'Home',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.card_membership_outlined),
+                        selectedIcon: Icon(Icons.card_membership_rounded),
+                        label: 'Membership',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.receipt_long_outlined),
+                        selectedIcon: Icon(Icons.receipt_long_rounded),
+                        label: 'Receipts',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.person_outline_rounded),
+                        selectedIcon: Icon(Icons.person_rounded),
+                        label: 'Profile',
+                      ),
+                    ],
                   ),
                 ),
               )

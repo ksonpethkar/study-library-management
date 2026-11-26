@@ -5,8 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/features/auth/services/admin_whitelist_service.dart';
+import 'package:study_library/services/notification_service.dart';
 
 /// Centralized role authority service following leading SaaS membership architecture.
 /// 
@@ -164,7 +166,18 @@ class AuthRoleService {
             .where('email', isEqualTo: email)
             .limit(1)
             .get();
-        if (reqByEmail.docs.isNotEmpty) reqDoc = reqByEmail.docs.first;
+        if (reqByEmail.docs.isNotEmpty) {
+          reqDoc = reqByEmail.docs.first;
+        } else if (rawEmail.isNotEmpty && rawEmail != email) {
+          final reqByRawEmail = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(defaultLibId)
+              .collection('requests')
+              .where('email', isEqualTo: rawEmail)
+              .limit(1)
+              .get();
+          if (reqByRawEmail.docs.isNotEmpty) reqDoc = reqByRawEmail.docs.first;
+        }
       }
       if (reqDoc != null) {
         final rData = reqDoc.data() as Map<String, dynamic>?;
@@ -304,6 +317,10 @@ class AuthRoleService {
         // Update Riverpod states
         ref.read(currentLibraryIdProvider.notifier).set(effectiveLibId);
         ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+
+        // Enforce student FCM topic & student screenshot protection policy
+        NotificationService.subscribeToLibraryTopics(libraryId: effectiveLibId, isAdmin: false).ignore();
+        loadScreenshotProtectionFromFirestore(effectiveLibId).ignore();
 
         if (showFeedback && context != null && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

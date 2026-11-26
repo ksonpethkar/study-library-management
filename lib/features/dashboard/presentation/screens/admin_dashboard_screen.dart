@@ -18,7 +18,6 @@ import 'package:study_library/features/dashboard/presentation/widgets/revenue_ch
 import 'package:study_library/features/dashboard/presentation/widgets/app_update_banner.dart';
 import 'package:study_library/core/widgets/update_reminder_dialog.dart';
 import 'package:study_library/features/seats/presentation/widgets/share_qr_dialog.dart';
-import 'package:study_library/services/expiry_notification_service.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/membership_automation_service.dart';
 import 'package:study_library/core/router/app_router.dart';
@@ -333,11 +332,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
       error: (_, _) => 'Study Library',
     );
 
-    // Check for expiring plans (fire and forget)
     final libId = ref.watch(currentLibraryIdProvider);
-    if (libId != null && libId.isNotEmpty) {
-      ExpiryNotificationService.checkExpiringPlans(libId);
-    }
 
     final currentStaff = ref.watch(currentUserStaffProvider).value;
     final canViewRevenue = currentStaff?.canViewRevenue ?? true;
@@ -373,7 +368,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
               ),
             ),
           // Library Closed Today banner (from Holiday Calendar)
-          Builder(builder: (context) {
+          Consumer(builder: (context, ref, _) {
             final today = DateTime.now();
             final todayKey = DateTime(today.year, today.month, today.day);
             final holidaysAsync = ref.watch(holidaysStreamProvider);
@@ -411,8 +406,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 onRefresh: () async {
           ref.invalidate(occupancyProvider);
           ref.invalidate(studentsStreamProvider);
-          ref.invalidate(netProfitProvider);
-          ref.invalidate(revenueDataProvider);
+          ref.invalidate(unifiedFinancialLedgerProvider);
           ref.invalidate(expensesStreamProvider);
           ref.invalidate(holidaysStreamProvider);
           ref.invalidate(adminNotificationsStreamProvider);
@@ -423,16 +417,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
               floating: true,
               title: Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => context.push(Routes.adminLibraryProfile),
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: theme.colorScheme.primaryContainer,
-                      backgroundImage: ImageService.getImageProvider(library.value?.logoUrl),
-                      child: (ImageService.getImageProvider(library.value?.logoUrl) == null)
-                          ? Icon(Icons.local_library_rounded, color: theme.colorScheme.primary, size: 20)
-                          : null,
-                    ),
+                  Builder(
+                    builder: (_) {
+                      final logoProvider = ImageService.getAvatarProvider(library.value?.logoUrl, size: 120);
+                      return GestureDetector(
+                        onTap: () => context.push(Routes.adminLibraryProfile),
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor: theme.colorScheme.primaryContainer,
+                          backgroundImage: logoProvider,
+                          child: logoProvider == null
+                              ? Icon(Icons.local_library_rounded, color: theme.colorScheme.primary, size: 20)
+                              : null,
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -855,13 +854,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                     ),
                     const SizedBox(height: 16),
 
-                    // 2. Consolidated Financial Pulse Card
-                    _buildFinancialPulseCard(
-                      context: context,
-                      theme: theme,
-                      students: studentsAsync.value ?? [],
-                      netProfitAsync: ref.watch(netProfitProvider),
-                      canViewRevenue: canViewRevenue,
+                    // 2. Consolidated Financial Pulse Card (isolated Consumer scope)
+                    Consumer(
+                      builder: (context, ref, _) => _buildFinancialPulseCard(
+                        context: context,
+                        theme: theme,
+                        students: studentsAsync.value ?? [],
+                        netProfitAsync: ref.watch(netProfitProvider),
+                        canViewRevenue: canViewRevenue,
+                      ),
                     ),
                     const SizedBox(height: 20),
 

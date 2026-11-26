@@ -16,6 +16,8 @@ import 'package:study_library/services/id_card_pdf_service.dart';
 import 'package:study_library/services/message_template_service.dart';
 import 'package:study_library/services/image_transparency_service.dart';
 import 'package:study_library/services/pdf_font_service.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
+import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 
 class PdfService {
@@ -246,6 +248,7 @@ class PdfService {
     final showValidity = (effectiveTemplate?['Valid From'] as bool?) ?? true;
     final showPaymentMethod = (effectiveTemplate?['Payment Method'] as bool?) ?? true;
     final showDeposit = (effectiveTemplate?['Security Deposit'] as bool?) ?? true;
+    final showNextDueDate = (effectiveTemplate?['Next Due Date'] as bool?) ?? false;
     final pageSize = (effectiveTemplate?['pageSize'] as String?) ?? 'A4';
 
     final headerFontSize = ((effectiveTemplate?['headerFontSize'] as num?)?.toDouble() ?? 22.0).clamp(16.0, 30.0);
@@ -341,6 +344,17 @@ class PdfService {
       }
     }
 
+    // Self-heal matching active subscription cycle if start date was adjusted earlier
+    if (student.planStartDate != null && student.planEndDate != null) {
+      final isMatchingCycleEnd = effectiveValidTo.year == student.planEndDate!.year &&
+          effectiveValidTo.month == student.planEndDate!.month &&
+          effectiveValidTo.day == student.planEndDate!.day;
+      if (isMatchingCycleEnd && student.planStartDate!.isBefore(effectiveValidFrom)) {
+        effectiveValidFrom = student.planStartDate!;
+      }
+    }
+
+    final cycleDays = (effectiveValidTo.difference(effectiveValidFrom).inDays + 1).clamp(1, 9999);
     final startValidityStr = DateFormat('dd/MM/yyyy').format(effectiveValidFrom);
     final endValidityStr = DateFormat('dd/MM/yyyy').format(effectiveValidTo);
 
@@ -360,22 +374,17 @@ class PdfService {
             ? plan.name
             : (student.customPlanName?.isNotEmpty == true ? student.customPlanName! : plan.name));
 
-    // ── Load Form Config Custom Fields tagged for Receipt ─────────────────────
+    // ── Load Form Config Fields tagged for Receipt (both built-in and custom) ─
     List<Map<String, dynamic>> receiptCustomFields = [];
     try {
-      final configDoc = await FirebaseFirestore.instance
-          .collection('libraries').doc(library.id)
-          .collection('settings').doc('form_config').get();
-      if (configDoc.exists) {
-        final data = configDoc.data()?['fields'] as List<dynamic>? ?? [];
-        receiptCustomFields = data
-            .whereType<Map>()
-            .map((f) => Map<String, dynamic>.from(f))
-            .where((f) =>
-                (f['showOnReceipt'] as bool? ?? false) &&
-                (f['visible'] as bool? ?? true))
-            .toList();
-      }
+      final allConfigured = await FormConfigService.fetchFormConfig(library.id);
+      receiptCustomFields = FormConfigService.getSurfaceFields(
+        allConfigured,
+        onReceipt: true,
+      ).where((f) {
+        final id = (f['id'] ?? '').toString();
+        return id != 'name' && id != 'phone';
+      }).toList();
     } catch (_) { /* intentionally silent */ }
 
     // ── Dynamic Resolution of Active Plan & Service Features ──────────────────
@@ -404,16 +413,20 @@ class PdfService {
       }
     }
 
-    // Priority 3: Dynamically synthesize from ACTUAL active services (honest & compliant)
+    // Priority 3: Dynamically synthesize strictly from Admin-configured Library/Section amenities
     if (resolvedFeatures.isEmpty) {
       final features = <String>[];
+      final effectiveAmenities = AmenityCatalog.resolveEffectiveAmenities(
+        library: library,
+        section: section,
+      );
 
-      // A. Hall / Study Environment (Honest AC check: never claim AC if standard hall)
-      final isAc = section?.sectionType.toLowerCase() == 'ac' ||
-          (section?.amenities.any((a) => a.toLowerCase().contains('ac')) ?? false);
+      // A. Hall / Study Environment (only mention AC if Admin enabled AC)
+      final isAc = (section?.sectionType.toLowerCase() == 'ac') ||
+          effectiveAmenities.any((a) => a.id == 'ac');
       if (isAc) {
         features.add('AC Study Hall Access');
-      } else {
+      } else if (effectiveAmenities.any((a) => a.id == 'silence')) {
         features.add('Silent Reading Hall');
       }
 
@@ -425,39 +438,10 @@ class PdfService {
         features.add('Flexible Desk Access');
       }
 
-      // C. Section-specific active amenities
-      if (section?.amenities != null && section!.amenities.isNotEmpty) {
-        for (final a in section.amenities) {
-          final low = a.toLowerCase();
-          if (low == 'ac') continue; // Handled above
-          if (low.contains('socket') || low.contains('power')) {
-            features.add('Power Backup & Outlets');
-          } else if (low.contains('wifi') || low.contains('wi-fi')) {
-            features.add('High-Speed Wi-Fi');
-          } else if (low.contains('silent') || low.contains('silence')) {
-            features.add('Silence Zone');
-          } else if (low.contains('chair') || low.contains('ergo')) {
-            features.add('Ergonomic Chairs');
-          } else if (low.contains('cctv')) {
-            features.add('CCTV Surveillance');
-          } else if (low.contains('locker')) {
-            features.add('Locker Facility');
-          } else if (low.contains('water') || low.contains('ro')) {
-            features.add('RO Drinking Water');
-          } else {
-            features.add(sanitizePdfText(a));
-          }
-        }
-      } else {
-        // Fallback to library general facilities
-        features.add('High-Speed Wi-Fi');
-        features.add('Power Backup');
-        if (library.facilities.any((f) => f.toLowerCase().contains('ro') || f.toLowerCase().contains('water'))) {
-          features.add('RO Drinking Water');
-        }
-        if (library.facilities.any((f) => f.toLowerCase().contains('silent') || f.toLowerCase().contains('silence'))) {
-          features.add('Silence Zone');
-        }
+      // C. Verified canonical amenities enabled by Admin (no hardcoded fallbacks)
+      for (final item in effectiveAmenities) {
+        if (item.id == 'ac' || item.id == 'silence') continue;
+        features.add(sanitizePdfText(item.label));
       }
 
       resolvedFeatures = features.toSet().toList();
@@ -828,12 +812,11 @@ class PdfService {
                                   pw.Text(student.phone.isNotEmpty ? student.phone : '—', style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155'))),
                                 ),
                                 for (final f in receiptCustomFields)
-                                  if (student.customFields[f['id']?.toString() ?? ''] != null &&
-                                      student.customFields[f['id']?.toString() ?? '']!.toString().trim().isNotEmpty)
+                                  if (FormConfigService.resolveStudentFieldValue(student, (f['id'] ?? '').toString()).isNotEmpty)
                                     dualCardRow(
-                                      '${f['label']?.toString() ?? f['id']}:',
+                                      '${f['label']?.toString() ?? (f['id'] ?? '')}:',
                                       pw.Text(
-                                        sanitizePdfText(student.customFields[f['id']?.toString() ?? '']!.toString().trim()),
+                                        sanitizePdfText(FormConfigService.resolveStudentFieldValue(student, (f['id'] ?? '').toString())),
                                         style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155')),
                                       ),
                                     ),
@@ -953,6 +936,15 @@ class PdfService {
                                           endValidityStr,
                                           style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
                                         ),
+                                        pw.SizedBox(height: 2),
+                                        pw.Text(
+                                          '($cycleDays Days)',
+                                          style: pw.TextStyle(
+                                            fontSize: 7.0,
+                                            fontWeight: pw.FontWeight.bold,
+                                            color: PdfColor.fromHex('#64748B'),
+                                          ),
+                                        ),
                                       ] else
                                         pw.Text('—', style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#94A3B8'))),
                                     ],
@@ -1063,6 +1055,15 @@ class PdfService {
                                   pw.Text('BALANCE DUE', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#94A3B8'), letterSpacing: 0.6)),
                                   pw.SizedBox(height: 2),
                                   pw.Text(balanceText, style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: balanceColor)),
+                                  if (showNextDueDate) ...[
+                                    pw.SizedBox(height: 2),
+                                    pw.Text(
+                                      isDue && student.paymentDueSince != null
+                                          ? 'Due Since: ${DateFormat('dd MMM yyyy').format(student.paymentDueSince!)}'
+                                          : 'Next Due: ${DateFormat('dd MMM yyyy').format(effectiveValidTo.add(const Duration(days: 1)))}',
+                                      style: pw.TextStyle(fontSize: 7.0, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569')),
+                                    ),
+                                  ],
                                 ],
                               ),
                               pw.SizedBox(width: 10),

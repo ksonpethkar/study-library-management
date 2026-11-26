@@ -22,6 +22,7 @@ import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/core/widgets/dynamic_form_field_renderer.dart';
 import 'package:study_library/models/seat_model.dart';
 
 class AddStudentScreen extends ConsumerStatefulWidget {
@@ -541,7 +542,14 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
     final theme = Theme.of(context);
     final plansAsync = ref.watch(plansStreamProvider);
     final formConfigAsync = ref.watch(formConfigStreamProvider);
-    final formFields = formConfigAsync.value ?? [];
+    final formFields = formConfigAsync.value ?? FormConfigService.defaultBuiltinFields;
+    syncCustomFieldControllers(formFields, _customControllers);
+
+    bool isReq(String id) => FormConfigService.isFieldRequired(formFields, id);
+    String fieldLabel(String id, String fallback) {
+      final lbl = FormConfigService.getFieldLabel(formFields, id, fallback);
+      return isReq(id) ? '$lbl *' : lbl;
+    }
 
     return PopScope(
       canPop: false,
@@ -655,25 +663,31 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                   TextFormField(
                     controller: _nameController,
                     decoration: InputDecoration(
-                      labelText: '${FormConfigService.getFieldLabel(formFields, 'name', 'Full Name')} *',
+                      labelText: fieldLabel('name', 'Full Name'),
                       prefixIcon: const Icon(Icons.badge_outlined),
                       border: const OutlineInputBorder(),
                     ),
                     textCapitalization: TextCapitalization.words,
-                    validator: (v) => (v == null || v.trim().length < 2)
-                        ? 'Name must be at least 2 characters'
-                        : null,
+                    validator: (v) => AppValidators.name(
+                      v,
+                      label: FormConfigService.getFieldLabel(formFields, 'name', 'Full Name'),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   if (FormConfigService.isFieldVisible(formFields, 'fatherName')) ...[
                     TextFormField(
                       controller: _fatherNameController,
                       decoration: InputDecoration(
-                        labelText: FormConfigService.getFieldLabel(formFields, 'fatherName', "Father's / Guardian's Name"),
+                        labelText: fieldLabel('fatherName', "Father's / Guardian's Name"),
                         prefixIcon: const Icon(Icons.family_restroom_rounded),
                         border: const OutlineInputBorder(),
                       ),
                       textCapitalization: TextCapitalization.words,
+                      validator: (v) => AppValidators.name(
+                        v,
+                        required: isReq('fatherName'),
+                        label: FormConfigService.getFieldLabel(formFields, 'fatherName', "Father's / Guardian's Name"),
+                      ),
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -688,7 +702,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                           isExpanded: true,
                           initialValue: _gender,
                           decoration: InputDecoration(
-                            labelText: '${FormConfigService.getFieldLabel(formFields, 'gender', 'Gender')} *',
+                            labelText: fieldLabel('gender', 'Gender'),
                             prefixIcon: const Icon(Icons.people_outline_rounded),
                             border: const OutlineInputBorder(),
                           ),
@@ -702,20 +716,30 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                           },
                         );
 
-                        final dobField = InkWell(
-                          onTap: _pickDob,
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: FormConfigService.getFieldLabel(formFields, 'dob', 'Date of Birth'),
-                              prefixIcon: const Icon(Icons.cake_outlined),
-                              border: const OutlineInputBorder(),
-                            ),
-                            child: Text(
-                              _dob != null ? DateFormat('dd/MM/yyyy').format(_dob!) : 'DD/MM/YYYY',
-                              style: TextStyle(
-                                color: _dob != null
-                                    ? theme.textTheme.bodyMedium?.color
-                                    : theme.hintColor,
+                        final dobField = FormField<DateTime>(
+                          initialValue: _dob,
+                          validator: (_) => isReq('dob') && _dob == null
+                              ? '${FormConfigService.getFieldLabel(formFields, 'dob', 'Date of Birth')} is required'
+                              : null,
+                          builder: (state) => InkWell(
+                            onTap: () async {
+                              await _pickDob();
+                              state.didChange(_dob);
+                            },
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                labelText: fieldLabel('dob', 'Date of Birth'),
+                                prefixIcon: const Icon(Icons.cake_outlined),
+                                border: const OutlineInputBorder(),
+                                errorText: state.errorText,
+                              ),
+                              child: Text(
+                                _dob != null ? DateFormat('dd/MM/yyyy').format(_dob!) : 'DD/MM/YYYY',
+                                style: TextStyle(
+                                  color: _dob != null
+                                      ? theme.textTheme.bodyMedium?.color
+                                      : theme.hintColor,
+                                ),
                               ),
                             ),
                           ),
@@ -782,7 +806,15 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
+                  DynamicCategoryCustomFieldsSection(
+                    fields: formFields,
+                    category: FormFieldCategory.personal,
+                    controllers: _customControllers,
+                    onChanged: () => setState(() {}),
+                  ),
+
+                  const SizedBox(height: 12),
 
                   // Section 2: Contact Details
                   _buildSectionHeader(context, 'Contact Information', Icons.phone_outlined),
@@ -794,23 +826,31 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       final phoneField = TextFormField(
                         controller: _phoneController,
                         decoration: InputDecoration(
-                          labelText: '${FormConfigService.getFieldLabel(formFields, 'phone', 'Mobile Number')} *',
+                          labelText: fieldLabel('phone', 'Mobile Number'),
                           prefixIcon: const Icon(Icons.phone_android_rounded),
                           border: const OutlineInputBorder(),
                           hintText: '10-digit mobile number',
                         ),
                         keyboardType: TextInputType.phone,
-                        validator: AppValidators.phone,
+                        validator: (v) => AppValidators.phone(
+                          v,
+                          label: FormConfigService.getFieldLabel(formFields, 'phone', 'Mobile Number'),
+                        ),
                       );
 
                       final emailField = TextFormField(
                         controller: _emailController,
                         decoration: InputDecoration(
-                          labelText: FormConfigService.getFieldLabel(formFields, 'email', 'Email Address (Optional)'),
+                          labelText: fieldLabel('email', 'Email Address'),
                           prefixIcon: const Icon(Icons.email_outlined),
                           border: const OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.emailAddress,
+                        validator: (v) => AppValidators.email(
+                          v,
+                          required: isReq('email'),
+                          label: FormConfigService.getFieldLabel(formFields, 'email', 'Email Address'),
+                        ),
                       );
 
                       if (!showEmail) return phoneField;
@@ -838,11 +878,16 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     TextFormField(
                       controller: _addressController,
                       decoration: InputDecoration(
-                        labelText: FormConfigService.getFieldLabel(formFields, 'address', 'Residential Address'),
+                        labelText: fieldLabel('address', 'Residential Address'),
                         prefixIcon: const Icon(Icons.home_outlined),
                         border: const OutlineInputBorder(),
                       ),
                       maxLines: 2,
+                      validator: (v) => AppValidators.address(
+                        v,
+                        required: isReq('address'),
+                        label: FormConfigService.getFieldLabel(formFields, 'address', 'Residential Address'),
+                      ),
                     ),
                   ],
                   if (FormConfigService.isFieldVisible(formFields, 'pincode') ||
@@ -856,21 +901,34 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                         final pinField = TextFormField(
                           controller: _pincodeController,
                           decoration: InputDecoration(
-                            labelText: FormConfigService.getFieldLabel(formFields, 'pincode', 'Pincode'),
+                            labelText: fieldLabel('pincode', 'Pincode'),
                             prefixIcon: const Icon(Icons.pin_drop_outlined),
                             border: const OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.number,
+                          inputFormatters: AppValidators.pincodeFormatters,
+                          validator: (v) => AppValidators.pinCode(
+                            v,
+                            required: isReq('pincode'),
+                            label: FormConfigService.getFieldLabel(formFields, 'pincode', 'Pincode'),
+                          ),
                         );
 
                         final emergField = TextFormField(
                           controller: _emergencyController,
                           decoration: InputDecoration(
-                            labelText: FormConfigService.getFieldLabel(formFields, 'emergencyContact', 'Emergency Contact'),
+                            labelText: fieldLabel('emergencyContact', 'Emergency Contact'),
                             prefixIcon: const Icon(Icons.contact_phone_outlined),
                             border: const OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.phone,
+                          inputFormatters: AppValidators.phoneFormatters,
+                          validator: (v) => AppValidators.emergencyPhone(
+                            v,
+                            primaryPhone: _phoneController.text,
+                            required: isReq('emergencyContact'),
+                            label: FormConfigService.getFieldLabel(formFields, 'emergencyContact', 'Emergency Contact'),
+                          ),
                         );
 
                         if (showPin && !showEmerg) return pinField;
@@ -895,96 +953,115 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       },
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  DynamicCategoryCustomFieldsSection(
+                    fields: formFields,
+                    category: FormFieldCategory.contact,
+                    controllers: _customControllers,
+                    onChanged: () => setState(() {}),
+                  ),
 
-                  if (FormConfigService.isFieldVisible(formFields, 'govId')) ...[
+                  if (FormConfigService.isFieldVisible(formFields, 'govId') ||
+                      FormConfigService.getCustomFieldsForCategory(formFields, FormFieldCategory.govId).isNotEmpty) ...[
                     const SizedBox(height: 24),
 
                     // Section 3: Identity & Verification
                     _buildSectionHeader(context, 'Identity Verification', Icons.credit_card_rounded),
                     const SizedBox(height: 12),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final idTypeField = DropdownButtonFormField<GovIdType>(
-                          isExpanded: true,
-                          initialValue: _govIdType,
-                          icon: const Icon(Icons.arrow_drop_down, size: 22),
-                          decoration: InputDecoration(
-                            labelText: FormConfigService.getFieldLabel(formFields, 'govIdType', 'ID Type'),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-                            border: const OutlineInputBorder(),
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: GovIdType.aadhaar, child: Text('Aadhaar Card')),
-                            DropdownMenuItem(value: GovIdType.pan, child: Text('PAN Card')),
-                            DropdownMenuItem(value: GovIdType.drivingLicence, child: Text('Driving Licence')),
-                            DropdownMenuItem(value: GovIdType.passport, child: Text('Passport')),
-                            DropdownMenuItem(value: GovIdType.voterId, child: Text('Voter ID (EPIC)')),
-                            DropdownMenuItem(value: GovIdType.collegeId, child: Text('College ID')),
-                            DropdownMenuItem(value: GovIdType.other, child: Text('Other Govt ID')),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) setState(() => _govIdType = v);
-                          },
-                        );
+                    if (FormConfigService.isFieldVisible(formFields, 'govId')) ...[
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final idTypeField = DropdownButtonFormField<GovIdType>(
+                            isExpanded: true,
+                            initialValue: _govIdType,
+                            icon: const Icon(Icons.arrow_drop_down, size: 22),
+                            decoration: InputDecoration(
+                              labelText: FormConfigService.getFieldLabel(formFields, 'govIdType', 'ID Type'),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                              border: const OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: GovIdType.aadhaar, child: Text('Aadhaar Card')),
+                              DropdownMenuItem(value: GovIdType.pan, child: Text('PAN Card')),
+                              DropdownMenuItem(value: GovIdType.drivingLicence, child: Text('Driving Licence')),
+                              DropdownMenuItem(value: GovIdType.passport, child: Text('Passport')),
+                              DropdownMenuItem(value: GovIdType.voterId, child: Text('Voter ID (EPIC)')),
+                              DropdownMenuItem(value: GovIdType.collegeId, child: Text('College ID')),
+                              DropdownMenuItem(value: GovIdType.other, child: Text('Other Govt ID')),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) setState(() => _govIdType = v);
+                            },
+                          );
 
-                        final idText = _govIdNumberController.text.trim();
-                        final isIdValid = idText.isNotEmpty && GovIdValidator.isValid(_govIdType, idText);
+                          final idText = _govIdNumberController.text.trim();
+                          final isIdValid = idText.isNotEmpty && GovIdValidator.isValid(_govIdType, idText);
 
-                        final idNumberField = TextFormField(
-                          controller: _govIdNumberController,
-                          keyboardType: GovIdValidator.keyboardType(_govIdType),
-                          inputFormatters: GovIdValidator.inputFormatters(_govIdType),
-                          decoration: InputDecoration(
-                            labelText: FormConfigService.getFieldLabel(formFields, 'govIdNumber', '${_govIdType.displayName} Number'),
-                            prefixIcon: const Icon(Icons.numbers_rounded),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-                            border: const OutlineInputBorder(),
-                            suffixIcon: idText.isEmpty
-                                ? null
-                                : Tooltip(
-                                    message: isIdValid
-                                        ? '${_govIdType.displayName} Checksum Valid ✓'
-                                        : 'Invalid format or checksum mismatch',
-                                    child: Icon(
-                                      isIdValid ? Icons.verified_rounded : Icons.warning_amber_rounded,
-                                      color: isIdValid ? Colors.green.shade600 : Colors.amber.shade800,
-                                      size: 20,
+                          final idNumberField = TextFormField(
+                            controller: _govIdNumberController,
+                            keyboardType: GovIdValidator.keyboardType(_govIdType),
+                            inputFormatters: GovIdValidator.inputFormatters(_govIdType),
+                            decoration: InputDecoration(
+                              labelText: isReq('govId')
+                                  ? '${FormConfigService.getFieldLabel(formFields, 'govId', '${_govIdType.displayName} Number')} *'
+                                  : FormConfigService.getFieldLabel(formFields, 'govId', '${_govIdType.displayName} Number'),
+                              prefixIcon: const Icon(Icons.numbers_rounded),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                              border: const OutlineInputBorder(),
+                              suffixIcon: idText.isEmpty
+                                  ? null
+                                  : Tooltip(
+                                      message: isIdValid
+                                          ? '${_govIdType.displayName} Checksum Valid ✓'
+                                          : 'Invalid format or checksum mismatch',
+                                      child: Icon(
+                                        isIdValid ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                                        color: isIdValid ? Colors.green.shade600 : Colors.amber.shade800,
+                                        size: 20,
+                                      ),
                                     ),
-                                  ),
-                            enabledBorder: idText.isNotEmpty
-                                ? OutlineInputBorder(
-                                    borderSide: BorderSide(
-                                      color: isIdValid ? Colors.green.shade400 : Colors.amber.shade600,
-                                      width: 1.5,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          validator: (v) => GovIdValidator.validate(_govIdType, v, isRequired: false),
-                          onChanged: (_) => setState(() {}),
-                        );
+                              enabledBorder: idText.isNotEmpty
+                                  ? OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: isIdValid ? Colors.green.shade400 : Colors.amber.shade600,
+                                        width: 1.5,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            validator: (v) => GovIdValidator.validate(_govIdType, v, isRequired: isReq('govId')),
+                            onChanged: (_) => setState(() {}),
+                          );
 
-                        if (constraints.maxWidth < 560) {
-                          return Column(
+                          if (constraints.maxWidth < 560) {
+                            return Column(
+                              children: [
+                                idTypeField,
+                                const SizedBox(height: 12),
+                                idNumberField,
+                              ],
+                            );
+                          }
+                          return Row(
                             children: [
-                              idTypeField,
-                              const SizedBox(height: 12),
-                              idNumberField,
+                              Expanded(flex: 5, child: idTypeField),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 6, child: idNumberField),
                             ],
                           );
-                        }
-                        return Row(
-                          children: [
-                            Expanded(flex: 5, child: idTypeField),
-                            const SizedBox(width: 12),
-                            Expanded(flex: 6, child: idNumberField),
-                          ],
-                        );
-                      },
-                    ),
+                        },
+                      ),
 
-                    const SizedBox(height: 12),
-                    _buildGovIdDocumentPreviewCard(context),
+                      const SizedBox(height: 12),
+                      _buildGovIdDocumentPreviewCard(context),
+                      const SizedBox(height: 12),
+                    ],
+                    DynamicCategoryCustomFieldsSection(
+                      fields: formFields,
+                      category: FormFieldCategory.govId,
+                      controllers: _customControllers,
+                      onChanged: () => setState(() {}),
+                    ),
                   ],
 
                   const SizedBox(height: 24),
@@ -995,17 +1072,19 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       FormConfigService.isFieldVisible(formFields, 'year') ||
                       FormConfigService.isFieldVisible(formFields, 'prep') ||
                       FormConfigService.isFieldVisible(formFields, 'rollNumber') ||
-                      FormConfigService.isFieldVisible(formFields, 'bloodGroup')) ...[
+                      FormConfigService.isFieldVisible(formFields, 'bloodGroup') ||
+                      FormConfigService.getCustomFieldsForCategory(formFields, FormFieldCategory.academics).isNotEmpty) ...[
                     _buildSectionHeader(context, 'Education & Goals', Icons.school_outlined),
                     const SizedBox(height: 12),
                     if (FormConfigService.isFieldVisible(formFields, 'college')) ...[
                       TextFormField(
                         controller: _collegeController,
                         decoration: InputDecoration(
-                          labelText: FormConfigService.getFieldLabel(formFields, 'college', 'College / Institute Name'),
+                          labelText: fieldLabel('college', 'College / Institute Name'),
                           prefixIcon: const Icon(Icons.school_rounded),
                           border: const OutlineInputBorder(),
                         ),
+                        validator: (v) => AppValidators.collegeName(v, required: isReq('college')),
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -1013,12 +1092,18 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       TextFormField(
                         controller: _targetExamController,
                         decoration: InputDecoration(
-                          labelText: FormConfigService.getFieldLabel(formFields, 'prep', 'Target Exam / Competitive Goal'),
+                          labelText: fieldLabel('prep', 'Target Exam / Competitive Goal'),
                           prefixIcon: const Icon(Icons.track_changes_rounded),
                           border: const OutlineInputBorder(),
                           hintText: 'e.g. UPSC, MPSC, NEET, JEE, Banking',
                         ),
                         textCapitalization: TextCapitalization.words,
+                        validator: isReq('prep')
+                            ? (v) => AppValidators.required(
+                                  v,
+                                  label: FormConfigService.getFieldLabel(formFields, 'prep', 'Target Exam'),
+                                )
+                            : null,
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -1032,19 +1117,26 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                           final courseField = TextFormField(
                             controller: _courseController,
                             decoration: InputDecoration(
-                              labelText: FormConfigService.getFieldLabel(formFields, 'course', 'Course / Degree'),
+                              labelText: fieldLabel('course', 'Course / Degree'),
                               prefixIcon: const Icon(Icons.menu_book_rounded),
                               border: const OutlineInputBorder(),
                             ),
+                            validator: isReq('course')
+                                ? (v) => AppValidators.required(
+                                      v,
+                                      label: FormConfigService.getFieldLabel(formFields, 'course', 'Course / Degree'),
+                                    )
+                                : null,
                           );
 
                           final yearField = TextFormField(
                             controller: _yearController,
                             decoration: InputDecoration(
-                              labelText: FormConfigService.getFieldLabel(formFields, 'year', 'Year / Sem'),
+                              labelText: fieldLabel('year', 'Year / Sem'),
                               prefixIcon: const Icon(Icons.calendar_today_rounded),
                               border: const OutlineInputBorder(),
                             ),
+                            validator: (v) => AppValidators.yearOrSem(v, required: isReq('year')),
                           );
 
                           if (showCourse && !showYear) return courseField;
@@ -1080,10 +1172,16 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                           final rollField = TextFormField(
                             controller: _rollNumberController,
                             decoration: InputDecoration(
-                              labelText: FormConfigService.getFieldLabel(formFields, 'rollNumber', 'Roll / Enroll Number'),
+                              labelText: fieldLabel('rollNumber', 'Roll / Enroll Number'),
                               prefixIcon: const Icon(Icons.numbers_rounded),
                               border: const OutlineInputBorder(),
                             ),
+                            validator: isReq('rollNumber')
+                                ? (v) => AppValidators.required(
+                                      v,
+                                      label: FormConfigService.getFieldLabel(formFields, 'rollNumber', 'Roll / Enroll Number'),
+                                    )
+                                : null,
                           );
 
                           final bloodField = DropdownButtonFormField<String>(
@@ -1091,11 +1189,14 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                             initialValue: _bloodGroup,
                             icon: const Icon(Icons.arrow_drop_down, size: 22),
                             decoration: InputDecoration(
-                              labelText: FormConfigService.getFieldLabel(formFields, 'bloodGroup', 'Blood Group'),
+                              labelText: fieldLabel('bloodGroup', 'Blood Group'),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
                               border: const OutlineInputBorder(),
                             ),
                             hint: const Text('Select'),
+                            validator: isReq('bloodGroup')
+                                ? (v) => AppValidators.bloodGroup(v, required: true)
+                                : null,
                             items: const [
                               DropdownMenuItem(value: 'A+', child: Text('A+')),
                               DropdownMenuItem(value: 'A-', child: Text('A-')),
@@ -1132,7 +1233,28 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       ),
                       const SizedBox(height: 12),
                     ],
+                    DynamicCategoryCustomFieldsSection(
+                      fields: formFields,
+                      category: FormFieldCategory.academics,
+                      controllers: _customControllers,
+                      onChanged: () => setState(() {}),
+                    ),
                   ],
+
+                  DynamicCategoryCustomFieldsSection(
+                    fields: formFields,
+                    category: FormFieldCategory.custom,
+                    controllers: _customControllers,
+                    onChanged: () => setState(() {}),
+                    header: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 24),
+                        _buildSectionHeader(context, 'Additional Information / Custom Fields', Icons.tune_rounded),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
 
                   const SizedBox(height: 24),
 

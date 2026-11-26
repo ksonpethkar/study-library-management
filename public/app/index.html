@@ -40,7 +40,7 @@
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="The Cozy Corner Study Centre ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Smart Study Library Management Platform">
+  <meta name="description" content="The Cozy Corner Study Centre — Smart Study Library Management Platform">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -81,13 +81,13 @@
             if (manifestLink) {
               const dynManifest = {
                 "name": title,
-                "short_name": title.length > 18 ? title.substring(0, 16) + "Ã¢â‚¬Â¦" : title,
+                "short_name": title.length > 18 ? title.substring(0, 16) + "…" : title,
                 "start_url": "/app/",
                 "scope": "/app/",
                 "display": "standalone",
                 "background_color": "#FFF8F0",
                 "theme_color": "#5D4037",
-                "description": title + " Ã¢â‚¬â€ Smart Study Library Management Platform",
+                "description": title + " — Smart Study Library Management Platform",
                 "orientation": "portrait-primary",
                 "icons": [
                   { "src": (url && url.length > 0) ? url : "/app/icons/Icon-192.png", "sizes": "192x192", "type": "image/png" },
@@ -119,13 +119,55 @@
     window.updateWebFavicon = function(url) {
       window.updateWebBranding(url, null);
     };
+
+    // Student Portal Web Anti-Capture Guard (Print / Right-Click Image Save / Capture Shortcut Deterrent)
+    (function() {
+      var _guardActive = false;
+      function _blockContextOrDrag(e) {
+        if (_guardActive) e.preventDefault();
+      }
+      function _blockKeys(e) {
+        if (!_guardActive) return;
+        var key = (e.key || '').toLowerCase();
+        if (key === 'printscreen' || ((e.ctrlKey || e.metaKey) && (key === 'p' || key === 's'))) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+      window.setWebScreenshotProtection = function(enabled) {
+        try {
+          _guardActive = !!enabled;
+          var styleId = 'cozy-screenshot-guard-style';
+          var existing = document.getElementById(styleId);
+          if (_guardActive) {
+            if (!existing) {
+              var st = document.createElement('style');
+              st.id = styleId;
+              st.textContent = '@media print { body { display: none !important; } html::after { content: "Printing and Screenshot Export Disabled by Library Security Policy"; display: block; padding: 48px 24px; font-family: system-ui, sans-serif; font-size: 18px; font-weight: 700; text-align: center; color: #DC2626; } }';
+              document.head.appendChild(st);
+            }
+            document.body && (document.body.style.webkitUserSelect = 'none', document.body.style.userSelect = 'none');
+            document.addEventListener('contextmenu', _blockContextOrDrag, true);
+            document.addEventListener('dragstart', _blockContextOrDrag, true);
+            document.addEventListener('keydown', _blockKeys, true);
+          } else {
+            if (existing) existing.remove();
+            document.body && (document.body.style.webkitUserSelect = '', document.body.style.userSelect = '');
+            document.removeEventListener('contextmenu', _blockContextOrDrag, true);
+            document.removeEventListener('dragstart', _blockContextOrDrag, true);
+            document.removeEventListener('keydown', _blockKeys, true);
+          }
+        } catch (_) {}
+      };
+    })();
   </script>
 
   <title>The Cozy Corner Study Centre</title>
-  <!-- Universal Multilingual Font Fallback for Indic & Global Scripts -->
+  <!-- Non-blocking Asynchronous Multilingual Font Stylesheet (Zero Render Block) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans:wght@400;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet"></noscript>
 </head>
 <body style="margin:0;padding:0;background:#0F172A;overflow:hidden;">
   <!-- Instant Branded Splash Loader (Zero Blank Screen Guarantee) -->
@@ -159,20 +201,35 @@
       }, 7000);
     </script>
   </div>
-  <!-- jsQR Client-Side Instant QR Code Decoder for Indian Gov IDs (PAN, Aadhaar, DL) -->
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"
-          integrity="sha256-MiFMdO6S033m2IJ2mHaQ2ZbOdXZo6CyhcJ26Xgvp/M4="
-          crossorigin="anonymous"></script>
-  <!-- Tesseract.js Client-Side OCR for Web -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"
-          integrity="sha256-qOKZGNCYsrBuEBK9rv+0rsBEXF1WVHCQI+C9H0QqgOg="
-          crossorigin="anonymous"></script>
-  <!-- PDF.js Client-Side Digital Document Text Extractor (e-Aadhaar & DigiLocker) -->
-  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <!-- On-Demand Lazy Script Loader for Document Scanning (OCR, PDF, QR) - Zero Startup Blocking -->
   <script>
+    const _lazyScriptCache = {};
+    function _loadExternalScript(src, integrity) {
+      if (_lazyScriptCache[src]) return _lazyScriptCache[src];
+      _lazyScriptCache[src] = new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = src;
+        if (integrity) {
+          s.integrity = integrity;
+          s.crossOrigin = "anonymous";
+        }
+        s.async = true;
+        s.onload = () => resolve(true);
+        s.onerror = (e) => {
+          delete _lazyScriptCache[src];
+          reject(e);
+        };
+        document.head.appendChild(s);
+      });
+      return _lazyScriptCache[src];
+    }
+
     // ── Instant Client-Side PDF Text Extractor (e-Aadhaar & DigiLocker) ──
     window.extractPdfText = async function(base64Pdf) {
       try {
+        if (!window.pdfjsLib) {
+          await _loadExternalScript("https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js");
+        }
         if (!window.pdfjsLib) {
           console.warn("PDF.js library not available");
           return "";
@@ -209,6 +266,12 @@
     // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Instant Client-Side QR Decoder ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     window.decodeQrCodeFromImage = async function(base64Image) {
       try {
+        if (!window.jsQR) {
+          await _loadExternalScript(
+            "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js",
+            "sha256-MiFMdO6S033m2IJ2mHaQ2ZbOdXZo6CyhcJ26Xgvp/M4="
+          );
+        }
         if (!window.jsQR) {
           console.warn("jsQR library not available");
           return null;
@@ -270,6 +333,12 @@
     window.recognizeOcrText = async function(base64Image) {
       try {
         if (!window.Tesseract) {
+          await _loadExternalScript(
+            "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js",
+            "sha256-qOKZGNCYsrBuEBK9rv+0rsBEXF1WVHCQI+C9H0QqgOg="
+          );
+        }
+        if (!window.Tesseract) {
           console.warn("Tesseract.js not yet loaded");
           return "";
         }
@@ -298,7 +367,7 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
     <!-- Progressive Web App (PWA) Offline-First Loader -->
-  <script src="/app/flutter_bootstrap.js?v=20261124_02" async></script>
+  <script src="/app/flutter_bootstrap.js?v=20261126_06" async></script>
 </body>
 </html>
 

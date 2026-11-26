@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/app_validators.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
 import 'package:study_library/core/error/error_handler.dart';
 
 
@@ -72,8 +73,11 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
         'name': _libraryName,
         'address': _libraryAddress,
         'phone': _libraryPhone,
+        'contact': _libraryPhone,
         'email': _libraryEmail,
         'ownerId': user.uid,
+        'facilities': AmenityCatalog.safeDefaultLabels,
+        'amenities': AmenityCatalog.toStructuredAmenities(AmenityCatalog.safeDefaultLabels),
         'createdAt': FieldValue.serverTimestamp(),
         'seatNumberingFormat': 'numeric',
       });
@@ -92,6 +96,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
         'capacity': _rows * _cols,
         'genderRestriction': 'any',
         'namingStyle': 'numeric',
+        'amenities': const <String>[],
+        'inheritLibraryAmenities': true,
         'createdAt': FieldValue.serverTimestamp(),
       });
 

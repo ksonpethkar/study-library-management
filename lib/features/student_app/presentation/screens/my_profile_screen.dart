@@ -31,6 +31,7 @@ import 'package:study_library/core/widgets/update_reminder_dialog.dart';
 import 'package:study_library/core/widgets/facility_tour_sheet.dart';
 import 'package:study_library/core/widgets/cozy_settings_tile.dart';
 import 'package:study_library/core/providers/font_settings_provider.dart';
+import 'package:study_library/core/widgets/dynamic_form_field_renderer.dart';
 import 'package:study_library/features/settings/presentation/widgets/typography_settings_sheet.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
@@ -951,203 +952,325 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 2. Bento Info Grid (4 Grouped Cards)
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.phone_outlined, size: 14, color: theme.colorScheme.primary),
-                              const SizedBox(width: 4),
-                              Text(
-                                'DIRECT CONTACT',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
-                                  color: theme.colorScheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(student.phone, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          if (student.email.isNotEmpty)
-                            Text(student.email, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant), overflow: TextOverflow.ellipsis),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.emergency_outlined, size: 14, color: Colors.red),
-                              SizedBox(width: 4),
-                              Text(
-                                'EMERGENCY',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            student.emergencyContact.isNotEmpty ? student.emergencyContact : student.phone,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                          Text(
-                            'Guardian: ${student.fatherName.isNotEmpty ? student.fatherName : "On Record"}',
-                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
+              // 2. Bento Info Grid (Gated by Form Builder visibility & showOnProfile)
+              Builder(
+                builder: (context) {
+                  final formFields = ref.watch(formConfigStreamProvider).value ?? FormConfigService.defaultBuiltinFields;
+                  bool vis(String id) => FormConfigService.isFieldVisibleOnSurface(formFields, id, profile: true);
+                  String lbl(String id, String def) => FormConfigService.getFieldLabel(formFields, id, def);
 
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.badge_outlined, size: 14, color: Colors.amber),
-                              SizedBox(width: 4),
-                              Text(
-                                'GOVT ID & BLOOD',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
-                                  color: Colors.amber,
+                  final showContactTile = vis('phone') || (vis('email') && student.email.isNotEmpty);
+                  final showEmergTile = vis('emergencyContact') || vis('fatherName');
+                  final showGovBloodTile = vis('govId') || vis('bloodGroup');
+                  final showResTile = vis('address') || vis('pincode');
+
+                  final targetExam = FormConfigService.resolveStudentFieldValue(student, 'prep');
+                  final rollNo = FormConfigService.resolveStudentFieldValue(student, 'rollNumber');
+                  final showAcademicRow =
+                      (vis('prep') && targetExam.isNotEmpty) ||
+                      (vis('college') && student.college.isNotEmpty) ||
+                      (vis('course') && student.course.isNotEmpty) ||
+                      (vis('year') && student.year.isNotEmpty) ||
+                      (vis('rollNumber') && rollNo.isNotEmpty);
+
+                  final customProfileFields = FormConfigService.getSurfaceFields(
+                    formFields,
+                    onProfile: true,
+                    builtinFilter: false,
+                  ).where((f) {
+                    final fid = (f['id'] ?? '').toString();
+                    return fid.isNotEmpty &&
+                        !FormConfigService.isInternalKey(fid) &&
+                        (student.customFields[fid]?.toString().trim().isNotEmpty ?? false);
+                  }).toList();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (showContactTile || showEmergTile) ...[
+                        Row(
+                          children: [
+                            if (showContactTile)
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surfaceContainerLow,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.phone_outlined, size: 14, color: theme.colorScheme.primary),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'DIRECT CONTACT',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.5,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      if (vis('phone'))
+                                        Text(student.phone, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      if (vis('email') && student.email.isNotEmpty)
+                                        Text(student.email, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant), overflow: TextOverflow.ellipsis),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Builder(
-                            builder: (context) {
-                              final raw = student.govIdNumber.trim();
-                              String effectiveId = '';
-                              if (raw.isNotEmpty) {
-                                final attempt = EncryptionService.safeDecryptGovId(raw, libraryId);
-                                if (attempt.isNotEmpty && attempt != '••••••••') {
-                                  effectiveId = attempt;
-                                } else if (!raw.contains('=') && raw.length <= 20) {
-                                  effectiveId = raw;
-                                } else {
-                                  effectiveId = attempt;
-                                }
-                              }
-
-                              String formattedGovId;
-                              final cleanGov = effectiveId.replaceAll(' ', '');
-                              if (cleanGov.isEmpty) {
-                                formattedGovId = 'ID: Verified';
-                              } else if (cleanGov.length == 12 && RegExp(r'^\d+$').hasMatch(cleanGov)) {
-                                formattedGovId = 'ID: •••• •••• ${cleanGov.substring(8)}';
-                              } else if (cleanGov.length == 10 && RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(cleanGov)) {
-                                formattedGovId = 'PAN: ••••••${cleanGov.substring(6)}';
-                              } else if (cleanGov.length > 4 && cleanGov != '••••••••') {
-                                formattedGovId = 'ID: •••• ${cleanGov.substring(cleanGov.length - 4)}';
-                              } else {
-                                formattedGovId = 'ID: Verified';
-                              }
-
-                              return Text(
-                                formattedGovId,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, fontFamily: 'monospace'),
-                              );
-                            },
-                          ),
-                          Text(
-                            'Blood Group: ${student.bloodGroup ?? "O+"}',
-                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.location_on_outlined, size: 14, color: Colors.green),
-                              SizedBox(width: 4),
-                              Text(
-                                'RESIDENCE',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
-                                  color: Colors.green,
+                            if (showContactTile && showEmergTile) const SizedBox(width: 10),
+                            if (showEmergTile)
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surfaceContainerLow,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.emergency_outlined, size: 14, color: Colors.red),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'EMERGENCY',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.5,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      if (vis('emergencyContact'))
+                                        Text(
+                                          student.emergencyContact.isNotEmpty ? student.emergencyContact : 'Not Provided',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                      if (vis('fatherName'))
+                                        Text(
+                                          '${lbl('fatherName', 'Guardian')}: ${student.fatherName.isNotEmpty ? student.fatherName : "Not Provided"}',
+                                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      if (showGovBloodTile || showResTile) ...[
+                        Row(
+                          children: [
+                            if (showGovBloodTile)
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surfaceContainerLow,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.badge_outlined, size: 14, color: Colors.amber),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'GOVT ID & BLOOD',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.5,
+                                              color: Colors.amber,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      if (vis('govId'))
+                                        Builder(
+                                          builder: (context) {
+                                            final raw = student.govIdNumber.trim();
+                                            String effectiveId = '';
+                                            if (raw.isNotEmpty) {
+                                              final attempt = EncryptionService.safeDecryptGovId(raw, libraryId);
+                                              if (attempt.isNotEmpty && attempt != '••••••••') {
+                                                effectiveId = attempt;
+                                              } else if (!raw.contains('=') && raw.length <= 20) {
+                                                effectiveId = raw;
+                                              } else {
+                                                effectiveId = attempt;
+                                              }
+                                            }
+
+                                            String formattedGovId;
+                                            final cleanGov = effectiveId.replaceAll(' ', '');
+                                            if (cleanGov.isEmpty) {
+                                              formattedGovId = 'ID: Not Provided';
+                                            } else if (cleanGov.length == 12 && RegExp(r'^\d+$').hasMatch(cleanGov)) {
+                                              formattedGovId = 'ID: •••• •••• ${cleanGov.substring(8)}';
+                                            } else if (cleanGov.length == 10 && RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(cleanGov)) {
+                                              formattedGovId = 'PAN: ••••••${cleanGov.substring(6)}';
+                                            } else if (cleanGov.length > 4 && cleanGov != '••••••••') {
+                                              formattedGovId = 'ID: •••• ${cleanGov.substring(cleanGov.length - 4)}';
+                                            } else {
+                                              formattedGovId = 'ID: Verified';
+                                            }
+
+                                            return Text(
+                                              formattedGovId,
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, fontFamily: 'monospace'),
+                                            );
+                                          },
+                                        ),
+                                      if (vis('bloodGroup'))
+                                        Text(
+                                          '${lbl('bloodGroup', 'Blood Group')}: ${(student.bloodGroup?.trim().isNotEmpty == true) ? student.bloodGroup! : "Not Set"}',
+                                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            if (showGovBloodTile && showResTile) const SizedBox(width: 10),
+                            if (showResTile)
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surfaceContainerLow,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.location_on_outlined, size: 14, color: Colors.green),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'RESIDENCE',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.5,
+                                              color: Colors.green,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      if (vis('address'))
+                                        Text(
+                                          student.address.isNotEmpty ? student.address : 'Not Provided',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      if (vis('pincode'))
+                                        Text(
+                                          student.pincode.isNotEmpty
+                                              ? '${lbl('pincode', 'Pincode')}: ${student.pincode}'
+                                              : '${lbl('pincode', 'Pincode')}: Not Provided',
+                                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      if (showAcademicRow || customProfileFields.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.school_outlined, size: 14, color: theme.colorScheme.primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'ACADEMICS & ADDITIONAL DETAILS',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              if (vis('prep') && targetExam.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text('${lbl('prep', 'Target Exam')}: $targetExam', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                ),
+                              if (vis('college') && student.college.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text('${lbl('college', 'College')}: ${student.college}', style: const TextStyle(fontSize: 12)),
+                                ),
+                              if (vis('course') && student.course.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text(
+                                    '${lbl('course', 'Course')}: ${student.course}${(vis('year') && student.year.isNotEmpty) ? " (${student.year})" : ""}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              if (vis('year') && student.course.isEmpty && student.year.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text('${lbl('year', 'Year / Sem')}: ${student.year}', style: const TextStyle(fontSize: 12)),
+                                ),
+                              if (vis('rollNumber') && rollNo.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text('${lbl('rollNumber', 'Roll No.')}: $rollNo', style: const TextStyle(fontSize: 12)),
+                                ),
+                              for (final cf in customProfileFields)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text(
+                                    '${cf['label'] ?? cf['id']}: ${student.customFields[cf['id']]}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            student.address.isNotEmpty ? student.address : 'Not Provided',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            student.pincode.isNotEmpty ? 'Pincode: ${student.pincode}' : 'Pincode: Not Provided',
-                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                        ),
+                      ],
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
@@ -1557,31 +1680,47 @@ class _GovIdTileState extends State<_GovIdTile> {
 
 Future<void> _showEditProfileSheet(BuildContext context, WidgetRef ref, StudentModel student) async {
   final libraryId = ref.read(currentLibraryIdProvider) ?? '';
-  List<Map<String, dynamic>> customFields = [];
+  List<Map<String, dynamic>> allFormFields = List<Map<String, dynamic>>.from(FormConfigService.defaultBuiltinFields);
   if (libraryId.isNotEmpty) {
     try {
-      final all = await FormConfigService.fetchFormConfig(libraryId);
-      customFields = all.where((f) =>
-        (f['builtin'] as bool? ?? false) == false &&
-        (f['visible'] as bool? ?? true) &&
-        (f['showOnProfile'] as bool? ?? true)
-      ).toList();
+      allFormFields = await FormConfigService.fetchFormConfig(libraryId);
     } catch (_) { /* intentionally silent */ }
   }
+  final customFields = FormConfigService.getSurfaceFields(
+    allFormFields,
+    onProfile: true,
+    builtinFilter: false,
+  ).where((f) => !FormConfigService.isInternalKey((f['id'] ?? '').toString())).toList();
 
   if (!context.mounted) return;
 
+  bool vis(String id) => FormConfigService.isFieldVisibleOnSurface(allFormFields, id, profile: true);
+  bool locked(String id) => FormConfigService.isReadOnlyForStudent(allFormFields, id);
+  String lbl(String id, String fallback) {
+    final l = FormConfigService.getFieldLabel(allFormFields, id, fallback);
+    final req = FormConfigService.isFieldRequired(allFormFields, id);
+    return '$l${req ? ' *' : ''}${locked(id) ? ' (Locked)' : ''}';
+  }
+
+  final editFormKey = GlobalKey<FormState>();
   final emergencyCtrl = TextEditingController(text: student.emergencyContact);
   final collegeCtrl = TextEditingController(text: student.college);
   final courseCtrl = TextEditingController(text: student.course);
   final yearCtrl = TextEditingController(text: student.year);
+  final prepCtrl = TextEditingController(
+    text: student.targetExamName?.isNotEmpty == true
+        ? student.targetExamName!
+        : (student.customFields['prep']?.toString() ?? ''),
+  );
+  final rollCtrl = TextEditingController(
+    text: student.rollNumber?.isNotEmpty == true
+        ? student.rollNumber!
+        : (student.customFields['rollNumber']?.toString() ?? ''),
+  );
+  final addressCtrl = TextEditingController(text: student.address);
+  final pincodeCtrl = TextEditingController(text: student.pincode);
   final Map<String, TextEditingController> customCtrls = {};
-  for (final f in customFields) {
-    final fid = f['id']?.toString() ?? '';
-    if (fid.isNotEmpty) {
-      customCtrls[fid] = TextEditingController(text: student.customFields[fid]?.toString() ?? '');
-    }
-  }
+  syncCustomFieldControllers(customFields, customCtrls, initialValues: student.customFields);
 
   bool saving = false;
 
@@ -1597,95 +1736,170 @@ Future<void> _showEditProfileSheet(BuildContext context, WidgetRef ref, StudentM
           bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
         ),
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Text('Edit Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-                ],
-              ),
-              const Divider(),
-              const SizedBox(height: 8),
-              TextFormField(controller: emergencyCtrl, decoration: const InputDecoration(labelText: 'Emergency Contact', prefixIcon: Icon(Icons.emergency))),
-              const SizedBox(height: 12),
-              TextFormField(controller: collegeCtrl, decoration: const InputDecoration(labelText: 'College / Institution', prefixIcon: Icon(Icons.school))),
-              const SizedBox(height: 12),
-              TextFormField(controller: courseCtrl, decoration: const InputDecoration(labelText: 'Course', prefixIcon: Icon(Icons.book))),
-              const SizedBox(height: 12),
-              TextFormField(controller: yearCtrl, decoration: const InputDecoration(labelText: 'Year / Semester', prefixIcon: Icon(Icons.calendar_today))),
-              if (customFields.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text('Additional Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+          child: Form(
+            key: editFormKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text('Edit Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                  ],
+                ),
+                const Divider(),
                 const SizedBox(height: 8),
-                ...customFields.map((f) {
-                  final fid = f['id']?.toString() ?? '';
-                  final label = f['label']?.toString() ?? fid;
-                  final ctrl = customCtrls[fid];
-                  if (ctrl == null) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: TextFormField(
+                if (vis('emergencyContact')) ...[
+                  TextFormField(
+                    controller: emergencyCtrl,
+                    readOnly: locked('emergencyContact'),
+                    decoration: InputDecoration(labelText: lbl('emergencyContact', 'Emergency Contact'), prefixIcon: const Icon(Icons.emergency)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (vis('address')) ...[
+                  TextFormField(
+                    controller: addressCtrl,
+                    readOnly: locked('address'),
+                    maxLines: 2,
+                    decoration: InputDecoration(labelText: lbl('address', 'Residential Address'), prefixIcon: const Icon(Icons.home_outlined)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (vis('pincode')) ...[
+                  TextFormField(
+                    controller: pincodeCtrl,
+                    readOnly: locked('pincode'),
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(labelText: lbl('pincode', 'Pincode'), prefixIcon: const Icon(Icons.pin_drop_outlined)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (vis('prep')) ...[
+                  TextFormField(
+                    controller: prepCtrl,
+                    readOnly: locked('prep'),
+                    decoration: InputDecoration(labelText: lbl('prep', 'Target Exam / Goal'), prefixIcon: const Icon(Icons.track_changes_rounded)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (vis('college')) ...[
+                  TextFormField(
+                    controller: collegeCtrl,
+                    readOnly: locked('college'),
+                    decoration: InputDecoration(labelText: lbl('college', 'College / Institution'), prefixIcon: const Icon(Icons.school)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (vis('course')) ...[
+                  TextFormField(
+                    controller: courseCtrl,
+                    readOnly: locked('course'),
+                    decoration: InputDecoration(labelText: lbl('course', 'Course'), prefixIcon: const Icon(Icons.book)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (vis('year')) ...[
+                  TextFormField(
+                    controller: yearCtrl,
+                    readOnly: locked('year'),
+                    decoration: InputDecoration(labelText: lbl('year', 'Year / Semester'), prefixIcon: const Icon(Icons.calendar_today)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (vis('rollNumber')) ...[
+                  TextFormField(
+                    controller: rollCtrl,
+                    readOnly: locked('rollNumber'),
+                    decoration: InputDecoration(labelText: lbl('rollNumber', 'Roll / Enroll No.'), prefixIcon: const Icon(Icons.numbers_rounded)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (customFields.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('Additional Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                  const SizedBox(height: 8),
+                  ...customFields.map((f) {
+                    final fid = f['id']?.toString() ?? '';
+                    final ctrl = customCtrls[fid];
+                    if (ctrl == null) return const SizedBox.shrink();
+                    return DynamicFormFieldRenderer(
+                      field: f,
                       controller: ctrl,
-                      decoration: InputDecoration(
-                        labelText: label,
-                        prefixIcon: const Icon(Icons.edit_note_rounded),
-                      ),
-                    ),
-                  );
-                }),
-              ],
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: FilledButton(
-                  onPressed: saving ? null : () async {
-                    setSheetState(() => saving = true);
-                    try {
-                      if (libraryId.isEmpty) throw Exception('Library ID not found');
+                      forceReadOnly: f['readOnlyForStudent'] == true,
+                      bottomPadding: 12,
+                      onChanged: () => setSheetState(() {}),
+                    );
+                  }),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: FilledButton(
+                    onPressed: saving ? null : () async {
+                      if (editFormKey.currentState?.validate() != true) return;
+                      setSheetState(() => saving = true);
+                      try {
+                        if (libraryId.isEmpty) throw Exception('Library ID not found');
 
-                      final proposedCustom = <String, dynamic>{};
-                      for (final entry in customCtrls.entries) {
-                        if (entry.key.isNotEmpty) {
-                          proposedCustom[entry.key] = entry.value.text.trim();
+                        final proposedCustom = <String, dynamic>{};
+                        for (final entry in customCtrls.entries) {
+                          final fieldMeta = customFields.where((f) => f['id'] == entry.key).firstOrNull;
+                          if (entry.key.isNotEmpty && fieldMeta?['readOnlyForStudent'] != true) {
+                            proposedCustom[entry.key] = entry.value.text.trim();
+                          }
                         }
-                      }
 
-                      final requestRef = FirebaseFirestore.instance
-                          .collection('libraries')
-                          .doc(libraryId)
-                          .collection('requests')
-                          .doc();
+                        final requestRef = FirebaseFirestore.instance
+                            .collection('libraries')
+                            .doc(libraryId)
+                            .collection('requests')
+                            .doc();
 
-                      await requestRef.set({
-                        'id': requestRef.id,
-                        'studentId': student.id,
-                        'studentName': student.name,
-                        'studentPhone': student.phone,
-                        'type': 'profile_update',
-                        'title': 'Profile Information Update',
-                        'description': 'Student requested profile update',
-                        'currentData': {
-                          'emergencyContact': student.emergencyContact,
-                          'college': student.college,
-                          'course': student.course,
-                          'year': student.year,
-                          'customFields': student.customFields,
-                        },
-                        'proposedData': {
-                          'emergencyContact': emergencyCtrl.text.trim(),
-                          'college': collegeCtrl.text.trim(),
-                          'course': courseCtrl.text.trim(),
-                          'year': yearCtrl.text.trim(),
-                          'customFields': proposedCustom,
-                        },
-                        'status': 'pending',
-                        'createdAt': FieldValue.serverTimestamp(),
-                      });
+                        await requestRef.set({
+                          'id': requestRef.id,
+                          'studentId': student.id,
+                          'studentName': student.name,
+                          'studentPhone': student.phone,
+                          'type': 'profile_update',
+                          'title': 'Profile Information Update',
+                          'description': 'Student requested profile update',
+                          'currentData': {
+                            'emergencyContact': student.emergencyContact,
+                            'address': student.address,
+                            'pincode': student.pincode,
+                            'college': student.college,
+                            'course': student.course,
+                            'year': student.year,
+                            'prep': student.targetExamName ?? student.customFields['prep'] ?? '',
+                            'rollNumber': student.rollNumber ?? student.customFields['rollNumber'] ?? '',
+                            'customFields': student.customFields,
+                          },
+                          'proposedData': {
+                            if (vis('emergencyContact') && !locked('emergencyContact'))
+                              'emergencyContact': emergencyCtrl.text.trim(),
+                            if (vis('address') && !locked('address'))
+                              'address': addressCtrl.text.trim(),
+                            if (vis('pincode') && !locked('pincode'))
+                              'pincode': pincodeCtrl.text.trim(),
+                            if (vis('prep') && !locked('prep'))
+                              'prep': prepCtrl.text.trim(),
+                            if (vis('college') && !locked('college'))
+                              'college': collegeCtrl.text.trim(),
+                            if (vis('course') && !locked('course'))
+                              'course': courseCtrl.text.trim(),
+                            if (vis('year') && !locked('year'))
+                              'year': yearCtrl.text.trim(),
+                            if (vis('rollNumber') && !locked('rollNumber'))
+                              'rollNumber': rollCtrl.text.trim(),
+                            'customFields': proposedCustom,
+                          },
+                          'status': 'pending',
+                          'createdAt': FieldValue.serverTimestamp(),
+                        });
 
                       await AppNotificationService.sendNotification(
                         libraryId: libraryId,
@@ -1728,12 +1942,13 @@ Future<void> _showEditProfileSheet(BuildContext context, WidgetRef ref, StudentM
                       }
                     }
                   },
-                  child: saving 
+                  child: saving
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Save Changes'),
+                      : const Text('Submit Profile Update', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -1744,6 +1959,10 @@ Future<void> _showEditProfileSheet(BuildContext context, WidgetRef ref, StudentM
   collegeCtrl.dispose();
   courseCtrl.dispose();
   yearCtrl.dispose();
+  prepCtrl.dispose();
+  rollCtrl.dispose();
+  addressCtrl.dispose();
+  pincodeCtrl.dispose();
   for (final c in customCtrls.values) {
     c.dispose();
   }

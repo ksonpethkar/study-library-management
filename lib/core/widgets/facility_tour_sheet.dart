@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
 import 'package:study_library/models/library_model.dart';
 
 /// Interactive, illustrated 5-step facility onboarding tour for students.
@@ -78,9 +79,12 @@ class _FacilityTourSheetState extends ConsumerState<FacilityTourSheet> {
   static const int _totalPages = 3;
 
   List<_TourStepData> _buildSteps(LibraryModel? library) {
-    final facilityList = (library != null && library.facilities.isNotEmpty)
-        ? library.facilities.join(' • ')
-        : 'High-speed 5G Wi-Fi, Personal Charging Sockets, RO Purified Water, Air Conditioning & CCTV';
+    final activeAmenities = library != null
+        ? library.effectiveAmenityItems
+        : AmenityCatalog.parseList(AmenityCatalog.safeDefaultLabels);
+    final facilityList = activeAmenities.isNotEmpty
+        ? activeAmenities.map((e) => e.label).join(' • ')
+        : 'Quiet Study Desk & Institutional Support';
     final rulesSummary = (library != null && library.rulesText.trim().isNotEmpty)
         ? library.rulesText.trim().split(RegExp(r'\r?\n')).take(2).join('. ')
         : 'Silent study halls for deep focus, with a designated calling area in reception for urgent phone calls.';
@@ -92,18 +96,18 @@ class _FacilityTourSheetState extends ConsumerState<FacilityTourSheet> {
         badgeColor: Color(0xFF2563EB),
         icon: Icons.chair_rounded,
         iconColor: Color(0xFF2563EB),
-        title: 'Dedicated Desk & Shift',
+        title: 'Dedicated Reserved Desk',
         subtitle: 'Your personal, quiet study zone reserved exclusively for you',
         items: [
           _TourFeatureItem(
             icon: Icons.event_seat_rounded,
             title: 'Fixed Reserved Desk',
-            description: 'Your assigned cabin is yours during your shift. Leave reference books safely without worry of seat loss.',
+            description: 'Your assigned desk is exclusively yours 24×7. Leave reference books safely without worry of seat loss.',
           ),
           _TourFeatureItem(
-            icon: Icons.access_time_filled_rounded,
-            title: 'Guaranteed Study Shifts',
-            description: 'Morning, Evening, or 24×7 Full Day. Peace of mind with your seat reserved during your designated hours.',
+            icon: Icons.all_inclusive_rounded,
+            title: 'Dedicated Full-Day Access',
+            description: '24×7 dedicated desk reservation with zero shift splits. Peace of mind with your seat reserved exclusively for you every day.',
           ),
           _TourFeatureItem(
             icon: Icons.swap_horiz_rounded,
@@ -148,8 +152,8 @@ class _FacilityTourSheetState extends ConsumerState<FacilityTourSheet> {
         subtitle: 'Premium facilities and hassle-free fee renewals',
         items: [
           _TourFeatureItem(
-            icon: Icons.wifi_rounded,
-            title: 'Featured Amenities',
+            icon: Icons.verified_rounded,
+            title: 'Featured Library Amenities',
             description: facilityList,
           ),
           _TourFeatureItem(
@@ -349,12 +353,19 @@ class _FacilityTourSheetState extends ConsumerState<FacilityTourSheet> {
 
                       const Spacer(),
 
-                      // Next / Finish Button
+                      // Next / Quick Finish Controls (1-tap exit available on any step)
+                      if (_currentPage < _totalPages - 1) ...[
+                        TextButton(
+                          onPressed: _finishTour,
+                          child: const Text('Get Started', style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                       FilledButton(
                         style: FilledButton.styleFrom(
                           backgroundColor: steps[_currentPage].badgeColor,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),

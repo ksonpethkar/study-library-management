@@ -14,6 +14,7 @@ import 'package:study_library/services/remote_config_service.dart';
 import 'package:study_library/core/security/legacy_key_migration_service.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/services/telemetry_service.dart';
+import 'package:study_library/core/constants/app_constants.dart';
 import 'package:study_library/core/sentinel/sentinel_provider_observer.dart';
 import 'package:study_library/core/sentinel/sentinel_service.dart';
 import 'firebase_options.dart';
@@ -48,15 +49,15 @@ void main() async {
 
   // Initialize Crashlytics telemetry and error hooks
   await TelemetryService.initialize(
-    appVersion: '1.5.55',
-    buildNumber: '2072',
+    appVersion: AppConstants.appVersion,
+    buildNumber: '${AppConstants.buildNumber}',
   );
 
-  // Initialize Remote Config
-  await RemoteConfigService.initialize();
+  // Initialize Remote Config non-blocking (apply local defaults immediately, fetch remote in background)
+  RemoteConfigService.initialize(waitForFetch: false).ignore();
 
-  // Analytics: enable data collection
-  await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+  // Analytics: enable data collection non-blocking
+  FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true).ignore();
 
   // Enable Firestore offline persistence
   try {

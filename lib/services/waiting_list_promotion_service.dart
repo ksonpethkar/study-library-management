@@ -198,12 +198,12 @@ class WaitingListPromotionService {
         throw Exception('Cannot place hold: Seat is currently occupied.');
       }
 
-      // 2. WRITES
+      // 2. WRITES (keep candidate PII off public seat document)
       tx.update(seatRef, {
         'status': SeatStatus.reserved.name,
         'reservationType': 'waitlist_hold',
         'reservedCandidateId': entry.id,
-        'reservedCandidateName': entry.studentName,
+        'reservedCandidateName': FieldValue.delete(),
         'reservationExpiresAt': Timestamp.fromDate(expiresAt),
         'updatedAt': FieldValue.serverTimestamp(),
       });

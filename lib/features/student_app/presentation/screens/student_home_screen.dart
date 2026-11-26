@@ -33,6 +33,7 @@ import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/expiry_scheduler_service.dart';
 import 'package:study_library/services/expiry_notification_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/services/quick_actions_service.dart';
@@ -46,22 +47,39 @@ import 'package:study_library/features/settings/presentation/providers/settings_
 import 'package:image_picker/image_picker.dart';
 
 /// Real-time stream of the current student's pending registration request.
-/// Returns the request document if status == 'pending', null otherwise.
+/// Returns the newest active/pending request document, or null when cleared/approved.
 /// This enables the home screen to auto-update when admin approves without restart.
 final pendingRequestProvider = StreamProvider<Map<String, dynamic>?>((ref) {
-  final libraryId = ref.watch(currentLibraryIdProvider);
+  final rawLibraryId = ref.watch(currentLibraryIdProvider);
+  final libraryId = (rawLibraryId != null && rawLibraryId.isNotEmpty)
+      ? rawLibraryId
+      : CurrentLibraryNotifier.defaultLibraryId;
   final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (libraryId == null || libraryId.isEmpty || uid == null) return Stream.value(null);
+  if (uid == null || uid.isEmpty) return Stream.value(null);
 
   return FirebaseFirestore.instance
       .collection('libraries')
       .doc(libraryId)
       .collection('requests')
       .where('studentId', isEqualTo: uid)
-      .where('status', isEqualTo: 'pending')
-      .limit(1)
       .snapshots()
-      .map((snap) => snap.docs.isNotEmpty ? snap.docs.first.data() : null);
+      .map((snap) {
+    final activeDocs = snap.docs.where((d) {
+      final status = (d.data()['status'] ?? '').toString().trim().toLowerCase();
+      return status == 'pending' ||
+          status == 'desk_payment_pending' ||
+          status == 'payment_pending';
+    }).toList();
+    if (activeDocs.isEmpty) return null;
+    activeDocs.sort((a, b) {
+      final aRaw = a.data()['createdAt'];
+      final bRaw = b.data()['createdAt'];
+      final aDt = aRaw is Timestamp ? aRaw.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+      final bDt = bRaw is Timestamp ? bRaw.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+      return bDt.compareTo(aDt);
+    });
+    return {'id': activeDocs.first.id, ...activeDocs.first.data()};
+  });
 });
 
 class StudentHomeScreen extends ConsumerStatefulWidget {
@@ -72,12 +90,13 @@ class StudentHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, SecureScreenMixin {
   late final AnimationController _refreshAnimController;
   late final AnimationController _cardFlipController;
   bool _birthdayDismissed = false;
   bool _hasCheckedStartupDialogs = false;
   final Set<String> _dismissedRejectedRequests = {};
+  int _activePassTabIndex = 0; // 0 = Desk & Access, 1 = Target & Focus
 
   Future<void> _checkDismissedRejectedRequests() async {
     try {
@@ -157,6 +176,64 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     } else {
       _cardFlipController.forward();
     }
+  }
+
+  Widget _buildPassTabPill({
+    required ThemeData theme,
+    required int index,
+    required IconData icon,
+    required String label,
+  }) {
+    final isSelected = _activePassTabIndex == index;
+    return GestureDetector(
+      onTap: () {
+        if (_activePassTabIndex != index) {
+          HapticFeedback.selectionClick();
+          setState(() => _activePassTabIndex = index);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? theme.colorScheme.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(11),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _checkBirthdayDismissed() async {
@@ -239,12 +316,8 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     final theme = Theme.of(context);
     final libraryAsync = ref.watch(currentLibraryProvider);
     final studentAsync = ref.watch(currentStudentProvider);
-    final announcementsAsync = ref.watch(announcementsStreamProvider);
     final plansAsync = ref.watch(plansStreamProvider);
     final sectionsAsync = ref.watch(sectionsProvider);
-    final pendingSeatChange = ref.watch(studentPendingSeatChangeProvider).value;
-    final pendingRenewal = ref.watch(studentPendingRenewalProvider).value;
-    final rejectedRequest = ref.watch(studentRecentRejectedRequestProvider).value;
 
     final library = libraryAsync.value;
     final libraryName = library?.name.isNotEmpty == true ? library!.name : 'Study Library';
@@ -278,7 +351,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 padding: const EdgeInsets.all(8.0),
                 child: CircleAvatar(
                   backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                  backgroundImage: ImageService.getImageProvider(library!.logoUrl),
+                  backgroundImage: ImageService.getAvatarProvider(library!.logoUrl, size: 120),
                 ),
               )
             : null,
@@ -417,9 +490,13 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             final pendingAsync = ref.watch(pendingRequestProvider);
             return pendingAsync.when(
               data: (request) {
-                if (request != null && request['status'] == 'pending') {
-                  // Student has a pending request — show waiting UI
-                  // This view auto-disappears when admin approves (stream emits null)
+                final reqStatus = (request?['status'] ?? '').toString().trim().toLowerCase();
+                if (request != null &&
+                    (reqStatus == 'pending' ||
+                        reqStatus == 'desk_payment_pending' ||
+                        reqStatus == 'payment_pending')) {
+                  // Student has an active/pending request — show waiting UI
+                  // This view auto-disappears when admin completes/activates it
                   return _buildRealTimePendingView(context, theme, request);
                 }
                 // No request and no student profile yet — show friendly sync screen
@@ -566,7 +643,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   children: [
                     Builder(
                       builder: (context) {
-                        final studentPhotoProvider = ImageService.getImageProvider(photoUrl);
+                        final studentPhotoProvider = ImageService.getAvatarProvider(photoUrl, size: 160);
                         return GestureDetector(
                           onTap: () {
                             if (photoUrl.isNotEmpty) {
@@ -649,109 +726,87 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   _buildBirthdayBanner(context, theme, student, libraryName),
                 ],
 
-                // Active Announcement Banner (if any)
-                announcementsAsync.when(
-                  data: (announcements) {
-                    final activeAnnouncements = announcements.where((a) => a.isActive).toList();
-                    if (activeAnnouncements.isEmpty) return const SizedBox.shrink();
-                    final topAnnouncement = activeAnnouncements.first;
+                // Active Announcement Carousel (isolated Consumer scope)
+                Consumer(
+                  builder: (context, ref, _) {
+                    final announcementsAsync = ref.watch(announcementsStreamProvider);
+                    return announcementsAsync.when(
+                      data: (announcements) {
+                        final activeAnnouncements = announcements.where((a) => a.isActive).toList();
+                        if (activeAnnouncements.isEmpty) return const SizedBox.shrink();
 
-                    return Material(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(16),
-                      child: InkWell(
-                        onTap: () => StudentNoticeDetailSheet.show(
-                          context,
-                          announcement: topAnnouncement,
-                          studentId: student.id,
-                          libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: theme.colorScheme.tertiary.withValues(alpha: 0.3)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.campaign_rounded, color: theme.colorScheme.tertiary, size: 28),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            topAnnouncement.title,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 15,
-                                              color: theme.colorScheme.onTertiaryContainer,
-                                            ),
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.arrow_forward_ios_rounded,
-                                          size: 13,
-                                          color: theme.colorScheme.onTertiaryContainer.withValues(alpha: 0.6),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      topAnnouncement.message,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: theme.colorScheme.onTertiaryContainer.withValues(alpha: 0.85),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                        return _NoticeCarouselBanner(
+                          announcements: activeAnnouncements,
+                          onTapAnnouncement: (announcement) {
+                            HapticFeedback.lightImpact();
+                            StudentNoticeDetailSheet.show(
+                              context,
+                              announcement: announcement,
+                              studentId: student.id,
+                              libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
+                            );
+                          },
+                        );
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, _) => const SizedBox.shrink(),
                     );
                   },
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, _) => const SizedBox.shrink(),
                 ),
 
                 // Contextual Renewal In-Progress Banner OR Rejected Alert Banner OR Expiry Alert Banner
-                if (pendingRenewal != null) ...[
-                  _buildPendingRenewalCard(
-                    context: context,
-                    theme: theme,
-                    libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
-                    pendingData: pendingRenewal,
-                    student: student,
-                    library: library,
-                  ),
-                  const SizedBox(height: 14),
-                ] else if (rejectedRequest != null && !_dismissedRejectedRequests.contains(rejectedRequest['id']?.toString() ?? '')) ...[
-                  _buildRejectedRequestBanner(
-                    context: context,
-                    theme: theme,
-                    rejectedData: rejectedRequest,
-                    student: student,
-                    library: library,
-                  ),
-                  const SizedBox(height: 14),
-                ] else if (student.isExpired ||
-                    (student.daysRemaining != null && student.daysRemaining! <= 7) ||
-                    student.effectiveMembershipStatus == MembershipStatus.grace) ...[
-                  _buildStudentExpiryAlertBanner(context, theme, student, seatLabel),
-                  const SizedBox(height: 14),
-                ],
+                Consumer(
+                  builder: (context, ref, _) {
+                    final pendingRenewal = ref.watch(studentPendingRenewalProvider).value;
+                    final rejectedRequest = ref.watch(studentRecentRejectedRequestProvider).value;
+                    if (pendingRenewal != null) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildPendingRenewalCard(
+                            context: context,
+                            theme: theme,
+                            libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
+                            pendingData: pendingRenewal,
+                            student: student,
+                            library: library,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                      );
+                    }
+                    if (rejectedRequest != null && !_dismissedRejectedRequests.contains(rejectedRequest['id']?.toString() ?? '')) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildRejectedRequestBanner(
+                            context: context,
+                            theme: theme,
+                            rejectedData: rejectedRequest,
+                            student: student,
+                            library: library,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                      );
+                    }
+                    if (student.isExpired ||
+                        (student.daysRemaining != null && student.daysRemaining! <= 7) ||
+                        student.effectiveMembershipStatus == MembershipStatus.grace) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildStudentExpiryAlertBanner(context, theme, student, seatLabel),
+                          const SizedBox(height: 14),
+                        ],
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
 
                 // Dynamic Outstanding Fee Balance / Due Payment Card
                 if ((student.pendingDueBalance ?? 0) > 0) ...[
@@ -776,46 +831,104 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                   library: library,
                   libraryName: libraryName,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // 2. Inspiring Exam Countdown & Daily Focus Widget
-                _buildExamCountdownWidget(
-                  context,
-                  theme,
-                  student,
-                  library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
-                ),
-                const SizedBox(height: 16),
-
-                // Dedicated Seat Change In-Progress Card (Prominently informs student of pending move)
-                if (pendingSeatChange != null) ...[
-                  _buildPendingSeatChangeCard(
-                    context: context,
-                    theme: theme,
-                    libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
-                    pendingData: pendingSeatChange,
+                // 2. Native Mobile Segmented Switcher (Desk & Access vs Target & Focus)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
                   ),
-                  const SizedBox(height: 14),
-                ],
-
-                // 3. High-Readability Seat Radar Card
-                _buildAssignedSeatCard(
-                  context,
-                  theme,
-                  seatLabel,
-                  sectionName,
-                  seatId,
-                  effectiveStatus: student.effectiveMembershipStatus,
-                  pendingSeatChange: pendingSeatChange,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildPassTabPill(
+                          theme: theme,
+                          index: 0,
+                          icon: Icons.event_seat_rounded,
+                          label: 'Desk & Access',
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: _buildPassTabPill(
+                          theme: theme,
+                          index: 1,
+                          icon: Icons.flag_rounded,
+                          label: 'Target & Focus',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // Wi-Fi 1-Tap Quick Access & Password Copy Card
-                _buildWifiCard(context, theme, library),
-                const SizedBox(height: 16),
-
-                // Dynamic Reading Hall Operating Hours & Directions Banner
-                _buildOperatingHoursBanner(context, theme, library),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 240),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: _activePassTabIndex == 0
+                      ? Column(
+                          key: const ValueKey('tab_desk_access'),
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Consumer(
+                              builder: (context, ref, _) {
+                                final pendingSeatChange = ref.watch(studentPendingSeatChangeProvider).value;
+                                return Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (pendingSeatChange != null) ...[
+                                      _buildPendingSeatChangeCard(
+                                        context: context,
+                                        theme: theme,
+                                        libraryId: library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
+                                        pendingData: pendingSeatChange,
+                                      ),
+                                      const SizedBox(height: 14),
+                                    ],
+                                    _buildAssignedSeatCard(
+                                      context,
+                                      theme,
+                                      seatLabel,
+                                      sectionName,
+                                      seatId,
+                                      effectiveStatus: student.effectiveMembershipStatus,
+                                      pendingSeatChange: pendingSeatChange,
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 14),
+                            if (library != null && library.hasWifi) ...[
+                              _buildWifiCard(context, theme, library),
+                              const SizedBox(height: 14),
+                            ],
+                            _buildOperatingHoursBanner(context, theme, library),
+                          ],
+                        )
+                      : Column(
+                          key: const ValueKey('tab_target_focus'),
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildExamCountdownWidget(
+                              context,
+                              theme,
+                              student,
+                              library?.id ?? ref.read(currentLibraryIdProvider) ?? '',
+                            ),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 14),
 
                 // 4. Ergonomic Quick Services Dock (4-column primary + 2-item secondary)
                 _buildQuickServicesDock(
@@ -1370,6 +1483,48 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                         ),
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    // Anti-Screenshot Live Clock Ticker (proves live session vs stale screenshot)
+                    StreamBuilder<int>(
+                      stream: Stream.periodic(const Duration(seconds: 1), (i) => i),
+                      builder: (context, _) {
+                        final timeStr = DateFormat('HH:mm:ss').format(DateTime.now());
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: statusColor.withValues(alpha: 0.5),
+                              width: 0.7,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 4.5,
+                                height: 4.5,
+                                decoration: BoxDecoration(
+                                  color: statusColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                'LIVE $timeStr',
+                                style: const TextStyle(
+                                  color: Color(0xFFE2E8F0),
+                                  fontSize: 7.5,
+                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
                 const SizedBox(width: 14),
@@ -1878,14 +2033,47 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      membershipId,
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          membershipId,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        StreamBuilder<int>(
+                          stream: Stream.periodic(const Duration(seconds: 1), (i) => i),
+                          builder: (context, _) {
+                            final timeStr = DateFormat('HH:mm:ss').format(DateTime.now());
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.45),
+                                  width: 0.6,
+                                ),
+                              ),
+                              child: Text(
+                                'LIVE $timeStr',
+                                style: const TextStyle(
+                                  color: Color(0xFF6EE7B7),
+                                  fontSize: 8,
+                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -3294,12 +3482,18 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                                         ? refNum
                                         : (isCash ? 'Cash at Reception' : '');
 
+                                    final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                                    final resolvedUserId = currentAuthUid.isNotEmpty
+                                        ? currentAuthUid
+                                        : (student.userId ?? '');
+
                                     await reqDoc.set({
                                       'id': reqDoc.id,
+                                      'userId': resolvedUserId,
                                       'studentId': student.id,
                                       'studentName': student.name,
                                       'studentPhone': student.phone,
-                                      'studentUserId': student.userId ?? '',
+                                      'studentUserId': resolvedUserId,
                                       'type': 'due_payment',
                                       'amount': dueAmount,
                                       'referenceNumber': effectiveRef,
@@ -3735,7 +3929,12 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '1-Tap silent alert to Reception • Noise, AC, Wi-Fi, Water or Desk help',
+                        '1-Tap silent alert to Reception • ${[
+                          if (library?.hasSilentZone ?? true) 'Noise',
+                          if (library?.hasAirConditioning ?? false) 'AC',
+                          if (library?.hasWifi ?? false) 'Wi-Fi',
+                          'Water or Desk help',
+                        ].join(', ')}',
                         style: TextStyle(
                           fontSize: 11,
                           color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),

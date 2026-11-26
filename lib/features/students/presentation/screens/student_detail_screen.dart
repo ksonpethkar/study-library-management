@@ -27,7 +27,6 @@ import 'package:study_library/models/receipt_model.dart';
 import 'package:flutter/services.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/security/audit_logger.dart';
-import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
@@ -62,7 +61,7 @@ class StudentDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<StudentDetailScreen> createState() => _StudentDetailScreenState();
 }
 
-class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with SecureScreenMixin {
+class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
   StudentModel? student;
   bool isLoading = true;
   bool _isGovIdVisible = false;
@@ -162,8 +161,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
         });
         
         // Load seat + section names safely
-        String loadedSeatLabel = data['seatLabel']?.toString() ?? '';
-        String loadedSectionName = data['sectionName']?.toString() ?? '';
+        String loadedSeatLabel = (s.seatId != null && s.seatId!.isNotEmpty) ? (data['seatLabel']?.toString() ?? '') : '';
+        String loadedSectionName = (s.seatId != null && s.seatId!.isNotEmpty) ? (data['sectionName']?.toString() ?? '') : '';
         int? loadedSectionCols;
         if (s.seatId != null && s.seatId!.isNotEmpty) {
           String? effectiveSectionId = s.sectionId;
@@ -893,6 +892,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           studentPhone: s.phone,
           planPrice: planPrice > 0 ? planPrice : (due > 0 ? due : 0.0),
           pendingDue: due,
+          initialStartDate: s.planStartDate,
+          initialEndDate: s.planEndDate,
         ),
       ),
     ).then((_) {
@@ -913,11 +914,28 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
       return;
     }
 
+    int minFreezeDays = 10;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('cancellation_policy')
+          .get();
+      if (doc.exists && doc.data() != null) {
+        final configured = (doc.data()!['minFreezeDays'] as num?)?.toInt();
+        if (configured != null && configured >= 1) {
+          minFreezeDays = configured;
+        }
+      }
+    } catch (_) {}
+
+    if (!context.mounted) return;
+
     final origEnd = s.planEndDate!;
     final now = DateTime.now();
     DateTime freezeStart = DateTime(now.year, now.month, now.day);
-    // Minimum 10 consecutive days
-    DateTime freezeEnd = freezeStart.add(const Duration(days: 9));
+    DateTime freezeEnd = freezeStart.add(Duration(days: minFreezeDays > 1 ? minFreezeDays - 1 : 0));
     final reasonCtrl = TextEditingController(text: 'University semester exams / Study vacation');
     bool sendWhatsApp = true;
 
@@ -930,6 +948,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             student: s,
             freezeStartDate: freezeStart,
             freezeEndDate: freezeEnd,
+            minFreezeDays: minFreezeDays,
           );
 
           return AlertDialog(
@@ -941,8 +960,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   child: const Icon(Icons.ac_unit_rounded, color: Colors.blue),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
-                  child: Text('Freeze Membership (10+ Days)', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text('Freeze Membership ($minFreezeDays+ Days)', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -954,7 +973,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Approve a study vacation / exam break. Per library policy, freeze is permitted for 10 or more consecutive days only.',
+                      'Approve a study vacation / exam break. Per library policy, freeze is permitted for $minFreezeDays or more consecutive days only.',
                       style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
                     ),
                     const SizedBox(height: 16),
@@ -1851,23 +1870,20 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               receiptId: receiptDoc.id,
                               receiptNumber: voucherNumber,
                               status: PaymentStatus.refunded,
+                              aggregateSyncedByClient: true,
                               notes: 'Early Exit Settlement Voucher #$voucherNumber: Used ${exitCalc.usedDays}/${exitCalc.totalCycleDays}d. Fair usage: ₹${exitCalc.fairUsageFee.toStringAsFixed(0)}. Deduction: ₹${processingFee.toStringAsFixed(0)}. Net refund: ₹${exitCalc.netRefund.toStringAsFixed(0)} ($refundMethod). Reason: ${reasonCtrl.text.trim()}',
                               createdAt: exitDate,
                             );
                             await payDoc.set(refundPayment.toJson());
 
-                            // Adjust library revenue aggregate
-                            final monthKey = exitDate.toIso8601String().substring(0, 7);
-                            FirebaseFirestore.instance
-                                .collection('libraries')
-                                .doc(libraryId)
-                                .collection('settings')
-                                .doc('revenue_aggregate')
-                                .set({
-                              'totalRevenue': FieldValue.increment(-exitCalc.netRefund),
-                              'monthlyRevenue.$monthKey': FieldValue.increment(-exitCalc.netRefund),
-                              'lastUpdated': FieldValue.serverTimestamp(),
-                            }, SetOptions(merge: true)).ignore();
+                            // Adjust library revenue aggregate atomically once
+                            ReceiptRepository.applyRevenueAggregateDelta(
+                              FirebaseFirestore.instance,
+                              libraryId,
+                              amountDelta: -exitCalc.netRefund,
+                              refundsDelta: 1,
+                              referenceDate: exitDate,
+                            ).ignore();
                           }
 
                           // 3. Mark student as inactive, settle dues to ₹0, append settlement log
@@ -2729,7 +2745,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           try {
                             String? receiptNumber;
 
-                            // 1. Generate receipt if money is collected
+                            // 1. Generate receipt & matching ledger payment atomically if money is collected
                             if (effectiveAmount > 0 && recordAsPaid) {
                               final receiptRepo = ReceiptRepository();
                               receiptNumber = await receiptRepo.getNextReceiptNumber(libraryId);
@@ -2756,38 +2772,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                   },
                                   status: ReceiptStatus.active,
                                 ),
+                                recordMatchingPayment: true,
+                                extraPaymentFields: {
+                                  'studentName': s.name,
+                                  'planId': targetPlan.id,
+                                  'planName': targetPlan.displayName,
+                                  if (refController.text.trim().isNotEmpty)
+                                    'referenceNumber': refController.text.trim(),
+                                  'notes': 'Plan ${settlement.transitionType.name} from $curPlanName to ${targetPlan.displayName}',
+                                },
                               );
-
-                              // Record ledger payment
-                              await FirebaseFirestore.instance
-                                  .collection('libraries')
-                                  .doc(libraryId)
-                                  .collection('payments')
-                                  .add({
-                                'studentId': s.id,
-                                'studentName': s.name,
-                                'planId': targetPlan.id,
-                                'planName': targetPlan.displayName,
-                                'amount': effectiveAmount,
-                                'paymentMethod': paymentMethod,
-                                'paymentDate': Timestamp.fromDate(now),
-                                'receiptNumber': receiptNumber,
-                                'reference': refController.text.trim(),
-                                'status': PaymentStatus.paid.name,
-                                'notes': 'Plan ${settlement.transitionType.name} from $curPlanName to ${targetPlan.displayName}',
-                                'createdAt': FieldValue.serverTimestamp(),
-                              });
-
-                              // Increment revenue
-                              await FirebaseFirestore.instance
-                                  .collection('libraries')
-                                  .doc(libraryId)
-                                  .collection('aggregates')
-                                  .doc('revenue')
-                                  .set({
-                                'totalRevenue': FieldValue.increment(effectiveAmount),
-                                'lastUpdated': FieldValue.serverTimestamp(),
-                              }, SetOptions(merge: true));
                             }
 
                             // 2. Store planHistory snapshot for 1-Click Undo
@@ -3645,70 +3639,99 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     ],
                   ),
 
-                  // Smart Dues Impact Selector
-                  if (currentPendingDue > 0) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: theme.colorScheme.outlineVariant),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.account_balance_wallet_outlined, size: 16, color: Colors.orange),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Pending Due Balance: ₹${currentPendingDue.toInt()}',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  // Smart Pro-Rata Fee & Dues Impact Selector
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: theme.colorScheme.outlineVariant),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.calculate_rounded, size: 18, color: Color(0xFF0284C7)),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Fee & Proration Calculation',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          // ignore: deprecated_member_use
-                          RadioListTile<bool>(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            value: false,
-                            // ignore: deprecated_member_use
-                            groupValue: recalculateDueProRata,
-                            title: Text(
-                              'Keep Existing Due (₹${currentPendingDue.toInt()})',
-                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
                             ),
-                            subtitle: const Text(
-                              'Recommended for administrative corrections, exam grace & holiday extensions.',
-                              style: TextStyle(fontSize: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '₹${dailyRate.toStringAsFixed(1)}/day',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                              ),
                             ),
-                            // ignore: deprecated_member_use
-                            onChanged: (val) => setDialogState(() => recalculateDueProRata = val ?? false),
-                          ),
-                          // ignore: deprecated_member_use
-                          RadioListTile<bool>(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            value: true,
-                            // ignore: deprecated_member_use
-                            groupValue: recalculateDueProRata,
-                            title: Text(
-                              'Recalculate Due Pro-Rata (₹${recalculatedDue.toInt()})',
-                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text(
-                              'Adjusts total fee to ₹${proRataFee.toInt()} based on $selectedDurationDays days stay.',
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                            // ignore: deprecated_member_use
-                            onChanged: (val) => setDialogState(() => recalculateDueProRata = val ?? true),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Standard Plan Rate: ₹${planPrice.toInt()} ($standardDurationDays Days)\n'
+                          'Adjusted Period Fee: $selectedDurationDays Days × ₹${dailyRate.toStringAsFixed(1)} = ₹${proRataFee.toInt()}'
+                          '${varianceDays != 0 ? " (${varianceDays > 0 ? "Surcharge +₹" : "Reduction -₹"}${(varianceDays.abs() * dailyRate).round()})" : ""}',
+                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant, height: 1.35),
+                        ),
+                        if (currentPendingDue > 0) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Current Pending Due: ₹${currentPendingDue.toInt()}',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.deepOrange),
                           ),
                         ],
-                      ),
+                        const Divider(height: 16),
+                        // ignore: deprecated_member_use
+                        RadioListTile<bool>(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          value: true,
+                          // ignore: deprecated_member_use
+                          groupValue: recalculateDueProRata,
+                          title: Text(
+                            'Recalculate Fee Pro-Rata (₹${proRataFee.toInt()})',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            currentPendingDue > 0
+                                ? 'Sets total fee to ₹${proRataFee.toInt()} and updates remaining due to ₹${recalculatedDue.toInt()}.'
+                                : 'Updates total fee to ₹${proRataFee.toInt()} and records ₹${proRataFee.toInt()} pending dues for this cycle.',
+                            style: const TextStyle(fontSize: 10.5),
+                          ),
+                          // ignore: deprecated_member_use
+                          onChanged: (val) => setDialogState(() => recalculateDueProRata = val ?? true),
+                        ),
+                        // ignore: deprecated_member_use
+                        RadioListTile<bool>(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          value: false,
+                          // ignore: deprecated_member_use
+                          groupValue: recalculateDueProRata,
+                          title: Text(
+                            currentPendingDue > 0
+                                ? 'Keep Existing Due (₹${currentPendingDue.toInt()})'
+                                : 'Keep Standard Plan Fee (₹${planPrice.toInt()})',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: const Text(
+                            'Retains standard catalog pricing. Recommended for administrative date alignment, grace days & holidays.',
+                            style: TextStyle(fontSize: 10.5),
+                          ),
+                          // ignore: deprecated_member_use
+                          onChanged: (val) => setDialogState(() => recalculateDueProRata = val ?? false),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -3717,7 +3740,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
                 child: const Text('Cancel'),
               ),
-              FilledButton.icon(
+              OutlinedButton.icon(
                 onPressed: isSaving
                     ? null
                     : () async {
@@ -3727,15 +3750,20 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         setDialogState(() => isSaving = true);
 
                         try {
+                          final effectiveNewDue = recalculateDueProRata
+                              ? (currentPendingDue > 0 ? recalculatedDue : proRataFee)
+                              : currentPendingDue;
+                          final effectiveNewTotalFee = recalculateDueProRata ? proRataFee : planPrice;
+
                           final updates = <String, dynamic>{
                             'admissionDate': Timestamp.fromDate(selectedAdmissionDate),
                             if (selectedPlanStartDate != null)
                               'planStartDate': Timestamp.fromDate(selectedPlanStartDate!),
                             if (selectedPlanEndDate != null)
                               'planEndDate': Timestamp.fromDate(selectedPlanEndDate!),
-                            if (recalculateDueProRata && currentPendingDue > 0) ...{
-                              'pendingDueBalance': recalculatedDue,
-                              'totalFee': proRataFee,
+                            if (recalculateDueProRata) ...{
+                              'pendingDueBalance': effectiveNewDue,
+                              'totalFee': effectiveNewTotalFee,
                             },
                             'updatedAt': FieldValue.serverTimestamp(),
                           };
@@ -3783,7 +3811,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               'admissionDate': DateFormat('yyyy-MM-dd').format(selectedAdmissionDate),
                               'planStartDate': selectedPlanStartDate != null ? DateFormat('yyyy-MM-dd').format(selectedPlanStartDate!) : null,
                               'planEndDate': selectedPlanEndDate != null ? DateFormat('yyyy-MM-dd').format(selectedPlanEndDate!) : null,
-                              if (recalculateDueProRata) 'recalculatedDue': recalculatedDue,
+                              if (recalculateDueProRata) 'recalculatedDue': effectiveNewDue,
                             },
                           ).ignore();
 
@@ -3808,9 +3836,99 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         }
                       },
                 icon: isSaving
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue))
                     : const Icon(Icons.save_rounded, size: 16),
-                label: const Text('Save Changes'),
+                label: const Text('Save Dates Only'),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF059669),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final libraryId = ref.read(currentLibraryIdProvider);
+                        if (libraryId == null || libraryId.isEmpty) return;
+
+                        setDialogState(() => isSaving = true);
+
+                        try {
+                          final effectiveNewDue = recalculateDueProRata
+                              ? (currentPendingDue > 0 ? recalculatedDue : proRataFee)
+                              : (currentPendingDue > 0 ? currentPendingDue : proRataFee);
+                          final effectiveNewTotalFee = recalculateDueProRata ? proRataFee : planPrice;
+
+                          final updates = <String, dynamic>{
+                            'admissionDate': Timestamp.fromDate(selectedAdmissionDate),
+                            if (selectedPlanStartDate != null)
+                              'planStartDate': Timestamp.fromDate(selectedPlanStartDate!),
+                            if (selectedPlanEndDate != null)
+                              'planEndDate': Timestamp.fromDate(selectedPlanEndDate!),
+                            'pendingDueBalance': effectiveNewDue,
+                            'totalFee': effectiveNewTotalFee,
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          };
+
+                          await FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(libraryId)
+                              .collection('students')
+                              .doc(s.id)
+                              .update(updates);
+
+                          // Synchronize latest active receipt(s) with adjusted validity dates
+                          try {
+                            final receiptsQuery = await FirebaseFirestore.instance
+                                .collection('libraries')
+                                .doc(libraryId)
+                                .collection('receipts')
+                                .where('studentId', isEqualTo: s.id)
+                                .get();
+
+                            for (final rDoc in receiptsQuery.docs) {
+                              final rData = rDoc.data();
+                              if (rData['status'] == 'active' || rData['status'] == 'paid' || rData['deletedAt'] == null) {
+                                await rDoc.reference.update({
+                                  if (selectedPlanStartDate != null)
+                                    'validFrom': Timestamp.fromDate(selectedPlanStartDate!),
+                                  if (selectedPlanEndDate != null)
+                                    'validTo': Timestamp.fromDate(selectedPlanEndDate!),
+                                  'updatedAt': FieldValue.serverTimestamp(),
+                                });
+                              }
+                            }
+                          } catch (_) {}
+
+                          ref.invalidate(studentsStreamProvider);
+                          _loadStudent();
+
+                          if (ctx.mounted && mounted) {
+                            Navigator.pop(dialogCtx);
+                            final updatedStudent = s.copyWith(
+                              admissionDate: selectedAdmissionDate,
+                              planStartDate: selectedPlanStartDate,
+                              planEndDate: selectedPlanEndDate,
+                              pendingDueBalance: effectiveNewDue,
+                            );
+                            _openRecordPaymentFlow(
+                              context,
+                              updatedStudent,
+                              initialStartDate: selectedPlanStartDate,
+                              initialEndDate: selectedPlanEndDate,
+                              overridePlanPrice: effectiveNewTotalFee,
+                              overrideDue: effectiveNewDue,
+                            );
+                          }
+                        } catch (e) {
+                          setDialogState(() => isSaving = false);
+                          if (ctx.mounted) {
+                            AppErrorFormatter.showErrorSnackBar(ctx, e, actionContext: 'student');
+                          }
+                        }
+                      },
+                icon: const Icon(Icons.payments_rounded, size: 16),
+                label: Text('Save & Collect Fee (₹${(recalculateDueProRata ? (currentPendingDue > 0 ? recalculatedDue : proRataFee) : (currentPendingDue > 0 ? currentPendingDue : proRataFee)).toInt()})'),
               ),
             ],
           );
@@ -4025,7 +4143,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             child: ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: Theme.of(context).colorScheme.primary,
-                                child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
+                                child: Icon(Icons.tune_rounded, color: Theme.of(context).colorScheme.onPrimary, size: 20),
                               ),
                               title: const Text('Custom Plan / Fee Override', style: TextStyle(fontWeight: FontWeight.bold)),
                               subtitle: const Text('Set custom pricing, daily pass, or validity till month end', style: TextStyle(fontSize: 12)),
@@ -4332,8 +4450,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 MaterialPageRoute(
                   builder: (_) => IdCardPreviewScreen(
                     student: s,
-                    seatLabel: seatLabel,
-                    sectionName: sectionName,
+                    seatLabel: (s.seatId != null && s.seatId!.isNotEmpty) ? seatLabel : null,
+                    sectionName: (s.seatId != null && s.seatId!.isNotEmpty) ? sectionName : null,
                     planName: planName,
                   ),
                 ),
@@ -5042,8 +5160,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 MaterialPageRoute(
                   builder: (_) => IdCardPreviewScreen(
                     student: s,
-                    seatLabel: seatLabel,
-                    sectionName: sectionName,
+                    seatLabel: (s.seatId != null && s.seatId!.isNotEmpty) ? seatLabel : null,
+                    sectionName: (s.seatId != null && s.seatId!.isNotEmpty) ? sectionName : null,
                     planName: planName,
                   ),
                 ),
@@ -5115,8 +5233,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     );
   }
 
-  void _openRecordPaymentFlow(BuildContext context, StudentModel s) {
-    final due = s.pendingDueBalance ?? 0.0;
+  void _openRecordPaymentFlow(
+    BuildContext context,
+    StudentModel s, {
+    DateTime? initialStartDate,
+    DateTime? initialEndDate,
+    double? overridePlanPrice,
+    double? overrideDue,
+  }) {
+    final due = overrideDue ?? (s.pendingDueBalance ?? 0.0);
+    final effectivePrice = overridePlanPrice ?? (due > 0 ? due : planPrice);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -5124,8 +5250,10 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           studentId: widget.studentId,
           studentName: s.name,
           studentPhone: s.phone,
-          planPrice: due > 0 ? due : planPrice,
+          planPrice: effectivePrice,
           pendingDue: due,
+          initialStartDate: initialStartDate ?? s.planStartDate,
+          initialEndDate: initialEndDate ?? s.planEndDate,
         ),
       ),
     ).then((_) {
@@ -5289,7 +5417,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                     title: Text(isFrozen ? 'Unfreeze Membership' : 'Freeze Membership (Study Leave)'),
                     subtitle: Text(
                       isFrozen
-                          ? 'Restore active attendance and seat privileges'
+                          ? 'Restore active membership and seat privileges'
                           : 'Pause membership for 10+ days without losing days',
                     ),
                     onTap: () {
@@ -5473,169 +5601,190 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
   }
 
   Widget _buildProfileDetailsCard(BuildContext context, StudentModel s) {
-    return             Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Consumer(
+      builder: (context, ref, _) {
+        final formFields = ref.watch(formConfigStreamProvider).value ?? FormConfigService.defaultBuiltinFields;
+        bool vis(String id) => FormConfigService.isFieldVisibleOnSurface(formFields, id, profile: true);
+        String lbl(String id, String def) => FormConfigService.getFieldLabel(formFields, id, def);
+
+        final configuredById = <String, Map<String, dynamic>>{
+          for (final f in formFields)
+            if ((f['id'] ?? '').toString().isNotEmpty) (f['id']).toString(): f,
+        };
+
+        final targetExam = (s.targetExamName ?? '').trim().isNotEmpty
+            ? s.targetExamName!.trim()
+            : (s.customFields['prep']?.toString().trim() ?? '');
+
+        final customEntries = s.customFields.entries.where((e) {
+          if (_isInternalKey(e.key)) return false;
+          if (e.value == null || e.value.toString().trim().isEmpty) return false;
+          final cfg = configuredById[e.key];
+          if (cfg != null) {
+            return (cfg['visible'] != false) && (cfg['showOnProfile'] != false);
+          }
+          return true;
+        }).toList();
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline_rounded, color: Theme.of(context).colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Text('Profile Details', style: Theme.of(context).textTheme.titleLarge),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (s.fatherName.isNotEmpty)
-                      _buildDetailRow(context, 'Father / Guardian', s.fatherName, Icons.family_restroom_rounded),
-                    if (s.dob != null)
-                      _buildDetailRow(context, 'Date of Birth', DateFormat('dd MMM yyyy').format(s.dob!), Icons.cake_outlined),
-                    _buildDetailRow(context, 'Gender', s.gender.name.toUpperCase(), Icons.people_outline_rounded),
-                    if (s.govIdNumber.isNotEmpty)
-                      _buildGovIdRow(context, s.govIdType.name.toUpperCase(), s.govIdNumber),
-                    _buildGovIdDocCard(context, s),
-                    if (s.college.isNotEmpty)
-                      _buildDetailRow(context, 'College / Institute', s.college, Icons.school_outlined),
-                    if (s.course.isNotEmpty)
-                      _buildDetailRow(context, 'Course & Year', '${s.course} ${s.year.isNotEmpty ? "(${s.year})" : ""}', Icons.menu_book_outlined),
-                    if (s.address.isNotEmpty)
-                      _buildDetailRow(context, 'Address', '${s.address} ${s.pincode.isNotEmpty ? "- ${s.pincode}" : ""}', Icons.location_on_outlined),
-                    if (s.emergencyContact.isNotEmpty)
-                      _buildDetailRow(context, 'Emergency Contact', s.emergencyContact, Icons.phone_in_talk_outlined),
-                    if (s.bloodGroup != null && s.bloodGroup!.isNotEmpty)
-                      _buildDetailRow(context, 'Blood Group', s.bloodGroup!, Icons.bloodtype_outlined),
-                    if (s.rollNumber != null && s.rollNumber!.isNotEmpty)
-                      _buildDetailRow(context, 'Roll / Enroll No.', s.rollNumber!, Icons.badge_outlined),
-                    () {
-                      final cleanNote = _sanitizeDisplayNote(s.notes, s);
-                      if (cleanNote.isNotEmpty) {
-                        return _buildDetailRow(
-                          context,
-                          'Notes',
-                          cleanNote,
-                          Icons.note_alt_outlined,
-                          trailingAction: Tooltip(
-                            message: 'Edit Note',
-                            child: InkWell(
-                              onTap: () => _showQuickEditNotesDialog(context, s),
-                              borderRadius: BorderRadius.circular(4),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                                child: Icon(Icons.edit_outlined, size: 16, color: Theme.of(context).colorScheme.primary),
-                              ),
-                            ),
-                          ),
-                        );
-                      } else {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2.0),
-                          child: InkWell(
-                            onTap: () => _showQuickEditNotesDialog(context, s),
-                            borderRadius: BorderRadius.circular(6),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2.0),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.note_add_outlined, size: 16, color: Colors.grey.shade500),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '+ Add Note',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      color: Theme.of(context).colorScheme.primary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-                    }(),
-                    // Admission Source Row (if student was created from an online admission request)
-                    () {
-                      final rawReqId = s.customFields['originalRequestId']?.toString().trim() ??
-                          s.customFields['requestId']?.toString().trim() ??
-                          s.customFields['admissionRequestId']?.toString().trim();
-                      if (rawReqId == null || rawReqId.isEmpty) return const SizedBox.shrink();
-
-                      return _buildDetailRow(
-                        context,
-                        'Admission Source',
-                        'Online Registration',
-                        Icons.app_registration_rounded,
-                        trailingAction: Tooltip(
-                          message: 'View Admission Request',
-                          child: InkWell(
-                            onTap: () => context.push('/admin/requests/$rawReqId'),
-                            borderRadius: BorderRadius.circular(4),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'View Request',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).colorScheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Icon(Icons.arrow_forward_rounded, size: 13, color: Theme.of(context).colorScheme.primary),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }(),
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final formConfigAsync = ref.watch(formConfigStreamProvider);
-                        final fieldsList = formConfigAsync.value ?? [];
-                        final customEntries = s.customFields.entries.where(
-                          (e) => !_isInternalKey(e.key) && e.value != null && e.value.toString().trim().isNotEmpty,
-                        ).toList();
-
-                        if (customEntries.isEmpty) return const SizedBox.shrink();
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 8),
-                            const Divider(height: 16),
-                            Text(
-                              'Additional Information',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            for (final entry in customEntries)
-                              _buildDetailRow(
-                                context,
-                                FormConfigService.getFieldLabel(
-                                  fieldsList,
-                                  entry.key,
-                                  _formatFieldKey(entry.key),
-                                ),
-                                entry.value.toString(),
-                                Icons.tune_rounded,
-                              ),
-                          ],
-                        );
-                      },
-                    ),
+                    Icon(Icons.info_outline_rounded, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text('Profile Details', style: Theme.of(context).textTheme.titleLarge),
                   ],
                 ),
-              ),
-            );
+                const SizedBox(height: 12),
+                if (vis('fatherName') && s.fatherName.isNotEmpty)
+                  _buildDetailRow(context, lbl('fatherName', 'Father / Guardian'), s.fatherName, Icons.family_restroom_rounded),
+                if (vis('dob') && s.dob != null)
+                  _buildDetailRow(context, lbl('dob', 'Date of Birth'), DateFormat('dd MMM yyyy').format(s.dob!), Icons.cake_outlined),
+                if (vis('gender'))
+                  _buildDetailRow(context, lbl('gender', 'Gender'), s.gender.name.toUpperCase(), Icons.people_outline_rounded),
+                if (vis('email') && s.email.isNotEmpty)
+                  _buildDetailRow(context, lbl('email', 'Email'), s.email, Icons.email_outlined),
+                if (vis('govId') && s.govIdNumber.isNotEmpty)
+                  _buildGovIdRow(context, s.govIdType.name.toUpperCase(), s.govIdNumber),
+                if (vis('govId'))
+                  _buildGovIdDocCard(context, s),
+                if (vis('prep') && targetExam.isNotEmpty)
+                  _buildDetailRow(context, lbl('prep', 'Target Exam'), targetExam, Icons.track_changes_rounded),
+                if (vis('college') && s.college.isNotEmpty)
+                  _buildDetailRow(context, lbl('college', 'College / Institute'), s.college, Icons.school_outlined),
+                if ((vis('course') || vis('year')) && s.course.isNotEmpty)
+                  _buildDetailRow(context, lbl('course', 'Course & Year'), '${s.course} ${s.year.isNotEmpty ? "(${s.year})" : ""}', Icons.menu_book_outlined),
+                if ((vis('address') || vis('pincode')) && (s.address.isNotEmpty || s.pincode.isNotEmpty))
+                  _buildDetailRow(
+                    context,
+                    lbl('address', 'Address'),
+                    s.address.isNotEmpty
+                        ? '${s.address} ${s.pincode.isNotEmpty ? "- ${s.pincode}" : ""}'
+                        : 'PIN: ${s.pincode}',
+                    Icons.location_on_outlined,
+                  ),
+                if (vis('emergencyContact') && s.emergencyContact.isNotEmpty)
+                  _buildDetailRow(context, lbl('emergencyContact', 'Emergency Contact'), s.emergencyContact, Icons.phone_in_talk_outlined),
+                if (vis('bloodGroup') && s.bloodGroup != null && s.bloodGroup!.isNotEmpty)
+                  _buildDetailRow(context, lbl('bloodGroup', 'Blood Group'), s.bloodGroup!, Icons.bloodtype_outlined),
+                if (vis('rollNumber') && s.rollNumber != null && s.rollNumber!.isNotEmpty)
+                  _buildDetailRow(context, lbl('rollNumber', 'Roll / Enroll No.'), s.rollNumber!, Icons.badge_outlined),
+                () {
+                  final cleanNote = _sanitizeDisplayNote(s.notes, s);
+                  if (cleanNote.isNotEmpty) {
+                    return _buildDetailRow(
+                      context,
+                      'Notes',
+                      cleanNote,
+                      Icons.note_alt_outlined,
+                      trailingAction: Tooltip(
+                        message: 'Edit Note',
+                        child: InkWell(
+                          onTap: () => _showQuickEditNotesDialog(context, s),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                            child: Icon(Icons.edit_outlined, size: 16, color: Theme.of(context).colorScheme.primary),
+                          ),
+                        ),
+                      ),
+                    );
+                  } else {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2.0),
+                      child: InkWell(
+                        onTap: () => _showQuickEditNotesDialog(context, s),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.note_add_outlined, size: 16, color: Colors.grey.shade500),
+                              const SizedBox(width: 8),
+                              Text(
+                                '+ Add Note',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                }(),
+                // Admission Source Row (if student was created from an online admission request)
+                () {
+                  final rawReqId = s.customFields['originalRequestId']?.toString().trim() ??
+                      s.customFields['requestId']?.toString().trim() ??
+                      s.customFields['admissionRequestId']?.toString().trim();
+                  if (rawReqId == null || rawReqId.isEmpty) return const SizedBox.shrink();
+
+                  return _buildDetailRow(
+                    context,
+                    'Admission Source',
+                    'Online Registration',
+                    Icons.app_registration_rounded,
+                    trailingAction: Tooltip(
+                      message: 'View Admission Request',
+                      child: InkWell(
+                        onTap: () => context.push('/admin/requests/$rawReqId'),
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'View Request',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(Icons.arrow_forward_rounded, size: 13, color: Theme.of(context).colorScheme.primary),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }(),
+                if (customEntries.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Divider(height: 16),
+                  Text(
+                    'Additional Information',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  for (final entry in customEntries)
+                    _buildDetailRow(
+                      context,
+                      lbl(entry.key, _formatFieldKey(entry.key)),
+                      entry.value.toString(),
+                      Icons.tune_rounded,
+                    ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildSeatInfoCard(BuildContext context, StudentModel s) {
@@ -6125,17 +6274,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                 foregroundColor: Colors.amber.shade900,
                               ),
                               onPressed: () {
-                                Navigator.push(
+                                _openRecordPaymentFlow(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (context) => RecordPaymentScreen(
-                                      studentId: widget.studentId,
-                                      studentName: s.name,
-                                      studentPhone: s.phone,
-                                      planPrice: s.pendingDueBalance ?? 0.0,
-                                      pendingDue: s.pendingDueBalance ?? 0.0,
-                                    ),
-                                  ),
+                                  s,
+                                  overridePlanPrice: s.pendingDueBalance ?? 0.0,
+                                  overrideDue: s.pendingDueBalance ?? 0.0,
                                 );
                               },
                               child: const Text('Clear Due'),
@@ -6171,36 +6314,14 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           tooltip: 'Payment History Options',
                           onSelected: (val) {
                             if (val == 'record') {
-                              final due = s.pendingDueBalance ?? 0.0;
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RecordPaymentScreen(
-                                    studentId: widget.studentId,
-                                    studentName: s.name,
-                                    studentPhone: s.phone,
-                                    planPrice: due > 0 ? due : planPrice,
-                                    pendingDue: due,
-                                  ),
-                                ),
-                              ).then((_) {
-                                if (mounted) _loadStudent();
-                              });
+                              _openRecordPaymentFlow(context, s);
                             } else if (val == 'clear_due') {
-                              Navigator.push(
+                              _openRecordPaymentFlow(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) => RecordPaymentScreen(
-                                    studentId: widget.studentId,
-                                    studentName: s.name,
-                                    studentPhone: s.phone,
-                                    planPrice: s.pendingDueBalance ?? 0.0,
-                                    pendingDue: s.pendingDueBalance ?? 0.0,
-                                  ),
-                                ),
-                              ).then((_) {
-                                if (mounted) _loadStudent();
-                              });
+                                s,
+                                overridePlanPrice: s.pendingDueBalance ?? 0.0,
+                                overrideDue: s.pendingDueBalance ?? 0.0,
+                              );
                             } else if (val == 'adjust_due') {
                               _showAdjustDueDialog(s);
                             } else if (val == 'send_ledger') {
@@ -6274,21 +6395,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: () {
-                          final due = s.pendingDueBalance ?? 0.0;
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => RecordPaymentScreen(
-                                studentId: widget.studentId,
-                                studentName: s.name,
-                                studentPhone: s.phone,
-                                planPrice: due > 0 ? due : planPrice,
-                                pendingDue: due,
-                              ),
-                            ),
-                          ).then((_) {
-                            if (mounted) _loadStudent();
-                          });
+                          _openRecordPaymentFlow(context, s);
                         },
                         icon: const Icon(Icons.add_circle_outline_rounded, size: 19),
                         label: const Text(

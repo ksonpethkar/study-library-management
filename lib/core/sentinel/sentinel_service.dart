@@ -114,8 +114,8 @@ class SentinelService {
 
     return SentinelHealthMetrics(
       score: score,
-      activeWatchersCount: 6,
-      totalInvariantsChecked: 8,
+      activeWatchersCount: 9,
+      totalInvariantsChecked: 11,
       criticalCount: critical,
       warningCount: warning,
       advisoryCount: advisory,
@@ -171,6 +171,24 @@ class SentinelService {
       // 4. Audit Plan Expiry Invariants
       newAnomalies.addAll(
         _invariantEngine.auditPlanExpiryInvariants(students),
+      );
+
+      // 5. Audit Profile Photo Integrity & Shared/Swapped Avatar Collision
+      newAnomalies.addAll(
+        _invariantEngine.auditPhotoIntegrity(students),
+      );
+
+      // 6. Audit Identity Uniqueness (Duplicate Aadhaar / Gov ID & Phone Collision)
+      newAnomalies.addAll(
+        _invariantEngine.auditIdentityUniqueness(students),
+      );
+
+      // 7. Audit Desk Format & Raw Matrix ID Leaks
+      newAnomalies.addAll(
+        _invariantEngine.auditDeskFormatIntegrity(
+          seats: effectiveSeats,
+          students: students,
+        ),
       );
 
       // Update anomalies store (replace old scan anomalies)

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/constants/firestore_paths.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/seat_model.dart';
@@ -338,12 +339,22 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
                   data: (seats) {
                     final totalSeats = seats.length;
                     final occupied = seats
-                        .where((s) => s.status == SeatStatus.occupied)
+                        .where((s) => s.effectiveStatus == SeatStatus.occupied)
                         .length;
                     final available = seats
-                        .where((s) => s.status == SeatStatus.available)
+                        .where((s) => s.effectiveStatus == SeatStatus.available)
                         .length;
-                    final maintenance = totalSeats - occupied - available;
+                    final reserved = seats
+                        .where((s) => s.effectiveStatus == SeatStatus.reserved)
+                        .length;
+                    final maintenance = seats
+                        .where((s) => s.effectiveStatus == SeatStatus.maintenance)
+                        .length;
+                    final library = ref.watch(currentLibraryProvider).value;
+                    final resolvedAmenities = AmenityCatalog.resolveEffectiveAmenities(
+                      library: library,
+                      section: section,
+                    );
 
                     return SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
@@ -385,35 +396,53 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
                             const SizedBox(height: 16),
                           ],
                           // Stats row
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
                               _StatBadge(
                                 label: 'Total',
                                 value: '$totalSeats',
                                 color: Colors.blueGrey,
                               ),
-                              const SizedBox(width: 8),
                               _StatBadge(
                                 label: 'Occupied',
                                 value: '$occupied',
                                 color: Colors.red,
                               ),
-                              const SizedBox(width: 8),
                               _StatBadge(
                                 label: 'Available',
                                 value: '$available',
                                 color: Colors.green,
                               ),
-                              if (maintenance > 0) ...[
-                                const SizedBox(width: 8),
+                              if (reserved > 0)
                                 _StatBadge(
-                                  label: 'Other',
-                                  value: '$maintenance',
+                                  label: 'Reserved',
+                                  value: '$reserved',
                                   color: Colors.amber,
                                 ),
-                              ],
+                              if (maintenance > 0)
+                                _StatBadge(
+                                  label: 'Maint.',
+                                  value: '$maintenance',
+                                  color: Colors.grey,
+                                ),
                             ],
                           ),
+                          if (resolvedAmenities.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: resolvedAmenities.map((item) {
+                                return Chip(
+                                  avatar: Icon(item.icon, size: 14),
+                                  label: Text(item.shortLabel, style: const TextStyle(fontSize: 11.5)),
+                                  visualDensity: VisualDensity.compact,
+                                );
+                              }).toList(),
+                            ),
+                          ],
                           const SizedBox(height: 16),
 
                           // Notes if any

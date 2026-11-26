@@ -15,6 +15,8 @@ import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
+import 'package:study_library/core/utils/student_ledger_helper.dart';
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/features/student_app/presentation/widgets/silent_reception_help_sheet.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -189,180 +191,200 @@ class MyMembershipScreen extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.workspace_premium_rounded, size: 12, color: Color(0xFFFCD34D)),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'PRO SCHOLAR',
+                                            style: TextStyle(
+                                              color: Color(0xFFFCD34D),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    child: const Row(
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        planName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFFC7D2FE),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      if (hasDiscount) ...[
+                                        Text(
+                                          '₹${origPrice.toStringAsFixed(0)}',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.white.withValues(alpha: 0.5),
+                                            decoration: TextDecoration.lineThrough,
+                                            decorationColor: Colors.white.withValues(alpha: 0.7),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      Text(
+                                        planPrice.isNotEmpty ? planPrice : '₹700',
+                                        style: const TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        durationLabel,
+                                        style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (currentPlan != null) ...[
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 0.8),
+                                        ),
+                                        child: Text(
+                                          '₹${dailyRate.toStringAsFixed(1)} / day',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFFE2E8F0),
+                                          ),
+                                        ),
+                                      ),
+                                      if (hasDiscount)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.5), width: 0.8),
+                                          ),
+                                          child: Text(
+                                            'Saved ₹${saved?.toStringAsFixed(0)} ($discPercent% OFF)',
+                                            style: const TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF6EE7B7),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: isExpired
+                                        ? const Color(0xFFEF4444).withValues(alpha: 0.2)
+                                        : (isPaymentPending || isExpiringSoon
+                                            ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
+                                            : const Color(0xFF10B981).withValues(alpha: 0.2)),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isExpired
+                                          ? const Color(0xFFEF4444).withValues(alpha: 0.4)
+                                          : (isPaymentPending || isExpiringSoon
+                                              ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                                              : const Color(0xFF10B981).withValues(alpha: 0.4)),
+                                    ),
+                                  ),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.workspace_premium_rounded, size: 12, color: Color(0xFFFCD34D)),
-                                        SizedBox(width: 4),
+                                        Icon(
+                                          isExpired
+                                              ? Icons.cancel_rounded
+                                              : (isPaymentPending ? Icons.schedule_rounded : Icons.hourglass_bottom_rounded),
+                                          size: 13,
+                                          color: isExpired
+                                              ? const Color(0xFFFCA5A5)
+                                              : (isPaymentPending || isExpiringSoon ? const Color(0xFFFCD34D) : const Color(0xFF6EE7B7)),
+                                        ),
+                                        const SizedBox(width: 4),
                                         Text(
-                                          'PRO SCHOLAR',
+                                          isExpired
+                                              ? 'Expired'
+                                              : (isPaymentPending ? 'Payment Pending' : '$daysRemaining Days Left'),
                                           style: TextStyle(
-                                            color: Color(0xFFFCD34D),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 0.5,
+                                            color: isExpired
+                                                ? const Color(0xFFFCA5A5)
+                                                : (isPaymentPending || isExpiringSoon ? const Color(0xFFFCD34D) : const Color(0xFF6EE7B7)),
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 11.5,
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    planName,
-                                    style: const TextStyle(
-                                      color: Color(0xFFC7D2FE),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
-                                children: [
-                                  if (hasDiscount) ...[
-                                    Text(
-                                      '₹${origPrice.toStringAsFixed(0)}',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.white.withValues(alpha: 0.5),
-                                        decoration: TextDecoration.lineThrough,
-                                        decorationColor: Colors.white.withValues(alpha: 0.7),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ],
-                                  Text(
-                                    planPrice.isNotEmpty ? planPrice : '₹700',
-                                    style: const TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                      letterSpacing: -0.5,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    durationLabel,
-                                    style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                                  ),
-                                ],
-                              ),
-                              if (currentPlan != null) ...[
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 4,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 0.8),
-                                      ),
-                                      child: Text(
-                                        '₹${dailyRate.toStringAsFixed(1)} / day',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFFE2E8F0),
-                                        ),
-                                      ),
-                                    ),
-                                    if (hasDiscount)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF10B981).withValues(alpha: 0.25),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.5), width: 0.8),
-                                        ),
-                                        child: Text(
-                                          'Saved ₹${saved?.toStringAsFixed(0)} ($discPercent% OFF)',
-                                          style: const TextStyle(
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w800,
-                                            color: Color(0xFF6EE7B7),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  endDate != null
+                                      ? 'Valid till ${dateFormat.format(endDate)}'
+                                      : (isPaymentPending ? 'Starts on fee payment' : 'Pass Inactive'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
                                 ),
                               ],
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: isExpired
-                                      ? const Color(0xFFEF4444).withValues(alpha: 0.2)
-                                      : (isPaymentPending || isExpiringSoon
-                                          ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
-                                          : const Color(0xFF10B981).withValues(alpha: 0.2)),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isExpired
-                                        ? const Color(0xFFEF4444).withValues(alpha: 0.4)
-                                        : (isPaymentPending || isExpiringSoon
-                                            ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
-                                            : const Color(0xFF10B981).withValues(alpha: 0.4)),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      isExpired
-                                          ? Icons.cancel_rounded
-                                          : (isPaymentPending ? Icons.schedule_rounded : Icons.hourglass_bottom_rounded),
-                                      size: 13,
-                                      color: isExpired
-                                          ? const Color(0xFFFCA5A5)
-                                          : (isPaymentPending || isExpiringSoon ? const Color(0xFFFCD34D) : const Color(0xFF6EE7B7)),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      isExpired
-                                          ? 'Expired'
-                                          : (isPaymentPending ? 'Payment Pending' : '$daysRemaining Days Left'),
-                                      style: TextStyle(
-                                        color: isExpired
-                                            ? const Color(0xFFFCA5A5)
-                                            : (isPaymentPending || isExpiringSoon ? const Color(0xFFFCD34D) : const Color(0xFF6EE7B7)),
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                endDate != null
-                                    ? 'Valid till ${dateFormat.format(endDate)}'
-                                    : (isPaymentPending ? 'Starts on fee payment' : 'Pass Inactive'),
-                                style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
-                              ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
@@ -468,6 +490,14 @@ class MyMembershipScreen extends ConsumerWidget {
                             ),
                           );
 
+                          final hasAc = library?.hasAirConditioning ?? false;
+                          final hasWifi = library?.hasWifi ?? false;
+                          final hasSilent = library?.hasSilentZone ?? false;
+                          final envLabel = [
+                            if (hasAc) 'AC Hall' else if (hasSilent) 'Quiet Hall' else 'Study Hall',
+                            if (hasWifi) 'High-Speed Wi-Fi',
+                          ].join(' • ');
+
                           final envCard = Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
@@ -483,14 +513,16 @@ class MyMembershipScreen extends ConsumerWidget {
                                 Row(
                                   children: [
                                     Icon(
-                                      (library?.hasAirConditioning == true) ? Icons.ac_unit_rounded : Icons.wifi_rounded,
+                                      hasAc
+                                          ? Icons.ac_unit_rounded
+                                          : (hasWifi ? Icons.wifi_rounded : Icons.verified_outlined),
                                       size: 12,
                                       color: const Color(0xFF38BDF8),
                                     ),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
-                                        (library?.hasAirConditioning == true) ? 'AC Hall • 5G Mesh Wi-Fi' : 'Comfortable • 5G Mesh Wi-Fi',
+                                        envLabel,
                                         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -704,7 +736,7 @@ class MyMembershipScreen extends ConsumerWidget {
                       _buildDynamicPerksGrid(
                         context,
                         theme,
-                        library?.facilities ?? const [],
+                        library?.effectiveFacilities ?? const [],
                         library: library,
                         student: student,
                       ),
@@ -835,43 +867,57 @@ class MyMembershipScreen extends ConsumerWidget {
     LibraryModel? library,
     StudentModel? student,
   }) {
-    final items = facilities.isNotEmpty
-        ? facilities
-        : const [
-            'High-Speed Wi-Fi',
-            'Power Sockets at Desk',
-            'Purified RO Water',
-            'Silent Study Zone',
-            'CCTV Surveillance',
-            'Ergonomic Chairs',
-          ];
+    final resolvedItems = library != null
+        ? library.effectiveAmenityItems
+        : AmenityCatalog.parseList(facilities);
+
+    if (resolvedItems.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'No library amenities have been listed by management yet.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      );
+    }
+
+    final items = resolvedItems.map((e) => e.label).toList();
 
     Map<String, dynamic> getPerkMeta(String facility) {
-      final lower = facility.toLowerCase();
-      if (lower.contains('wi-fi') || lower.contains('wifi')) {
-        return {'icon': Icons.wifi_rounded, 'color': const Color(0xFF0284C7), 'sub': '5G Mesh • Tap to copy pass'};
-      } else if (lower.contains('power') || lower.contains('socket')) {
+      final canonical = AmenityCatalog.fromDynamic(facility);
+      final id = canonical?.id ?? '';
+      if (id == 'wifi') {
+        return {'icon': Icons.wifi_rounded, 'color': const Color(0xFF0284C7), 'sub': 'High-Speed • Tap to copy pass'};
+      } else if (id == 'power') {
         return {'icon': Icons.power_rounded, 'color': const Color(0xFF0D9488), 'sub': 'Individual Sockets'};
-      } else if (lower.contains('water') || lower.contains('ro')) {
+      } else if (id == 'desk_lamp') {
+        return {'icon': Icons.lightbulb_outline_rounded, 'color': const Color(0xFFF59E0B), 'sub': 'Dedicated Study Light'};
+      } else if (id == 'ro_water') {
         return {'icon': Icons.water_drop_rounded, 'color': const Color(0xFF2563EB), 'sub': 'Chilled & Normal RO'};
-      } else if (lower.contains('silent') || lower.contains('zone')) {
+      } else if (id == 'silence') {
         return {'icon': Icons.volume_off_rounded, 'color': const Color(0xFF059669), 'sub': 'Pin-Drop Focus • Tap for Help'};
-      } else if (lower.contains('cctv') || lower.contains('security')) {
+      } else if (id == 'cctv') {
         return {'icon': Icons.videocam_rounded, 'color': const Color(0xFF7C3AED), 'sub': '24x7 Security Surveillance'};
-      } else if (lower.contains('chair') || lower.contains('ergonomic')) {
+      } else if (id == 'chairs') {
         return {'icon': Icons.chair_alt_rounded, 'color': const Color(0xFFD97706), 'sub': 'High-Back Cushion Support'};
-      } else if (lower.contains('ac') || lower.contains('air condition')) {
+      } else if (id == 'ac') {
         return {'icon': Icons.ac_unit_rounded, 'color': const Color(0xFF06B6D4), 'sub': 'Climate Controlled Cooling'};
-      } else if (lower.contains('locker')) {
+      } else if (id == 'locker') {
         return {'icon': Icons.lock_rounded, 'color': const Color(0xFFEAB308), 'sub': 'Authorized Desk Locker'};
-      } else if (lower.contains('pantry') || lower.contains('cafeteria')) {
+      } else if (id == 'pantry') {
         return {'icon': Icons.coffee_rounded, 'color': const Color(0xFFEA580C), 'sub': 'Dining & Refreshments'};
-      } else if (lower.contains('newspaper') || lower.contains('magazine')) {
+      } else if (id == 'newspapers') {
         return {'icon': Icons.newspaper_rounded, 'color': const Color(0xFF8B5CF6), 'sub': 'Dailies & Magazines'};
-      } else if (lower.contains('parking')) {
+      } else if (id == 'parking') {
         return {'icon': Icons.local_parking_rounded, 'color': const Color(0xFF10B981), 'sub': 'Designated Parking'};
+      } else if (id == 'power_backup') {
+        return {'icon': Icons.battery_charging_full_rounded, 'color': const Color(0xFF0EA5E9), 'sub': 'Uninterrupted Power'};
+      } else if (id == 'open_24_7') {
+        return {'icon': Icons.access_time_rounded, 'color': const Color(0xFF6366F1), 'sub': 'Round-The-Clock Study'};
+      } else if (id == 'natural_light') {
+        return {'icon': Icons.wb_sunny_outlined, 'color': const Color(0xFFF97316), 'sub': 'Ventilated Window Area'};
       }
-      return {'icon': Icons.verified_rounded, 'color': const Color(0xFF6366F1), 'sub': 'Authorized Privilege'};
+      return {'icon': Icons.verified_rounded, 'color': const Color(0xFF6366F1), 'sub': 'Admin Verified Facility'};
     }
 
     return LayoutBuilder(
@@ -1224,112 +1270,20 @@ class _StudentTransactionsSection extends StatelessWidget {
               );
             }
 
-            final List<Map<String, dynamic>> items = [];
-            final Set<String> seenReceiptIds = {};
+            final receiptDocs = (receiptSnap.data?.docs ?? [])
+                .map((d) => <String, dynamic>{...d.data(), 'id': d.id})
+                .toList();
+            final paymentDocs = (paymentSnap.data?.docs ?? [])
+                .map((d) => <String, dynamic>{...d.data(), 'id': d.id})
+                .toList();
 
-            // 1. Add Receipts
-            for (final doc in receiptSnap.data?.docs ?? []) {
-              final data = doc.data();
-              if (data['deletedAt'] != null) continue;
-              final rId = doc.id;
-              seenReceiptIds.add(rId);
-
-              DateTime date = DateTime.now();
-              final rawDate = data['createdAt'] ?? data['validFrom'];
-              if (rawDate is Timestamp) date = rawDate.toDate();
-              if (rawDate is String) date = DateTime.tryParse(rawDate) ?? date;
-
-              items.add({
-                'id': rId,
-                'receiptId': rId,
-                'title': data['receiptNumber'] ?? 'Official Receipt',
-                'amount': (data['amount'] as num?)?.toDouble() ?? 0.0,
-                'date': date,
-                'method': data['paymentMethod'] ?? 'Paid',
-                'status': data['status'] ?? 'paid',
-                'isOfficialReceipt': true,
-              });
-            }
-
-            // 2. Add Payments (skip if already represented by a receipt)
-            for (final doc in paymentSnap.data?.docs ?? []) {
-              final data = doc.data();
-              final linkedReceiptId = data['receiptId'] as String?;
-              if (linkedReceiptId != null && seenReceiptIds.contains(linkedReceiptId)) {
-                continue;
-              }
-
-              DateTime date = DateTime.now();
-              final rawDate = data['date'] ?? data['createdAt'];
-              if (rawDate is Timestamp) date = rawDate.toDate();
-              if (rawDate is String) date = DateTime.tryParse(rawDate) ?? date;
-
-              items.add({
-                'id': doc.id,
-                'receiptId': linkedReceiptId,
-                'title': data['referenceNumber']?.toString().isNotEmpty == true
-                    ? 'Ref: ${data['referenceNumber']}'
-                    : 'Payment Record',
-                'amount': (data['amount'] as num?)?.toDouble() ?? 0.0,
-                'date': date,
-                'method': data['paymentMethod'] ?? data['method'] ?? 'Cash',
-                'status': data['status'] ?? 'paid',
-                'isOfficialReceipt': linkedReceiptId != null,
-              });
-            }
-
-            // 3. If no receipt/payment exists, but membership plan is active:
-            if (items.isEmpty && (student.planId != null || student.planStartDate != null || student.membershipStatus == MembershipStatus.active)) {
-              final plan = plans.where((p) => p.id == student.planId).firstOrNull;
-              final planPrice = plan?.price ?? student.customPlanFee ?? 2000.0;
-              final startDate = student.planStartDate ?? student.createdAt ?? DateTime.now();
-              final endDate = student.planEndDate ?? startDate.add(const Duration(days: 90));
-              final planName = plan?.name ?? student.customPlanName ?? 'Pro Scholar Quarterly';
-
-              final uniqueSuffix = student.membershipNumber?.isNotEmpty == true
-                  ? student.membershipNumber!
-                  : (student.id.length >= 6 ? student.id.substring(0, 6).toUpperCase() : student.id.toUpperCase());
-
-              final virtualReceipt = ReceiptModel(
-                id: 'active_enrollment_${student.id}',
-                libraryId: libraryId,
-                receiptNumber: 'REC-${startDate.year}-$uniqueSuffix',
-                studentId: student.id,
-                studentUserId: student.userId,
-                planId: student.planId ?? 'membership_enrollment',
-                amount: planPrice > 0 ? planPrice : 2000.0,
-                totalFee: planPrice > 0 ? planPrice : 2000.0,
-                paidAmount: planPrice > 0 ? planPrice : 2000.0,
-                remainingDue: 0.0,
-                paymentMethod: 'Desk / Confirmed',
-                validFrom: startDate,
-                validTo: endDate,
-                status: ReceiptStatus.active,
-                customFields: {
-                  'planName': planName,
-                  if (student.seatId != null) 'seatLabel': SeatHelper.formatSeatLabel(seatId: student.seatId),
-                  'admissionType': 'Official Enrollment Receipt',
-                },
-                createdAt: startDate,
-                updatedAt: startDate,
-              );
-
-              items.add({
-                'id': virtualReceipt.id,
-                'receiptId': virtualReceipt.id,
-                'title': '$planName Enrollment',
-                'amount': planPrice > 0 ? planPrice : 2000.0,
-                'date': startDate,
-                'method': 'Desk / Confirmed',
-                'status': 'active',
-                'isOfficialReceipt': true,
-                'receiptModel': virtualReceipt,
-                'planModel': plan,
-              });
-            }
-
-            // Sort in memory by date descending
-            items.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+            final items = StudentLedgerHelper.buildTransactionsLedger(
+              libraryId: libraryId,
+              student: student,
+              receiptDocs: receiptDocs,
+              paymentDocs: paymentDocs,
+              plans: plans,
+            );
 
             if (items.isEmpty) {
               return Card(
@@ -1346,7 +1300,10 @@ class _StudentTransactionsSection extends StatelessWidget {
                         Icon(Icons.receipt_long_outlined, size: 40, color: theme.colorScheme.outline),
                         const SizedBox(height: 8),
                         Text(
-                          'No payment records found',
+                          student.membershipStatus == MembershipStatus.inactive
+                              ? 'Admission approved • Awaiting fee payment at counter'
+                              : 'No payment records found',
+                          textAlign: TextAlign.center,
                           style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline),
                         ),
                       ],
@@ -1363,7 +1320,13 @@ class _StudentTransactionsSection extends StatelessWidget {
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final item = items[index];
-                final isPaid = item['status'] == 'paid' || item['status'] == 'active';
+                final rawStatus = (item['status'] ?? 'paid').toString().toLowerCase();
+                final isVoided = rawStatus == 'voided' ||
+                    rawStatus == 'void' ||
+                    rawStatus == 'cancelled' ||
+                    rawStatus == 'canceled' ||
+                    rawStatus == 'refunded';
+                final isPaid = StudentLedgerHelper.isConfirmedPaidStatus(rawStatus);
                 final receiptId = item['receiptId'] as String?;
 
                 return Card(
@@ -1371,20 +1334,28 @@ class _StudentTransactionsSection extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                     side: BorderSide(
-                      color: isPaid
-                          ? Colors.green.withValues(alpha: 0.3)
-                          : theme.colorScheme.outlineVariant,
+                      color: isVoided
+                          ? Colors.red.withValues(alpha: 0.3)
+                          : (isPaid
+                              ? Colors.green.withValues(alpha: 0.3)
+                              : theme.colorScheme.outlineVariant),
                     ),
                   ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     leading: CircleAvatar(
-                      backgroundColor: isPaid
-                          ? Colors.green.withValues(alpha: 0.12)
-                          : Colors.orange.withValues(alpha: 0.12),
+                      backgroundColor: isVoided
+                          ? Colors.red.withValues(alpha: 0.12)
+                          : (isPaid
+                              ? Colors.green.withValues(alpha: 0.12)
+                              : Colors.orange.withValues(alpha: 0.12)),
                       child: Icon(
-                        isPaid ? Icons.check_circle_rounded : Icons.pending_rounded,
-                        color: isPaid ? Colors.green.shade700 : Colors.orange.shade700,
+                        isVoided
+                            ? Icons.cancel_rounded
+                            : (isPaid ? Icons.check_circle_rounded : Icons.pending_rounded),
+                        color: isVoided
+                            ? Colors.red.shade700
+                            : (isPaid ? Colors.green.shade700 : Colors.orange.shade700),
                       ),
                     ),
                     title: Row(

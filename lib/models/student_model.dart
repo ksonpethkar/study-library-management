@@ -382,8 +382,20 @@ class StudentModel {
       course: json['course'] as String? ?? '',
       year: json['year'] as String? ?? '',
       emergencyContact: json['emergencyContact'] as String? ?? '',
-      seatId: (json['seatId'] ?? json['seatNumber'] ?? json['seat'] ?? json['assignedSeat']) as String?,
-      sectionId: json['sectionId'] as String?,
+      seatId: () {
+        final raw = json.containsKey('seatId')
+            ? json['seatId']
+            : (json['seatNumber'] ?? json['seat'] ?? json['assignedSeat']);
+        if (raw == null) return null;
+        final s = raw.toString().trim();
+        return s.isEmpty ? null : s;
+      }(),
+      sectionId: () {
+        final raw = json.containsKey('sectionId') ? json['sectionId'] : json['requestedSectionId'];
+        if (raw == null) return null;
+        final s = raw.toString().trim();
+        return s.isEmpty ? null : s;
+      }(),
       previousSeatId: json['previousSeatId'] as String?,
       previousSectionId: json['previousSectionId'] as String?,
       planId: json['planId'] as String?,

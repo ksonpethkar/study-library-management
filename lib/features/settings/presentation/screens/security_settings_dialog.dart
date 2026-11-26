@@ -537,10 +537,9 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
                               SwitchListTile.adaptive(
                                 contentPadding: EdgeInsets.zero,
                                 secondary: const Icon(Icons.screenshot_monitor_rounded),
-                                title: const Text('Screenshot Protection', style: TextStyle(fontWeight: FontWeight.w600)),
+                                title: const Text('Student Portal Screenshot Protection', style: TextStyle(fontWeight: FontWeight.w600)),
                                 subtitle: const Text(
-                                  'Prevents screenshots & screen recording in the app. '
-                                  'Enforced on: Payment, Receipt, ID Card, and Student financial screens.',
+                                  'Blocks screenshots & screen recording across the Student Android App (Digital ID Pass, Home Pass, Receipts) and disables Web saving/printing. Admin Portal always permits screenshots.',
                                   style: TextStyle(fontSize: 12),
                                 ),
                                 value: _screenshotProtectionEnabled,

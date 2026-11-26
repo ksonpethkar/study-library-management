@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:study_library/core/widgets/pressable_scale.dart';
 import 'package:study_library/core/widgets/live_radar_pulse.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/student_model.dart';
@@ -117,6 +116,8 @@ class SeatTile extends StatelessWidget {
         buffer.writeln('Status: 🟡 Reserved');
         if (seat.reservedCandidateName != null && seat.reservedCandidateName!.isNotEmpty) {
           buffer.writeln('Applicant: ${seat.reservedCandidateName}');
+        } else {
+          buffer.writeln('Applicant: Pending Reservation');
         }
         if (seat.reservationExpiresAt != null) {
           final exp = seat.reservationExpiresAt!;
@@ -178,79 +179,61 @@ class SeatTile extends StatelessWidget {
     final isFemaleOnly = showGenderBadge && seat.genderRestriction == GenderRestriction.female;
     final genderColor = isFemaleOnly ? const Color(0xFFE91E63) : const Color(0xFF1976D2);
 
-    final tileWidget = PressableScale(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      scaleFactor: 0.92,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: isDimmed ? 0.22 : 1.0,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(columns <= 2 ? 14 : (columns <= 4 ? 10 : (columns >= 10 ? 6 : 8))),
-            border: isSelected
-                ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2.5)
-                : Border.all(
-                    color: (isFemaleOnly || isMaleOnly)
-                        ? genderColor.withValues(alpha: columns >= 10 ? 0.9 : 0.65)
-                        : borderColor,
-                    width: (isFemaleOnly || isMaleOnly) ? 1.5 : 1.2,
-                  ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.50),
-                      blurRadius: 10,
-                      spreadRadius: 2.0,
-                      offset: const Offset(0, 3),
+    final borderRadius = BorderRadius.circular(
+      columns <= 2 ? 14 : (columns <= 4 ? 10 : (columns >= 10 ? 6 : 8)),
+    );
+
+    final tileWidget = Material(
+      color: Colors.transparent,
+      borderRadius: borderRadius,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: borderRadius,
+        child: Opacity(
+          opacity: isDimmed ? 0.22 : 1.0,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: borderRadius,
+              border: isSelected
+                  ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2.5)
+                  : Border.all(
+                      color: (isFemaleOnly || isMaleOnly)
+                          ? genderColor.withValues(alpha: columns >= 10 ? 0.9 : 0.65)
+                          : borderColor,
+                      width: (isFemaleOnly || isMaleOnly) ? 1.5 : 1.2,
                     ),
-                  ]
-                : (seat.hasActiveSoftLock || effectiveStatus == SeatStatus.reserved)
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.35 : 0.22),
-                          blurRadius: 7,
-                          spreadRadius: 1.0,
-                          offset: const Offset(0, 2),
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.08),
-                          blurRadius: 3,
-                          offset: const Offset(0, 1.5),
-                        ),
-                      ]
-                : (effectiveStatus == SeatStatus.available)
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.28 : 0.18),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
-                          blurRadius: 2,
-                          offset: const Offset(0, 1),
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.10),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1.5),
-                        ),
-                      ],
-          ),
-          child: _buildTileContent(
-            context,
-            isDark,
-            textColor,
-            genderColor,
-            isMaleOnly,
-            isFemaleOnly,
-            effectiveStatus: effectiveStatus,
-            isOnLeave: isOnLeave,
+              // Restrict expensive BoxShadow Gaussian raster passes strictly to selected or active soft-lock tiles
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.40),
+                        blurRadius: 8,
+                        spreadRadius: 1.5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : (seat.hasActiveSoftLock || effectiveStatus == SeatStatus.reserved)
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.30 : 0.18),
+                            blurRadius: 5,
+                            offset: const Offset(0, 1.5),
+                          ),
+                        ]
+                      : null,
+            ),
+            child: _buildTileContent(
+              context,
+              isDark,
+              textColor,
+              genderColor,
+              isMaleOnly,
+              isFemaleOnly,
+              effectiveStatus: effectiveStatus,
+              isOnLeave: isOnLeave,
+            ),
           ),
         ),
       ),

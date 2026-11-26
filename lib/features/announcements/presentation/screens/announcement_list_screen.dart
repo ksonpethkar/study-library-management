@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -672,16 +673,18 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
                     ? '🎉 [HOLIDAY] '
                     : (_selectedPriority == AnnouncementPriority.maintenance ? '🛠️ ' : '📢 '));
 
+            final initiatorUid = FirebaseAuth.instance.currentUser?.uid;
             await AppNotificationService.sendNotification(
               libraryId: widget.libraryId,
               title: '$prefix${_titleController.text.trim()}',
               body: _messageController.text.trim(),
               type: 'announcement',
-              targetRole: 'all',
+              targetRole: 'student',
               actionRoute: '/student/announcements',
               metadata: {
                 'announcementId': docRef.id,
                 'priority': _selectedPriority.name,
+                'initiatedBy': ?initiatorUid,
               },
             );
 
@@ -694,7 +697,7 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
               'body': _messageController.text.trim(),
               'type': 'announcement',
               'priority': _selectedPriority.name,
-              'topic': 'lib-${widget.libraryId}', // FCM topic to send to
+              'topic': 'student-${widget.libraryId}', // Student-only FCM topic (never notifies Admin)
               'libraryId': widget.libraryId,
               'createdAt': FieldValue.serverTimestamp(),
               'processed': false,

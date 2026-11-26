@@ -18,6 +18,8 @@ class SeatModel {
   final String? reservedCandidateId;
   final String? reservedCandidateName;
   final DateTime? reservationExpiresAt;
+  final List<String> amenities;
+  final String? statusReason;
   final DateTime? assignedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -37,6 +39,8 @@ class SeatModel {
     this.reservedCandidateId,
     this.reservedCandidateName,
     this.reservationExpiresAt,
+    this.amenities = const [],
+    this.statusReason,
     this.assignedAt,
     this.createdAt,
     this.updatedAt,
@@ -93,6 +97,10 @@ class SeatModel {
       reservedCandidateId: json['reservedCandidateId'] as String?,
       reservedCandidateName: json['reservedCandidateName'] as String?,
       reservationExpiresAt: _parseDate(json['reservationExpiresAt']),
+      amenities: json['amenities'] is List
+          ? (json['amenities'] as List).map((e) => e.toString()).toList()
+          : const [],
+      statusReason: json['statusReason'] as String?,
       assignedAt: _parseDate(json['assignedAt']),
       createdAt: _parseDate(json['createdAt']),
       updatedAt: _parseDate(json['updatedAt']),
@@ -115,6 +123,8 @@ class SeatModel {
       if (reservedCandidateId != null) 'reservedCandidateId': reservedCandidateId,
       if (reservedCandidateName != null) 'reservedCandidateName': reservedCandidateName,
       if (reservationExpiresAt != null) 'reservationExpiresAt': reservationExpiresAt!.toIso8601String(),
+      if (amenities.isNotEmpty) 'amenities': amenities,
+      if (statusReason != null && statusReason!.trim().isNotEmpty) 'statusReason': statusReason!.trim(),
       if (assignedAt != null) 'assignedAt': assignedAt!.toIso8601String(),
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
@@ -139,6 +149,9 @@ class SeatModel {
     String? reservedCandidateName,
     DateTime? reservationExpiresAt,
     bool clearReservation = false,
+    List<String>? amenities,
+    String? statusReason,
+    bool clearStatusReason = false,
     DateTime? assignedAt,
     bool clearAssignedAt = false,
     DateTime? createdAt,
@@ -159,6 +172,8 @@ class SeatModel {
       reservedCandidateId: clearReservation ? null : (reservedCandidateId ?? this.reservedCandidateId),
       reservedCandidateName: clearReservation ? null : (reservedCandidateName ?? this.reservedCandidateName),
       reservationExpiresAt: clearReservation ? null : (reservationExpiresAt ?? this.reservationExpiresAt),
+      amenities: amenities ?? this.amenities,
+      statusReason: clearStatusReason ? null : (statusReason ?? this.statusReason),
       assignedAt: clearAssignedAt ? (clearStudent ? null : assignedAt) : (assignedAt ?? this.assignedAt),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

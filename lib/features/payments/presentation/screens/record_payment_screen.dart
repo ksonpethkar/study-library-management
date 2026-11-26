@@ -31,6 +31,7 @@ import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/services/remote_config_service.dart';
 import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
 
 class RecordPaymentScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -38,6 +39,8 @@ class RecordPaymentScreen extends ConsumerStatefulWidget {
   final String studentPhone;
   final double planPrice;
   final double? pendingDue;
+  final DateTime? initialStartDate;
+  final DateTime? initialEndDate;
 
   const RecordPaymentScreen({
     super.key,
@@ -46,6 +49,8 @@ class RecordPaymentScreen extends ConsumerStatefulWidget {
     this.studentPhone = '',
     required this.planPrice,
     this.pendingDue,
+    this.initialStartDate,
+    this.initialEndDate,
   });
 
   @override
@@ -100,6 +105,44 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   bool _hasPowerSurcharge = false;
   double _powerSurchargeAmount = 150.0;
 
+  double _lateFinePerDay = 0.0;
+  int _gracePeriodDays = 3;
+  bool _lateFineApplied = false;
+  double _appliedLateFineAmount = 0.0;
+
+  int get _overdueDaysBeyondGrace {
+    final end = _studentPlanEndDate;
+    if (end == null) return 0;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final expiry = DateTime(end.year, end.month, end.day);
+    final diff = today.difference(expiry).inDays;
+    if (diff <= _gracePeriodDays) return 0;
+    return diff - _gracePeriodDays;
+  }
+
+  double get _suggestedLateFine {
+    if (_lateFinePerDay <= 0 || _overdueDaysBeyondGrace <= 0) return 0.0;
+    return _lateFinePerDay * _overdueDaysBeyondGrace;
+  }
+
+  void _toggleLateFine(bool apply) {
+    final fine = apply ? _suggestedLateFine : _appliedLateFineAmount;
+    if (fine <= 0 && apply) return;
+    setState(() {
+      _lateFineApplied = apply;
+      final currentTotal = double.tryParse(_totalFeeController.text) ?? _effectiveTotalFee;
+      final newTotal = apply
+          ? (currentTotal + fine)
+          : (currentTotal - _appliedLateFineAmount).clamp(0.0, double.infinity);
+      _appliedLateFineAmount = apply ? fine : 0.0;
+      _totalFeeController.text = newTotal.round().toString();
+      if (!_isPartialPayment) {
+        _amountController.text = newTotal.round().toString();
+      }
+    });
+  }
+
   List<String> _paymentMethods = ['Cash', 'UPI / QR', 'Debit / Credit Card', 'Bank Transfer', 'Cheque / DD'];
 
   double get _effectiveTotalFee {
@@ -142,6 +185,16 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         : widget.planPrice;
     _totalFeeController.text = initialTotal > 0 ? initialTotal.toStringAsFixed(0) : '';
     _amountController.text = initialTotal > 0 ? initialTotal.toStringAsFixed(0) : '';
+    if (widget.initialStartDate != null) {
+      _customStartDate = widget.initialStartDate;
+    }
+    if (widget.initialEndDate != null) {
+      _customCustomExpiryDate = widget.initialEndDate;
+    }
+    // If explicit start/end dates are provided, payment is for this configured cycle
+    if (widget.initialStartDate != null || widget.initialEndDate != null) {
+      _extendValidity = false;
+    }
     _loadPaymentMethods();
     _loadStudentDetails();
   }
@@ -229,6 +282,16 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           if (hasActivePlanDue) {
             _extendValidity = false; // Paying current plan due does not advance expiry
           }
+          if (widget.initialStartDate != null) {
+            _customStartDate = widget.initialStartDate;
+          } else if (_customStartDate == null && start != null && !_extendValidity) {
+            _customStartDate = start;
+          }
+          if (widget.initialEndDate != null) {
+            _customCustomExpiryDate = widget.initialEndDate;
+          } else if (_customCustomExpiryDate == null && end != null && !_extendValidity) {
+            _customCustomExpiryDate = end;
+          }
           _isLoadingStudent = false;
         });
       }
@@ -268,22 +331,44 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           .get();
 
       if (doc.exists && mounted) {
-        final data = doc.data()?['methods'] as List<dynamic>?;
-        if (data != null && data.isNotEmpty) {
-          final methods = data
-              .cast<Map<String, dynamic>>()
-              .where((m) => m['active'] as bool? ?? true)
-              .map((m) => m['name'] as String? ?? '')
-              .where((name) => name.isNotEmpty)
-              .toList();
-          if (methods.isNotEmpty && mounted) {
-            setState(() {
-              _paymentMethods = methods;
-              if (!_paymentMethods.contains(_paymentMethod)) {
-                _paymentMethod = methods.first;
-              }
-            });
+        final rawData = doc.data();
+        final policies = rawData?['policies'] as Map<String, dynamic>?;
+        final configuredFine = (policies?['lateFinePerDay'] as num?)?.toDouble() ?? 0.0;
+        final fallbackGrace = (policies?['gracePeriodDays'] as num?)?.toInt();
+
+        int resolvedGrace = fallbackGrace ?? _gracePeriodDays;
+        try {
+          final graceDoc = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('settings')
+              .doc('grace_period')
+              .get();
+          if (graceDoc.exists && graceDoc.data() != null) {
+            resolvedGrace = (graceDoc.data()!['defaultGraceDays'] as num?)?.toInt() ?? resolvedGrace;
           }
+        } catch (_) {}
+
+        final data = rawData?['methods'] as List<dynamic>?;
+        if (mounted) {
+          setState(() {
+            _lateFinePerDay = configuredFine;
+            _gracePeriodDays = resolvedGrace;
+            if (data != null && data.isNotEmpty) {
+              final methods = data
+                  .cast<Map<String, dynamic>>()
+                  .where((m) => m['active'] as bool? ?? true)
+                  .map((m) => m['name'] as String? ?? '')
+                  .where((name) => name.isNotEmpty)
+                  .toList();
+              if (methods.isNotEmpty) {
+                _paymentMethods = methods;
+                if (!_paymentMethods.contains(_paymentMethod)) {
+                  _paymentMethod = methods.first;
+                }
+              }
+            }
+          });
         }
       }
     } catch (_) { /* intentionally silent */ }
@@ -307,8 +392,14 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                 title: const Text('Choose from Gallery'),
                 subtitle: const Text('Pick screenshot sent by student on WhatsApp/Email'),
                 onTap: () async {
-                  final file = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1600);
-                  if (ctx.mounted) Navigator.pop(ctx, file);
+                  InactivityLockService.setExternalDialogActive(true);
+                  try {
+                    final file = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1600);
+                    if (ctx.mounted) Navigator.pop(ctx, file);
+                  } finally {
+                    InactivityLockService.setExternalDialogActive(false);
+                    InactivityLockService.recordInteraction();
+                  }
                 },
               ),
               ListTile(
@@ -316,8 +407,14 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                 title: const Text('Take Photo with Camera'),
                 subtitle: const Text('Photograph student phone screen at counter'),
                 onTap: () async {
-                  final file = await picker.pickImage(source: ImageSource.camera, maxWidth: 1600);
-                  if (ctx.mounted) Navigator.pop(ctx, file);
+                  InactivityLockService.setExternalDialogActive(true);
+                  try {
+                    final file = await picker.pickImage(source: ImageSource.camera, maxWidth: 1600);
+                    if (ctx.mounted) Navigator.pop(ctx, file);
+                  } finally {
+                    InactivityLockService.setExternalDialogActive(false);
+                    InactivityLockService.recordInteraction();
+                  }
                 },
               ),
             ],
@@ -396,6 +493,12 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
     if (_customStartDate != null) {
       return _customStartDate!;
     }
+    if (widget.initialStartDate != null) {
+      return widget.initialStartDate!;
+    }
+    if (!_extendValidity && _studentPlanStartDate != null) {
+      return _studentPlanStartDate!;
+    }
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     if (_studentPlanEndDate == null) return today;
@@ -422,6 +525,16 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   }
 
   DateTime _calculateNewExpiryDate(List<PlanModel> plans) {
+    if (_customCustomExpiryDate != null) {
+      return _customCustomExpiryDate!;
+    }
+    if (widget.initialEndDate != null) {
+      return widget.initialEndDate!;
+    }
+    if (!_extendValidity && _studentPlanEndDate != null) {
+      return _studentPlanEndDate!;
+    }
+
     final effectiveStart = _getEffectiveStartDate();
 
     if (_selectedPlanId != null && _selectedPlanId != 'custom') {
@@ -439,16 +552,6 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
     // Custom Plan Date Calculation: strictly capped at current month end
     final nextMonthFirst = DateTime(effectiveStart.year, effectiveStart.month + 1, 1);
     final monthEnd = DateTime(nextMonthFirst.year, nextMonthFirst.month, 0, 23, 59, 59, 999);
-
-    if (_customCustomExpiryDate != null) {
-      final picked = DateTime(
-        _customCustomExpiryDate!.year,
-        _customCustomExpiryDate!.month,
-        _customCustomExpiryDate!.day,
-        23, 59, 59, 999,
-      );
-      return picked.isBefore(monthEnd) ? picked : monthEnd;
-    }
 
     if (_customDurationDays > 0) {
       final target = DateTime(
@@ -473,7 +576,18 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   }
 
   void _recalculateCustomFeeFromDailyRate(List<PlanModel> plans) {
-    final dailyRate = double.tryParse(_dailyRateController.text) ?? 0.0;
+    double dailyRate = double.tryParse(_dailyRateController.text) ?? 0.0;
+    if (_selectedPlanId != null && _selectedPlanId != 'custom') {
+      final matching = plans.where((p) => p.id == _selectedPlanId);
+      if (matching.isNotEmpty) {
+        final plan = matching.first;
+        final standardDays = PlanCalculatorService.getStandardCycleDays(plan);
+        if (standardDays > 0) {
+          dailyRate = plan.price / standardDays;
+          _dailyRateController.text = dailyRate.toStringAsFixed(1);
+        }
+      }
+    }
     final days = _calculateCustomDays(plans);
     if (dailyRate > 0 && days > 0) {
       final total = (days * dailyRate).roundToDouble();
@@ -586,8 +700,8 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       // 2. Resolve validity dates (Continuous queueing if renewing in advance, like Jio)
       final now = DateTime.now();
       final isAdvance = _extendValidity && _studentPlanEndDate != null && _studentPlanEndDate!.isAfter(now);
-      DateTime validFrom = _studentPlanStartDate ?? now;
-      DateTime validTo = _studentPlanEndDate ?? now;
+      DateTime validFrom = _customStartDate ?? _studentPlanStartDate ?? now;
+      DateTime validTo = _customCustomExpiryDate ?? _studentPlanEndDate ?? now;
 
       SmartPlanCalculation? activeSmartCalc;
       if (_extendValidity) {
@@ -620,20 +734,13 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         receiptNumber = await receiptRepo.getNextReceiptNumber(libraryId);
 
         final currentLib = ref.read(currentLibraryProvider).value;
-        final bool isGstBilling = currentLib?.enableGstBilling == true;
-        final double gstRate = currentLib?.effectiveGstRate ?? 18.0;
-        final String sacCode = currentLib?.effectiveSacCode ?? '999293';
-        final String gstin = currentLib?.effectiveGstin ?? '';
-
-        double? taxableAmount;
-        double? cgstAmount;
-        double? sgstAmount;
-        if (isGstBilling && amount > 0) {
-          taxableAmount = (amount / (1 + (gstRate / 100))).roundToDouble();
-          final totalTax = amount - taxableAmount;
-          cgstAmount = (totalTax / 2).roundToDouble();
-          sgstAmount = totalTax - cgstAmount;
-        }
+        final gst = ReceiptRepository.calculateGstBreakdown(
+          amount: amount,
+          isGstBilling: currentLib?.enableGstBilling == true,
+          gstRate: currentLib?.effectiveGstRate ?? 18.0,
+          sacCode: currentLib?.effectiveSacCode ?? '999293',
+          gstin: currentLib?.effectiveGstin ?? '',
+        );
 
         final newReceipt = ReceiptModel(
           id: '',
@@ -650,13 +757,13 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           paymentMethod: _paymentMethod,
           validFrom: validFrom,
           validTo: validTo,
-          isGstInvoice: isGstBilling,
-          gstin: gstin.isNotEmpty ? gstin : null,
-          sacCode: isGstBilling ? sacCode : null,
-          gstRate: isGstBilling ? gstRate : null,
-          taxableAmount: taxableAmount,
-          cgstAmount: cgstAmount,
-          sgstAmount: sgstAmount,
+          isGstInvoice: gst.isGstInvoice,
+          gstin: gst.gstin.isNotEmpty ? gst.gstin : null,
+          sacCode: gst.isGstInvoice ? gst.sacCode : null,
+          gstRate: gst.isGstInvoice ? gst.gstRate : null,
+          taxableAmount: gst.taxableAmount,
+          cgstAmount: gst.cgstAmount,
+          sgstAmount: gst.sgstAmount,
           customFields: {
             if (_referenceController.text.trim().isNotEmpty) 'reference': _referenceController.text.trim(),
             if (_bankNameController.text.trim().isNotEmpty) 'bankName': _bankNameController.text.trim(),
@@ -664,14 +771,14 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
             if (isPartial) 'isInstalment': true,
             if (_appliedWalletCredit > 0) 'walletCreditApplied': _appliedWalletCredit,
             'planName': effectivePlanName,
-            if (isGstBilling) ...{
+            if (gst.isGstInvoice) ...{
               'isGstInvoice': true,
-              'gstin': gstin,
-              'sacCode': sacCode,
-              'taxableAmount': taxableAmount,
-              'cgstAmount': cgstAmount,
-              'sgstAmount': sgstAmount,
-              'gstRate': gstRate,
+              'gstin': gst.gstin,
+              'sacCode': gst.sacCode,
+              'taxableAmount': gst.taxableAmount,
+              'cgstAmount': gst.cgstAmount,
+              'sgstAmount': gst.sgstAmount,
+              'gstRate': gst.gstRate,
             },
             if (_selectedPlanId == 'custom') ...{
               'isCustomPlan': true,
@@ -732,6 +839,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         receiptId: createdReceiptId,
         receiptNumber: _generateReceipt ? receiptNumber : null,
         status: isPartial ? PaymentStatus.partial : PaymentStatus.paid,
+        aggregateSyncedByClient: amount > 0,
         createdAt: DateTime.now(),
       );
 
@@ -872,20 +980,16 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           .doc(widget.studentId)
           .set(studentUpdates, SetOptions(merge: true));
 
-      // 6. Update Monthly Revenue Aggregate
-      final month = DateTime.now().toIso8601String().substring(0, 7);
-      FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('settings')
-          .doc('revenue_aggregate')
-          .set({
-            'totalRevenue': FieldValue.increment(amount),
-            'totalPayments': FieldValue.increment(1),
-            'monthlyRevenue.$month': FieldValue.increment(amount),
-            'lastUpdated': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true))
-          .catchError((e) => debugPrint('Aggregate error: $e'));
+      // 6. Update Monthly Revenue Aggregate only if ReceiptRepository did not already apply it
+      if (!_generateReceipt && amount > 0) {
+        ReceiptRepository.applyRevenueAggregateDelta(
+          FirebaseFirestore.instance,
+          libraryId,
+          amountDelta: amount,
+          paymentsDelta: 1,
+          referenceDate: DateTime.now(),
+        ).catchError((e) => debugPrint('Aggregate error: $e'));
+      }
 
       // 7. Dispatch Free Confirmation Notifications
       final library = ref.read(currentLibraryProvider).value;
@@ -937,7 +1041,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       );
 
       // Instantly refresh dashboard financial pulse and student balance badges
-      ref.invalidate(netProfitProvider);
+      ref.invalidate(unifiedFinancialLedgerProvider);
       ref.invalidate(studentsStreamProvider);
 
       if (mounted) {
@@ -1421,12 +1525,12 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                           ButtonSegment<PaymentEntryMode>(
                             value: PaymentEntryMode.expressCash,
                             icon: Icon(Icons.flash_on_rounded, color: Colors.green),
-                            label: Text('⚡ Express Cash', style: TextStyle(fontWeight: FontWeight.bold)),
+                            label: Text('⚡ Quick Terminal', style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
                           ButtonSegment<PaymentEntryMode>(
                             value: PaymentEntryMode.advancedBilling,
                             icon: Icon(Icons.tune_rounded),
-                            label: Text('⚙️ Advanced Billing'),
+                            label: Text('⚙️ Custom Dates & Split Fee'),
                           ),
                         ],
                         selected: {_entryMode},
@@ -1434,7 +1538,6 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                           setState(() {
                             _entryMode = newSelection.first;
                             if (_entryMode == PaymentEntryMode.expressCash) {
-                              _paymentMethod = 'Cash';
                               _isPartialPayment = false;
                               _generateReceipt = true;
                               _extendValidity = true;
@@ -2229,6 +2332,59 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                       ),
                     ),
 
+                    if (_suggestedLateFine > 0 || _lateFineApplied) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _lateFineApplied
+                              ? Colors.orange.withValues(alpha: 0.12)
+                              : Colors.amber.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _lateFineApplied
+                                ? Colors.orange.withValues(alpha: 0.45)
+                                : Colors.amber.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _lateFineApplied ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                              color: Colors.orange.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _lateFineApplied
+                                        ? 'Late Fine Applied (+₹${_appliedLateFineAmount.toStringAsFixed(0)})'
+                                        : 'Overdue by $_overdueDaysBeyondGrace day(s) past grace period',
+                                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    'Policy: ₹${_lateFinePerDay.toStringAsFixed(0)}/day • Suggested: ₹${_suggestedLateFine.toStringAsFixed(0)}',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ActionChip(
+                              label: Text(_lateFineApplied ? 'Remove' : '+ Apply ₹${_suggestedLateFine.toStringAsFixed(0)}'),
+                              backgroundColor: _lateFineApplied
+                                  ? Colors.red.withValues(alpha: 0.1)
+                                  : Colors.orange.withValues(alpha: 0.18),
+                              onPressed: () => _toggleLateFine(!_lateFineApplied),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     // Partial Payment Toggle
                     SwitchListTile.adaptive(
                       title: const Text('Partial Payment / Instalment'),
@@ -2774,6 +2930,88 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 14),
+
+            // Dynamic Payment Method Selector for Quick Terminal
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.payment_rounded, size: 16, color: theme.colorScheme.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Payment Method',
+                        style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _paymentMethods.map((m) {
+                      final isSelected = _paymentMethod.toLowerCase() == m.toLowerCase();
+                      IconData iconData = Icons.payments_outlined;
+                      if (m.toLowerCase().contains('upi') || m.toLowerCase().contains('qr')) {
+                        iconData = Icons.qr_code_2_rounded;
+                      } else if (m.toLowerCase().contains('card')) {
+                        iconData = Icons.credit_card_rounded;
+                      } else if (m.toLowerCase().contains('bank')) {
+                        iconData = Icons.account_balance_rounded;
+                      }
+                      return ChoiceChip(
+                        avatar: Icon(iconData, size: 15),
+                        label: Text(m, style: const TextStyle(fontSize: 12)),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          if (selected) setState(() => _paymentMethod = m);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  if (!_paymentMethod.toLowerCase().contains('cash')) ...[
+                    const SizedBox(height: 12),
+                    ValidatedTextField(
+                      label: _paymentMethod.toLowerCase().contains('upi')
+                          ? 'UPI Reference / 12-Digit UTR Number *'
+                          : 'Transaction Reference / Auth Code',
+                      hint: _paymentMethod.toLowerCase().contains('upi')
+                          ? 'e.g. 429182910281 or Txn Reference ID'
+                          : 'e.g. TXN-1029384',
+                      controller: _referenceController,
+                      prefixIcon: Icon(_paymentMethod.toLowerCase().contains('upi') ? Icons.qr_code_2_rounded : Icons.tag_rounded),
+                      inputFormatters: _paymentMethod.toLowerCase().contains('upi') ? AppValidators.utrFormatters : null,
+                      validator: (v) => _paymentMethod.toLowerCase().contains('upi')
+                          ? AppValidators.utr(v, required: true, label: 'UPI Reference / UTR')
+                          : null,
+                    ),
+                    if (_paymentMethod.toLowerCase().contains('upi')) ...[
+                      const SizedBox(height: 6),
+                      OutlinedButton.icon(
+                        onPressed: _isScanningScreenshot ? null : _scanUpiScreenshot,
+                        icon: _isScanningScreenshot
+                            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.document_scanner_rounded, size: 16),
+                        label: Text(_isScanningScreenshot ? 'Scanning Screenshot...' : 'Auto-Fill from UPI Screenshot (OCR)'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: theme.colorScheme.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
 
             // Breakdown / Execution Summary
@@ -2838,7 +3076,9 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                 label: Text(
                   _isLoading
                       ? 'Issuing Official Receipt...'
-                      : '⚡ Collect ₹${_payingAmount.toStringAsFixed(0)} Cash & Issue Receipt',
+                      : (_paymentMethod.toLowerCase() == 'cash'
+                          ? '⚡ Collect ₹${_payingAmount.toStringAsFixed(0)} Cash & Issue Receipt'
+                          : '⚡ Record ₹${_payingAmount.toStringAsFixed(0)} $_paymentMethod & Issue Receipt'),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),

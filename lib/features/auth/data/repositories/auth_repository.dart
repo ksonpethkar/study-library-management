@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, debugPrint, defaultTargetPlatform;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/services/badge_service.dart';
 import 'package:study_library/services/expiry_scheduler_service.dart';
 import 'package:study_library/services/notification_service.dart';
@@ -136,9 +138,14 @@ class AuthRepository {
 
   Future<void> signOut({String? libraryId}) async {
     try {
-      if (libraryId != null && libraryId.isNotEmpty) {
-        await NotificationService.unsubscribeFromLibraryTopics(libraryId: libraryId);
+      final prefs = await SharedPreferences.getInstance();
+      final effectiveLibId = (libraryId != null && libraryId.isNotEmpty)
+          ? libraryId
+          : (prefs.getString('cached_current_library_id') ?? '');
+      if (effectiveLibId.isNotEmpty) {
+        await NotificationService.unsubscribeFromLibraryTopics(libraryId: effectiveLibId);
       }
+      await applyNativeSecureFlag(false);
       await ExpirySchedulerService.cancelExpiryReminders();
       await BadgeService.clearBadge();
       if (!kIsWeb) {

@@ -20,6 +20,11 @@ base class SentinelProviderObserver extends ProviderObserver {
   ) {
     super.didUpdateProvider(context, previousValue, newValue);
 
+    final hasPendingChecks = _sentinelService.echoVerifier.hasPendingChecks;
+    if (newValue is! AsyncError && !hasPendingChecks) {
+      return; // Fast-path zero-allocation exit when idle
+    }
+
     try {
       final provider = context.provider;
       final providerName = provider.name ?? provider.runtimeType.toString();
@@ -48,12 +53,14 @@ base class SentinelProviderObserver extends ProviderObserver {
         );
       }
 
-      // Feed state changes to Echo Verifier
-      _sentinelService.handleProviderStateChange(
-        providerName: providerName,
-        previousValue: previousValue,
-        newValue: newValue,
-      );
+      // Feed state changes to Echo Verifier only when expectations are registered
+      if (hasPendingChecks) {
+        _sentinelService.handleProviderStateChange(
+          providerName: providerName,
+          previousValue: previousValue,
+          newValue: newValue,
+        );
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('[SentinelObserver] Error observing provider update: $e');
     }

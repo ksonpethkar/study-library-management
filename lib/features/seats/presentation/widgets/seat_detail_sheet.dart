@@ -8,6 +8,7 @@ import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/waiting_list_model.dart';
 import 'package:study_library/services/waiting_list_promotion_service.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
@@ -135,7 +136,7 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
     );
   }
 
-  Future<void> _changeStatus(SeatStatus newStatus) async {
+  Future<void> _changeStatus(SeatStatus newStatus, {String? reason}) async {
     setState(() => isLoading = true);
     final libraryId = ref.read(currentLibraryIdProvider);
     if (libraryId == null) return;
@@ -145,6 +146,12 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
         'status': newStatus.name,
         'updatedAt': FieldValue.serverTimestamp(),
       };
+
+      if (reason != null && reason.trim().isNotEmpty) {
+        updates['statusReason'] = reason.trim();
+      } else if (newStatus == SeatStatus.available) {
+        updates['statusReason'] = FieldValue.delete();
+      }
 
       if (newStatus == SeatStatus.available) {
         updates['studentId'] = null;
@@ -488,6 +495,27 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final library = ref.watch(currentLibraryProvider).value;
+    final sections = ref.watch(sectionsProvider).value ?? const <SectionModel>[];
+    SectionModel? currentSection;
+    for (final s in sections) {
+      if (s.id == widget.sectionId) {
+        currentSection = s;
+        break;
+      }
+    }
+    final resolvedAmenities = AmenityCatalog.resolveEffectiveAmenities(
+      library: library,
+      section: currentSection,
+      seat: widget.seat,
+    );
+    final subtitleParts = <String>[
+      currentSection?.name ?? 'Study Hall',
+      if (currentSection?.floor?.isNotEmpty == true) currentSection!.floor!,
+      if (widget.seat.genderRestriction == GenderRestriction.male) 'Boys Zone',
+      if (widget.seat.genderRestriction == GenderRestriction.female) 'Girls Zone',
+    ];
+
     final isOccupied = widget.seat.isOccupied || (studentName != null && studentName!.isNotEmpty);
     final effectiveStatus = isOccupied ? SeatStatus.occupied : widget.seat.effectiveStatus;
 
@@ -554,7 +582,7 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                               ],
                             ),
                             Text(
-                              'Dedicated Study Desk • Quiet Zone',
+                              subtitleParts.join(' • '),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: Colors.grey,
                               ),
@@ -577,6 +605,52 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                     ),
                   ],
                 ),
+                if (widget.seat.statusReason?.isNotEmpty == true) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(effectiveStatus).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _getStatusColor(effectiveStatus).withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      widget.seat.statusReason!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _getStatusColor(effectiveStatus),
+                      ),
+                    ),
+                  ),
+                ],
+                if (resolvedAmenities.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: resolvedAmenities.map((item) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(item.icon, size: 13, color: theme.colorScheme.primary),
+                            const SizedBox(width: 5),
+                            Text(item.shortLabel, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
                 const SizedBox(height: 20),
 
                 // Student info (if occupied)
@@ -679,7 +753,7 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                   ),
                 ],
 
-                if (widget.seat.status == SeatStatus.available)
+                if (effectiveStatus == SeatStatus.available)
                   ListTile(
                     leading: const Icon(Icons.person_add_rounded, color: Color(0xFF10B981)),
                     title: const Text('Assign Student'),
@@ -688,9 +762,85 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                     onTap: _showAssignStudentSheet,
                   ),
 
+                ListTile(
+                  leading: Icon(Icons.tune_rounded, color: theme.colorScheme.primary),
+                  title: const Text('Desk-Specific Amenities'),
+                  subtitle: Text(
+                    widget.seat.amenities.isEmpty
+                        ? 'Inheriting section & library amenities'
+                        : '${widget.seat.amenities.length} extra desk amenities tagged',
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: _showDeskAmenitiesDialog,
+                ),
+
                 const SizedBox(height: 24),
               ],
             ),
+    );
+  }
+
+  void _showDeskAmenitiesDialog() {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null) return;
+    final selectedIds = widget.seat.amenities.map(AmenityCatalog.normalizeId).toSet();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Desk-Specific Amenities'),
+          content: SingleChildScrollView(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: AmenityCatalog.canonicalItems.map((item) {
+                final isSelected = selectedIds.contains(item.id);
+                return FilterChip(
+                  avatar: Icon(item.icon, size: 15),
+                  label: Text(item.shortLabel),
+                  selected: isSelected,
+                  onSelected: (val) {
+                    setDialogState(() {
+                      if (val) {
+                        selectedIds.add(item.id);
+                      } else {
+                        selectedIds.remove(item.id);
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await FirebaseFirestore.instance
+                    .collection('libraries')
+                    .doc(libraryId)
+                    .collection('sections')
+                    .doc(widget.sectionId)
+                    .collection('seats')
+                    .doc(widget.seat.id)
+                    .update({
+                  'amenities': selectedIds.toList(),
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Desk amenities updated.')),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -706,9 +856,44 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
           return SimpleDialogOption(
             onPressed: isCurrentStatus
                 ? null
-                : () {
+                : () async {
                     Navigator.pop(ctx);
-                    _changeStatus(status);
+                    if (status == SeatStatus.reserved || status == SeatStatus.maintenance) {
+                      final reasonCtrl = TextEditingController(text: widget.seat.statusReason ?? '');
+                      final confirmed = await showDialog<String>(
+                        context: context,
+                        builder: (rCtx) => AlertDialog(
+                          title: Text(
+                            status == SeatStatus.maintenance
+                                ? 'Maintenance Notice'
+                                : 'Reservation Note',
+                          ),
+                          content: TextField(
+                            controller: reasonCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Reason / Note (Optional)',
+                              hintText: status == SeatStatus.maintenance
+                                  ? 'e.g., Power socket repair'
+                                  : 'e.g., Held for evening admission',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(rCtx, ''),
+                              child: const Text('Skip'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(rCtx, reasonCtrl.text.trim()),
+                              child: const Text('Confirm'),
+                            ),
+                          ],
+                        ),
+                      );
+                      await _changeStatus(status, reason: confirmed);
+                    } else {
+                      await _changeStatus(status);
+                    }
                   },
             child: Row(
               children: [

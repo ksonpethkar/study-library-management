@@ -15,6 +15,8 @@ import 'package:study_library/core/security/device_security_check.dart';
 import 'package:study_library/services/force_update_service.dart';
 import 'package:study_library/services/membership_automation_service.dart';
 import 'package:study_library/services/remote_config_service.dart';
+import 'package:study_library/core/utils/secure_screen_mixin.dart';
+import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -191,10 +193,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       return;
     }
 
-    // Check for forced app update
-    try {
-      await ref.read(updateServiceProvider.notifier).checkForUpdate();
-    } catch (_) { /* intentionally silent */ }
+    // Check for forced app update asynchronously without blocking launch navigation
+    ref.read(updateServiceProvider.notifier).checkForUpdate().ignore();
 
     // Check if returning from a Google Sign-In redirect on Web
     User? user;
@@ -291,6 +291,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           if (isStaff || isWhitelisted) {
             ref.read(currentLibraryIdProvider.notifier).set(libId);
             ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
+            await persistUserRole(
+              uid: user.uid,
+              email: user.email ?? '',
+              displayName: user.displayName ?? '',
+              role: AppUserRole.admin,
+              libraryId: libId,
+            );
             await BiometricService.restoreSecuritySettingsFromFirestore(libId);
             final isLocked = await BiometricService.isLockEnabled(isAdmin: true, libraryId: libId);
             await _ensureMinAnimationDuration(startTime);
@@ -313,7 +320,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           bool hasActiveRequest = false;
           if (studentDoc == null) {
             try {
-              final email = user.email?.trim().toLowerCase() ?? '';
+              final rawEmail = user.email?.trim() ?? '';
+              final email = rawEmail.toLowerCase();
               final rSnap = await FirebaseFirestore.instance
                   .collection('libraries').doc(libId)
                   .collection('requests')
@@ -328,6 +336,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     .where('email', isEqualTo: email)
                     .limit(1).get();
                 hasActiveRequest = rSnapEmail.docs.isNotEmpty;
+                if (!hasActiveRequest && rawEmail != email) {
+                  final rSnapRawEmail = await FirebaseFirestore.instance
+                      .collection('libraries').doc(libId)
+                      .collection('requests')
+                      .where('email', isEqualTo: rawEmail)
+                      .limit(1).get();
+                  hasActiveRequest = rSnapRawEmail.docs.isNotEmpty;
+                }
               }
             } catch (_) {}
           }
@@ -335,6 +351,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           if (studentDoc != null || hasActiveRequest) {
             ref.read(currentLibraryIdProvider.notifier).set(libId);
             ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+            await persistUserRole(
+              uid: user.uid,
+              email: user.email ?? '',
+              displayName: user.displayName ?? '',
+              role: AppUserRole.student,
+              libraryId: libId,
+            );
+            loadScreenshotProtectionFromFirestore(libId).ignore();
             final isLocked = await BiometricService.isLockEnabled(
               userId: studentDoc?.id,
               authUid: user.uid,
@@ -428,6 +452,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           role: AppUserRole.student,
           libraryId: libId,
         );
+        loadScreenshotProtectionFromFirestore(libId).ignore();
         final isLocked = await BiometricService.isLockEnabled(
           userId: studentDoc.id,
           authUid: user.uid,
@@ -442,7 +467,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       }
 
       // 2d. Check Admission Requests in default library (pending, approved, payment pending)
-      final normalizedEmail = user.email?.trim().toLowerCase() ?? '';
+      final rawEmail = user.email?.trim() ?? '';
+      final normalizedEmail = rawEmail.toLowerCase();
       QuerySnapshot? reqByUid;
       try {
         reqByUid = await FirebaseFirestore.instance
@@ -461,9 +487,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         } catch (_) {}
       }
 
+      QuerySnapshot? reqByRawEmail;
+      if ((reqByUid == null || reqByUid.docs.isEmpty) &&
+          (reqByEmail == null || reqByEmail.docs.isEmpty) &&
+          rawEmail.isNotEmpty &&
+          rawEmail != normalizedEmail) {
+        try {
+          reqByRawEmail = await FirebaseFirestore.instance
+              .collection('libraries').doc(defaultLibId)
+              .collection('requests').where('email', isEqualTo: rawEmail)
+              .limit(1).get();
+        } catch (_) {}
+      }
+
       final matchedReq = (reqByUid?.docs.isNotEmpty == true)
           ? reqByUid!.docs.first
-          : (reqByEmail?.docs.isNotEmpty == true ? reqByEmail!.docs.first : null);
+          : ((reqByEmail?.docs.isNotEmpty == true)
+              ? reqByEmail!.docs.first
+              : (reqByRawEmail?.docs.isNotEmpty == true ? reqByRawEmail!.docs.first : null));
 
       if (matchedReq != null) {
         ref.read(currentLibraryIdProvider.notifier).set(defaultLibId);
@@ -487,7 +528,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return;
       }
 
-      // 2e. No existing profile or admission request found.
+      // 2e. If returning from a Google Sign-In redirect during an active admission wizard draft,
+      // return directly to /student/register with the draft intact rather than bouncing to Login.
+      if (await RegistrationDraftStorage.hasPendingRedirectDraft()) {
+        await _ensureMinAnimationDuration(startTime);
+        if (!mounted) return;
+        context.go(Routes.studentRegister);
+        return;
+      }
+
+      // 2f. No existing profile or admission request found.
       // Route to login where LoginScreen provides the interactive
       // "Account Not Found / Apply for Admission" option without abruptly exiting the app.
       ref.read(userRoleProvider.notifier).clear();
@@ -519,11 +569,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     } catch (_) { /* intentionally silent */ }
   }
 
-  /// Ensures the entrance animation has time to cleanly complete (~1600ms)
-  /// before navigating away, presenting a smooth, branded entrance experience.
+  /// Schedules background daily automation without blocking navigation, and ensures
+  /// snappy splash transition (200ms on web, 450ms on native).
   Future<void> _ensureMinAnimationDuration(DateTime startTime) async {
-    await _runDailyAutomation();
-    const minDurationMs = 1600;
+    _runDailyAutomation().ignore();
+    const minDurationMs = kIsWeb ? 200 : 450;
     final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
     if (elapsedMs < minDurationMs) {
       await Future.delayed(Duration(milliseconds: minDurationMs - elapsedMs));

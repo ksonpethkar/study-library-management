@@ -40,6 +40,9 @@ final expiringStudentsProvider = FutureProvider.family<List<StudentModel>, Map<S
   return repository.getExpiringStudents(libraryId, daysAhead);
 });
 
+/// Tracks student IDs whose receipts were already verified/healed in the current session
+final Set<String> _healedStudentSessions = {};
+
 /// Stream of the current logged-in student (matched by Auth UID first, then email fallback)
 /// Yields cached StudentModel instantly (<5ms) for offline access in basements / low connectivity.
 final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
@@ -162,7 +165,7 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
           'studentId': doc.id,
         }, SetOptions(merge: true)).ignore();
 
-        if (model.userId != null && model.userId!.isNotEmpty) {
+        if (model.userId != null && model.userId!.isNotEmpty && _healedStudentSessions.add('${libraryId}_${model.id}')) {
           ReceiptRepository().healStudentReceiptsAndPayments(libraryId, model.id, model.userId!).ignore();
         }
         try {

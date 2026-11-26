@@ -568,6 +568,16 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
       }
     }
 
+    // Self-heal matching active subscription cycle if start date was adjusted earlier
+    if (student.planStartDate != null && student.planEndDate != null) {
+      final isMatchingCycleEnd = effectiveValidTo.year == student.planEndDate!.year &&
+          effectiveValidTo.month == student.planEndDate!.month &&
+          effectiveValidTo.day == student.planEndDate!.day;
+      if (isMatchingCycleEnd && student.planStartDate!.isBefore(effectiveValidFrom)) {
+        effectiveValidFrom = student.planStartDate!;
+      }
+    }
+
     final customPlanName = (receipt.customFields['planName'] as String?)?.trim();
     final effectivePlanName = (customPlanName != null && customPlanName.isNotEmpty)
         ? customPlanName

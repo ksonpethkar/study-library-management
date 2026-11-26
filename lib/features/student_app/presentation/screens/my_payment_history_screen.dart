@@ -13,6 +13,8 @@ import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/core/error/error_handler.dart';
+import 'package:study_library/core/utils/secure_screen_mixin.dart';
+import 'package:study_library/core/utils/student_ledger_helper.dart';
 
 class MyPaymentHistoryScreen extends ConsumerStatefulWidget {
   const MyPaymentHistoryScreen({super.key});
@@ -21,7 +23,7 @@ class MyPaymentHistoryScreen extends ConsumerStatefulWidget {
   ConsumerState<MyPaymentHistoryScreen> createState() => _MyPaymentHistoryScreenState();
 }
 
-class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen> {
+class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen> with SecureScreenMixin {
   @override
   Widget build(BuildContext context) {
     final libraryId = ref.watch(currentLibraryIdProvider) ?? '';
@@ -50,25 +52,40 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
           final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
           final effectiveUid = student.userId?.isNotEmpty == true ? student.userId! : authUid;
 
-          final studentFilter = effectiveUid.isNotEmpty
-              ? Filter.or(
-                  Filter('studentId', isEqualTo: student.id),
-                  Filter('studentUserId', isEqualTo: effectiveUid),
-                  Filter('studentId', isEqualTo: effectiveUid),
-                )
-              : Filter('studentId', isEqualTo: student.id);
-
+          // Zero-index single-field queries (never use Filter.or which breaks without composite indexes)
           final receiptQuery = FirebaseFirestore.instance
               .collection('libraries')
               .doc(libraryId)
               .collection('receipts')
-              .where(studentFilter);
+              .where('studentId', isEqualTo: student.id);
 
           final paymentQuery = FirebaseFirestore.instance
               .collection('libraries')
               .doc(libraryId)
               .collection('payments')
-              .where(studentFilter);
+              .where('studentId', isEqualTo: student.id);
+
+          final Stream<QuerySnapshot<Map<String, dynamic>>?> uidReceiptStream =
+              (effectiveUid.isNotEmpty && effectiveUid != student.id)
+                  ? FirebaseFirestore.instance
+                      .collection('libraries')
+                      .doc(libraryId)
+                      .collection('receipts')
+                      .where('studentUserId', isEqualTo: effectiveUid)
+                      .snapshots()
+                      .cast<QuerySnapshot<Map<String, dynamic>>?>()
+                  : Stream.value(null);
+
+          final Stream<QuerySnapshot<Map<String, dynamic>>?> uidPaymentStream =
+              (effectiveUid.isNotEmpty && effectiveUid != student.id)
+                  ? FirebaseFirestore.instance
+                      .collection('libraries')
+                      .doc(libraryId)
+                      .collection('payments')
+                      .where('studentUserId', isEqualTo: effectiveUid)
+                      .snapshots()
+                      .cast<QuerySnapshot<Map<String, dynamic>>?>()
+                  : Stream.value(null);
 
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: receiptQuery.snapshots(),
@@ -76,160 +93,65 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
               return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: paymentQuery.snapshots(),
                 builder: (context, paymentSnap) {
+                  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>?>(
+                    stream: uidReceiptStream,
+                    builder: (context, uidReceiptSnap) {
+                      return StreamBuilder<QuerySnapshot<Map<String, dynamic>>?>(
+                        stream: uidPaymentStream,
+                        builder: (context, uidPaymentSnap) {
                   if (receiptSnap.connectionState == ConnectionState.waiting &&
                       paymentSnap.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  final List<Map<String, dynamic>> transactions = [];
-                  final Set<String> seenReceiptIds = {};
-                  final Set<String> seenPaymentIds = {};
-                  final Set<String> seenReceiptNumbers = {};
-                  final Set<String> seenRequestIds = {};
-
-                  // 1. Receipts
-                  for (final doc in receiptSnap.data?.docs ?? []) {
-                    final data = doc.data();
-                    if (data['deletedAt'] != null) continue;
-                    seenReceiptIds.add(doc.id);
-                    final pId = data['paymentId'] as String?;
-                    if (pId != null && pId.isNotEmpty) seenPaymentIds.add(pId);
-                    final rNum = data['receiptNumber'] as String?;
-                    if (rNum != null && rNum.isNotEmpty) seenReceiptNumbers.add(rNum);
-                    final reqId = (data['customFields'] as Map?)?['requestId'] as String?;
-                    if (reqId != null && reqId.isNotEmpty) seenRequestIds.add(reqId);
-
-                    DateTime date = DateTime.now();
-                    final raw = data['createdAt'] ?? data['validFrom'];
-                    if (raw is Timestamp) date = raw.toDate();
-                    if (raw is String) date = DateTime.tryParse(raw) ?? date;
-
-                    transactions.add({
-                      'id': doc.id,
-                      'receiptId': doc.id,
-                      'title': data['receiptNumber'] ?? 'Official Receipt',
-                      'amount': (data['paidAmount'] as num?)?.toDouble() ??
-                          (data['amount'] as num?)?.toDouble() ??
-                          0.0,
-                      'date': date,
-                      'method': data['paymentMethod'] ?? data['method'] ?? 'Paid',
-                      'planName': data['planName'] ?? (data['customFields'] as Map?)?['planName'] ?? '',
-                      'status': data['status'] ?? 'paid',
-                    });
+                  final receiptMap = <String, Map<String, dynamic>>{};
+                  for (final d in receiptSnap.data?.docs ?? []) {
+                    receiptMap[d.id] = {...d.data(), 'id': d.id};
+                  }
+                  for (final d in uidReceiptSnap.data?.docs ?? []) {
+                    receiptMap.putIfAbsent(d.id, () => {...d.data(), 'id': d.id});
                   }
 
-                  // 2. Payments (deduplicated against receipts)
-                  for (final doc in paymentSnap.data?.docs ?? []) {
-                    final data = doc.data();
-                    if (data['deletedAt'] != null) continue;
-                    final pId = doc.id;
-                    if (seenPaymentIds.contains(pId)) continue;
-                    final rId = data['receiptId'] as String?;
-                    if (rId != null && (seenReceiptIds.contains(rId) || seenReceiptNumbers.contains(rId))) continue;
-                    final rNum = data['receiptNumber'] as String?;
-                    if (rNum != null && seenReceiptNumbers.contains(rNum)) continue;
-                    final reqId = data['requestId'] as String?;
-                    if (reqId != null && seenRequestIds.contains(reqId)) continue;
-
-                    DateTime date = DateTime.now();
-                    final raw = data['date'] ?? data['paymentDate'] ?? data['createdAt'];
-                    if (raw is Timestamp) date = raw.toDate();
-                    if (raw is String) date = DateTime.tryParse(raw) ?? date;
-
-                    final pAmount = (data['paidAmount'] as num?)?.toDouble() ??
-                        (data['amount'] as num?)?.toDouble() ??
-                        0.0;
-
-                    // Fuzzy duplicate check: same amount and within 15 minutes of a processed receipt
-                    final isFuzzyDup = transactions.any((t) =>
-                        ((t['amount'] as double? ?? 0.0) - pAmount).abs() < 0.01 &&
-                        ((t['date'] as DateTime).difference(date).abs().inMinutes < 15));
-                    if (isFuzzyDup) continue;
-
-                    transactions.add({
-                      'id': doc.id,
-                      'receiptId': rId,
-                      'title': data['referenceNumber']?.toString().isNotEmpty == true
-                          ? 'Ref: ${data['referenceNumber']}'
-                          : (rNum?.isNotEmpty == true ? rNum : 'Payment #${doc.id.substring(0, doc.id.length >= 6 ? 6 : doc.id.length).toUpperCase()}'),
-                      'amount': pAmount,
-                      'date': date,
-                      'method': data['paymentMethod'] ?? data['method'] ?? 'Cash',
-                      'planName': data['planName'] ?? '',
-                      'status': data['status'] ?? 'paid',
-                    });
+                  final paymentMap = <String, Map<String, dynamic>>{};
+                  for (final d in paymentSnap.data?.docs ?? []) {
+                    paymentMap[d.id] = {...d.data(), 'id': d.id};
+                  }
+                  for (final d in uidPaymentSnap.data?.docs ?? []) {
+                    paymentMap.putIfAbsent(d.id, () => {...d.data(), 'id': d.id});
                   }
 
-                  // 3. Active plan enrollment fallback
-                  if (transactions.isEmpty && (student.planId != null || student.planStartDate != null || student.membershipStatus == MembershipStatus.active)) {
-                    final plans = plansAsync.value ?? [];
-                    final plan = plans.where((p) => p.id == student.planId).firstOrNull;
-                    final price = plan?.price ?? student.customPlanFee ?? 2000.0;
-                    final startDate = student.planStartDate ?? student.createdAt ?? DateTime.now();
-                    final endDate = student.planEndDate ?? startDate.add(const Duration(days: 90));
-                    final planName = plan?.name ?? student.customPlanName ?? 'Pro Scholar Quarterly';
-
-                    final uniqueSuffix = student.membershipNumber?.isNotEmpty == true
-                        ? student.membershipNumber!
-                        : (student.id.length >= 6 ? student.id.substring(0, 6).toUpperCase() : student.id.toUpperCase());
-
-                    final virtualReceipt = ReceiptModel(
-                      id: 'active_enrollment_${student.id}',
-                      libraryId: libraryId,
-                      receiptNumber: 'REC-${startDate.year}-$uniqueSuffix',
-                      studentId: student.id,
-                      studentUserId: effectiveUid,
-                      planId: student.planId ?? 'membership_enrollment',
-                      amount: price > 0 ? price : 2000.0,
-                      totalFee: price > 0 ? price : 2000.0,
-                      paidAmount: price > 0 ? price : 2000.0,
-                      remainingDue: 0.0,
-                      paymentMethod: 'Desk / Confirmed',
-                      validFrom: startDate,
-                      validTo: endDate,
-                      status: ReceiptStatus.active,
-                      customFields: {
-                        'planName': planName,
-                        'admissionType': 'Official Enrollment Receipt',
-                      },
-                      createdAt: startDate,
-                      updatedAt: startDate,
-                    );
-
-                    transactions.add({
-                      'id': virtualReceipt.id,
-                      'receiptId': virtualReceipt.id,
-                      'title': '$planName Enrollment',
-                      'amount': price > 0 ? price : 2000.0,
-                      'date': startDate,
-                      'method': 'Desk / Confirmed',
-                      'planName': planName,
-                      'status': 'active',
-                      'receiptModel': virtualReceipt,
-                      'planModel': plan,
-                    });
-                  }
-
-                  // Sort by date descending
-                  transactions.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+                  final transactions = StudentLedgerHelper.buildTransactionsLedger(
+                    libraryId: libraryId,
+                    student: student,
+                    receiptDocs: receiptMap.values.toList(),
+                    paymentDocs: paymentMap.values.toList(),
+                    plans: plansAsync.value ?? [],
+                    effectiveUid: effectiveUid,
+                  );
 
                   if (transactions.isEmpty) {
                     return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey.shade300),
-                          const SizedBox(height: 16),
-                          const Text('No payments recorded yet', style: TextStyle(color: Colors.grey, fontSize: 16)),
-                        ],
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey.shade300),
+                            const SizedBox(height: 16),
+                            Text(
+                              student.membershipStatus == MembershipStatus.inactive
+                                  ? 'Admission Approved • Payment Pending at Desk'
+                                  : 'No payments recorded yet',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
 
-                  double totalPaid = 0;
-                  for (final t in transactions) {
-                    totalPaid += (t['amount'] as double);
-                  }
+                  final totalPaid = StudentLedgerHelper.computeTotalPaid(transactions);
 
                   return Column(
                     children: [
@@ -247,7 +169,7 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
                             CircleAvatar(
                               backgroundColor: theme.colorScheme.primary,
                               radius: 22,
-                              child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
+                              child: Icon(Icons.account_balance_wallet_rounded, color: theme.colorScheme.onPrimary, size: 24),
                             ),
                             const SizedBox(width: 14),
                             Column(
@@ -298,25 +220,51 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
                             final title = item['title'] as String;
                             final date = item['date'] as DateTime;
                             final receiptId = item['receiptId'] as String?;
+                            final rawStatus = (item['status'] ?? 'paid').toString().toLowerCase();
+                            final isVoided = rawStatus == 'voided' ||
+                                rawStatus == 'void' ||
+                                rawStatus == 'cancelled' ||
+                                rawStatus == 'canceled' ||
+                                rawStatus == 'refunded';
+                            final isPaid = StudentLedgerHelper.isConfirmedPaidStatus(rawStatus);
 
                             return Card(
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                side: BorderSide(color: theme.colorScheme.outlineVariant),
+                                side: BorderSide(
+                                  color: isVoided
+                                      ? Colors.red.withValues(alpha: 0.35)
+                                      : theme.colorScheme.outlineVariant,
+                                ),
                               ),
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: Colors.green.withValues(alpha: 0.12),
-                                  child: Icon(Icons.check_circle_rounded, color: Colors.green.shade700, size: 22),
+                                  backgroundColor: isVoided
+                                      ? Colors.red.withValues(alpha: 0.12)
+                                      : (isPaid
+                                          ? Colors.green.withValues(alpha: 0.12)
+                                          : Colors.orange.withValues(alpha: 0.12)),
+                                  child: Icon(
+                                    isVoided
+                                        ? Icons.cancel_rounded
+                                        : (isPaid ? Icons.check_circle_rounded : Icons.pending_rounded),
+                                    color: isVoided
+                                        ? Colors.red.shade700
+                                        : (isPaid ? Colors.green.shade700 : Colors.orange.shade700),
+                                    size: 22,
+                                  ),
                                 ),
                                 title: Text(
                                   title,
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                 ),
                                 subtitle: Text(
-                                  '$method  •  ${dateFormat.format(date)}',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                  '$method  •  ${dateFormat.format(date)}${isVoided ? " (${rawStatus.toUpperCase()})" : ""}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isVoided ? Colors.red.shade700 : Colors.grey.shade600,
+                                  ),
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -325,7 +273,10 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
                                       currencyFmt.format(amount),
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.green.shade700,
+                                        color: isVoided
+                                            ? Colors.red.shade700
+                                            : (isPaid ? Colors.green.shade700 : Colors.orange.shade700),
+                                        decoration: isVoided ? TextDecoration.lineThrough : null,
                                         fontSize: 16,
                                       ),
                                     ),
@@ -358,6 +309,10 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
                         ),
                       ),
                     ],
+                  );
+                        },
+                      );
+                    },
                   );
                 },
               );

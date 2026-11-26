@@ -1,29 +1,50 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 /// NotificationWebhookService dispatches JSON webhooks to custom endpoints
 /// (e.g. WhatsApp gateways, Zapier, Make, Telegram bots) for automated alerts.
+/// Cross-platform: uses `package:http` so Web, Android, iOS, and Desktop all work safely.
 class NotificationWebhookService {
   final FirebaseFirestore _firestore;
 
   NotificationWebhookService({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  /// Fetch webhook configuration for the given library.
+  /// Fetch unified webhook configuration (checks admin_secrets/communications + settings/communications, then legacy webhooks).
   Future<Map<String, dynamic>?> _getWebhookConfig(String libraryId) async {
     try {
-      final doc = await _firestore
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('settings')
-          .doc('webhooks')
-          .get();
+      final libRef = _firestore.collection('libraries').doc(libraryId);
+      final results = await Future.wait([
+        libRef.collection('admin_secrets').doc('communications').get(),
+        libRef.collection('settings').doc('communications').get(),
+        libRef.collection('settings').doc('webhooks').get(),
+      ]);
 
-      if (doc.exists && doc.data() != null) {
-        return doc.data();
+      final secretData = results[0].data() ?? {};
+      final commsData = results[1].data() ?? {};
+      final commsChannels = (commsData['channels'] as Map<String, dynamic>?) ?? {};
+      final legacyData = results[2].data() ?? {};
+
+      final unifiedUrl = (secretData['customWebhookUrl'] as String?)?.trim() ??
+          (commsChannels['customWebhookUrl'] as String?)?.trim() ??
+          (commsData['customWebhookUrl'] as String?)?.trim();
+      final unifiedEnabled = (commsChannels['customWebhookEnabled'] as bool?) ??
+          (commsData['customWebhookEnabled'] as bool? ?? false);
+
+      if (unifiedEnabled && unifiedUrl != null && unifiedUrl.isNotEmpty) {
+        return {
+          'enablePaymentWebhooks': true,
+          'enableExpiryWebhooks': true,
+          'paymentWebhookUrl': unifiedUrl,
+          'expiryWebhookUrl': unifiedUrl,
+        };
+      }
+
+      if (legacyData.isNotEmpty) {
+        return legacyData;
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Error fetching webhook config: $e');
@@ -33,19 +54,18 @@ class NotificationWebhookService {
 
   /// Sends a POST request with JSON payload to the configured endpoint.
   Future<bool> _postWebhook(String url, Map<String, dynamic> payload) async {
-    HttpClient? client;
     try {
-      client = HttpClient()..connectionTimeout = const Duration(seconds: 6);
-      final request = await client.postUrl(Uri.parse(url));
-      request.headers.contentType = ContentType.json;
-      request.write(jsonEncode(payload));
-      final response = await request.close();
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 6));
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
       if (kDebugMode) debugPrint('Webhook dispatch error: $e');
       return false;
-    } finally {
-      client?.close();
     }
   }
 

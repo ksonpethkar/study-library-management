@@ -281,6 +281,216 @@ class SentinelInvariantEngine {
     return anomalies;
   }
 
+  /// Invariant 5: Student Profile Photo Integrity & Shared/Swapped Avatar Collision Hunter.
+  /// Detects students with missing profile photos, and critically flags when two distinct
+  /// students share the exact same photo data or avatar URL.
+  List<SentinelAnomaly> auditPhotoIntegrity(List<StudentModel> students) {
+    final anomalies = <SentinelAnomaly>[];
+    final photoToStudents = <String, List<StudentModel>>{};
+
+    for (final student in students) {
+      if (student.membershipStatus == MembershipStatus.active) {
+        final photo = student.photoUrl.trim();
+        if (photo.isEmpty) {
+          anomalies.add(
+            SentinelAnomaly(
+              id: 'missing_photo_${student.id}',
+              title: 'Missing Profile Photo: ${student.name}',
+              description: 'Active scholar #${student.membershipNumber ?? student.id} has no profile photo attached.',
+              severity: SentinelSeverity.advisory,
+              domain: SentinelDomain.students,
+              entityId: student.id,
+              detectedAt: DateTime.now(),
+              canAutoHeal: false,
+              rootCauseDiagnosis: 'Student was registered without uploading a passport photo or photo capture was skipped.',
+              remediationSuggestion: 'Open student profile and upload a passport-size photo.',
+              metadata: {'studentId': student.id},
+            ),
+          );
+        } else {
+          // Normalize key: if data URL or long string, use hash + length to match identical images
+          final key = photo.length > 120 ? '${photo.substring(0, 80)}_${photo.length}' : photo;
+          photoToStudents.putIfAbsent(key, () => []).add(student);
+        }
+      }
+    }
+
+    // Flag cross-student photo collisions / swaps
+    for (final entry in photoToStudents.entries) {
+      if (entry.value.length > 1) {
+        final conflictList = entry.value;
+        final names = conflictList.map((s) => '${s.name} (#${s.membershipNumber ?? s.id})').join(', ');
+        anomalies.add(
+          SentinelAnomaly(
+            id: 'duplicate_photo_${conflictList.first.id}_${conflictList.last.id}',
+            title: 'Shared / Swapped Profile Photo Collision',
+            description: '${conflictList.length} distinct scholars ($names) share the exact same profile photo data!',
+            severity: SentinelSeverity.critical,
+            domain: SentinelDomain.students,
+            entityId: conflictList.first.id,
+            detectedAt: DateTime.now(),
+            canAutoHeal: false,
+            rootCauseDiagnosis: 'Same Google Sign-In avatar or cached camera image was submitted during consecutive registrations on a shared device.',
+            remediationSuggestion: 'Open scholar dossier and re-upload distinct verified photos for each student.',
+            metadata: {
+              'studentIds': conflictList.map((s) => s.id).toList(),
+              'studentNames': conflictList.map((s) => s.name).toList(),
+            },
+          ),
+        );
+      }
+    }
+
+    return anomalies;
+  }
+
+  /// Invariant 6: Identity Uniqueness (Duplicate Aadhaar / Gov ID & Contact Number Collision).
+  /// Enforces that two active students cannot share the same Aadhaar/Gov ID number or personal phone.
+  List<SentinelAnomaly> auditIdentityUniqueness(List<StudentModel> students) {
+    final anomalies = <SentinelAnomaly>[];
+    final activeStudents = students.where((s) => s.membershipStatus == MembershipStatus.active).toList();
+
+    // 1. Phone collision
+    final phoneToStudents = <String, List<StudentModel>>{};
+    for (final s in activeStudents) {
+      final clean = s.phone.replaceAll(RegExp(r'\D'), '');
+      if (clean.length >= 10) {
+        final standardPhone = clean.substring(clean.length - 10);
+        phoneToStudents.putIfAbsent(standardPhone, () => []).add(s);
+      }
+    }
+    for (final entry in phoneToStudents.entries) {
+      if (entry.value.length > 1) {
+        final list = entry.value;
+        final names = list.map((s) => '${s.name} (#${s.membershipNumber ?? s.id})').join(', ');
+        anomalies.add(
+          SentinelAnomaly(
+            id: 'duplicate_phone_${entry.key}',
+            title: 'Shared Contact Number: ${entry.key}',
+            description: '${list.length} active scholars ($names) share the exact same mobile phone.',
+            severity: SentinelSeverity.warning,
+            domain: SentinelDomain.students,
+            entityId: list.first.id,
+            detectedAt: DateTime.now(),
+            canAutoHeal: false,
+            rootCauseDiagnosis: 'Family registration or duplicate account creation with same mobile number.',
+            remediationSuggestion: 'Verify if students are genuine family members or merge duplicate records.',
+            metadata: {
+              'phone': entry.key,
+              'studentIds': list.map((s) => s.id).toList(),
+            },
+          ),
+        );
+      }
+    }
+
+    // 2. Gov ID / Aadhaar collision
+    final govIdToStudents = <String, List<StudentModel>>{};
+    for (final s in activeStudents) {
+      final cleanId = s.govIdNumber.replaceAll(RegExp(r'\s|-'), '').toUpperCase();
+      if (cleanId.length >= 6) {
+        govIdToStudents.putIfAbsent(cleanId, () => []).add(s);
+      }
+    }
+    for (final entry in govIdToStudents.entries) {
+      if (entry.value.length > 1) {
+        final list = entry.value;
+        final names = list.map((s) => '${s.name} (#${s.membershipNumber ?? s.id})').join(', ');
+        anomalies.add(
+          SentinelAnomaly(
+            id: 'duplicate_govid_${entry.key}',
+            title: 'Duplicate Gov ID / Aadhaar Collision: ${entry.key}',
+            description: '${list.length} active scholars ($names) share the exact same Gov ID number.',
+            severity: SentinelSeverity.critical,
+            domain: SentinelDomain.students,
+            entityId: list.first.id,
+            detectedAt: DateTime.now(),
+            canAutoHeal: false,
+            rootCauseDiagnosis: 'Duplicate enrollment under same identity or erroneous ID number input.',
+            remediationSuggestion: 'Verify physical Aadhaar/Pan card and correct document numbers.',
+            metadata: {
+              'govId': entry.key,
+              'studentIds': list.map((s) => s.id).toList(),
+            },
+          ),
+        );
+      }
+    }
+
+    return anomalies;
+  }
+
+  /// Invariant 7: Desk Format & Raw Matrix Identifier Leaks.
+  /// Detects unformatted database matrix IDs (e.g. `1790647291016_r0_c2`) or double prefixes (`Seat Seat #`).
+  List<SentinelAnomaly> auditDeskFormatIntegrity({
+    required List<SeatModel> seats,
+    required List<StudentModel> students,
+  }) {
+    final anomalies = <SentinelAnomaly>[];
+
+    for (final seat in seats) {
+      final raw = seat.label.trim();
+      if (raw.contains('_r') && raw.contains('_c')) {
+        anomalies.add(
+          SentinelAnomaly(
+            id: 'raw_desk_label_${seat.id}',
+            title: 'Raw Matrix ID in Desk Label',
+            description: 'Desk ${seat.id} has unformatted coordinate label "$raw".',
+            severity: SentinelSeverity.warning,
+            domain: SentinelDomain.seats,
+            entityId: seat.id,
+            detectedAt: DateTime.now(),
+            canAutoHeal: true,
+            rootCauseDiagnosis: 'Desk layout generator saved raw coordinate string as display label.',
+            remediationSuggestion: 'Auto-heal to normalize desk label to clean human number.',
+            metadata: {'seatId': seat.id, 'sectionId': seat.sectionId, 'rawLabel': raw},
+          ),
+        );
+      } else if (raw.toLowerCase().contains('seat seat') || raw.toLowerCase().contains('desk #seat')) {
+        anomalies.add(
+          SentinelAnomaly(
+            id: 'double_prefix_label_${seat.id}',
+            title: 'Double Prefix in Desk Label: "$raw"',
+            description: 'Desk label contains recursive prefix.',
+            severity: SentinelSeverity.warning,
+            domain: SentinelDomain.seats,
+            entityId: seat.id,
+            detectedAt: DateTime.now(),
+            canAutoHeal: true,
+            rootCauseDiagnosis: 'Multiple widgets concatenated prefixes on top of already prefixed labels.',
+            remediationSuggestion: 'Normalize desk label using SeatHelper.',
+            metadata: {'seatId': seat.id, 'sectionId': seat.sectionId, 'rawLabel': raw},
+          ),
+        );
+      }
+    }
+
+    for (final student in students) {
+      if (student.seatId != null && student.seatId!.isNotEmpty) {
+        final label = SeatHelper.formatDeskLabel(seatId: student.seatId);
+        if (label.toLowerCase().contains('seat seat') || label.toLowerCase().contains('desk #seat')) {
+          anomalies.add(
+            SentinelAnomaly(
+              id: 'student_seat_label_anomaly_${student.id}',
+              title: 'Malformed Desk String for ${student.name}',
+              description: 'Formatted desk label produces recursive prefix: "$label".',
+              severity: SentinelSeverity.warning,
+              domain: SentinelDomain.students,
+              entityId: student.id,
+              detectedAt: DateTime.now(),
+              canAutoHeal: false,
+              rootCauseDiagnosis: 'Historical database record holds malformed seat identifier.',
+              remediationSuggestion: 'Re-save desk assignment via Desk Allocator.',
+              metadata: {'studentId': student.id, 'seatId': student.seatId},
+            ),
+          );
+        }
+      }
+    }
+
+    return anomalies;
+  }
+
   // ==========================================
   // AUTONOMOUS SELF-HEALING OPERATIONS
   // ==========================================
@@ -426,7 +636,8 @@ class SentinelInvariantEngine {
         await seatRef.update({
           'status': 'occupied',
           'studentId': studentId,
-          'studentName': studentData['name'] ?? '',
+          'studentName': FieldValue.delete(),
+          'reservedCandidateName': FieldValue.delete(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } else if (studentSeatId != seatId) {
@@ -575,7 +786,8 @@ class SentinelInvariantEngine {
         await foundSeatRef.update({
           'status': SeatStatus.occupied.name,
           'studentId': studentId,
-          'studentName': studentData['name'] ?? '',
+          'studentName': FieldValue.delete(),
+          'reservedCandidateName': FieldValue.delete(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
         await studentRef.update({
@@ -760,14 +972,14 @@ class SentinelInvariantEngine {
           );
         }
 
-        // (c) Update physical seat document to reflect legitimate occupant
+        // (c) Update physical seat document to reflect legitimate occupant without public PII
         if (targetSeatRef != null) {
           batch.set(
             targetSeatRef,
             {
               'studentId': actualOccupant,
-              if (actualOccupantName != null && actualOccupantName.isNotEmpty)
-                'studentName': actualOccupantName,
+              'studentName': FieldValue.delete(),
+              'reservedCandidateName': FieldValue.delete(),
               'status': 'occupied',
               'updatedAt': FieldValue.serverTimestamp(),
             },

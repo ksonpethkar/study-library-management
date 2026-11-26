@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_library/core/utils/web_screenshot_guard.dart';
 
 /// Mixin that prevents screenshots and screen recording on sensitive screens.
 /// Apply to State classes that show ID cards, receipts, or payment info.
@@ -18,8 +19,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Usage:
 ///   `class _MyScreenState extends State<MyScreen> with SecureScreenMixin {`
 mixin SecureScreenMixin<T extends StatefulWidget> on State<T> {
-  static const _channel = MethodChannel('study_library/secure_screen');
-
   /// If true, this screen enforces screenshot protection regardless of
   /// per-screen overrides (only the global toggle can turn it off).
   bool get isMandatorySecureScreen => false;
@@ -37,54 +36,64 @@ mixin SecureScreenMixin<T extends StatefulWidget> on State<T> {
   }
 
   Future<void> _restoreGlobalSecureFlag() async {
-    final globalEnabled = await isScreenshotProtectionEnabled();
-    _setSecure(globalEnabled);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentRole = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+      // Only Student Portal screens enforce screenshot protection; Admin & unauthenticated screens never lock.
+      if (currentRole != 'student') {
+        await _setSecure(false);
+        return;
+      }
+      final cachedLibId = prefs.getString('cached_current_library_id');
+      final globalEnabled = await isScreenshotProtectionEnabled(libraryId: cachedLibId);
+      await _setSecure(globalEnabled);
+    } catch (_) {
+      await _setSecure(false);
+    }
   }
 
   Future<void> _applySecureFlag() async {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Priority 1: Did the admin explicitly turn OFF screenshot protection?
-      // If yes, NEVER auto-enable it under any circumstances (including updates).
-      final adminDisabled = prefs.getBool('screenshot_protection_admin_disabled') ?? false;
-      if (adminDisabled) {
-        _setSecure(false);
+      // ADMIN EXEMPTION:
+      // The Admin Portal is NEVER subject to screenshot blocking.
+      // Admins require screenshot capabilities for operational records, audit logging,
+      // desk layouts, reports, and receipts.
+      final currentRole = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+      if (currentRole == 'admin' || currentRole == 'none' || currentRole == null) {
+        await _setSecure(false);
         return;
       }
 
-      // Priority 2: Has the admin explicitly configured a preference?
-      final isConfigured = prefs.getBool('screenshot_protection_configured') ?? false;
-      if (isConfigured) {
-        final globalEnabled = prefs.getBool('screenshot_protection_global') ?? false;
-        _setSecure(globalEnabled);
-        return;
-      }
-
-      // Priority 3: Fallback check from cached library setting
+      // Student Portal: apply cached policy fast, then verify live Firestore value if libraryId exists
       final cachedLibId = prefs.getString('cached_current_library_id');
+      final adminDisabled = prefs.getBool('screenshot_protection_admin_disabled') ?? false;
+      final isConfigured = prefs.getBool('screenshot_protection_configured') ?? false;
+
+      if (adminDisabled) {
+        await _setSecure(false);
+      } else if (isConfigured) {
+        final globalEnabled = prefs.getBool('screenshot_protection_global') ?? false;
+        await _setSecure(globalEnabled);
+      } else {
+        final globalEnabled = prefs.getBool('screenshot_protection_global') ?? true;
+        await _setSecure(globalEnabled);
+      }
+
+      // Keep student device synchronized with latest library toggle from Firestore
       if (cachedLibId != null && cachedLibId.isNotEmpty) {
         final cloudSetting = await loadScreenshotProtectionFromFirestore(cachedLibId);
-        _setSecure(cloudSetting);
-        return;
+        await _setSecure(cloudSetting);
       }
-
-      // Default: Initial fresh install before any admin configuration
-      final globalEnabled = prefs.getBool('screenshot_protection_global') ?? true;
-      _setSecure(globalEnabled);
     } catch (_) {
       // In case of error, do not block screenshots if admin previously disabled
-      _setSecure(false);
+      await _setSecure(false);
     }
   }
 
   Future<void> _setSecure(bool secure) async {
-    if (kIsWeb || !Platform.isAndroid) return;
-    try {
-      await _channel.invokeMethod('setSecureFlag', {'secure': secure});
-    } catch (_) {
-      // Graceful fallback — security feature only
-    }
+    await applyNativeSecureFlag(secure);
   }
 
   /// Call this when the global screenshot protection setting changes
@@ -104,8 +113,11 @@ Future<void> setScreenshotProtectionEnabled(bool enabled, {String? libraryId}) a
   // If disabled by admin, set persistent lock to prevent auto-re-enabling on app updates
   await prefs.setBool('screenshot_protection_admin_disabled', !enabled);
 
-  // Apply immediately to Android window
-  if (!kIsWeb && Platform.isAndroid) {
+  // If the admin is configuring this on their phone, ensure Admin phone stays UNLOCKED
+  final currentRole = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+  if (currentRole == 'admin') {
+    await applyNativeSecureFlag(false);
+  } else if (!kIsWeb && Platform.isAndroid) {
     try {
       const MethodChannel('study_library/secure_screen')
           .invokeMethod('setSecureFlag', {'secure': enabled});
@@ -178,9 +190,13 @@ Future<void> syncScreenshotProtectionToFirestore(
   }
 }
 
-/// Applies or removes Android window FLAG_SECURE natively.
+/// Applies or removes screenshot protection natively (Android FLAG_SECURE + Web print/save guard).
 Future<void> applyNativeSecureFlag(bool enabled) async {
-  if (kIsWeb || !Platform.isAndroid) return;
+  if (kIsWeb) {
+    setWebScreenshotProtection(enabled);
+    return;
+  }
+  if (!Platform.isAndroid) return;
   try {
     const MethodChannel('study_library/secure_screen')
         .invokeMethod('setSecureFlag', {'secure': enabled});
@@ -188,10 +204,13 @@ Future<void> applyNativeSecureFlag(bool enabled) async {
 }
 
 /// Helper to load screenshot protection setting from Firestore and persist locally.
+/// Applies native flag ONLY when active device role is 'student'. Admin portal always remains unlocked.
 Future<bool> loadScreenshotProtectionFromFirestore(String libraryId) async {
   if (libraryId.isEmpty) return true;
   try {
     final prefs = await SharedPreferences.getInstance();
+    final currentRole = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+    final isStudentRole = currentRole == 'student';
 
     // 1. Try reading from libraries/{id}/settings/security
     final doc = await FirebaseFirestore.instance
@@ -209,7 +228,7 @@ Future<bool> loadScreenshotProtectionFromFirestore(String libraryId) async {
         await prefs.setBool('screenshot_protection_global', enabled);
         await prefs.setBool('screenshot_protection_configured', true);
         await prefs.setBool('screenshot_protection_admin_disabled', !enabled);
-        await applyNativeSecureFlag(enabled);
+        await applyNativeSecureFlag(isStudentRole ? enabled : false);
         return enabled;
       }
     }
@@ -228,7 +247,7 @@ Future<bool> loadScreenshotProtectionFromFirestore(String libraryId) async {
         await prefs.setBool('screenshot_protection_global', enabled);
         await prefs.setBool('screenshot_protection_configured', true);
         await prefs.setBool('screenshot_protection_admin_disabled', !enabled);
-        await applyNativeSecureFlag(enabled);
+        await applyNativeSecureFlag(isStudentRole ? enabled : false);
         return enabled;
       }
     }
@@ -241,17 +260,19 @@ Future<bool> loadScreenshotProtectionFromFirestore(String libraryId) async {
     }
 
     final global = prefs.getBool('screenshot_protection_global') ?? true;
-    await applyNativeSecureFlag(global);
+    await applyNativeSecureFlag(isStudentRole ? global : false);
     return global;
   } catch (_) {
     final prefs = await SharedPreferences.getInstance();
+    final currentRole = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+    final isStudentRole = currentRole == 'student';
     final adminDisabled = prefs.getBool('screenshot_protection_admin_disabled') ?? false;
     if (adminDisabled) {
       await applyNativeSecureFlag(false);
       return false;
     }
     final global = prefs.getBool('screenshot_protection_global') ?? true;
-    await applyNativeSecureFlag(global);
+    await applyNativeSecureFlag(isStudentRole ? global : false);
     return global;
   }
 }

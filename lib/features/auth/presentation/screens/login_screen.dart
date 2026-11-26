@@ -18,6 +18,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/core/widgets/cozy_pressable.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -47,11 +48,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _restoreCachedBranding(); // Show cached logo instantly
     _loadBranding();           // Then refresh from Firestore
 
-    // Handle return from Google Sign-In redirect on Web
+    // Handle return from Google Sign-In redirect on Web without triggering a second signIn call
     if (kIsWeb) {
       FirebaseAuth.instance.getRedirectResult().then((result) {
         if (result.user != null && mounted) {
-          _handleSignIn();
+          _handleSignIn(redirectedUser: result.user);
         }
       }).catchError((e) {
         if (kDebugMode) debugPrint('Redirect result on LoginScreen: $e');
@@ -114,21 +115,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (_) { /* intentionally silent */ }
   }
 
-  Future<void> _handleSignIn() async {
+  Future<void> _handleSignIn({User? redirectedUser}) async {
     if (_isLoading) return; // Guard against double-tap
     setState(() {
       _isLoading = true;
-      _loadingStatus = 'Signing in with Google…';
+      _loadingStatus = redirectedUser != null
+          ? 'Restoring Google sign-in session…'
+          : 'Signing in with Google…';
     });
 
     try {
       final authRepo = ref.read(authRepositoryProvider);
-      await authRepo.signInWithGoogle();
-      if (!mounted) return;
+      if (redirectedUser == null) {
+        await authRepo.signInWithGoogle();
+        if (!mounted) return;
+      }
 
-      final user = authRepo.getCurrentUser();
+      final user = redirectedUser ?? authRepo.getCurrentUser();
       if (user == null) {
         setState(() => _isLoading = false);
+        return;
+      }
+
+      // If the applicant was mid-registration before a mobile-web OAuth redirect,
+      // resume the registration wizard with their saved draft rather than bouncing to Account Not Found.
+      if (await RegistrationDraftStorage.hasPendingRedirectDraft()) {
+        if (mounted) context.go(Routes.studentRegister);
         return;
       }
 
@@ -281,7 +293,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             .then<QuerySnapshot?>((v) => v, onError: (_) => null)
             .timeout(const Duration(seconds: 6), onTimeout: () => null),
 
-        // [5] Check if user has an existing admission request in default library by email
+        // [5] Check if user has an existing admission request in default library by normalized or raw email
         (normalizedEmail.isNotEmpty
             ? FirebaseFirestore.instance
                 .collection('libraries').doc(defaultLibId)
@@ -291,7 +303,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             : Future<QuerySnapshot?>.value(null))
             .timeout(const Duration(seconds: 6), onTimeout: () => null),
 
-        // [6] Check staff by email
+        // [6] Check if user has an existing admission request by raw mixed-case email fallback
+        (rawEmail.isNotEmpty && rawEmail != normalizedEmail
+            ? FirebaseFirestore.instance
+                .collection('libraries').doc(defaultLibId)
+                .collection('requests').where('email', isEqualTo: rawEmail)
+                .limit(1).get()
+                .then<QuerySnapshot?>((v) => v, onError: (_) => null)
+            : Future<QuerySnapshot?>.value(null))
+            .timeout(const Duration(seconds: 6), onTimeout: () => null),
+
+        // [7] Check staff by email
         (normalizedEmail.isNotEmpty
             ? FirebaseFirestore.instance
                 .collectionGroup('staff')
@@ -300,7 +322,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 .then<QuerySnapshot?>((v) => v, onError: (_) => null)
             : Future<QuerySnapshot?>.value(null))
             .timeout(const Duration(seconds: 6), onTimeout: () => null),
-      ]).timeout(const Duration(seconds: 8), onTimeout: () => [null, null, null, null, null, null, null]);
+      ]).timeout(const Duration(seconds: 8), onTimeout: () => [null, null, null, null, null, null, null, null]);
 
       if (!mounted) return;
 
@@ -310,7 +332,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final studentByRawEmail = discoveryResults[3] as QuerySnapshot?;
       final reqByUid = discoveryResults[4] as QuerySnapshot?;
       final reqByEmail = discoveryResults[5] as QuerySnapshot?;
-      final staffByEmail = discoveryResults[6] as QuerySnapshot?;
+      final reqByRawEmail = discoveryResults[6] as QuerySnapshot?;
+      final staffByEmail = discoveryResults[7] as QuerySnapshot?;
 
       // Check Owner match (Strictly restricted to the official default library)
       if (ownedLibrary != null && ownedLibrary.id == defaultLibId) {
@@ -361,7 +384,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ? reqByUid!.docs.first
           : ((reqByEmail?.docs.isNotEmpty == true)
               ? reqByEmail!.docs.first
-              : null);
+              : (reqByRawEmail?.docs.isNotEmpty == true ? reqByRawEmail!.docs.first : null));
 
       final reqData = matchedReqDoc?.data() as Map<String, dynamic>?;
       if (matchedReqDoc != null && reqData != null) {
@@ -470,7 +493,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'New students can submit an admission application using "Register New". If you already have an enrolled admission under a different email, please sign in with that email address.',
+              '• If you are a new applicant, tap "Register New" to submit your admission application.\n\n• If you already have an enrolled admission under a different email address, tap "Other Email" to switch accounts.',
               style: TextStyle(height: 1.4, fontSize: 13, color: Colors.black87),
             ),
           ],
@@ -653,6 +676,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await repo.ensureStaffDocKeyedByUid(libId, user.uid as String, user.email as String);
       } catch (_) { /* intentionally silent */ }
     }
+    // Guarantee Admin Portal stays screenshot-enabled
+    applyNativeSecureFlag(false).ignore();
     if (!mounted) return;
     final isLocked = await BiometricService.isLockEnabled(isAdmin: true);
     if (!mounted) return;
@@ -723,6 +748,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await NotificationService.subscribeToLibraryTopics(libraryId: effectiveLibId, isAdmin: false);
     } catch (_) { /* intentionally silent */ }
 
+    loadScreenshotProtectionFromFirestore(effectiveLibId).ignore();
     final authUid = user.uid as String;
     await BiometricService.restoreStudentSecurityFromFirestore(
       libraryId: effectiveLibId,

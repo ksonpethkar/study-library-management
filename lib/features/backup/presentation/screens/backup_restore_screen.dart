@@ -13,6 +13,11 @@ import 'package:study_library/services/backup_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
+import 'package:study_library/services/inactivity_lock_service.dart';
+import 'package:study_library/features/students/presentation/providers/student_providers.dart';
+import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
+import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
+import 'package:study_library/features/settings/presentation/providers/settings_provider.dart';
 
 class BackupRestoreScreen extends ConsumerStatefulWidget {
   const BackupRestoreScreen({super.key});
@@ -118,44 +123,200 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     }
   }
 
-  Future<void> _restoreBackup() async {
-    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
-    if (libraryId.isEmpty) return;
+  void _invalidateAppProviders() {
+    ref.invalidate(currentLibraryProvider);
+    ref.invalidate(studentsStreamProvider);
+    ref.invalidate(sectionsProvider);
+    ref.invalidate(plansStreamProvider);
+    ref.invalidate(idCardTemplateStreamProvider);
+  }
 
-    final confirm = await showDialog<bool>(
+  String _formatBytes(int bytes) {
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+    }
+    return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  }
+
+  Future<({bool confirmed, bool exactMirror})?> _showRestoreConfirmDialog({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) {
+    bool exactMirror = false;
+    return showDialog<({bool confirmed, bool exactMirror})>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.red),
+              const SizedBox(width: 8),
+              Expanded(child: Text(title, style: const TextStyle(fontSize: 17))),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(message, style: const TextStyle(height: 1.4, fontSize: 13.5)),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                  ),
+                  child: CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: exactMirror,
+                    onChanged: (v) => setDialogState(() => exactMirror = v ?? false),
+                    title: const Text(
+                      'Strict Snapshot Replace Mode',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                    ),
+                    subtitle: const Text(
+                      'Replaces entire document fields to revert edits made after this snapshot (instead of merging).',
+                      style: TextStyle(fontSize: 11.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, (confirmed: false, exactMirror: false)),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(ctx, (confirmed: true, exactMirror: exactMirror)),
+              child: Text(confirmLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showRestoreSummaryDialog(
+    BackupRestoreSummary summary, {
+    required String sourceLabel,
+  }) async {
+    if (!mounted) return;
+    final prettyNames = <String, String>{
+      'students': 'Students',
+      'section_seats': 'Hall Desks',
+      'sections': 'Hall Sections',
+      'plans': 'Plans',
+      'payments': 'Payments',
+      'receipts': 'Receipts',
+      'expenses': 'Expenses',
+      'feedback': 'Feedback',
+      'settings': 'Settings Docs',
+      'announcements': 'Announcements',
+      'holidays': 'Holidays',
+      'staff': 'Staff Accounts',
+      'waiting_list': 'Waiting List',
+      'requests': 'Requests',
+      'libraryProfile': 'Library Profile',
+    };
+
+    final entries = summary.collectionCounts.entries.where((e) => e.value > 0).toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            Icon(Icons.verified_rounded, color: Color(0xFF059669)),
             SizedBox(width: 8),
-            Text('Restore Library Data'),
+            Expanded(child: Text('Restore Verified in Cloud')),
           ],
         ),
-        content: const Text(
-          'Warning: Restoring from a backup file will merge and update all records in this library. Existing records with matching IDs will be updated.\n\nAre you sure you want to proceed?',
-          style: TextStyle(height: 1.4),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$sourceLabel completed. ${summary.totalRestored} database record(s) written cleanly to Cloud Firestore (${summary.exactMirrorMode ? 'Strict Replace' : 'Merge & Update'}).',
+                style: const TextStyle(fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              if (entries.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final e in entries)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(prettyNames[e.key] ?? e.key, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
+                              Text('${e.value}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF059669))),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              if (summary.totalSkipped > 0) ...[
+                const SizedBox(height: 10),
+                Text(
+                  '${summary.totalSkipped} item(s) skipped due to permission or schema validation constraints (healthy records were still restored).',
+                  style: TextStyle(fontSize: 11.5, color: Colors.orange.shade800),
+                ),
+              ],
+            ],
+          ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Proceed with Restore'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Done'),
           ),
         ],
       ),
     );
+  }
 
-    if (confirm != true) return;
+  Future<void> _restoreBackup() async {
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    if (libraryId.isEmpty) return;
 
-    final pickedFiles = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
+    final result = await _showRestoreConfirmDialog(
+      title: 'Restore Library Data',
+      message: 'Restoring from a backup file updates records in Cloud Firestore for this library.',
+      confirmLabel: 'Proceed with Restore',
     );
+
+    if (result == null || !result.confirmed) return;
+
+    List<PlatformFile> pickedFiles = const [];
+    InactivityLockService.setExternalDialogActive(true);
+    try {
+      pickedFiles = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+    } finally {
+      InactivityLockService.setExternalDialogActive(false);
+    }
 
     if (pickedFiles.isEmpty) return;
 
@@ -189,14 +350,15 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     setState(() {
       _isRestoring = true;
       _restoreProgress = 0.0;
-      _statusText = 'Restoring records...';
+      _statusText = 'Restoring records (0%)...';
     });
 
     try {
       final service = BackupService();
-      await service.restoreFromBackupBytes(
+      final summary = await service.restoreFromBackupBytes(
         libraryId,
         fileBytes,
+        exactMirror: result.exactMirror,
         onProgress: (progress) {
           if (mounted) {
             setState(() {
@@ -207,20 +369,27 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
         },
       );
 
+      _invalidateAppProviders();
+
       AuditLogger().log(
         action: AuditAction.imported,
         entityType: AuditEntity.settings,
         libraryId: libraryId,
-        details: {'type': 'full_json_restore', 'fileName': pickedFile.name},
+        details: {
+          'type': 'full_json_restore',
+          'fileName': pickedFile.name,
+          'totalRestored': summary.totalRestored,
+          'totalSkipped': summary.totalSkipped,
+          'exactMirror': summary.exactMirrorMode,
+        },
       ).ignore();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Data restored successfully! ✓'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        setState(() {
+          _isRestoring = false;
+          _statusText = '';
+        });
+        await _showRestoreSummaryDialog(summary, sourceLabel: 'File restore (${pickedFile.name})');
       }
     } catch (e) {
       if (mounted) {
@@ -241,28 +410,17 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     if (libraryId.isEmpty) return;
 
     final dateKey = snapshotData['dateKey'] ?? docId;
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Restore Cloud Snapshot ($dateKey)'),
-        content: Text(
-          'Are you sure you want to restore the automatic snapshot from $dateKey? All library records will be synced to this state.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Restore Snapshot'),
-          ),
-        ],
-      ),
+    final result = await _showRestoreConfirmDialog(
+      title: 'Restore Snapshot ($dateKey)',
+      message: 'Restore the automatic cloud snapshot from $dateKey into Cloud Firestore?',
+      confirmLabel: 'Restore Snapshot',
     );
 
-    if (confirm != true) return;
+    if (result == null || !result.confirmed) return;
 
     setState(() {
       _isRestoring = true;
+      _restoreProgress = 0.0;
       _statusText = 'Downloading cloud snapshot ($dateKey)...';
     });
 
@@ -274,23 +432,47 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
         snapshotData,
       );
 
-      setState(() {
-        _statusText = 'Restoring records...';
-      });
+      if (mounted) {
+        setState(() {
+          _statusText = 'Restoring records (0%)...';
+        });
+      }
 
-      await service.restoreFromJsonString(
+      final summary = await service.restoreFromJsonString(
         libraryId,
         backupPayload,
-        onProgress: (p) => setState(() => _restoreProgress = p),
+        exactMirror: result.exactMirror,
+        onProgress: (p) {
+          if (mounted) {
+            setState(() {
+              _restoreProgress = p;
+              _statusText = 'Restoring records (${(p * 100).toInt()}%)...';
+            });
+          }
+        },
       );
 
+      _invalidateAppProviders();
+
+      AuditLogger().log(
+        action: AuditAction.imported,
+        entityType: AuditEntity.settings,
+        libraryId: libraryId,
+        details: {
+          'type': 'cloud_snapshot_restore',
+          'dateKey': dateKey,
+          'totalRestored': summary.totalRestored,
+          'totalSkipped': summary.totalSkipped,
+          'exactMirror': summary.exactMirrorMode,
+        },
+      ).ignore();
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cloud snapshot ($dateKey) restored successfully! ✓'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        setState(() {
+          _isRestoring = false;
+          _statusText = '';
+        });
+        await _showRestoreSummaryDialog(summary, sourceLabel: 'Cloud snapshot ($dateKey)');
       }
     } catch (e) {
       if (mounted) {
@@ -328,7 +510,12 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: EdgeInsets.fromLTRB(
+          20.0,
+          20.0,
+          20.0,
+          80.0 + MediaQuery.of(context).padding.bottom,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -477,13 +664,21 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
 
             const SizedBox(height: 32),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Text(
-                    'Daily Cloud Snapshots (Rolling 7 Days)',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Daily Cloud Snapshots',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Rolling 7-day compressed history',
+                        style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -542,7 +737,10 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                       final data = docs[index].data();
                       final dateKey = data['dateKey'] ?? docs[index].id;
                       final sizeBytes = data['sizeBytes'] as int? ?? 0;
-                      final sizeKb = (sizeBytes / 1024).toStringAsFixed(1);
+                      final compressedBytes = data['compressedSizeBytes'] as int? ?? 0;
+                      final sizeDisplay = compressedBytes > 0
+                          ? '${_formatBytes(sizeBytes)} (${_formatBytes(compressedBytes)} zipped)'
+                          : _formatBytes(sizeBytes);
                       final rawTs = data['createdAt'];
                       final createdAt = rawTs is Timestamp ? rawTs.toDate() : null;
 
@@ -562,7 +760,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           subtitle: Text(
-                            '${createdAt != null ? DateFormat('dd MMM yyyy, hh:mm a').format(createdAt) : "Automated"}  •  $sizeKb KB',
+                            '${createdAt != null ? DateFormat('dd MMM yyyy, hh:mm a').format(createdAt) : "Automated"}  •  $sizeDisplay',
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                           ),
                           trailing: TextButton.icon(

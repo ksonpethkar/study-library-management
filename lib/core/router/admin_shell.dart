@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +9,7 @@ import 'package:study_library/services/inactivity_lock_service.dart';
 import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/utils/app_haptics.dart';
+import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/features/requests/presentation/providers/request_providers.dart';
@@ -55,6 +55,8 @@ class _AdminShellState extends ConsumerState<AdminShell> with WidgetsBindingObse
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Guarantee Admin Portal is NEVER screenshot-locked (protection applies to Student Portal only)
+    applyNativeSecureFlag(false);
     QuickActionsService.initializeForAdmin(context, (shortcut) {
       if (!mounted) return;
       switch (shortcut) {
@@ -271,51 +273,46 @@ class _AdminShellState extends ConsumerState<AdminShell> with WidgetsBindingObse
             : null,
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         bottomNavigationBar: isMainTab
-            ? ClipRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
-                      border: Border(
-                        top: BorderSide(
-                          color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
-                          width: 0.5,
-                        ),
-                      ),
-                    ),
-                    child: NavigationBar(
-                      backgroundColor: Colors.transparent,
-                      surfaceTintColor: Colors.transparent,
-                      selectedIndex: currentIndex,
-                      onDestinationSelected: (index) {
-                        AppHaptics.light();
-                        _onItemTapped(context, index);
-                      },
-                      destinations: [
-                        const NavigationDestination(
-                          icon: Icon(Icons.home_outlined),
-                          selectedIcon: Icon(Icons.home_rounded),
-                          label: 'Home',
-                        ),
-                        const NavigationDestination(
-                          icon: Icon(Icons.event_seat_outlined),
-                          selectedIcon: Icon(Icons.event_seat_rounded),
-                          label: 'Seats',
-                        ),
-                        const NavigationDestination(
-                          icon: Icon(Icons.people_outline_rounded),
-                          selectedIcon: Icon(Icons.people_rounded),
-                          label: 'Students',
-                        ),
-                        NavigationDestination(
-                          icon: _badgedIcon(Icons.more_horiz_outlined, pendingCount),
-                          selectedIcon: _badgedIcon(Icons.more_horiz_rounded, pendingCount, selected: true),
-                          label: 'More',
-                        ),
-                      ],
+            ? DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                      width: 0.5,
                     ),
                   ),
+                ),
+                child: NavigationBar(
+                  backgroundColor: Colors.transparent,
+                  surfaceTintColor: Colors.transparent,
+                  selectedIndex: currentIndex,
+                  onDestinationSelected: (index) {
+                    AppHaptics.light();
+                    _onItemTapped(context, index);
+                  },
+                  destinations: [
+                    const NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home_rounded),
+                      label: 'Home',
+                    ),
+                    const NavigationDestination(
+                      icon: Icon(Icons.event_seat_outlined),
+                      selectedIcon: Icon(Icons.event_seat_rounded),
+                      label: 'Seats',
+                    ),
+                    const NavigationDestination(
+                      icon: Icon(Icons.people_outline_rounded),
+                      selectedIcon: Icon(Icons.people_rounded),
+                      label: 'Students',
+                    ),
+                    NavigationDestination(
+                      icon: _badgedIcon(Icons.more_horiz_outlined, pendingCount),
+                      selectedIcon: _badgedIcon(Icons.more_horiz_rounded, pendingCount, selected: true),
+                      label: 'More',
+                    ),
+                  ],
                 ),
               )
             : null,

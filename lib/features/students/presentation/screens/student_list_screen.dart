@@ -53,6 +53,10 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   bool _isSelectionMode = false;
   String? _desktopSelectedStudentId;
   late final ScrollController _scrollController;
+  Map<String, String> _seatIdByStudentId = const {};
+  Map<String, String> _sectionIdBySeatId = const {};
+  Map<String, String> _sectionNameById = const {};
+  bool _hasMultipleSections = false;
   
   final List<String> _filters = [
     'All',
@@ -171,14 +175,17 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     if (student.seatId != null && student.seatId!.isNotEmpty) {
       return student.seatId;
     }
-    final List<SeatModel> allSeats = seats ?? (mounted ? ref.read(allSeatsProvider) : const <SeatModel>[]);
-    final studentUid = student.userId;
-    for (final seat in allSeats) {
-      if (seat.studentId == student.id || (studentUid != null && studentUid.isNotEmpty && seat.studentId == studentUid)) {
-        return seat.id;
+    if (seats != null) {
+      final studentUid = student.userId;
+      for (final seat in seats) {
+        if (seat.studentId == student.id || (studentUid != null && studentUid.isNotEmpty && seat.studentId == studentUid)) {
+          return seat.id;
+        }
       }
+      return null;
     }
-    return null;
+    return _seatIdByStudentId[student.id] ??
+        (student.userId != null && student.userId!.isNotEmpty ? _seatIdByStudentId[student.userId!] : null);
   }
 
   List<StudentModel> _filteredStudents(List<StudentModel> all) {
@@ -342,33 +349,38 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   String _formatDeskWithSection(StudentModel student) {
     final effectiveSeatId = _resolveStudentSeatId(student);
     final baseLabel = SeatHelper.formatDeskLabel(seatId: effectiveSeatId);
-    try {
-      final sections = ref.watch(sectionsProvider).value ?? [];
-      final effectiveSecId = student.sectionId ?? (effectiveSeatId != null ? _resolveSectionIdForSeat(effectiveSeatId) : null);
-      if (sections.length > 1 && effectiveSecId != null && effectiveSecId.isNotEmpty) {
-        final matches = sections.where((s) => s.id == effectiveSecId);
-        if (matches.isNotEmpty && matches.first.name.isNotEmpty) {
-          return '$baseLabel • ${matches.first.name}';
+    if (_hasMultipleSections) {
+      final effectiveSecId = student.sectionId ?? (effectiveSeatId != null ? _sectionIdBySeatId[effectiveSeatId] : null);
+      if (effectiveSecId != null && effectiveSecId.isNotEmpty) {
+        final secName = _sectionNameById[effectiveSecId];
+        if (secName != null && secName.isNotEmpty) {
+          return '$baseLabel • $secName';
         }
       }
-    } catch (_) {}
+    }
     return baseLabel;
-  }
-
-  String? _resolveSectionIdForSeat(String seatId) {
-    try {
-      final allSeats = ref.read(allSeatsProvider);
-      for (final s in allSeats) {
-        if (s.id == seatId) return s.sectionId;
-      }
-    } catch (_) {}
-    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     final studentState = ref.watch(studentPageProvider);
     final theme = Theme.of(context);
+    final allSeats = ref.watch(allSeatsProvider);
+    final sections = ref.watch(sectionsProvider).value ?? const [];
+
+    // Precompute O(1) lookup tables once per build instead of linear-scanning seats per list card
+    _seatIdByStudentId = {
+      for (final seat in allSeats)
+        if (seat.studentId != null && seat.studentId!.isNotEmpty) seat.studentId!: seat.id,
+    };
+    _sectionIdBySeatId = {
+      for (final seat in allSeats) seat.id: seat.sectionId,
+    };
+    _sectionNameById = {
+      for (final sec in sections)
+        if (sec.name.isNotEmpty) sec.id: sec.name,
+    };
+    _hasMultipleSections = sections.length > 1;
 
     return Scaffold(
       appBar: AppBar(
@@ -569,7 +581,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                 },
                                 child: ListView.builder(
                                   controller: _scrollController,
-                                  padding: const EdgeInsets.only(top: 4, bottom: 96),
+                                  padding: EdgeInsets.only(top: 4, bottom: 140 + MediaQuery.of(context).padding.bottom),
                                   itemCount: filtered.length,
                                   itemBuilder: (context, index) {
                                     final student = filtered[index];
@@ -805,7 +817,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                       },
                       child: ListView.builder(
                         controller: _scrollController,
-                        padding: const EdgeInsets.only(bottom: 96),
+                        padding: EdgeInsets.only(bottom: 140 + MediaQuery.of(context).padding.bottom),
                         itemCount: filtered.length + 1,
                         itemBuilder: (context, index) {
                           if (index == filtered.length) {
@@ -1720,261 +1732,263 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(15),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 5,
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(15),
-                    bottomLeft: Radius.circular(15),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  child: Row(
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 5,
+              child: ColoredBox(color: statusColor),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(17, 10, 12, 10),
+              child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Stack(
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          CircleAvatar(
-                            key: ValueKey('avatar_${student.id}_${student.photoUrl.hashCode}'),
-                            radius: 22,
-                            backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                            backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
-                            child: ImageService.getAvatarProvider(student.photoUrl) == null
-                                ? Text(
-                                    student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  )
-                                : null,
-                          ),
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              width: 11,
-                              height: 11,
-                              decoration: BoxDecoration(
-                                color: statusColor,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: theme.cardColor,
-                                  width: 2,
+                          Stack(
+                            children: [
+                              CircleAvatar(
+                                key: ValueKey('avatar_${student.id}_${student.photoUrl.hashCode}'),
+                                radius: 22,
+                                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                                backgroundImage: ImageService.getAvatarProvider(student.photoUrl),
+                                child: ImageService.getAvatarProvider(student.photoUrl) == null
+                                    ? Text(
+                                        student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      )
+                                    : null,
+                              ),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 11,
+                                  height: 11,
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: theme.cardColor,
+                                      width: 2,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Material(
-                              type: MaterialType.transparency,
-                              child: Text(
-                                student.name,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.2,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 6,
-                              runSpacing: 4,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (student.membershipNumber != null && student.membershipNumber!.isNotEmpty)
-                                  Text(
-                                    '#${student.membershipNumber}',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: theme.colorScheme.onSurfaceVariant,
+                                Material(
+                                  type: MaterialType.transparency,
+                                  child: Text(
+                                    student.name,
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -0.2,
                                     ),
-                                  ),
-                                Text(
-                                  student.phone,
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: theme.colorScheme.onSurfaceVariant,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (_resolveStudentSeatId(student) != null && _resolveStudentSeatId(student)!.isNotEmpty)
-                                  Container(
-                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                     decoration: BoxDecoration(
-                                       color: isDark ? theme.colorScheme.surfaceContainerHighest : const Color(0xFFF1F5F9),
-                                       borderRadius: BorderRadius.circular(5),
-                                       border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1), width: 0.8),
-                                     ),
-                                     child: Row(
-                                       mainAxisSize: MainAxisSize.min,
-                                       children: [
-                                         Icon(Icons.chair_rounded, size: 11, color: isDark ? theme.colorScheme.primary : const Color(0xFF0284C7)),
-                                         const SizedBox(width: 3),
-                                         Text(
-                                           _formatDeskWithSection(student),
-                                           style: TextStyle(
-                                             fontSize: 10.5,
-                                             fontWeight: FontWeight.bold,
-                                             color: theme.colorScheme.onSurface,
-                                           ),
-                                         ),
-                                       ],
-                                     ),
-                                   )
-                                else
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(5),
-                                      border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.chair_outlined, size: 11, color: Colors.grey.shade600),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          'No Desk',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.grey.shade600,
-                                          ),
+                                const SizedBox(height: 3),
+                                Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: [
+                                    if (student.membershipNumber != null && student.membershipNumber!.isNotEmpty)
+                                      Text(
+                                        '#${student.membershipNumber}',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.colorScheme.onSurfaceVariant,
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (_isSelectionMode)
-                        Icon(
-                          isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
-                          size: 24,
-                        )
-                      else
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.phone_outlined, size: 18, color: Color(0xFF2563EB)),
-                              tooltip: 'Call ${student.name}',
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                              onPressed: () async {
-                                HapticFeedback.selectionClick();
-                                final uri = Uri.parse('tel:${student.phone}');
-                                if (await canLaunchUrl(uri)) await launchUrl(uri);
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: Color(0xFF25D366)),
-                              tooltip: 'WhatsApp ${student.name}',
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                              onPressed: () {
-                                HapticFeedback.selectionClick();
-                                _sendWhatsAppNudge(student);
-                              },
-                            ),
-                            const SizedBox(width: 4),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                if (student.isAtChurnRisk) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Text('⚠️', style: TextStyle(fontSize: 9)),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          student.churnRiskReason ?? 'Churn Risk',
-                                          style: const TextStyle(
-                                            color: Color(0xFFB45309),
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                ],
-                                if ((student.pendingDueBalance ?? 0) > 0) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.withValues(alpha: 0.12),
-                                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      'Due ₹${student.pendingDueBalance!.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        color: Colors.red,
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.bold,
-                                        fontFeatures: [FontFeature.tabularFigures()],
+                                      ),
+                                    Text(
+                                      student.phone,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: theme.colorScheme.onSurfaceVariant,
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                ],
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    student.membershipStatus.name.toUpperCase(),
-                                    style: TextStyle(
-                                      color: statusColor,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
+                                    if (_resolveStudentSeatId(student) != null && _resolveStudentSeatId(student)!.isNotEmpty)
+                                      Container(
+                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                         decoration: BoxDecoration(
+                                           color: isDark ? theme.colorScheme.surfaceContainerHighest : const Color(0xFFF1F5F9),
+                                           borderRadius: BorderRadius.circular(5),
+                                           border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1), width: 0.8),
+                                         ),
+                                         child: Row(
+                                           mainAxisSize: MainAxisSize.min,
+                                           children: [
+                                             Icon(Icons.chair_rounded, size: 11, color: isDark ? theme.colorScheme.primary : const Color(0xFF0284C7)),
+                                             const SizedBox(width: 3),
+                                             Text(
+                                               _formatDeskWithSection(student),
+                                               style: TextStyle(
+                                                 fontSize: 10.5,
+                                                 fontWeight: FontWeight.bold,
+                                                 color: theme.colorScheme.onSurface,
+                                               ),
+                                             ),
+                                           ],
+                                         ),
+                                       )
+                                    else
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(5),
+                                          border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.chair_outlined, size: 11, color: Colors.grey.shade600),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              'No Desk',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
+                          ),
+                          const SizedBox(width: 8),
+                          if (_isSelectionMode)
+                            Icon(
+                              isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                              color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
+                              size: 24,
+                            )
+                          else
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.phone_outlined, size: 18, color: Color(0xFF2563EB)),
+                                  tooltip: 'Call ${student.name}',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                  onPressed: () async {
+                                    HapticFeedback.selectionClick();
+                                    final uri = Uri.parse('tel:${student.phone}');
+                                    if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: Color(0xFF25D366)),
+                                  tooltip: 'WhatsApp ${student.name}',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                  onPressed: () {
+                                    HapticFeedback.selectionClick();
+                                    _sendWhatsAppNudge(student);
+                                  },
+                                ),
+                                const SizedBox(width: 4),
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        student.membershipStatus.name.toUpperCase(),
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                    ),
+                                    if ((student.pendingDueBalance ?? 0) > 0) ...[
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withValues(alpha: 0.12),
+                                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          'Due ₹${student.pendingDueBalance!.toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                            color: Colors.red,
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.bold,
+                                            fontFeatures: [FontFeature.tabularFigures()],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                      if (student.isAtChurnRisk) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.35)),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            children: [
+                              const Text('⚠️', style: TextStyle(fontSize: 10)),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  student.churnRiskReason ?? 'Churn Risk',
+                                  style: const TextStyle(
+                                    color: Color(0xFFB45309),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                      ],
                     ],
                   ),
                 ),
-              ),
             ],
           ),
-        ),
       ),
     );
   }
@@ -2747,24 +2761,18 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(11),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 4,
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(11),
-                    bottomLeft: Radius.circular(11),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  child: Row(
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              child: ColoredBox(color: statusColor),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
+              child: Row(
                     children: [
                       Stack(
                         children: [
@@ -2925,10 +2933,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                     ],
                   ),
                 ),
-              ),
             ],
           ),
-        ),
       ),
     );
   }

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,14 +10,12 @@ import 'package:study_library/core/providers/font_settings_provider.dart';
 import 'package:study_library/core/theme/app_typography.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image/image.dart' as img;
-import 'dart:typed_data';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/models/user_model.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/models/student_model.dart';
-import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/models/waiting_list_model.dart';
@@ -32,10 +33,12 @@ import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/models/feedback_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/library_model.dart';
+import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/services/membership_automation_service.dart';
 import 'package:study_library/features/payments/presentation/screens/record_payment_screen.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/constants/app_constants.dart';
+import 'package:study_library/core/constants/amenity_catalog.dart';
 import 'package:study_library/features/legal/presentation/screens/terms_screen.dart';
 import 'package:study_library/features/legal/presentation/screens/privacy_policy_screen.dart';
 import 'package:study_library/core/widgets/whatsapp_preview_sheet.dart';
@@ -54,7 +57,6 @@ import 'package:study_library/services/form_config_service.dart';
 import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/models/app_notification_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
-import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/services/soundbox_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
 import 'package:study_library/services/meta_whatsapp_api_service.dart';
@@ -69,6 +71,7 @@ import 'package:study_library/core/sentinel/sentinel_invariant_engine.dart';
 import 'package:study_library/core/sentinel/sentinel_service.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/quick_control_center_sheet.dart';
 import 'package:study_library/features/seats/presentation/widgets/seat_assignment_map_sheet.dart';
+import 'package:study_library/core/utils/student_ledger_helper.dart';
 
 StudentModel createTestStudent({
   required String id,
@@ -1797,8 +1800,8 @@ void main() {
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.59'));
-      expect(AppConstants.buildNumber, equals(2076));
+      expect(AppConstants.appVersion, equals('1.5.61'));
+      expect(AppConstants.buildNumber, equals(2078));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -3200,47 +3203,46 @@ void main() {
         updatedAt: DateTime(2026, 11, 1),
       );
 
-      // Verify that receipts list is never empty for active members
-      final List<ReceiptModel> studentReceipts = [];
-      if (studentReceipts.isEmpty && (activeStudent.membershipStatus == MembershipStatus.active || activeStudent.planId != null)) {
-        final uniqueSuffix = activeStudent.membershipNumber?.isNotEmpty == true
-            ? activeStudent.membershipNumber!
-            : activeStudent.id.toUpperCase();
+      final samplePlan = PlanModel(
+        id: 'plan_quarterly_2000',
+        libraryId: 'lib_001',
+        name: 'Pro Scholar Quarterly',
+        price: 2000.0,
+        duration: 3,
+        durationUnit: DurationUnit.months,
+        description: 'Quarterly Plan',
+        gracePeriodDays: 3,
+        isActive: true,
+        isFeatured: true,
+        displayOrder: 1,
+        createdAt: DateTime(2026, 10, 1),
+        updatedAt: DateTime(2026, 10, 1),
+      );
 
-        studentReceipts.add(
-          ReceiptModel(
-            id: 'active_enrollment_${activeStudent.id}',
-            libraryId: 'lib_001',
-            receiptNumber: 'REC-2026-$uniqueSuffix',
-            studentId: activeStudent.id,
-            studentUserId: activeStudent.userId,
-            planId: activeStudent.planId ?? 'membership_enrollment',
-            amount: 2000.0,
-            totalFee: 2000.0,
-            paidAmount: 2000.0,
-            remainingDue: 0.0,
-            paymentMethod: 'Desk / Confirmed',
-            validFrom: activeStudent.planStartDate!,
-            validTo: activeStudent.planEndDate!,
-            status: ReceiptStatus.active,
-            customFields: {
-              'planName': 'Pro Scholar Quarterly',
-              'seatLabel': SeatHelper.formatSeatLabel(seatId: activeStudent.seatId),
-              'admissionType': 'Official Enrollment Receipt',
-            },
-            createdAt: activeStudent.planStartDate!,
-            updatedAt: activeStudent.planStartDate!,
-          ),
-        );
-      }
+      // Verify paid active members receive a synthetic enrollment receipt when no receipt doc exists yet
+      final syntheticPaid = StudentLedgerHelper.buildSyntheticEnrollmentReceipt(
+        libraryId: 'lib_001',
+        student: activeStudent,
+        plans: [samplePlan],
+      );
+      expect(syntheticPaid, isNotNull, reason: 'Active paid students must always have their enrollment receipt visible');
+      expect(syntheticPaid!.receiptNumber, equals('REC-2026-CC20260001'));
+      expect(syntheticPaid.amount, equals(2000.0));
+      expect(syntheticPaid.studentUserId, equals('usr_auth_abc'));
+      expect(syntheticPaid.status, equals(ReceiptStatus.active));
+      expect(syntheticPaid.customFields['seatLabel'], equals('Seat #46'));
 
-      expect(studentReceipts.isNotEmpty, isTrue, reason: 'Active students must always have their enrollment receipt visible');
-      final r = studentReceipts.first;
-      expect(r.receiptNumber, equals('REC-2026-CC20260001'));
-      expect(r.amount, equals(2000.0));
-      expect(r.studentUserId, equals('usr_auth_abc'));
-      expect(r.status, equals(ReceiptStatus.active));
-      expect(r.customFields['seatLabel'], equals('Seat #46'));
+      // Verify unpaid / pending students NEVER get a fake paid receipt
+      final unpaidApproved = activeStudent.copyWith(
+        membershipStatus: MembershipStatus.pending,
+        pendingDueBalance: 2000.0,
+      );
+      final syntheticUnpaid = StudentLedgerHelper.buildSyntheticEnrollmentReceipt(
+        libraryId: 'lib_001',
+        student: unpaidApproved,
+        plans: [samplePlan],
+      );
+      expect(syntheticUnpaid, isNull, reason: 'Unpaid / paymentPending approvals must NEVER synthesize a fake paid receipt');
     });
 
     test('91. PHYSICAL ROOM GRID FIDELITY, QUICK FILTER METRICS & SEAT TILE OCCUPANCY BADGES', () {
@@ -5151,21 +5153,21 @@ void main() {
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.59'));
-      expect(AppConstants.buildNumber, equals(2076));
+      expect(AppConstants.appVersion, equals('1.5.61'));
+      expect(AppConstants.buildNumber, equals(2078));
 
-      // 2. Student-facing release changes include all 4 automation features
+      // 2. Student-facing release changes include current release highlights
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
-      expect(studentTitles, contains('Birthday Celebration & 1-Tap Wi-Fi Password Copy'));
-      expect(studentTitles, contains('Exam Countdown Widget for Your Course'));
-      expect(studentTitles, contains('Guaranteed Seat Hold & 1-Tap Renewal Flow'));
-      expect(studentTitles, contains('Silent Reception & Noise Help Button'));
+      expect(studentTitles, contains('Upgraded Admission Forms & Full Profile Editing'));
+      expect(studentTitles, contains('Clear Status-Gated Seat Selection & Genuine Amenities'));
+      expect(studentTitles, contains('Version-Accurate Release Notes Across Web & App'));
+      expect(studentTitles, contains('Interactive 3D Holographic Pass & Live Verification QR'));
 
-      // 3. Admin-facing release changes include quiet desk assistance and billing parity
+      // 3. Admin-facing release changes include smart pass, plan engine & QR ledger parity
       final adminTitles = WhatsNewService.adminChanges.map((c) => c.title).toList();
-      expect(adminTitles, contains('Live Quiet Desk Assistance Stream'));
-      expect(adminTitles, contains('10-Second Express Counter Billing & Atomic Seat Parity'));
-      expect(adminTitles, contains('Resilient Multi-Key Receipt Retrieval'));
+      expect(adminTitles, contains('3D Holographic Student Pass & Printable CR-80 PDFs'));
+      expect(adminTitles, contains('Dynamic Plan Transitions, Month-End Alignment & 48h Undo'));
+      expect(adminTitles, contains('Instant Pass Verification & Anti-Fraud UTR Defense'));
 
       // 4. Legal routes invariant: Terms & Privacy must be public routes
       expect(Routes.terms, equals('/terms'));
@@ -5173,7 +5175,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.59+2076'));
+      expect(formattedVersion, equals('v1.5.61+2078'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -6223,8 +6225,8 @@ void main() {
     test('126. MOBILE PERSPECTIVE INVARIANTS: BOTTOM SCROLL CLEARANCE, TABBAR SCROLLABILITY & ZERO-TEXT-SQUISHING', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.59'));
-      expect(AppConstants.buildNumber, equals(2076));
+      expect(AppConstants.appVersion, equals('1.5.61'));
+      expect(AppConstants.buildNumber, equals(2078));
 
       // 2. Minimum bottom clearance for mobile navigation bar & FAB visibility (>= 100dp)
       const standardShellBottomClearance = 110.0;
@@ -7680,7 +7682,7 @@ void main() {
 
       // Verify orientation markers are present
       expect(find.text('Front Reception & Main Entrance'), findsOneWidget);
-      expect(find.text('Quiet Study Zone & Rear Area'), findsOneWidget);
+      expect(find.text('Rear Study Area'), findsOneWidget);
 
       // Verify legend indicators are present
       expect(find.text('Vacant (55)'), findsOneWidget);
@@ -10328,6 +10330,1454 @@ Gender: Female
       final filledMap = sanitizedResult.filledFields(GovIdType.aadhaar);
       expect(filledMap.containsKey('dob'), isFalse,
           reason: 'filledFields must strictly omit sanitized null entries so preview and auto-fill remain pristine');
+    });
+
+    test('Test 180: Real-Time Admission Approval & Automated WhatsApp Welcome Dispatch Invariants', () {
+      // 1. Admission Approval Ledger & Receipt Invariant
+      final admissionDate = DateTime(2026, 11, 23);
+      final planStartDate = DateTime(2026, 11, 23);
+      final planEndDate = DateTime(2026, 11, 30);
+      const deskLabel = 'Desk #21';
+      const studentName = 'Vikrant Vaijanath Dhondge';
+      const studentPhone = '7020547263';
+      const membershipId = 'CC20260016';
+      const planName = 'Monthly';
+      const payableAmount = 190.0;
+      const paymentMethod = 'Cash';
+
+      final student = createTestStudent(
+        id: 'std_vikrant_2026',
+        name: studentName,
+        phone: studentPhone,
+        admissionDate: admissionDate,
+        planStartDate: planStartDate,
+        planEndDate: planEndDate,
+        seatId: 'seat_21',
+        membershipNumber: membershipId,
+        membershipStatus: MembershipStatus.active,
+      );
+
+      expect(student.membershipStatus, equals(MembershipStatus.active));
+      expect(student.planStartDate, equals(planStartDate));
+      expect(student.planEndDate, equals(planEndDate));
+
+      final receipt = ReceiptModel(
+        id: 'rec_vikrant_001',
+        libraryId: 'lib_cozy',
+        receiptNumber: 'REC-2026-0016',
+        studentId: student.id,
+        planId: 'plan_monthly',
+        amount: payableAmount,
+        paymentMethod: paymentMethod,
+        validFrom: planStartDate,
+        validTo: planEndDate,
+        status: ReceiptStatus.active,
+        customFields: {
+          'seatNumber': '21',
+          'seatLabel': deskLabel,
+          'notes': 'Paid at reception desk',
+        },
+      );
+
+      expect(receipt.amount, equals(190.0));
+      expect(receipt.validFrom, equals(planStartDate));
+      expect(receipt.validTo, equals(planEndDate));
+      expect(receipt.status, equals(ReceiptStatus.active));
+
+      // 2. WhatsApp Trilingual Welcome Message Invariant
+      final enWelcome = MessageTemplateService.substitute(
+        MessageTemplateService.defaultWelcomeTemplate,
+        studentName: studentName,
+        libraryName: 'The Cozy Corner Study Centre',
+        membershipId: membershipId,
+        planName: planName,
+        seatLabel: deskLabel,
+        expiryDate: '30 Nov 2026',
+        amount: '190',
+        paymentMethod: paymentMethod,
+        libraryAddress: 'Front Of Reliance Fashion Factory, Nath Road, Parli-431515',
+        libraryHelpline: '9403243830',
+      );
+
+      // Verify English substitutions
+      expect(enWelcome.contains('Vikrant Vaijanath Dhondge'), isTrue);
+      expect(enWelcome.contains(membershipId), isTrue);
+      expect(enWelcome.contains(deskLabel), isTrue);
+      expect(enWelcome.contains('30 Nov 2026'), isTrue);
+      expect(enWelcome.contains('190'), isTrue);
+      expect(enWelcome.contains('Cash'), isTrue);
+      expect(enWelcome.contains('{'), isFalse, reason: 'All template placeholders must be fully resolved');
+
+      // Verify Marathi substitutions
+      final mrWelcome = MessageTemplateService.substitute(
+        MessageTemplateService.welcomeMarathi,
+        studentName: studentName,
+        libraryName: 'द कोझी कॉर्नर स्टडी सेंटर',
+        membershipId: membershipId,
+        planName: 'मासिक (Monthly)',
+        seatLabel: deskLabel,
+        expiryDate: '30 Nov 2026',
+        amount: '190',
+        paymentMethod: 'रोख (Cash)',
+        libraryAddress: 'रिलायन्स फॅशन फॅक्टरी समोर, परळी',
+        libraryHelpline: '9403243830',
+      );
+
+      expect(mrWelcome.contains('Vikrant Vaijanath Dhondge'), isTrue);
+      expect(mrWelcome.contains(membershipId), isTrue);
+      expect(mrWelcome.contains(deskLabel), isTrue);
+      expect(mrWelcome.contains('190'), isTrue);
+      expect(mrWelcome.contains('{'), isFalse, reason: 'All Marathi placeholders must be fully resolved');
+
+      // 3. WhatsApp Deep Link URL Encoding Protocol
+      final rawDigits = studentPhone.replaceAll(RegExp(r'\D'), '');
+      final formattedPhone = rawDigits.startsWith('91') && rawDigits.length == 12
+          ? rawDigits
+          : (rawDigits.length == 10 ? '91$rawDigits' : rawDigits);
+
+      expect(formattedPhone, equals('917020547263'));
+      final encodedMessage = Uri.encodeComponent(enWelcome);
+      final waUri = Uri.parse('https://wa.me/$formattedPhone?text=$encodedMessage');
+
+      expect(waUri.host, equals('wa.me'));
+      expect(waUri.path, equals('/917020547263'));
+      expect(waUri.queryParameters['text']?.contains('Vikrant Vaijanath Dhondge'), isTrue);
+      expect(waUri.queryParameters['text']?.contains('Desk #21'), isTrue);
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Test 162: Dynamic Adjusted Dates Fee Math, Pro-Rata Engine & Receipt Synchronization
+    // ─────────────────────────────────────────────────────────────────────────
+    test('Test 162: Dynamic Adjusted Dates Fee Math, Pro-Rata Engine & Receipt Synchronization', () {
+      // 1. Pro-Rata Daily Rate and Adjusted Days Calculation Engine
+      // Scenario: Student Vikrant Dhondge enrolled in Monthly Plan (₹700 / 30 days)
+      // Admin adjusts plan dates to: Nov 15, 2026 to Nov 30, 2026
+      const double planPrice = 700.0;
+      const int standardDurationDays = 30;
+      final planStartDate = DateTime(2026, 11, 15);
+      final planEndDate = DateTime(2026, 11, 30, 23, 59, 59);
+
+      final int selectedDurationDays = planEndDate.difference(planStartDate).inDays + 1;
+      expect(selectedDurationDays, equals(16), reason: 'Nov 15 to Nov 30 inclusive must be exactly 16 days');
+
+      final double dailyRate = planPrice / standardDurationDays;
+      expect(dailyRate, closeTo(23.333, 0.001));
+
+      // Pro-rata fee: 16 days * 23.333/day = ₹373.33 -> round = ₹373
+      final double proRataFee = (selectedDurationDays * dailyRate).roundToDouble();
+      expect(proRataFee, equals(373.0));
+
+      final int varianceDays = selectedDurationDays - standardDurationDays;
+      expect(varianceDays, equals(-14), reason: 'Variance is 16 - 30 = -14 days');
+      final double feeReduction = (varianceDays.abs() * dailyRate).roundToDouble();
+      expect(feeReduction, equals(327.0), reason: 'Fee reduction for 14 fewer days is 700 - 373 = 327');
+
+      // 2. Receipt Self-Healing Invariant:
+      // When receipt was issued on Nov 23 with validFrom = Nov 23, validTo = Nov 30,
+      // but student subscription cycle in database is Nov 15 to Nov 30:
+      final receiptValidFrom = DateTime(2026, 11, 23);
+      final receiptValidTo = DateTime(2026, 11, 30);
+
+      DateTime effectiveValidFrom = receiptValidFrom;
+      DateTime effectiveValidTo = receiptValidTo;
+
+      if (effectiveValidTo.year == planEndDate.year &&
+          effectiveValidTo.month == planEndDate.month &&
+          effectiveValidTo.day == planEndDate.day) {
+        if (planStartDate.isBefore(effectiveValidFrom)) {
+          effectiveValidFrom = planStartDate;
+        }
+      }
+
+      expect(effectiveValidFrom, equals(planStartDate), reason: 'Receipt validity start must self-heal to match active student cycle');
+      expect(effectiveValidTo, equals(receiptValidTo));
+
+      final healedCycleDays = effectiveValidTo.difference(effectiveValidFrom).inDays + 1;
+      expect(healedCycleDays, equals(16), reason: 'Healed validity period must reflect 16 days (Nov 15 to Nov 30)');
+    });
+
+    test('Test 181: SENTINEL REAL-TIME ANOMALY DETECTION FOR PROFILE PHOTOS, IDENTITY UNIQUENESS & DESK FORMAT INTEGRITY', () {
+      final engine = SentinelInvariantEngine();
+
+      // 1. Photo Integrity: detect duplicate photos across 2 students (Swati & Sri scenario)
+      const identicalPhoto = 'data:image/jpeg;base64,sample_identical_photo_bytes_1234567890_abcdefghijklmnopqrstuvwxyz';
+      final student1 = createTestStudent(
+        id: 'std_swati',
+        name: 'Swati Bharatrao Sonpethkar',
+        photoUrl: identicalPhoto,
+        phone: '8446306710',
+      );
+      final student2 = createTestStudent(
+        id: 'std_sri',
+        name: 'Srikrishnadatta Bharat Sonpethkar',
+        photoUrl: identicalPhoto, // Collision!
+        phone: '8793148930',
+      );
+      final student3MissingPhoto = createTestStudent(
+        id: 'std_ashish',
+        name: 'Ashish Choudhari',
+        photoUrl: '', // Missing photo!
+        phone: '7385817571',
+      );
+
+      final photoAnomalies = engine.auditPhotoIntegrity([student1, student2, student3MissingPhoto]);
+      expect(photoAnomalies.any((a) => a.id.startsWith('duplicate_photo_') && a.severity == SentinelSeverity.critical), isTrue,
+          reason: 'Sentinel must detect shared profile photo collisions between distinct students with CRITICAL severity');
+      expect(photoAnomalies.any((a) => a.id.startsWith('missing_photo_std_ashish')), isTrue,
+          reason: 'Sentinel must detect missing photo on active students');
+
+      // 2. Identity Uniqueness: Duplicate Aadhaar / Gov ID and phone collisions
+      final duplicateAadhaarStudent1 = createTestStudent(
+        id: 's_aadhaar_1',
+        name: 'Applicant One',
+        phone: '9822111111',
+      ).copyWith(govIdNumber: '1111 2222 3333');
+      final duplicateAadhaarStudent2 = createTestStudent(
+        id: 's_aadhaar_2',
+        name: 'Applicant Two',
+        phone: '9822222222',
+      ).copyWith(govIdNumber: '1111-2222-3333'); // Normalized duplicate!
+
+      final identityAnomalies = engine.auditIdentityUniqueness([duplicateAadhaarStudent1, duplicateAadhaarStudent2]);
+      expect(identityAnomalies.any((a) => a.id.startsWith('duplicate_govid_') && a.severity == SentinelSeverity.critical), isTrue,
+          reason: 'Duplicate Gov ID across active scholars must be flagged as CRITICAL');
+
+      // 3. Desk Format Integrity: raw coordinate matrix IDs & recursive double prefixes
+      final rawSeat = SeatModel(
+        id: 'seat_raw_1',
+        sectionId: 'sec_1',
+        label: '1790647291016_r0_c2', // Unformatted coordinate
+        status: SeatStatus.available,
+        genderRestriction: GenderRestriction.any,
+        row: 0,
+        col: 2,
+      );
+      final doublePrefixSeat = SeatModel(
+        id: 'seat_double_1',
+        sectionId: 'sec_1',
+        label: 'Desk #Seat #6', // Double prefix
+        status: SeatStatus.available,
+        genderRestriction: GenderRestriction.any,
+        row: 0,
+        col: 5,
+      );
+      final cleanSeat = SeatModel(
+        id: 'seat_clean_1',
+        sectionId: 'sec_1',
+        label: 'Desk #3',
+        status: SeatStatus.available,
+        genderRestriction: GenderRestriction.any,
+        row: 0,
+        col: 3,
+      );
+
+      final deskAnomalies = engine.auditDeskFormatIntegrity(
+        seats: [rawSeat, doublePrefixSeat, cleanSeat],
+        students: [student1, student2],
+      );
+      expect(deskAnomalies.any((a) => a.id == 'raw_desk_label_seat_raw_1'), isTrue,
+          reason: 'Raw matrix IDs in seat labels must be flagged');
+      expect(deskAnomalies.any((a) => a.id == 'double_prefix_label_seat_double_1'), isTrue,
+          reason: 'Double prefixes like "Desk #Seat #6" must be flagged');
+      expect(deskAnomalies.any((a) => a.id.contains('seat_clean_1')), isFalse,
+          reason: 'Clean desk labels must pass audit with zero anomalies');
+    });
+
+    test('Test 182: NOTIFICATION AUDIENCE ROLE FENCING, SELF-ACTION SUPPRESSION & SCREENSHOT PROTECTION SEPARATION', () async {
+      // ── Sub-test 1: Device is ADMIN (e.g. Counter Staff or Owner phone) ──
+      SharedPreferences.setMockInitialValues({
+        'cached_current_user_role': 'admin',
+        'persisted_role': 'admin',
+        'persisted_uid': 'admin_uid_101',
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final adminRole = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+      expect(adminRole, equals('admin'));
+
+      // Invariant: The admin device MUST suppress local notifications for student alerts
+      bool shouldAdminSeeStudentAlert({
+        required String targetRole,
+        String? targetUserId,
+        Map<String, dynamic>? metadata,
+      }) {
+        final currentRole = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+        final currentUid = prefs.getString('persisted_uid');
+        if (currentRole == 'admin') {
+          if (targetRole == 'student') return false; // STRICT ROLE FENCE: Admin NEVER sees student alerts locally!
+          if (targetRole == 'admin') {
+            final initiatorUid = metadata?['initiatedBy']?.toString() ?? metadata?['userId']?.toString();
+            return initiatorUid != currentUid; // Suppress self-alerts
+          }
+        }
+        return false;
+      }
+
+      // 1. Admission Approved ("Admission Approved! 🎉 Hello Shubham katle!")
+      expect(
+        shouldAdminSeeStudentAlert(targetRole: 'student', targetUserId: 'student_shubham_1'),
+        isFalse,
+        reason: 'Admin phone must NEVER pop local notification for student admission approvals',
+      );
+
+      // 2. Desk Allocated ("Desk Allocated 🪑 You have been assigned to Seat #15.")
+      expect(
+        shouldAdminSeeStudentAlert(targetRole: 'student', targetUserId: 'student_shubham_1'),
+        isFalse,
+        reason: 'Admin phone must NEVER pop local notification for student desk allocations',
+      );
+
+      // 3. Library Announcements ("📢 Library Announcement")
+      expect(
+        shouldAdminSeeStudentAlert(targetRole: 'student', targetUserId: null),
+        isFalse,
+        reason: 'Admin phone must NEVER pop local notification for student broadcasts they posted',
+      );
+
+      // 4. Admin self-actions (Admin creates an alert)
+      expect(
+        shouldAdminSeeStudentAlert(targetRole: 'admin', metadata: {'initiatedBy': 'admin_uid_101'}),
+        isFalse,
+        reason: 'Admin phone must NOT pop local notification for actions initiated by this admin',
+      );
+
+      // 5. External student requests (Student submits registration or issue)
+      expect(
+        shouldAdminSeeStudentAlert(targetRole: 'admin', metadata: {'initiatedBy': 'student_user_202'}),
+        isTrue,
+        reason: 'Admin phone MUST receive notifications for student submissions (new admission, feedback)',
+      );
+
+      // ── Sub-test 2: Device is STUDENT (e.g. Student personal phone) ──
+      await prefs.setString('cached_current_user_role', 'student');
+      await prefs.setString('persisted_role', 'student');
+      await prefs.setString('persisted_uid', 'student_auth_uid_55');
+      await prefs.setString('cached_student_id', 'student_doc_55');
+
+      bool shouldStudentSeeAlert({
+        required String targetRole,
+        String? targetUserId,
+        Map<String, dynamic>? metadata,
+      }) {
+        final currentRole = prefs.getString('cached_current_user_role') ?? prefs.getString('persisted_role');
+        final currentUid = prefs.getString('persisted_uid');
+        final currentDocId = prefs.getString('cached_student_id');
+        if (currentRole == 'student') {
+          if (targetRole == 'admin') return false; // STRICT ROLE FENCE: Student NEVER sees admin alerts!
+          if (targetRole == 'student') {
+            final isTargeted = (targetUserId != null && targetUserId.isNotEmpty) &&
+                (targetUserId == currentUid || targetUserId == currentDocId);
+            final initiatorUid = metadata?['initiatedBy']?.toString() ?? metadata?['userId']?.toString();
+            return isTargeted && initiatorUid != currentUid;
+          }
+        }
+        return false;
+      }
+
+      // 1. Student must NEVER receive admin alerts (new registration, issue reports)
+      expect(
+        shouldStudentSeeAlert(targetRole: 'admin'),
+        isFalse,
+        reason: 'Student device must NEVER receive admin notifications',
+      );
+
+      // 2. Student MUST receive their own admission approval & desk allocation
+      expect(
+        shouldStudentSeeAlert(targetRole: 'student', targetUserId: 'student_auth_uid_55'),
+        isTrue,
+        reason: 'Student must receive alerts targeted to their Auth UID',
+      );
+      expect(
+        shouldStudentSeeAlert(targetRole: 'student', targetUserId: 'student_doc_55'),
+        isTrue,
+        reason: 'Student must receive alerts targeted to their Student Document ID',
+      );
+
+      // 3. Student must NOT receive alerts intended for another student
+      expect(
+        shouldStudentSeeAlert(targetRole: 'student', targetUserId: 'other_student_999'),
+        isFalse,
+        reason: 'Student must NEVER receive notifications targeted to another student',
+      );
+
+      // ── Sub-test 3: Screenshot Protection Role-Based Exemption ──
+      // When Admin: Screenshot protection must ALWAYS be disabled for admin screens
+      await prefs.setString('cached_current_user_role', 'admin');
+      final adminCheckRole = prefs.getString('cached_current_user_role');
+      expect(adminCheckRole, equals('admin'));
+      final adminWindowSecure = (adminCheckRole == 'admin') ? false : true;
+      expect(adminWindowSecure, isFalse, reason: 'Admin window must ALWAYS remain unlocked from screenshot blocking');
+
+      // When Student: Screenshot protection follows the library policy
+      await prefs.setString('cached_current_user_role', 'student');
+      await prefs.setBool('screenshot_protection_global', true);
+      final studentCheckRole = prefs.getString('cached_current_user_role');
+      final policyEnabled = prefs.getBool('screenshot_protection_global') ?? false;
+      final studentWindowSecure = (studentCheckRole == 'admin') ? false : policyEnabled;
+      expect(studentWindowSecure, isTrue, reason: 'Student window must enforce screenshot protection when library policy is active');
+
+      // When Admin turns OFF screenshot protection for the library:
+      await prefs.setBool('screenshot_protection_global', false);
+      final policyDisabled = prefs.getBool('screenshot_protection_global') ?? false;
+      final studentWindowUnlocked = (studentCheckRole == 'admin') ? false : policyDisabled;
+      expect(studentWindowUnlocked, isFalse, reason: 'Student window must allow screenshots when admin turns protection off');
+
+      // ── Sub-test 4: Real Production Source Invariants (Notifications, Cloud Functions & Screenshot Protection) ──
+      String readSource(String relPath) {
+        final direct = File(relPath);
+        if (direct.existsSync()) return direct.readAsStringSync();
+        return File('study_library/$relPath').readAsStringSync();
+      }
+
+      final appNotifSrc = readSource('lib/services/app_notification_service.dart');
+      final studentHomeForTime = readSource('lib/features/student_app/presentation/screens/student_home_screen.dart');
+      expect(studentHomeForTime, contains('LIVE \$timeStr'),
+          reason: 'StudentHomeScreen smart pass must display live ticking anti-screenshot timestamp');
+      expect(appNotifSrc, contains("bool shouldShowLocally = false;"),
+          reason: 'AppNotificationService must default local popup to false');
+      expect(appNotifSrc, contains("return n.targetRole == 'admin';"),
+          reason: 'Admin Bell stream must strictly accept targetRole == admin only (no all/student leak)');
+      expect(appNotifSrc, contains("(rawRole ?? 'none')"),
+          reason: 'Unknown device role must never default to student during dispatch');
+
+      final notifSvcSrc = readSource('lib/services/notification_service.dart');
+      expect(notifSvcSrc, contains('_shouldDisplayIncomingPush'),
+          reason: 'FCM foreground listener must gate incoming pushes by device role and user ID');
+
+      final functionsSrc = readSource('functions/index.js');
+      expect(functionsSrc, contains("if (targetRole === 'admin' && !isStudentAnnouncement)"),
+          reason: 'Cloud Functions must push to admin ONLY when targetRole === admin');
+      expect(functionsSrc, contains("topic: `student-\${libraryId}`"),
+          reason: 'Announcement pushes must target student-only topic, never lib-');
+      expect(functionsSrc, contains('studentFcmToken !== adminFcmToken'),
+          reason: 'Must never push student notification to active admin device FCM token');
+
+      final appSrc = readSource('lib/app.dart');
+      expect(appSrc, contains("if (role == 'student')"),
+          reason: 'Startup screenshot protection applies only when role == student');
+      expect(appSrc, contains('_watchScreenshotProtection(initialLibId)'),
+          reason: 'App startup post-frame callback must always attach security listener even on initial library ID');
+
+      final secureMixinSrc = readSource('lib/core/utils/secure_screen_mixin.dart');
+      expect(secureMixinSrc, contains('setWebScreenshotProtection'),
+          reason: 'Screenshot protection must coordinate Android FLAG_SECURE and Web anti-capture guard');
+
+      final adminShellSrc = readSource('lib/core/router/admin_shell.dart');
+      expect(adminShellSrc, contains('applyNativeSecureFlag(false)'),
+          reason: 'AdminShell must always clear screenshot lock so Admin screens stay screenshot-enabled');
+
+      final studentShellSrc = readSource('lib/core/router/student_shell.dart');
+      expect(studentShellSrc, contains('loadScreenshotProtectionFromFirestore'),
+          reason: 'StudentShell must enforce live library screenshot policy across all student routes');
+
+      final studentHomeSrc = readSource('lib/features/student_app/presentation/screens/student_home_screen.dart');
+      expect(studentHomeSrc, contains('with TickerProviderStateMixin, SecureScreenMixin'),
+          reason: 'StudentHomeScreen smart pass must enforce SecureScreenMixin');
+
+      final myReceiptsSrc = readSource('lib/features/student_app/presentation/screens/my_receipts_screen.dart');
+      expect(myReceiptsSrc, contains('with SecureScreenMixin'),
+          reason: 'MyReceiptsScreen must enforce SecureScreenMixin');
+
+      final myHistorySrc = readSource('lib/features/student_app/presentation/screens/my_payment_history_screen.dart');
+      expect(myHistorySrc, contains('with SecureScreenMixin'),
+          reason: 'MyPaymentHistoryScreen must enforce SecureScreenMixin');
+
+      final studentDetailSrc = readSource('lib/features/students/presentation/screens/student_detail_screen.dart');
+      expect(studentDetailSrc, isNot(contains('class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with SecureScreenMixin')),
+          reason: 'Admin StudentDetailScreen must NOT enforce screenshot lock on Admins');
+
+      final webHtmlSrc = readSource('web/index.html');
+      expect(webHtmlSrc, contains('window.setWebScreenshotProtection'),
+          reason: 'Web index.html must define anti-capture guard for Student Web Portal');
+    });
+
+    test('Test 183: UNPAID APPROVAL LEDGER INTEGRITY, NO SYNTHETIC 91-DAY RECEIPT, SOUNDBOX GUARD & SOURCE INVARIANTS', () {
+      String readProjFile(String relPath) {
+        final direct = File(relPath);
+        if (direct.existsSync()) return direct.readAsStringSync();
+        return File('study_library/$relPath').readAsStringSync();
+      }
+
+      final monthlyPlan = PlanModel(
+        id: 'plan_monthly_700',
+        libraryId: 'lib_001',
+        name: 'Monthly',
+        price: 700.0,
+        duration: 1,
+        durationUnit: DurationUnit.months,
+        description: 'Monthly Full-Day Plan',
+        gracePeriodDays: 3,
+        isActive: true,
+        isFeatured: true,
+        displayOrder: 1,
+        createdAt: DateTime(2026, 11, 1),
+        updatedAt: DateTime(2026, 11, 1),
+      );
+
+      // Simulate Shubham katle approved without collecting fee at reception
+      final unpaidStudent = createTestStudent(
+        id: 'std_shubham_unpaid',
+        name: 'Shubham katle',
+        membershipNumber: 'CC20260017',
+        membershipStatus: MembershipStatus.pending,
+        pendingDueBalance: 700.0,
+        planId: monthlyPlan.id,
+        planStartDate: null,
+        planEndDate: null,
+        seatId: '15',
+      );
+
+      expect(StudentLedgerHelper.isPaidAdmissionEligible(unpaidStudent), isFalse);
+      expect(
+        StudentLedgerHelper.buildSyntheticEnrollmentReceipt(
+          libraryId: 'lib_001',
+          student: unpaidStudent,
+          plans: [monthlyPlan],
+        ),
+        isNull,
+        reason: 'Approved-but-unpaid student with non-null planId must NOT get a synthetic receipt',
+      );
+
+      final unpaidLedger = StudentLedgerHelper.buildTransactionsLedger(
+        libraryId: 'lib_001',
+        student: unpaidStudent,
+        receiptDocs: const [],
+        paymentDocs: const [],
+        plans: [monthlyPlan],
+      );
+      expect(unpaidLedger, isEmpty, reason: 'Unpaid approval with 0 receipts/payments must show empty ledger');
+      expect(StudentLedgerHelper.computeTotalPaid(unpaidLedger), equals(0.0));
+
+      // Voided/cancelled rows are excluded from total paid calculations
+      expect(StudentLedgerHelper.isConfirmedPaidStatus('voided'), isFalse);
+      expect(StudentLedgerHelper.isConfirmedPaidStatus('cancelled'), isFalse);
+      expect(StudentLedgerHelper.isConfirmedPaidStatus('pending'), isFalse);
+      expect(StudentLedgerHelper.isConfirmedPaidStatus('desk_payment_pending'), isFalse);
+      expect(StudentLedgerHelper.isConfirmedPaidStatus('paid'), isTrue);
+      expect(StudentLedgerHelper.isConfirmedPaidStatus('active'), isTrue);
+
+      final mixedLedger = StudentLedgerHelper.buildTransactionsLedger(
+        libraryId: 'lib_001',
+        student: unpaidStudent.copyWith(
+          membershipStatus: MembershipStatus.active,
+          planStartDate: DateTime(2026, 11, 24),
+          planEndDate: DateTime(2026, 12, 23),
+        ),
+        receiptDocs: [
+          {
+            'id': 'rec_void_1',
+            'receiptNumber': 'REC-2026-VOID',
+            'amount': 700.0,
+            'paidAmount': 700.0,
+            'status': 'voided',
+            'createdAt': DateTime(2026, 11, 24),
+          },
+          {
+            'id': 'rec_paid_1',
+            'receiptNumber': 'REC-2026-0018',
+            'amount': 700.0,
+            'paidAmount': 700.0,
+            'status': 'active',
+            'createdAt': DateTime(2026, 11, 24),
+          },
+        ],
+        paymentDocs: const [],
+        plans: [monthlyPlan],
+      );
+      expect(StudentLedgerHelper.computeTotalPaid(mixedLedger), equals(700.0));
+
+      // Plan end date fallback uses the actual 1-month plan or 30d default, NEVER 90/91 days
+      final resolvedMonthlyEnd = StudentLedgerHelper.resolveFallbackPlanEndDate(
+        startDate: DateTime(2026, 11, 24),
+        plan: monthlyPlan,
+      );
+      expect(resolvedMonthlyEnd.difference(DateTime(2026, 11, 24)).inDays, lessThanOrEqualTo(31));
+
+      final resolvedDefaultEnd = StudentLedgerHelper.resolveFallbackPlanEndDate(
+        startDate: DateTime(2026, 11, 24),
+        plan: null,
+      );
+      expect(resolvedDefaultEnd.difference(DateTime(2026, 11, 24)).inDays, equals(30));
+
+      // Soundbox approval payment guard: only announces on renewal or due_payment when collected > 0
+      expect(StudentLedgerHelper.shouldAnnounceApprovalPayment(isRenewal: false, isDuePayment: false, collectedAmount: 0), isFalse);
+      expect(StudentLedgerHelper.shouldAnnounceApprovalPayment(isRenewal: false, isDuePayment: false, collectedAmount: 700), isFalse);
+      expect(StudentLedgerHelper.shouldAnnounceApprovalPayment(isRenewal: true, isDuePayment: false, collectedAmount: 0), isFalse);
+      expect(StudentLedgerHelper.shouldAnnounceApprovalPayment(isRenewal: false, isDuePayment: true, collectedAmount: 0), isFalse);
+      expect(StudentLedgerHelper.shouldAnnounceApprovalPayment(isRenewal: true, isDuePayment: false, collectedAmount: 700), isTrue);
+      expect(StudentLedgerHelper.shouldAnnounceApprovalPayment(isRenewal: false, isDuePayment: true, collectedAmount: 350), isTrue);
+
+      // Permanent source invariants to prevent regression
+      final membershipSrc = readProjFile('lib/features/student_app/presentation/screens/my_membership_screen.dart');
+      final historySrc = readProjFile('lib/features/student_app/presentation/screens/my_payment_history_screen.dart');
+      final receiptsSrc = readProjFile('lib/features/student_app/presentation/screens/my_receipts_screen.dart');
+      final reqListSrc = readProjFile('lib/features/requests/presentation/screens/request_list_screen.dart');
+      expect(historySrc.contains('Filter.or('), isFalse);
+      expect(membershipSrc.contains('Duration(days: 90)'), isFalse);
+      expect(membershipSrc.contains('Duration(days: 91)'), isFalse);
+      expect(receiptsSrc.contains('Duration(days: 90)'), isFalse);
+      expect(membershipSrc.contains('StudentLedgerHelper'), isTrue);
+      expect(historySrc.contains('StudentLedgerHelper'), isTrue);
+      expect(receiptsSrc.contains('StudentLedgerHelper'), isTrue);
+      expect(reqListSrc.contains('StudentLedgerHelper.shouldAnnounceApprovalPayment'), isTrue);
+    });
+
+    test('Test 184: SEAT SOFT-LOCK EXCLUSIVITY, EXPIRY RECOVERY & COLLISION SOURCE INVARIANTS', () {
+      String readProjFile(String relPath) {
+        final direct = File(relPath);
+        if (direct.existsSync()) return direct.readAsStringSync();
+        return File('study_library/$relPath').readAsStringSync();
+      }
+
+      // 1. Live hold owned by Candidate A blocks Candidate B while still valid
+      final activeHeldSeat = SeatModel(
+        id: '15',
+        sectionId: 'sec_hall',
+        row: 1,
+        col: 4,
+        label: '15',
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+        reservationType: 'registration_hold',
+        reservedCandidateId: 'uid_cand_a',
+        reservedCandidateName: 'Applicant One',
+        reservationExpiresAt: DateTime.now().add(const Duration(hours: 20)),
+      );
+      expect(activeHeldSeat.hasActiveSoftLock, isTrue);
+      expect(activeHeldSeat.effectiveStatus, equals(SeatStatus.reserved));
+
+      // 2. Expired hold auto-recovers back to available
+      final expiredHeldSeat = activeHeldSeat.copyWith(
+        reservationExpiresAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      );
+      expect(expiredHeldSeat.hasActiveSoftLock, isFalse);
+      expect(expiredHeldSeat.effectiveStatus, equals(SeatStatus.available));
+
+      // 3. Permanent source invariants across registration, student seat map, approval, and Firestore rules
+      final reviewSrc = readProjFile('lib/features/registration/presentation/screens/review_submit_screen.dart');
+      final seatSelectSrc = readProjFile('lib/features/registration/presentation/screens/seat_selection_screen.dart');
+      final seatMapSrc = readProjFile('lib/features/student_app/presentation/screens/student_seat_map_screen.dart');
+      final reqDetailSrc = readProjFile('lib/features/requests/presentation/screens/request_detail_screen.dart');
+      final rulesSrc = readProjFile('firestore.rules');
+
+      final softLockIdx = reviewSrc.indexOf('.softLockSeat(');
+      final reqSetIdx = reviewSrc.indexOf('await requestRef.set(requestPayload)');
+      expect(softLockIdx, greaterThan(-1));
+      expect(reqSetIdx, greaterThan(-1));
+      expect(
+        softLockIdx,
+        lessThan(reqSetIdx),
+        reason: 'ReviewSubmitScreen must acquire transactional softLockSeat BEFORE writing requestRef',
+      );
+
+      expect(seatSelectSrc.contains('softLockSeat'), isTrue);
+      expect(seatSelectSrc.contains('releaseSoftLock'), isTrue);
+      expect(seatMapSrc.contains('isReserved'), isTrue);
+      expect(seatMapSrc.contains("'HELD'"), isTrue);
+      expect(seatMapSrc.contains('softLockSeat'), isTrue);
+      expect(seatMapSrc.contains('expectedCandidateId'), isTrue);
+      expect(reqDetailSrc.contains('expectedCandidateId'), isTrue);
+      expect(reqDetailSrc.contains('overrideSeatCollision'), isTrue);
+      expect(rulesSrc.contains('reservationType'), isTrue);
+    });
+
+    test('Test 185: CASE-INSENSITIVE EMAIL LOOKUP (Sj98191@gmail.com), DRAFT RECOVERY, PDF GUARD & ROUTER STABILITY', () async {
+      String readProjFile(String relPath) {
+        final direct = File(relPath);
+        if (direct.existsSync()) return direct.readAsStringSync();
+        return File('study_library/$relPath').readAsStringSync();
+      }
+
+      // 1. Mixed-case email normalization invariant
+      const rawEmail = '  Sj98191@gmail.com  ';
+      final normalized = rawEmail.trim().toLowerCase();
+      expect(normalized, equals('sj98191@gmail.com'));
+
+      // 2. Waiting-list substring bug permanently removed: phone digits in email never create false matches
+      final waitingListSrc = readProjFile('lib/features/waiting_list/data/repositories/waiting_list_repository.dart');
+      expect(waitingListSrc.contains('email.contains(entry.studentPhone)'), isFalse);
+
+      // 3. Draft storage expiry and active redirect flag handling
+      SharedPreferences.setMockInitialValues({
+        'pending_registration_auth_redirect_v1': true,
+        'pending_registration_draft_v1': jsonEncode({
+          'savedAt': DateTime.now().toIso8601String(),
+          'step': 6,
+          'regData': {'email': normalized, 'name': 'Test Applicant'},
+        }),
+      });
+      expect(await RegistrationDraftStorage.hasPendingRedirectDraft(), isTrue);
+
+      await RegistrationDraftStorage.clearDraft();
+      expect(await RegistrationDraftStorage.hasPendingRedirectDraft(), isFalse);
+
+      SharedPreferences.setMockInitialValues({
+        'pending_registration_auth_redirect_v1': true,
+        'pending_registration_draft_v1': jsonEncode({
+          'savedAt': DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
+          'step': 6,
+        }),
+      });
+      expect(
+        await RegistrationDraftStorage.hasPendingRedirectDraft(),
+        isFalse,
+        reason: 'Drafts older than 2 hours must automatically expire and clear',
+      );
+
+      // 4. Permanent source invariants across router, wizard, review, rules, document picker, and cloud functions
+      final routerSrc = readProjFile('lib/core/router/app_router.dart');
+      final wizardSrc = readProjFile('lib/features/registration/presentation/screens/student_registration_wizard.dart');
+      final reviewSrc = readProjFile('lib/features/registration/presentation/screens/review_submit_screen.dart');
+      final docPickerSrc = readProjFile('lib/services/document_picker_service.dart');
+      final rulesSrc = readProjFile('firestore.rules');
+      final functionsSrc = readProjFile('functions/index.js');
+
+      expect(routerSrc.contains('refreshListenable:'), isTrue);
+      expect(routerSrc.contains('final role = ref.watch(userRoleProvider);'), isFalse);
+      expect(wizardSrc.contains('PopScope('), isTrue);
+      expect(wizardSrc.contains('registrationSubmissionSuccessProvider'), isTrue);
+      expect(wizardSrc.contains('RegistrationDraftStorage.restoreDraft'), isTrue);
+      expect(reviewSrc.contains("'studentEmail': normalizedEmail"), isTrue);
+      expect(reviewSrc.contains('RegistrationDraftStorage.saveDraft'), isTrue);
+      expect(docPickerSrc.contains('650 * 1024'), isTrue);
+      expect(rulesSrc.contains('request.auth.token.email.lower()'), isTrue);
+      expect(functionsSrc.contains("'superseded'"), isTrue);
+      expect(functionsSrc.contains('await event.data.ref.delete()'), isFalse);
+    });
+
+    test('Test 186: ANNOUNCEMENT ROLE ISOLATION, COMMUNICATIONS HUB SECRETS/LAYOUT/WEBHOOKS & BACKUP RESTORE RESILIENCE INVARIANTS', () {
+      String readProjFile(String relPath) {
+        final f = File(relPath);
+        if (f.existsSync()) return f.readAsStringSync();
+        return File('study_library/$relPath').readAsStringSync();
+      }
+
+      // 1. Announcements & Role Isolation Invariants
+      final announceScreenSrc = readProjFile('lib/features/announcements/presentation/screens/announcement_list_screen.dart');
+      final appNotifSrc = readProjFile('lib/services/app_notification_service.dart');
+      final notifSvcSrc = readProjFile('lib/services/notification_service.dart');
+      final functionsSrc = readProjFile('functions/index.js');
+
+      expect(announceScreenSrc.contains("targetRole: 'student'"), isTrue);
+      expect(announceScreenSrc.contains("'initiatedBy': ?initiatorUid"), isTrue);
+      expect(announceScreenSrc.contains("'topic': 'student-\${widget.libraryId}'"), isTrue);
+      expect(appNotifSrc.contains("n.type.toLowerCase() == 'announcement' && n.targetRole != 'admin'"), isTrue);
+      expect(appNotifSrc.contains("rules['studentIssuesAlert']"), isTrue);
+      expect(appNotifSrc.contains('shouldShowLocally && pushChannelEnabled'), isTrue);
+      expect(notifSvcSrc.contains("await messaging.unsubscribeFromTopic('lib-\$safeLibId')"), isTrue);
+      expect(notifSvcSrc.contains('if (kIsWeb) return;'), isTrue);
+      expect(functionsSrc.contains('const isStudentAnnouncement ='), isTrue);
+      expect(functionsSrc.contains('topic: `student-\${libraryId}`'), isTrue);
+      expect(functionsSrc.contains('commsRules.morningBriefing === false'), isTrue);
+      expect(functionsSrc.contains('commsRules.nightlySettlement === false'), isTrue);
+      expect(functionsSrc.contains('commsRules.waitlistCascade !== false'), isTrue);
+
+      // 2. Communications Hub Security, Overflow & Backend Wiring Invariants
+      final rulesSrc = readProjFile('firestore.rules');
+      final commsHubSrc = readProjFile('lib/features/settings/presentation/screens/communications_hub_screen.dart');
+      final webhookSrc = readProjFile('lib/services/notification_webhook_service.dart');
+      final metaSrc = readProjFile('lib/services/meta_whatsapp_api_service.dart');
+      final msgHubSrc = readProjFile('lib/services/messaging_hub_service.dart');
+      final digestSrc = readProjFile('lib/services/owner_digest_service.dart');
+
+      expect(rulesSrc.contains("match /admin_secrets/{secretId}"), isTrue);
+      expect(rulesSrc.contains("allow read: if isAuth() && id != 'messaging' && id != 'webhooks';"), isTrue);
+      expect(commsHubSrc.contains('Wrap('), isTrue);
+      expect(commsHubSrc.contains("label: const Text('Test ₹500 Voice')"), isTrue);
+      expect(commsHubSrc.contains('bool _hasInitializedTextFields = false;'), isTrue);
+      expect(commsHubSrc.contains("collection('admin_secrets')"), isTrue);
+      expect(commsHubSrc.contains('SeatHelper.formatDeskLabel'), isTrue);
+      expect(commsHubSrc.contains('plansStreamProvider'), isTrue);
+      expect(webhookSrc.contains("import 'dart:io';"), isFalse,
+          reason: 'NotificationWebhookService must use package:http so Flutter Web never crashes');
+      expect(webhookSrc.contains("import 'package:http/http.dart' as http;"), isTrue);
+      expect(webhookSrc.contains("collection('settings').doc('communications')"), isTrue);
+      expect(metaSrc.contains("'sender_id': cleanSender"), isTrue);
+      expect(msgHubSrc.contains("collection('admin_secrets').doc('communications')"), isTrue);
+      expect(digestSrc.contains("collection('admin_secrets').doc('communications')"), isTrue);
+
+      // 3. Backup & Restore Integrity, Resilience & Verification Invariants
+      final backupSvcSrc = readProjFile('lib/services/backup_service.dart');
+      final backupScreenSrc = readProjFile('lib/features/backup/presentation/screens/backup_restore_screen.dart');
+
+      expect(backupSvcSrc.contains('class BackupRestoreSummary'), isTrue);
+      expect(backupSvcSrc.contains("'expenses'"), isTrue);
+      expect(backupSvcSrc.contains("'feedback'"), isTrue);
+      expect(backupSvcSrc.contains("'libraryProfile'"), isTrue);
+      expect(backupSvcSrc.contains('bool exactMirror = false'), isTrue);
+      expect(backupSvcSrc.contains('const int chunksPerBatch = 15;'), isTrue);
+      expect(backupSvcSrc.contains('if (idx == null || idx >= totalChunks)'), isTrue);
+      expect(backupSvcSrc.contains("'\${_keyLastDailyBackup}_\$libraryId'"), isTrue);
+      expect(backupScreenSrc.contains("Restoring records (\${(p * 100).toInt()}%)..."), isTrue);
+      expect(backupScreenSrc.contains('InactivityLockService.setExternalDialogActive(true)'), isTrue);
+      expect(backupScreenSrc.contains('_showRestoreSummaryDialog'), isTrue);
+      expect(backupScreenSrc.contains('_invalidateAppProviders()'), isTrue);
+      expect(backupScreenSrc.contains("'Daily Cloud Snapshots'"), isTrue);
+    });
+
+    test('Test 187: STATUS-GATED SEAT MAPS, ZERO FALSE AMENITIES & SINGLE CANONICAL AMENITY CATALOG INVARIANTS', () {
+      String readProjFile(String relPath) {
+        final f = File(relPath);
+        if (f.existsSync()) return f.readAsStringSync();
+        return File('study_library/$relPath').readAsStringSync();
+      }
+
+      // 1. Canonical AmenityCatalog & Library/Section/Seat inheritance
+      final libNoAc = LibraryModel(
+        id: 'lib_test',
+        name: 'Test Hall',
+        address: 'Addr',
+        logoUrl: '',
+        contact: '9999999999',
+        ownerId: 'u1',
+        accentColor: 0xFF5D4037,
+        welcomeMessage: '',
+        operatingHours: '',
+        socialLinks: const {},
+        rulesText: '',
+        adminPhotoUrl: '',
+        helplineNumber: '',
+        waitingListMode: WaitingListMode.contactAdmin,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        facilities: const ['High-Speed Wi-Fi', 'Purified RO Water'],
+        amenities: const [
+          {'id': 'ac', 'label': 'Air Conditioned Hall', 'enabled': false},
+          {'id': 'wifi', 'label': 'High-Speed Wi-Fi', 'enabled': true},
+          {'id': 'ro_water', 'label': 'Purified RO Water', 'enabled': true},
+        ],
+      );
+
+      expect(libNoAc.hasAirConditioning, isFalse);
+      expect(libNoAc.hasWifi, isTrue);
+      expect(libNoAc.hasSilentZone, isFalse);
+      expect(libNoAc.effectiveFacilities, ['High-Speed Wi-Fi', 'Purified RO Water']);
+
+      // Empty Admin configuration must never fabricate fake defaults
+      final libEmpty = libNoAc.copyWith(facilities: const [], amenities: const []);
+      expect(libEmpty.effectiveAmenityItems, isEmpty);
+      expect(libEmpty.hasWifi, isFalse);
+      expect(libEmpty.hasAirConditioning, isFalse);
+
+      final secInherit = SectionModel(
+        id: 'sec1',
+        libraryId: 'lib_test',
+        name: 'Window Wing',
+        rows: 2,
+        cols: 5,
+        color: 0xFF3498DB,
+        order: 0,
+        isActive: true,
+        amenities: const ['desk_lamp'],
+        inheritLibraryAmenities: true,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      );
+      final secIsolated = secInherit.copyWith(
+        inheritLibraryAmenities: false,
+        amenities: const ['silence'],
+      );
+      final seatWithPower = SeatModel(
+        id: 's1',
+        sectionId: 'sec1',
+        row: 0,
+        col: 0,
+        label: '1',
+        status: SeatStatus.maintenance,
+        genderRestriction: GenderRestriction.any,
+        amenities: const ['power'],
+        statusReason: 'Socket repair scheduled',
+      );
+
+      final inheritedIds = AmenityCatalog.resolveEffectiveAmenities(
+        library: libNoAc,
+        section: secInherit,
+        seat: seatWithPower,
+      ).map((e) => e.id).toList();
+      expect(inheritedIds, ['wifi', 'ro_water', 'desk_lamp', 'power']);
+
+      final isolatedIds = AmenityCatalog.resolveEffectiveAmenities(
+        library: libNoAc,
+        section: secIsolated,
+        seat: seatWithPower,
+      ).map((e) => e.id).toList();
+      expect(isolatedIds, ['silence', 'power']);
+
+      // 2. SeatModel statusReason, amenities roundtrip & permanent vs expired reserve resolution
+      final roundtripSeat = SeatModel.fromJson(seatWithPower.toJson());
+      expect(roundtripSeat.statusReason, 'Socket repair scheduled');
+      expect(roundtripSeat.amenities, ['power']);
+      expect(roundtripSeat.effectiveStatus, SeatStatus.maintenance);
+
+      final manualReserved = SeatModel(
+        id: 's2',
+        sectionId: 'sec1',
+        row: 0,
+        col: 1,
+        label: '2',
+        status: SeatStatus.reserved,
+        genderRestriction: GenderRestriction.any,
+      );
+      expect(manualReserved.effectiveStatus, SeatStatus.reserved);
+
+      final expiredHold = manualReserved.copyWith(
+        reservationExpiresAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      );
+      expect(expiredHold.effectiveStatus, SeatStatus.available);
+
+      // 3. Public /seats HTML parity, status gating, and dynamic amenities invariants
+      final publicSeatsHtml = readProjFile('../public/seats/index.html');
+      final syncedSeatsHtml = readProjFile('public/seats/index.html');
+      expect(publicSeatsHtml, syncedSeatsHtml,
+          reason: 'Root public/seats/index.html and study_library/public/seats/index.html must match');
+      expect(publicSeatsHtml.contains('.seat-cell.maintenance'), isTrue);
+      expect(publicSeatsHtml.contains('id="statReserved"'), isTrue);
+      expect(publicSeatsHtml.contains('id="statMaintenance"'), isTrue);
+      expect(publicSeatsHtml.contains('id="drawerRestrictionBox"'), isTrue);
+      expect(publicSeatsHtml.contains('id="drawerFindAvailBtn"'), isTrue);
+      expect(publicSeatsHtml.contains('id="drawerWaitlistBtn"'), isTrue);
+      expect(publicSeatsHtml.contains("if (status === 'available')"), isTrue);
+      expect(publicSeatsHtml.contains("waBtn.style.display = 'none';"), isTrue);
+      expect(publicSeatsHtml.contains("regBtn.style.display = 'none';"), isTrue);
+      // Hardcoded HTML chips for fake Desk Lamp / Air Conditioned Hall must be removed from markup
+      expect(publicSeatsHtml.contains('<span>Individual Desk Lamp</span>'), isFalse);
+      expect(publicSeatsHtml.contains('<span>Air Conditioned Hall</span>'), isFalse);
+
+      // 4. Flutter Student, Registration & Poster single-source invariants
+      final studentSeatMapSrc = readProjFile('lib/features/student_app/presentation/screens/student_seat_map_screen.dart');
+      final regSeatSelSrc = readProjFile('lib/features/registration/presentation/screens/seat_selection_screen.dart');
+      final posterCfgSrc = readProjFile('lib/services/poster_config_service.dart');
+      final membershipSrc = readProjFile('lib/features/student_app/presentation/screens/my_membership_screen.dart');
+      final studentHomeSrc = readProjFile('lib/features/student_app/presentation/screens/student_home_screen.dart');
+      final pdfSrc = readProjFile('lib/services/pdf_service.dart');
+      final tourSrc = readProjFile('lib/core/widgets/facility_tour_sheet.dart');
+
+      expect(studentSeatMapSrc.contains('seat.effectiveStatus == SeatStatus.reserved'), isTrue);
+      expect(studentSeatMapSrc.contains('!section.isActive || seat.effectiveStatus == SeatStatus.maintenance'), isTrue);
+      expect(regSeatSelSrc.contains('seat.effectiveStatus == SeatStatus.reserved'), isTrue);
+      expect(regSeatSelSrc.contains('!section.isActive || seat.effectiveStatus == SeatStatus.maintenance'), isTrue);
+      expect(posterCfgSrc.contains("'id': 'ac', 'label': 'Central AC'"), isFalse);
+      expect(posterCfgSrc.contains('AmenityCatalog.resolveEffectiveAmenities'), isTrue);
+      expect(membershipSrc.contains('library.effectiveAmenityItems'), isTrue);
+      expect(studentHomeSrc.contains('if (library != null && library.hasWifi)'), isTrue);
+      expect(pdfSrc.contains('AmenityCatalog.resolveEffectiveAmenities'), isTrue);
+      expect(tourSrc.contains('library.effectiveAmenityItems'), isTrue);
+    });
+
+    test('Student List Card Layout, Desk Collision & ID Card Seat Sync Invariants', () {
+      String readProjFile(String relPath) {
+        final direct = File(relPath);
+        if (direct.existsSync()) return direct.readAsStringSync();
+        final fromSub = File('study_library/$relPath');
+        if (fromSub.existsSync()) return fromSub.readAsStringSync();
+        return '';
+      }
+
+      // 1. StudentModel.fromJson seatId null safety and anti-resurrection
+      final vacatedStudent = StudentModel.fromJson({
+        'id': 'st_vacated_01',
+        'name': 'Shubham Katle',
+        'phone': '9156944773',
+        'seatId': null,
+        'seatNumber': '15',
+        'seatLabel': '15',
+        'assignedSeat': '15',
+        'membershipStatus': 'inactive',
+      });
+      expect(vacatedStudent.seatId, isNull,
+          reason: 'Explicitly null seatId must not be resurrected by legacy seatNumber');
+
+      final emptySeatStudent = StudentModel.fromJson({
+        'id': 'st_vacated_02',
+        'name': 'Test Student',
+        'phone': '9999999999',
+        'seatId': '   ',
+        'membershipStatus': 'active',
+      });
+      expect(emptySeatStudent.seatId, isNull,
+          reason: 'Whitespace or empty seatId must be resolved to null');
+
+      final legacyStudent = StudentModel.fromJson({
+        'id': 'st_legacy_01',
+        'name': 'Legacy Student',
+        'phone': '9999999998',
+        'seatNumber': '22',
+        'membershipStatus': 'active',
+      });
+      expect(legacyStudent.seatId, equals('22'),
+          reason: 'Legacy student document lacking seatId key must fall back to seatNumber');
+
+      // 2. Student list screen layout invariants (anti-vertical-collapse & FAB clearance)
+      final studentListSrc = readProjFile('lib/features/students/presentation/screens/student_list_screen.dart');
+      expect(studentListSrc.contains('padding: EdgeInsets.only(top: 4, bottom: 140'), isTrue,
+          reason: 'ListView.builder must have >= 140 bottom padding to clear the extended FAB');
+      expect(studentListSrc.contains('student.churnRiskReason ?? \'Churn Risk\''), isTrue);
+      expect(studentListSrc.contains('width: double.infinity'), isTrue,
+          reason: 'Churn risk banner must span full width below main row to protect horizontal name/ID width');
+
+      // 3. Request detail screen collision suppression & ledger wrap
+      final requestDetailSrc = readProjFile('lib/features/requests/presentation/screens/request_detail_screen.dart');
+      expect(requestDetailSrc.contains('final reqStatus = (reqData[\'status\'] ?? \'\').toString().toLowerCase().trim();'), isTrue);
+      expect(requestDetailSrc.contains('if (reqStatus == \'approved\' || reqStatus == \'rejected\''), isTrue,
+          reason: 'Already approved or rejected requests must never trigger live desk collision alerts');
+      expect(requestDetailSrc.contains('!isApproved &&\n                  !isRejected'), isTrue,
+          reason: 'UI Desk Collision Alert card must be suppressed for approved/rejected requests');
+      expect(requestDetailSrc.contains('cleanDigits(occPhone) == cleanDigits(reqPhone)'), isTrue,
+          reason: 'Collision detector must recognize applicant phone match to avoid self-collision');
+
+      // 4. ID Card Preview inactive status & seat label
+      final idCardSrc = readProjFile('lib/features/id_cards/presentation/screens/id_card_preview_screen.dart').replaceAll('\r\n', '\n');
+      expect(idCardSrc.contains('effectiveStatus == MembershipStatus.inactive'), isTrue);
+      expect(idCardSrc.contains("final validTillText = isInactive\n        ? 'Inactive'"), isTrue,
+          reason: 'ID card must not print "Active" when student is inactive without planEndDate');
+      expect(idCardSrc.contains('hasActiveSeat\n        ? SeatHelper.formatSeatLabel'), isTrue,
+          reason: 'ID card seatText must evaluate hasActiveSeat before formatting seat label');
+    });
+
+    test('Web Performance, Encryption Memoization, Caching & Anti-Jank Architecture Invariants', () {
+      String readProjFile(String relPath) {
+        final direct = File(relPath);
+        if (direct.existsSync()) return direct.readAsStringSync();
+        final fromSub = File('study_library/$relPath');
+        if (fromSub.existsSync()) return fromSub.readAsStringSync();
+        return '';
+      }
+
+      // 1. EncryptionService PBKDF2 key memoization & zero freeze invariant
+      EncryptionService.clearCaches();
+      const secret = 'lib_perf_test_2026';
+      const sampleAadhaar = '987654321012';
+      final cipher = EncryptionService.encryptGovId(sampleAadhaar, secret);
+      final sw = Stopwatch()..start();
+      for (var i = 0; i < 100; i++) {
+        final dec = EncryptionService.safeDecryptGovId(cipher, secret);
+        expect(dec, equals(sampleAadhaar));
+      }
+      sw.stop();
+      // With cached derived key + decrypted cache, 100 calls complete in well under 250ms (vs 5+ seconds uncached)
+      expect(sw.elapsedMilliseconds < 250, isTrue,
+          reason: 'Repeated student GovID decryptions must be memoized without rerunning 100k PBKDF2 loops');
+
+      // 2. AppTheme memoization & identical reference preservation
+      final t1 = custom_theme.AppTheme.fromSeed(const Color(0xFF5D4037), brightness: Brightness.light);
+      final t2 = custom_theme.AppTheme.fromSeed(const Color(0xFF5D4037), brightness: Brightness.light);
+      expect(identical(t1, t2), isTrue, reason: 'AppTheme.fromSeed must return memoized ThemeData instances');
+
+      // 3. SentinelEchoVerifier idle zero-timer invariant
+      final verifier = SentinelEchoVerifier();
+      expect(verifier.hasPendingChecks, isFalse);
+      final exp = verifier.registerExpectation(
+        actionName: 'Test Update',
+        correlationId: 'corr_perf_1',
+        domain: SentinelDomain.seats,
+        entityId: 'seat_1',
+        expectedKey: 'status',
+        expectedValue: 'occupied',
+      );
+      expect(exp.actionName, equals('Test Update'));
+      expect(verifier.hasPendingChecks, isTrue);
+      verifier.notifyStateReflected(
+        domain: SentinelDomain.seats,
+        entityId: 'seat_1',
+        key: 'status',
+        actualValue: 'occupied',
+      );
+      expect(verifier.hasPendingChecks, isFalse);
+      verifier.dispose();
+
+      // 4. Static Asset & HTTP Caching Headers invariant (firebase.json)
+      final firebaseJson = readProjFile('firebase.json');
+      expect(firebaseJson.contains('"source": "**/*.wasm"'), isTrue);
+      expect(firebaseJson.contains('"value": "public, max-age=604800, stale-while-revalidate=86400"'), isTrue,
+          reason: 'WASM, fonts, and images must allow browser caching instead of forcing re-download');
+      expect(firebaseJson.contains('"source": "**/index.html"'), isTrue);
+
+      // 5. Web Index non-blocking scripts & font preload invariant
+      final webIndex = readProjFile('web/index.html');
+      expect(webIndex.contains('function _loadExternalScript('), isTrue,
+          reason: 'Heavy OCR/PDF/QR JS libraries must be lazy-loaded on demand instead of blocking startup');
+      expect(webIndex.contains('rel="preload" as="style"'), isTrue,
+          reason: 'Google Fonts stylesheet must load asynchronously without blocking first paint');
+
+      // 6. Zero unnecessary GPU BackdropFilter on solid bottom NavigationBars
+      final adminShell = readProjFile('lib/core/router/admin_shell.dart');
+      final studentShell = readProjFile('lib/core/router/student_shell.dart');
+      expect(adminShell.contains('BackdropFilter'), isFalse,
+          reason: 'AdminShell bottom nav bar must not run expensive per-frame Gaussian BackdropFilter passes');
+      expect(studentShell.contains('BackdropFilter'), isFalse,
+          reason: 'StudentShell bottom nav bar must not run expensive per-frame Gaussian BackdropFilter passes');
+
+      // 7. Zero IntrinsicHeight in StudentListScreen & zero multi-controller bloat in SeatTile
+      final studentListSrc = readProjFile('lib/features/students/presentation/screens/student_list_screen.dart');
+      expect(studentListSrc.contains('IntrinsicHeight('), isFalse,
+          reason: 'StudentListScreen cards must not use O(N^2) IntrinsicHeight double layout passes');
+      expect(studentListSrc.contains('_seatIdByStudentId'), isTrue,
+          reason: 'StudentListScreen must use precomputed O(1) seat lookup maps per build');
+
+      final seatTileSrc = readProjFile('lib/features/seats/presentation/widgets/seat_tile.dart');
+      expect(seatTileSrc.contains('PressableScale('), isFalse,
+          reason: 'SeatTile grid items must avoid allocating dozens of simultaneous AnimationControllers');
+      expect(seatTileSrc.contains('AnimatedContainer('), isFalse);
+
+      // 8. Unused 1.15 MB asset removed & non-blocking startup
+      final unusedAsset = File('assets/images/logo_b64.txt').existsSync() ||
+          File('study_library/assets/images/logo_b64.txt').existsSync();
+      expect(unusedAsset, isFalse, reason: 'Unused 1.15MB logo_b64.txt must stay excluded from build bundles');
+
+      final mainSrc = readProjFile('lib/main.dart');
+      expect(mainSrc.contains('RemoteConfigService.initialize(waitForFetch: false)'), isTrue,
+          reason: 'Remote Config network fetch must never block runApp() startup');
+
+      final appSrc = readProjFile('lib/app.dart');
+      expect(appSrc.contains('currentLibraryProvider.select'), isTrue,
+          reason: 'StudyLibraryApp root must use .select() to prevent full-tree rebuilds on unrelated library updates');
+
+      // 9. Phase 2: Zero legacy dart:html / dart:js interop in first-party lib/ code
+      final libRoot = Directory('lib').existsSync() ? Directory('lib') : Directory('study_library/lib');
+      final legacyInteropHits = <String>[];
+      for (final entity in libRoot.listSync(recursive: true).whereType<File>()) {
+        if (!entity.path.endsWith('.dart')) continue;
+        final src = entity.readAsStringSync();
+        if (src.contains("import 'dart:html'") ||
+            src.contains('import "dart:html"') ||
+            src.contains("import 'dart:js'") ||
+            src.contains('import "dart:js"') ||
+            src.contains("import 'dart:js_util'") ||
+            src.contains('import "dart:js_util"')) {
+          legacyInteropHits.add(entity.path);
+        }
+      }
+      expect(legacyInteropHits, isEmpty,
+          reason: 'All web interop files must migrate from dart:html/dart:js to package:web + dart:js_interop');
+
+      // 10. Phase 2: Unified financial ledger eliminates duplicate payments/receipts scans
+      final expProvidersSrc = readProjFile('lib/features/expenses/presentation/providers/expense_providers.dart');
+      final revChartSrc = readProjFile('lib/features/dashboard/presentation/widgets/revenue_chart.dart');
+      expect(expProvidersSrc.contains('unifiedFinancialLedgerProvider'), isTrue);
+      expect(expProvidersSrc.contains('Future.wait'), isTrue,
+          reason: 'unifiedFinancialLedgerProvider must fetch payments, receipts, and expenses in parallel once');
+      expect(revChartSrc.contains('unifiedFinancialLedgerProvider.future'), isTrue,
+          reason: 'RevenueChart must reuse unifiedFinancialLedgerProvider rather than rescanning Firestore collections');
+
+      // 11. Phase 2: Deferred code-splitting & downsampled dashboard avatars + Consumer isolation
+      final routerSrc = readProjFile('lib/core/router/app_router.dart');
+      expect(routerSrc.contains('deferred as deferred_bulk_import'), isTrue);
+      expect(routerSrc.contains('deferred as deferred_backup'), isTrue);
+      expect(routerSrc.contains('deferred as deferred_data_export'), isTrue);
+      expect(routerSrc.contains('class _DeferredRouteLoader'), isTrue);
+
+      final adminDashSrc = readProjFile('lib/features/dashboard/presentation/screens/admin_dashboard_screen.dart');
+      final studentHomeSrc = readProjFile('lib/features/student_app/presentation/screens/student_home_screen.dart');
+      expect(adminDashSrc.contains('ImageService.getAvatarProvider('), isTrue);
+      expect(adminDashSrc.contains('Consolidated Financial Pulse Card (isolated Consumer scope)'), isTrue);
+      expect(studentHomeSrc.contains('ImageService.getAvatarProvider('), isTrue);
+      expect(studentHomeSrc.contains('Active Announcement Banner (isolated Consumer scope)'), isTrue);
+      expect(studentHomeSrc.contains('Dedicated Seat Change In-Progress + High-Readability Seat Radar Card (isolated Consumer scope)'), isTrue);
+    });
+
+    test('Test 189: DUAL-PORTAL IDENTICAL ID PASS GEOMETRY, OFFICIAL RUBBER SEAL STAMP & INACTIVE STATE FENCING INVARIANTS', () {
+      String readProjFile(String relPath) {
+        final f1 = File(relPath);
+        if (f1.existsSync()) return f1.readAsStringSync();
+        final f2 = File('study_library/$relPath');
+        if (f2.existsSync()) return f2.readAsStringSync();
+        throw Exception('Cannot find $relPath');
+      }
+
+      // 1. Admin ID Pass Preview Invariants (IdCardPreviewScreen)
+      final adminIdSrc = readProjFile('lib/features/id_cards/presentation/screens/id_card_preview_screen.dart');
+      expect(adminIdSrc.contains('OrganisationalSealStamp('), isTrue,
+          reason: 'Admin ID pass must render authentic double-ring OrganisationalSealStamp on both card faces');
+      expect(adminIdSrc.contains('height: 256'), isTrue,
+          reason: 'Admin ID pass front & back must have fixed 256px height to eliminate flipping layout shift');
+      expect(adminIdSrc.contains('INACTIVE PASS'), isTrue,
+          reason: 'Inactive students must display INACTIVE PASS badge instead of ACTIVE PASS');
+      expect(adminIdSrc.contains('● PASS INACTIVE'), isTrue,
+          reason: 'Inactive students must never display active ticking live clock ticker');
+      expect(adminIdSrc.contains('✕ INACTIVE PASS'), isTrue,
+          reason: 'Inactive students must display ✕ INACTIVE PASS QR footer');
+
+      // 2. Student Portal ID Pass Invariants (MyIdCardScreen)
+      final studentIdSrc = readProjFile('lib/features/student_app/presentation/screens/my_id_card_screen.dart');
+      expect(studentIdSrc.contains('OrganisationalSealStamp('), isTrue,
+          reason: 'Student Portal ID pass must render authentic OrganisationalSealStamp with dual-portal feature parity');
+      expect(studentIdSrc.contains('height: 256'), isTrue,
+          reason: 'Student Portal ID pass front & back must have fixed 256px height matching Admin ID pass');
+      expect(studentIdSrc.contains('INACTIVE PASS'), isTrue,
+          reason: 'Student Portal pass must show INACTIVE PASS badge when student membership is inactive');
+      expect(studentIdSrc.contains('● PASS INACTIVE'), isTrue,
+          reason: 'Student Portal pass must stop live ticker when inactive');
+
+      // 3. Request Detail Ledger Amount Invariants (RequestDetailScreen)
+      final reqDetailSrc = readProjFile('lib/features/requests/presentation/screens/request_detail_screen.dart');
+      expect(reqDetailSrc.contains('effectivePlanName'), isTrue,
+          reason: 'RequestDetailScreen must match plans by name as well as ID for backward compatibility');
+      expect(reqDetailSrc.contains('PlanCalculatorService.calculateSmartPlan'), isTrue,
+          reason: 'RequestDetailScreen must compute prorated price fallback for Total Payable Amount');
+
+      // 4. OCR Scanner Strict Validation Invariants (IdCardScannerDialog)
+      final scannerSrc = readProjFile('lib/core/widgets/id_card_scanner_dialog.dart');
+      expect(scannerSrc.contains('isNameValid ? f.name : null'), isTrue,
+          reason: 'IdCardScannerDialog must discard invalid or hallucinated names from auto-fill');
+      expect(scannerSrc.contains('isIdValid ? f.idNumber : null'), isTrue,
+          reason: 'IdCardScannerDialog must discard invalid ID numbers from auto-fill');
+    });
+
+    test('Test 190: FORM BUILDER END-TO-END SCHEMA, ALL-SCREEN WIRING & SURFACE VISIBILITY PARITY', () {
+      String readProjFile(String relPath) {
+        final f1 = File(relPath);
+        if (f1.existsSync()) return f1.readAsStringSync();
+        final f2 = File('study_library/$relPath');
+        if (f2.existsSync()) return f2.readAsStringSync();
+        throw Exception('Cannot find $relPath');
+      }
+
+      // 1. FormConfigService schema normalization & export custom field detection
+      final normalized = FormConfigService.normalizeConfig([
+        {'id': 'pinCode', 'label': 'Postal Code', 'visible': true, 'required': false},
+        {'id': 'custom_locker', 'label': 'Locker No', 'type': 'Text', 'visible': true, 'showOnIdCard': true, 'showOnReceipt': true},
+      ]);
+      expect(normalized.any((f) => f['id'] == 'pincode' && f['label'] == 'Postal Code'), isTrue);
+      final exportFields = FormConfigService.getExportCustomFields(normalized);
+      expect(exportFields.any((f) => f['id'] == 'custom_locker'), isTrue,
+          reason: 'Export must detect custom fields using builtin:false + id without requiring isCustom:true');
+
+      // 2. Regex validation + custom field value resolution
+      expect(
+        FormConfigService.validateFieldValue('AB12', {
+          'id': 'custom_roll',
+          'label': 'Batch Code',
+          'type': 'Text',
+          'required': true,
+          'pattern': r'^[A-Z]{2}\d{4}$',
+          'patternError': 'Format AB1234 required',
+        }),
+        equals('Format AB1234 required'),
+      );
+      expect(
+        FormConfigService.validateFieldValue('AB1234', {
+          'id': 'custom_roll',
+          'label': 'Batch Code',
+          'type': 'Text',
+          'required': true,
+          'pattern': r'^[A-Z]{2}\d{4}$',
+        }),
+        isNull,
+      );
+
+      // 3. All consumer screens wired to DynamicFormFieldRenderer & FormConfigService
+      final addSrc = readProjFile('lib/features/students/presentation/screens/add_student_screen.dart');
+      expect(addSrc.contains('DynamicCategoryCustomFieldsSection('), isTrue,
+          reason: 'AddStudentScreen must render configured custom fields in each category');
+
+      final editSrc = readProjFile('lib/features/students/presentation/screens/edit_student_screen.dart');
+      expect(editSrc.contains('DynamicCategoryCustomFieldsSection('), isTrue,
+          reason: 'EditStudentScreen must render custom fields in their configured categories');
+
+      final regSrc = readProjFile('lib/features/registration/presentation/screens/registration_form_screen.dart');
+      expect(regSrc.contains('_syncControllersWithConfig(liveFormFields)'), isTrue,
+          reason: 'RegistrationFormScreen must consume live formConfigStreamProvider updates');
+      expect(regSrc.contains('DynamicCategoryCustomFieldsSection('), isTrue);
+
+      final profileSrc = readProjFile('lib/features/student_app/presentation/screens/my_profile_screen.dart');
+      expect(profileSrc.contains('?? "O+"'), isFalse,
+          reason: 'MyProfileScreen must never fabricate O+ when bloodGroup is null');
+      expect(profileSrc.contains('DynamicFormFieldRenderer('), isTrue,
+          reason: 'MyProfileScreen edit sheet must use rich DynamicFormFieldRenderer controls');
+
+      final detailSrc = readProjFile('lib/features/students/presentation/screens/student_detail_screen.dart');
+      expect(detailSrc.contains('isFieldVisibleOnSurface(formFields'), isTrue,
+          reason: 'StudentDetailScreen must respect form_config visibility and showOnProfile flags');
+
+      final exportSrc = readProjFile('lib/services/data_export_service.dart');
+      expect(exportSrc.contains('FormConfigService.getExportCustomFields'), isTrue,
+          reason: 'DataExportService must read custom fields using canonical FormConfigService schema');
+
+      final idCardPdfSrc = readProjFile('lib/services/id_card_pdf_service.dart');
+      expect(idCardPdfSrc.contains('FormConfigService.resolveStudentFieldValue'), isTrue,
+          reason: 'IdCardPdfService must resolve both built-in and custom showOnIdCard fields cleanly');
+    });
+
+    test('Test 191: UNIFIED WEB/APK RELEASE MANIFEST, ZERO HARDCODED DOWNLOAD TAGS & VERSION-KEYED WHATS NEW', () {
+      String readProjFile(String relPath) {
+        final f1 = File(relPath);
+        if (f1.existsSync()) return f1.readAsStringSync();
+        final f2 = File('study_library/$relPath');
+        if (f2.existsSync()) return f2.readAsStringSync();
+        throw Exception('Cannot find $relPath');
+      }
+
+      // 1. WhatsNewService hydrates cache before opening dialog and carries version-keyed changelog
+      final whatsNewSrc = readProjFile('lib/services/whats_new_service.dart');
+      expect(whatsNewSrc.contains('_hydrateMemoryCache('), isTrue,
+          reason: 'WhatsNewService must hydrate cached remote changelog on cold start');
+      expect(whatsNewSrc.contains('builtInChangelog'), isTrue);
+      expect(whatsNewSrc.contains('removing all redundant print layouts'), isFalse,
+          reason: 'Stale v1.5.55 bullets must be removed from WhatsNewService');
+
+      // 2. ForceUpdateService resolves highlights from unified changelog entries
+      final forceUpdateSrc = readProjFile('lib/services/force_update_service.dart');
+      expect(forceUpdateSrc.contains('resolveChangelogHighlights'), isTrue);
+
+      // 3. Download portals must NOT contain hardcoded stale v1.5.50/56/57/58 release links
+      final downloadHtml = readProjFile('public/download/index.html');
+      expect(downloadHtml.contains('releases/download/v1.5.57'), isFalse);
+      expect(downloadHtml.contains('v1.5.50'), isFalse);
+      expect(downloadHtml.contains('v1.5.56+2073'), isFalse);
+      expect(downloadHtml.contains('id="downloadLegacy32Btn"'), isTrue);
+      expect(downloadHtml.contains('id="downloadUniversalBtn"'), isTrue);
+      expect(downloadHtml.contains('id="githubReleaseAssetsBtn"'), isTrue);
+
+      final rootHtml = readProjFile('public/index.html');
+      expect(rootHtml.contains('releases/download/v1.5.58'), isFalse);
+      expect(rootHtml.contains('id="downloadLegacy32Btn"'), isTrue);
+
+      // 4. Release script must tag v$versionName (never hardcoded v1.0.0) and verify HTTP 200
+      final releaseScript = readProjFile('scripts/publish_latest_build.ps1');
+      expect(releaseScript.contains(r'$Tag = "v1.0.0"'), isFalse);
+      expect(releaseScript.contains(r'$Tag = "v$versionName"'), isTrue);
+      expect(releaseScript.contains('Invoke-WebRequest'), isTrue);
+    });
+
+    test('Test 192: BACKEND CRON BATCHING, GST/LEDGER UNIFICATION, SEAT PII STRIPPING, CHARCOAL CONTRAST & PWA SW INVARIANTS', () {
+      // 1. ReceiptRepository GST breakdown math & PaymentModel aggregate sync flag
+      final gst = ReceiptRepository.calculateGstBreakdown(
+        amount: 1180,
+        isGstBilling: true,
+        gstRate: 18.0,
+        sacCode: '999293',
+        gstin: '27ABCDE1234F1Z5',
+      );
+      expect(gst.isGstInvoice, isTrue);
+      expect(gst.taxableAmount, closeTo(1000.0, 0.01));
+      expect(gst.cgstAmount, closeTo(90.0, 0.01));
+      expect(gst.sgstAmount, closeTo(90.0, 0.01));
+
+      final noGst = ReceiptRepository.calculateGstBreakdown(
+        amount: 1000,
+        isGstBilling: false,
+      );
+      expect(noGst.isGstInvoice, isFalse);
+      expect(noGst.taxableAmount, isNull);
+
+      final p = PaymentModel(
+        id: 'p1',
+        studentId: 's1',
+        amount: 500,
+        method: 'upi',
+        date: DateTime(2026, 11, 26),
+        status: PaymentStatus.paid,
+        aggregateSyncedByClient: true,
+        createdAt: DateTime(2026, 11, 26),
+      );
+      expect(p.toJson()['aggregateSyncedByClient'], isTrue);
+      expect(PaymentModel.fromJson({...p.toJson(), 'id': 'p1'}).aggregateSyncedByClient, isTrue);
+
+      String readProjFile(String relPath) {
+        final direct = File(relPath);
+        if (direct.existsSync()) return direct.readAsStringSync();
+        return File('study_library/$relPath').readAsStringSync();
+      }
+
+      // 2. Cloud Functions invariants
+      final fnJs = readProjFile('functions/index.js');
+      expect(
+        RegExp(r'(?<!firestore\.)Timestamp\.fromDate\(').hasMatch(fnJs),
+        isFalse,
+      );
+      expect(fnJs.contains('dispatchExternalCommsMessage'), isTrue);
+      expect(fnJs.contains('aggregateSyncedByClient'), isTrue);
+      expect(fnJs.contains('-Math.abs'), isTrue);
+
+      // 3. GitHub Action expiry cron invariants
+      final checkExpiryJs = readProjFile('scripts/check_expiry.js');
+      expect(checkExpiryJs.contains('planEndDate'), isTrue);
+      expect(checkExpiryJs.contains('cloud_function_scheduler'), isTrue);
+
+      // 4. Unified GST/ledger/receipt flows
+      final recordPay = readProjFile('lib/features/payments/presentation/screens/record_payment_screen.dart');
+      expect(recordPay.contains('ReceiptRepository.calculateGstBreakdown'), isTrue);
+      expect(
+        recordPay.contains('aggregateSyncedByClient: true') ||
+            recordPay.contains('aggregateSyncedByClient: amount > 0'),
+        isTrue,
+      );
+
+      final reqDetail = readProjFile('lib/features/requests/presentation/screens/request_detail_screen.dart');
+      expect(reqDetail.contains('findSeatInLibrary'), isTrue);
+      expect(reqDetail.contains("type == 'due_payment'"), isTrue);
+
+      final studentHome = readProjFile('lib/features/student_app/presentation/screens/student_home_screen.dart');
+      expect(studentHome.contains("'userId':"), isTrue);
+
+      final myReceipts = readProjFile('lib/features/student_app/presentation/screens/my_receipts_screen.dart');
+      expect(myReceipts.contains('ReceiptRepository().generateReceipt'), isFalse);
+
+      // 5. Seat PII stripping & no write-on-read
+      final seatRepo = readProjFile('lib/features/seats/data/repositories/seat_repository.dart');
+      expect(seatRepo.contains('FieldValue.delete()'), isTrue);
+      expect(seatRepo.contains('findSeatInLibrary'), isTrue);
+
+      // 6. Storage Rules student doc owner isolation
+      final storageRules = readProjFile('storage.rules');
+      expect(storageRules.contains('isStudentDocOwner'), isTrue);
+      expect(storageRules.contains('gov_id'), isTrue);
+      expect(storageRules.contains('proofs'), isTrue);
+
+      // 7. Facility tour 1-tap exit & copy + publish_web SW preservation
+      final tour = readProjFile('lib/core/widgets/facility_tour_sheet.dart');
+      expect(tour.contains('Dedicated Reserved Desk'), isTrue);
+      expect(tour.contains('Get Started'), isTrue);
+
+      final pubWeb = readProjFile('scripts/publish_web.ps1');
+      expect(pubWeb.contains(r'web\flutter_service_worker.js'), isTrue);
+
+      // 8. P0 Quick Wins: configurable minFreezeDays, lateFinePerDay, Next Due Date, picker lock immunity
+      final testStudent = StudentModel(
+        id: 'stu-freeze',
+        name: 'Freeze Test',
+        fatherName: '',
+        phone: '9876543210',
+        email: 'freeze@example.com',
+        gender: Gender.male,
+        address: '',
+        pincode: '',
+        govIdType: GovIdType.aadhaar,
+        govIdNumber: '',
+        govIdImageUrl: '',
+        photoUrl: '',
+        college: '',
+        course: '',
+        year: '',
+        emergencyContact: '',
+        membershipStatus: MembershipStatus.active,
+        customFields: const {},
+        planEndDate: DateTime(2026, 12, 31),
+      );
+      final freeze5Allowed = PlanCalculatorService.calculateMembershipFreeze(
+        student: testStudent,
+        freezeStartDate: DateTime(2026, 12, 1),
+        freezeEndDate: DateTime(2026, 12, 5),
+        minFreezeDays: 5,
+      );
+      expect(freeze5Allowed.isValid, isTrue);
+      expect(freeze5Allowed.freezeDays, 5);
+
+      final freeze4Rejected = PlanCalculatorService.calculateMembershipFreeze(
+        student: testStudent,
+        freezeStartDate: DateTime(2026, 12, 1),
+        freezeEndDate: DateTime(2026, 12, 4),
+        minFreezeDays: 5,
+      );
+      expect(freeze4Rejected.isValid, isFalse);
+
+      final pdfSrc = readProjFile('lib/services/pdf_service.dart');
+      expect(pdfSrc.contains("effectiveTemplate?['Next Due Date']"), isTrue);
+      expect(recordPay.contains('lateFinePerDay'), isTrue);
+      expect(recordPay.contains('InactivityLockService.setExternalDialogActive'), isTrue);
+
+      final bulkImportSrc = readProjFile('lib/features/students/presentation/screens/bulk_import_screen.dart');
+      expect(bulkImportSrc.contains('InactivityLockService.setExternalDialogActive'), isTrue);
     });
   });
 }

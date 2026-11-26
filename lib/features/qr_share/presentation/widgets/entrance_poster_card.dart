@@ -438,120 +438,104 @@ class EntrancePosterCard extends ConsumerWidget {
                   ),
 
                   // ── 3. Amenities Section ─────────────────────────────────────
-                  Column(
-                    children: [
-                      const Text(
-                        'LIBRARY AMENITIES & FACILITIES',
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 9.0,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.0,
+                  if (activeAmenities.isNotEmpty)
+                    Column(
+                      children: [
+                        const Text(
+                          'LIBRARY AMENITIES & FACILITIES',
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 9.0,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.0,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 5),
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: activeAmenities.take(6).length,
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          childAspectRatio: 2.85,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 5,
-                        ),
-                        itemBuilder: (context, idx) {
-                          final item = activeAmenities[idx];
-                          final id = item['id']?.toString().toLowerCase() ?? '';
-                          String icon = item['icon']?.toString() ?? '';
-                          if (icon.isEmpty) {
-                            if (id == 'ac') {
-                              icon = '❄️';
-                            } else if (id == 'wifi') {
-                              icon = '📶';
-                            } else if (id == 'silence') {
-                              icon = '🤫';
-                            } else if (id == 'ro_water') {
-                              icon = '💧';
-                            } else if (id == 'power') {
-                              icon = '🔌';
-                            } else if (id == 'cctv') {
-                              icon = '📹';
-                            } else if (id == 'chairs') {
-                              icon = '💺';
-                            } else if (id == 'power_backup') {
-                              icon = '⚡';
-                            } else {
-                              icon = '✨';
-                            }
-                          }
+                        const SizedBox(height: 5),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: activeAmenities.take(6).length,
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            childAspectRatio: 2.85,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 5,
+                          ),
+                          itemBuilder: (context, idx) {
+                            final item = activeAmenities[idx];
+                            final id = item['id']?.toString().toLowerCase() ?? '';
+                            const defaultDescriptions = {
+                              'ac': 'Fully Air-Conditioned Hall',
+                              'wifi': 'High-Speed Optical Fiber',
+                              'silence': 'Pindrop Quiet Environment',
+                              'ro_water': 'Purified Chilled & Normal RO',
+                              'power': 'Personal Socket At Desk',
+                              'desk_lamp': 'Individual Study Desk Lamp',
+                              'open_24_7': 'Round-The-Clock Access',
+                              'cctv': '24/7 Security Surveillance',
+                              'chairs': 'Comfortable Ergonomic Seating',
+                              'locker': 'Private Storage Lockers',
+                              'power_backup': 'Uninterrupted Inverter',
+                              'parking': 'Dedicated Vehicle Parking',
+                              'pantry': 'Tea, Coffee & Refreshments',
+                              'newspapers': 'Daily Newspapers & Magazines',
+                              'natural_light': 'Ventilated Window Seating',
+                            };
+                            final desc = defaultDescriptions[id] ?? 'Admin Verified Facility';
 
-                          const defaultDescriptions = {
-                            'ac': 'Fully Air-Conditioned Hall',
-                            'wifi': 'High-Speed Optical Fiber',
-                            'silence': 'Pindrop Quiet Environment',
-                            'ro_water': 'Purified Chilled & Normal RO',
-                            'power': 'Personal Socket At Desk',
-                            'open_24_7': 'Round-The-Clock Access',
-                            'cctv': '24/7 Security Surveillance',
-                            'chairs': 'Comfortable Ergonomic Seating',
-                            'power_backup': 'Uninterrupted Inverter',
-                          };
-                          final desc = defaultDescriptions[id] ?? 'Standard Premium Facility';
-
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      _getAmenityIconData(id, item['label']?.toString() ?? ''),
-                                      size: 12,
-                                      color: _getAmenityIconColor(id, item['label']?.toString() ?? ''),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        item['label']?.toString() ?? '',
-                                        textAlign: TextAlign.center,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Color(0xFF1E293B),
-                                          fontSize: 8.5,
-                                          fontWeight: FontWeight.bold,
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        _getAmenityIconData(id, item['label']?.toString() ?? ''),
+                                        size: 12,
+                                        color: _getAmenityIconColor(id, item['label']?.toString() ?? ''),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          item['label']?.toString() ?? '',
+                                          textAlign: TextAlign.center,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Color(0xFF1E293B),
+                                            fontSize: 8.5,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 1.5),
-                                Text(
-                                  desc,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF64748B),
-                                    fontSize: 7.0,
-                                    fontWeight: FontWeight.w500,
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                                  const SizedBox(height: 1.5),
+                                  Text(
+                                    desc,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 7.0,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),

@@ -11,20 +11,28 @@ class SentinelEchoVerifier {
 
   Timer? _sweepTimer;
 
-  SentinelEchoVerifier({this.onAnomalyDetected}) {
-    _startSweepTimer();
-  }
+  SentinelEchoVerifier({this.onAnomalyDetected});
+
+  bool get hasPendingChecks => _activeExpectations.isNotEmpty;
 
   void _startSweepTimer() {
-    _sweepTimer?.cancel();
-    // Check for timed-out expectations every 500ms
+    if (_sweepTimer?.isActive == true) return;
+    // Check for timed-out expectations every 500ms only while checks are pending
     _sweepTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       _sweepExpiredExpectations();
     });
   }
 
+  void _stopSweepTimerIfIdle() {
+    if (_activeExpectations.isEmpty) {
+      _sweepTimer?.cancel();
+      _sweepTimer = null;
+    }
+  }
+
   void dispose() {
     _sweepTimer?.cancel();
+    _sweepTimer = null;
   }
 
   List<SentinelEchoExpectation> get activeExpectations =>
@@ -57,6 +65,7 @@ class SentinelEchoVerifier {
     );
 
     _activeExpectations.add(exp);
+    _startSweepTimer();
     return exp;
   }
 
@@ -67,6 +76,7 @@ class SentinelEchoVerifier {
     required String key,
     dynamic actualValue,
   }) {
+    if (_activeExpectations.isEmpty) return false;
     final now = DateTime.now();
     bool anyMatched = false;
 
@@ -95,10 +105,15 @@ class SentinelEchoVerifier {
     }
 
     _activeExpectations.removeWhere((e) => e.status != EchoStatus.pending);
+    _stopSweepTimerIfIdle();
     return anyMatched;
   }
 
   void _sweepExpiredExpectations() {
+    if (_activeExpectations.isEmpty) {
+      _stopSweepTimerIfIdle();
+      return;
+    }
     final now = DateTime.now();
     final expired = _activeExpectations.where((e) => e.isExpired).toList();
 
@@ -144,6 +159,7 @@ class SentinelEchoVerifier {
     }
 
     _activeExpectations.removeWhere((e) => e.status != EchoStatus.pending);
+    _stopSweepTimerIfIdle();
   }
 
   void _recordEvent({
