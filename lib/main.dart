@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -29,37 +30,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Activate Firebase App Check
-  if (kIsWeb) {
-    // 100% FREE solution: Only activates on web when a custom key is passed via --dart-define=RECAPTCHA_V3_KEY=...
-    // Otherwise runs seamlessly with zero configuration, zero billing, and zero console errors.
-    const recaptchaV3SiteKey = String.fromEnvironment('RECAPTCHA_V3_KEY', defaultValue: '');
-    if (recaptchaV3SiteKey.isNotEmpty) {
-      await FirebaseAppCheck.instance.activate(
-        providerWeb: ReCaptchaV3Provider(recaptchaV3SiteKey),
-      );
-    } else if (kDebugMode) {
-      debugPrint('[Security Notice] App Check Web is inactive. Pass --dart-define=RECAPTCHA_V3_KEY=... for production protection.');
-    }
-  } else {
-    await FirebaseAppCheck.instance.activate(
-      providerAndroid: const AndroidPlayIntegrityProvider(),
-    );
-  }
-
-  // Initialize Crashlytics telemetry and error hooks
-  await TelemetryService.initialize(
-    appVersion: AppConstants.appVersion,
-    buildNumber: '${AppConstants.buildNumber}',
-  );
-
-  // Initialize Remote Config non-blocking (apply local defaults immediately, fetch remote in background)
-  RemoteConfigService.initialize(waitForFetch: false).ignore();
-
-  // Analytics: enable data collection non-blocking
-  FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true).ignore();
-
-  // Enable Firestore offline persistence
+  // Enable Firestore offline persistence synchronously before first query
   try {
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
@@ -69,23 +40,12 @@ void main() async {
     if (kDebugMode) debugPrint('[Firestore] Persistence config note: $e');
   }
 
-  // Initialize push notifications & local schedulers on mobile
-  if (!kIsWeb) {
-    await NotificationService.initialize();
-    await BadgeService.initialize();
-    await ExpirySchedulerService.initialize();
-    // SEC-4: Migrate legacy encryption key from source → device secure storage.
-    // On first launch: writes key to Android Keystore / iOS Keychain.
-    // On subsequent launches: reads from secure storage only (no hardcoded key).
-    await LegacyKeyMigrationService.ensureMigrated();
-    final legacyKey = await LegacyKeyMigrationService.getLegacyKey();
-    EncryptionService.setLegacyKey(legacyKey);
-  }
-
   final prefs = await SharedPreferences.getInstance();
 
-  // Initialize Cozy Sentinel Autonomous Quality Guardian
-  SentinelService.instance.startMonitoring();
+  // Schedule non-blocking post-frame initialization so Frame #1 renders immediately
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_initializeDeferredServices());
+  });
 
   runApp(
     ProviderScope(
@@ -98,4 +58,52 @@ void main() async {
       child: const StudyLibraryApp(),
     ),
   );
+}
+
+Future<void> _initializeDeferredServices() async {
+  // Activate Firebase App Check
+  try {
+    if (kIsWeb) {
+      const recaptchaV3SiteKey = String.fromEnvironment('RECAPTCHA_V3_KEY', defaultValue: '');
+      if (recaptchaV3SiteKey.isNotEmpty) {
+        await FirebaseAppCheck.instance.activate(
+          providerWeb: ReCaptchaV3Provider(recaptchaV3SiteKey),
+        );
+      } else if (kDebugMode) {
+        debugPrint('[Security Notice] App Check Web is inactive. Pass --dart-define=RECAPTCHA_V3_KEY=... for production protection.');
+      }
+    } else {
+      await FirebaseAppCheck.instance.activate(
+        providerAndroid: const AndroidPlayIntegrityProvider(),
+      );
+    }
+  } catch (e) {
+    if (kDebugMode) debugPrint('[AppCheck] Deferred init note: $e');
+  }
+
+  // Initialize Crashlytics telemetry, Remote Config, and Analytics concurrently
+  await Future.wait([
+    TelemetryService.initialize(
+      appVersion: AppConstants.appVersion,
+      buildNumber: '${AppConstants.buildNumber}',
+    ).catchError((_) {}),
+    RemoteConfigService.initialize(waitForFetch: false).catchError((_) {}),
+    FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true).catchError((_) {}),
+  ]);
+
+  // Initialize push notifications, badges, schedulers & key migration on mobile
+  if (!kIsWeb) {
+    await Future.wait([
+      NotificationService.initialize().catchError((_) {}),
+      BadgeService.initialize().catchError((_) {}),
+      ExpirySchedulerService.initialize().catchError((_) {}),
+      LegacyKeyMigrationService.ensureMigrated().then((_) async {
+        final legacyKey = await LegacyKeyMigrationService.getLegacyKey();
+        EncryptionService.setLegacyKey(legacyKey);
+      }).catchError((_) {}),
+    ]);
+  }
+
+  // Initialize Cozy Sentinel Autonomous Quality Guardian
+  SentinelService.instance.startMonitoring();
 }

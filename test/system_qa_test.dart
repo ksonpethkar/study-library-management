@@ -18,6 +18,7 @@ import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:crypto/crypto.dart';
 import 'package:study_library/core/security/encryption_service.dart';
+import 'package:study_library/core/utils/gov_id_cross_check.dart';
 import 'package:study_library/models/waiting_list_model.dart';
 import 'package:study_library/models/payment_model.dart';
 import 'package:study_library/features/registration/data/ocr_parser.dart';
@@ -34,6 +35,8 @@ import 'package:study_library/models/feedback_model.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
+import 'package:study_library/services/poster_config_service.dart';
+import 'package:study_library/services/pdf_font_service.dart';
 import 'package:study_library/services/membership_automation_service.dart';
 import 'package:study_library/features/payments/presentation/screens/record_payment_screen.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
@@ -1800,8 +1803,8 @@ void main() {
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.61'));
-      expect(AppConstants.buildNumber, equals(2078));
+      expect(AppConstants.appVersion, equals('1.5.62'));
+      expect(AppConstants.buildNumber, equals(2079));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -5153,8 +5156,8 @@ void main() {
     test('109. UNIVERSAL UPDATED INFO & LEGAL VISIBILITY PARITY (STUDENT, ADMIN & PUBLIC)', () {
       // 1. Version synchronization verification
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.61'));
-      expect(AppConstants.buildNumber, equals(2078));
+      expect(AppConstants.appVersion, equals('1.5.62'));
+      expect(AppConstants.buildNumber, equals(2079));
 
       // 2. Student-facing release changes include current release highlights
       final studentTitles = WhatsNewService.studentChanges.map((c) => c.title).toList();
@@ -5175,7 +5178,7 @@ void main() {
 
       // 5. App version string formatting for student profile
       final formattedVersion = 'v${AppConstants.appVersion}+${AppConstants.buildNumber}';
-      expect(formattedVersion, equals('v1.5.61+2078'));
+      expect(formattedVersion, equals('v1.5.62+2079'));
     });
 
     test('110. 1-TAP WAITING LIST PROMOTION & MULTI-LINGUAL WHATSAPP OFFER SUITE', () async {
@@ -6225,8 +6228,8 @@ void main() {
     test('126. MOBILE PERSPECTIVE INVARIANTS: BOTTOM SCROLL CLEARANCE, TABBAR SCROLLABILITY & ZERO-TEXT-SQUISHING', () {
       // 1. Version consistency check
       expect(WhatsNewService.currentVersionIdentifier, equals('${AppConstants.appVersion}+${AppConstants.buildNumber}'));
-      expect(AppConstants.appVersion, equals('1.5.61'));
-      expect(AppConstants.buildNumber, equals(2078));
+      expect(AppConstants.appVersion, equals('1.5.62'));
+      expect(AppConstants.buildNumber, equals(2079));
 
       // 2. Minimum bottom clearance for mobile navigation bar & FAB visibility (>= 100dp)
       const standardShellBottomClearance = 110.0;
@@ -11635,13 +11638,13 @@ Gender: Female
       expect(downloadHtml.contains('releases/download/v1.5.57'), isFalse);
       expect(downloadHtml.contains('v1.5.50'), isFalse);
       expect(downloadHtml.contains('v1.5.56+2073'), isFalse);
-      expect(downloadHtml.contains('id="downloadLegacy32Btn"'), isTrue);
-      expect(downloadHtml.contains('id="downloadUniversalBtn"'), isTrue);
+      expect(downloadHtml.contains('id="downloadBtn"'), isTrue);
+      expect(downloadHtml.contains('StudyLibrary-arm64-v8a.apk'), isTrue);
       expect(downloadHtml.contains('id="githubReleaseAssetsBtn"'), isTrue);
 
       final rootHtml = readProjFile('public/index.html');
       expect(rootHtml.contains('releases/download/v1.5.58'), isFalse);
-      expect(rootHtml.contains('id="downloadLegacy32Btn"'), isTrue);
+      expect(rootHtml.contains('id="downloadBtn"'), isTrue);
 
       // 4. Release script must tag v$versionName (never hardcoded v1.0.0) and verify HTTP 200
       final releaseScript = readProjFile('scripts/publish_latest_build.ps1');
@@ -11814,6 +11817,219 @@ Gender: Female
 
       final seatSelSrc = readProjFile('lib/features/registration/presentation/screens/seat_selection_screen.dart');
       expect(seatSelSrc.contains('seatHoldMinutes'), isTrue);
+    });
+
+    test('Test 193: DYNAMIC STANDEE POSTER CUSTOMIZATION, TAGLINE DEDUP, ADAPTIVE AMENITY GRID & 3-STEP GUIDE', () {
+      // 1. Tagline deduplication prevents "Welcome To <Library>" duplication
+      expect(
+        PosterLayoutConfig.resolveTagline('Welcome To The Cozy Corner Study Centre', 'The Cozy Corner Study Centre'),
+        'Smart Study Center & Silent Reading Hall',
+      );
+      expect(
+        PosterLayoutConfig.resolveTagline('Quiet 24x7 Reading Zone', 'The Cozy Corner Study Centre'),
+        'Quiet 24x7 Reading Zone',
+      );
+
+      // 2. Adaptive amenity columns (1, 2, or 3 columns based on item count)
+      expect(PosterLayoutConfig.resolveAmenityColumns(1), 1);
+      expect(PosterLayoutConfig.resolveAmenityColumns(2), 2);
+      expect(PosterLayoutConfig.resolveAmenityColumns(3), 3);
+      expect(PosterLayoutConfig.resolveAmenityColumns(4), 2);
+      expect(PosterLayoutConfig.resolveAmenityColumns(6), 3);
+      expect(PosterLayoutConfig.resolveAmenityColumns(9), 3);
+
+      // 3. PosterLayoutConfig serialization round-trip
+      const cfg = PosterLayoutConfig(
+        showTagline: false,
+        showHours: true,
+        showUrgency: true,
+        urgencyText: 'Admissions Open',
+        showLiveSeatCount: true,
+        showHowToSteps: true,
+        qrSizeMode: 'large',
+        maxAmenities: 9,
+      );
+      final roundTrip = PosterLayoutConfig.fromJson(cfg.toJson());
+      expect(roundTrip.showTagline, isFalse);
+      expect(roundTrip.urgencyText, 'Admissions Open');
+      expect(roundTrip.qrSizeMode, 'large');
+      expect(roundTrip.maxAmenities, 9);
+
+      // 4. Preview card, Share screen & A4 PDF service all consume dynamic PosterLayoutConfig
+      final cardSrc = File('lib/features/qr_share/presentation/widgets/entrance_poster_card.dart').existsSync()
+          ? File('lib/features/qr_share/presentation/widgets/entrance_poster_card.dart').readAsStringSync()
+          : File('study_library/lib/features/qr_share/presentation/widgets/entrance_poster_card.dart').readAsStringSync();
+      expect(cardSrc.contains('PosterLayoutConfig.resolveTagline'), isTrue);
+      expect(cardSrc.contains('PosterLayoutConfig.resolveAmenityColumns'), isTrue);
+      expect(cardSrc.contains('NO APP REQUIRED'), isTrue);
+      expect(cardSrc.contains('Desks Open Live'), isTrue);
+
+      final pdfSrc = File('lib/services/a4_entrance_poster_pdf_service.dart').existsSync()
+          ? File('lib/services/a4_entrance_poster_pdf_service.dart').readAsStringSync()
+          : File('study_library/lib/services/a4_entrance_poster_pdf_service.dart').readAsStringSync();
+      expect(pdfSrc.contains('PosterLayoutConfig.resolveTagline'), isTrue);
+      expect(pdfSrc.contains('PosterLayoutConfig.resolveAmenityColumns'), isTrue);
+      expect(pdfSrc.contains('effectiveConfig.showHowToSteps'), isTrue);
+
+      final shareSrc = File('lib/features/qr_share/presentation/screens/qr_share_screen.dart').existsSync()
+          ? File('lib/features/qr_share/presentation/screens/qr_share_screen.dart').readAsStringSync()
+          : File('study_library/lib/features/qr_share/presentation/screens/qr_share_screen.dart').readAsStringSync();
+      expect(shareSrc.contains('PosterConfigService.streamPosterConfig'), isTrue);
+    });
+
+    test('Gov ID upload, PDF unlocker, editor, OCR cross-check & KYC verification invariants', () {
+      // 1. OCR cross-check guard detects mismatches cleanly
+      expect(
+        GovIdCrossCheck.checkMismatch(
+          type: GovIdType.pan,
+          typedId: 'ABCDE1234F',
+          ocrDetectedId: 'ABCDE1234F',
+        ),
+        isNull,
+      );
+      expect(
+        GovIdCrossCheck.checkMismatch(
+          type: GovIdType.pan,
+          typedId: 'ABCDE1234F',
+          ocrDetectedId: 'XYZAB9999K',
+        ),
+        isNotNull,
+      );
+
+      // 2. StudentModel KYC verification fields serialize & deserialize
+      final verifiedAt = DateTime.utc(2026, 11, 28, 10, 0);
+      final student = StudentModel(
+        id: 'stu_kyc_1',
+        name: 'Test Student',
+        fatherName: 'Guardian',
+        phone: '9876543210',
+        email: 'test@example.com',
+        gender: Gender.male,
+        address: 'Parli',
+        pincode: '431515',
+        govIdType: GovIdType.aadhaar,
+        govIdNumber: 'XXXX XXXX 1234',
+        govIdImageUrl: '',
+        photoUrl: '',
+        college: '',
+        course: '',
+        year: '',
+        emergencyContact: '',
+        membershipStatus: MembershipStatus.active,
+        customFields: const {},
+        kycVerified: true,
+        kycVerifiedAt: verifiedAt,
+        kycVerifiedBy: 'admin@example.com',
+        createdAt: verifiedAt,
+        updatedAt: verifiedAt,
+      );
+      final roundTrip = StudentModel.fromJson({...student.toJson(), 'id': student.id});
+      expect(roundTrip.kycVerified, isTrue);
+      expect(roundTrip.kycVerifiedBy, 'admin@example.com');
+      expect(roundTrip.kycVerifiedAt?.toUtc(), verifiedAt);
+
+      // 3. Picker, Viewer, Editor & Studio wiring invariants
+      String readLib(String rel) => File('lib/$rel').existsSync()
+          ? File('lib/$rel').readAsStringSync()
+          : File('study_library/lib/$rel').readAsStringSync();
+
+      final pickerSrc = readLib('services/document_picker_service.dart');
+      expect(pickerSrc.contains("'heic'"), isTrue);
+      expect(pickerSrc.contains("'heif'"), isTrue);
+      expect(pickerSrc.contains('enableEditor'), isTrue);
+      expect(pickerSrc.contains('_processPickedPdf'), isTrue);
+
+      final imageSrc = readLib('services/image_service.dart');
+      expect(imageSrc.contains('InAppPdfViewer'), isTrue);
+
+      final studioSrc = readLib('features/requests/presentation/widgets/admin_document_studio_dialog.dart');
+      expect(studioSrc.contains('InAppPdfViewer'), isTrue);
+      expect(studioSrc.contains('_toggleKycVerified'), isTrue);
+
+      final editorSrc = readLib('core/widgets/id_document_editor_dialog.dart');
+      expect(editorSrc.contains('IdDocumentEditorDialog'), isTrue);
+      expect(editorSrc.contains('Auto Clarity'), isTrue);
+      expect(editorSrc.contains('KYC Watermark'), isTrue);
+      final pubWebSrc = File('scripts/publish_web.ps1').existsSync()
+          ? File('scripts/publish_web.ps1').readAsStringSync()
+          : File('study_library/scripts/publish_web.ps1').readAsStringSync();
+      expect(pubWebSrc.contains('Remove-Item "public\\app\\*"'), isTrue);
+      expect(pubWebSrc.contains('StudyLibrary.apk'), isTrue);
+
+      final fbJson = File('firebase.json').existsSync()
+          ? File('firebase.json').readAsStringSync()
+          : File('study_library/firebase.json').readAsStringSync();
+      expect(fbJson.contains('**/*.aab'), isTrue);
+      expect(fbJson.contains('max-age=604800'), isTrue);
+    });
+
+    test('Test 195: RECEIPT PDF ACCENT COLOR, MULTI-FONT SUPPORT & WYSIWYG PREVIEW PARITY', () {
+      // 1. Supported font families & normalization
+      expect(PdfFontService.supportedFontFamilies.keys, containsAll(['noto_sans', 'noto_serif', 'poppins', 'roboto_mono']));
+      expect(PdfFontService.normalizeFontFamily('noto_serif'), 'noto_serif');
+      expect(PdfFontService.normalizeFontFamily('unknown_font'), 'noto_sans');
+
+      // 2. PdfService applies primaryColor, onPrimaryColor, headerFontSize (14..24) & fontFamily
+      final pdfSrc = File('lib/services/pdf_service.dart').existsSync()
+          ? File('lib/services/pdf_service.dart').readAsStringSync()
+          : File('study_library/lib/services/pdf_service.dart').readAsStringSync();
+      expect(pdfSrc.contains('onPrimaryColor'), isTrue);
+      expect(pdfSrc.contains('primarySoftBg'), isTrue);
+      expect(pdfSrc.contains('getUniversalTheme(fontFamily: fontFamily)'), isTrue);
+      expect(pdfSrc.contains('headerFontSize.clamp(14.0, 24.0)'), isTrue);
+      expect(pdfSrc.contains("decoration: pw.BoxDecoration(color: primaryColor)"), isTrue);
+
+      // 3. ReceiptTemplateScreen saves/passes fontFamily, deposit mock, clean seatLabel & WYSIWYG preview
+      final tplSrc = File('lib/features/settings/presentation/screens/receipt_template_screen.dart').existsSync()
+          ? File('lib/features/settings/presentation/screens/receipt_template_screen.dart').readAsStringSync()
+          : File('study_library/lib/features/settings/presentation/screens/receipt_template_screen.dart').readAsStringSync();
+      expect(tplSrc.contains("'fontFamily': _fontFamily"), isTrue);
+      expect(tplSrc.contains("seatLabel: '12'"), isTrue);
+      expect(tplSrc.contains('PAYMENT CONFIRMED'), isTrue);
+      expect(tplSrc.contains('Receipt Typography & Font'), isTrue);
+    });
+
+    test('Test 193: ADMIN NOTIFICATION CENTER LAYOUT, CARD-COUNT PARITY & AUTO-READ REQUEST ALERTS', () {
+      String readProjFile(String relPath) {
+        final direct = File(relPath);
+        if (direct.existsSync()) return direct.readAsStringSync();
+        return File('study_library/$relPath').readAsStringSync();
+      }
+
+      final sheetSrc = readProjFile('lib/features/dashboard/presentation/widgets/notification_center_sheet.dart');
+      expect(sheetSrc.contains('systemCardCount'), isTrue,
+          reason: 'All Alerts and Pass & Desks must count rendered system cards instead of raw pending + renewals');
+      expect(sheetSrc.contains(r'Pending Action Request${widget.pendingRequestsCount == 1 ? "" : "s"}'), isTrue);
+      expect(sheetSrc.contains('overflow: TextOverflow.ellipsis'), isTrue);
+      expect(sheetSrc.contains('ListTile('), isFalse,
+          reason: 'System alert tiles must not use ListTile trailing which clips badges like 4 Due • Read');
+
+      final dashSrc = readProjFile('lib/features/dashboard/presentation/screens/admin_dashboard_screen.dart');
+      expect(dashSrc.contains('unreadSystemCards'), isTrue);
+
+      final notifSvcSrc = readProjFile('lib/services/app_notification_service.dart');
+      expect(notifSvcSrc.contains('markRequestNotificationsAsRead'), isTrue);
+
+      final reqDetailSrc = readProjFile('lib/features/requests/presentation/screens/request_detail_screen.dart');
+      expect(reqDetailSrc.contains('AppNotificationService.markRequestNotificationsAsRead'), isTrue);
+
+      final regSrc = readProjFile('lib/features/registration/presentation/screens/review_submit_screen.dart');
+      expect(regSrc.contains(r"'${Routes.adminRequests}/${requestRef.id}'"), isTrue);
+    });
+
+    test('Bidirectional Auto-Healer student seatId sync & Diagnostics refresh feedback invariants', () {
+      String readLib(String rel) => File('lib/$rel').existsSync()
+          ? File('lib/$rel').readAsStringSync()
+          : File('study_library/lib/$rel').readAsStringSync();
+
+      final diagServiceSrc = readLib('features/maintenance/data/services/database_diagnostics_service.dart');
+      expect(diagServiceSrc.contains('inactive_student_seat_ref'), isTrue);
+      expect(diagServiceSrc.contains("'seatId': FieldValue.delete()"), isTrue);
+      expect(diagServiceSrc.contains("'previousSeatId': seatId"), isTrue);
+
+      final diagScreenSrc = readLib('features/maintenance/presentation/screens/maintenance_diagnostics_screen.dart');
+      expect(diagScreenSrc.contains('Refresh Metrics & Re-Scan'), isTrue);
+      expect(diagScreenSrc.contains('ref.refresh(integrityReportProvider.future)'), isTrue);
     });
   });
 }

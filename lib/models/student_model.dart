@@ -114,6 +114,9 @@ class StudentModel {
   final String? govIdFilterMode;
   final bool? govIdShowWatermark;
   final int? govIdRotation;
+  final bool kycVerified;
+  final DateTime? kycVerifiedAt;
+  final String? kycVerifiedBy;
   final String photoUrl;
   final String college;
   final String course;
@@ -275,6 +278,9 @@ class StudentModel {
     this.govIdFilterMode,
     this.govIdShowWatermark,
     this.govIdRotation,
+    this.kycVerified = false,
+    this.kycVerifiedAt,
+    this.kycVerifiedBy,
     required this.photoUrl,
     required this.college,
     required this.course,
@@ -366,6 +372,11 @@ class StudentModel {
       govIdFilterMode: json['govIdFilterMode'] as String?,
       govIdShowWatermark: json['govIdShowWatermark'] as bool?,
       govIdRotation: (json['govIdRotation'] as num?)?.toInt(),
+      kycVerified: json['kycVerified'] as bool? ?? false,
+      kycVerifiedAt: json['kycVerifiedAt'] != null
+          ? DateTime.tryParse(json['kycVerifiedAt'].toString())
+          : null,
+      kycVerifiedBy: json['kycVerifiedBy'] as String?,
       photoUrl: (json['photoUrl'] ??
               json['photo'] ??
               json['avatarUrl'] ??
@@ -464,6 +475,9 @@ class StudentModel {
       if (govIdFilterMode != null) 'govIdFilterMode': govIdFilterMode,
       if (govIdShowWatermark != null) 'govIdShowWatermark': govIdShowWatermark,
       if (govIdRotation != null) 'govIdRotation': govIdRotation,
+      'kycVerified': kycVerified,
+      if (kycVerifiedAt != null) 'kycVerifiedAt': kycVerifiedAt!.toIso8601String(),
+      if (kycVerifiedBy != null) 'kycVerifiedBy': kycVerifiedBy,
       'photoUrl': photoUrl,
       'college': college,
       'course': course,
@@ -535,6 +549,9 @@ class StudentModel {
     String? govIdFilterMode,
     bool? govIdShowWatermark,
     int? govIdRotation,
+    bool? kycVerified,
+    DateTime? kycVerifiedAt,
+    String? kycVerifiedBy,
     String? photoUrl,
     String? college,
     String? course,
@@ -609,6 +626,9 @@ class StudentModel {
       govIdFilterMode: govIdFilterMode ?? this.govIdFilterMode,
       govIdShowWatermark: govIdShowWatermark ?? this.govIdShowWatermark,
       govIdRotation: govIdRotation ?? this.govIdRotation,
+      kycVerified: kycVerified ?? this.kycVerified,
+      kycVerifiedAt: kycVerifiedAt ?? this.kycVerifiedAt,
+      kycVerifiedBy: kycVerifiedBy ?? this.kycVerifiedBy,
       photoUrl: photoUrl ?? this.photoUrl,
       college: college ?? this.college,
       course: course ?? this.course,

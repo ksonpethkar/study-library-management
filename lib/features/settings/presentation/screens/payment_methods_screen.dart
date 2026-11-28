@@ -1466,15 +1466,31 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
                                   ],
                                 ),
                               ),
-                              Icon(
-                                _policiesExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-                                color: theme.colorScheme.onSurfaceVariant,
+                              AnimatedRotation(
+                                turns: _policiesExpanded ? 0.5 : 0.0,
+                                duration: MediaQuery.disableAnimationsOf(context)
+                                    ? Duration.zero
+                                    : const Duration(milliseconds: 220),
+                                curve: Curves.easeOutCubic,
+                                child: Icon(
+                                  Icons.expand_more_rounded,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        if (_policiesExpanded) ...[
-                          const SizedBox(height: 16),
+                        AnimatedSize(
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          alignment: Alignment.topCenter,
+                          child: _policiesExpanded
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 16),
 
                         TextField(
                           controller: _lateFineController,
@@ -1543,7 +1559,10 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
                             helperText: 'Shown to students during plan renewal and on receipts',
                           ),
                         ),
-                        ],
+                                  ],
+                                )
+                              : const SizedBox(width: double.infinity, height: 0),
+                        ),
                       ],
                     ),
                   ),

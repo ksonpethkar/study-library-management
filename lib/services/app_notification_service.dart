@@ -554,6 +554,39 @@ class AppNotificationService {
     }
   }
 
+  /// Automatically marks admin notifications linked to a handled request as read
+  /// so approved/rejected admission or update alerts do not remain stale in Unread.
+  static Future<void> markRequestNotificationsAsRead({
+    required String libraryId,
+    required String requestId,
+  }) async {
+    if (libraryId.isEmpty || requestId.isEmpty) return;
+    try {
+      final snap = await _firestore
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('notifications')
+          .where('read', isEqualTo: false)
+          .get();
+
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final meta = data['metadata'] as Map?;
+        final metaReqId = (meta?['requestId'] ?? data['requestId'] ?? '').toString().trim();
+        final role = (data['targetRole'] ?? 'all').toString().toLowerCase();
+        if (metaReqId == requestId && (role == 'admin' || role == 'all')) {
+          _recordLocallyRead(libraryId, null, doc.id);
+          doc.reference.update({
+            'read': true,
+            'readAt': FieldValue.serverTimestamp(),
+          }).catchError((_) {});
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error marking request notifications as read: $e');
+    }
+  }
+
   /// Mark all notifications as read for current viewer
   static Future<void> markAllAsRead({
     required String libraryId,

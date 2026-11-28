@@ -249,7 +249,6 @@ class PdfService {
     final showPaymentMethod = (effectiveTemplate?['Payment Method'] as bool?) ?? true;
     final showDeposit = (effectiveTemplate?['Security Deposit'] as bool?) ?? true;
     final showNextDueDate = (effectiveTemplate?['Next Due Date'] as bool?) ?? false;
-    final pageSize = (effectiveTemplate?['pageSize'] as String?) ?? 'A4';
 
     final headerFontSize = ((effectiveTemplate?['headerFontSize'] as num?)?.toDouble() ?? 22.0).clamp(16.0, 30.0);
     final stampRotation = ((effectiveTemplate?['stampRotation'] as num?)?.toDouble() ?? -12.0);
@@ -284,13 +283,27 @@ class PdfService {
     final cleanWelcome = sanitizePdfText(library.welcomeMessage);
     final cleanStudentName = sanitizePdfText(student.name);
 
-    final pageFormat = pageSize == 'A5' ? PdfPageFormat.a5 : PdfPageFormat.a4;
+    final pageFormat = PdfPageFormat.a4;
+    final fontFamily = PdfFontService.normalizeFontFamily(effectiveTemplate?['fontFamily'] as String?);
     final primaryColorHex = (effectiveTemplate?['primaryColor'] as String?) ?? '';
     final primaryColor = primaryColorHex.isNotEmpty
         ? PdfColor.fromHex('#$primaryColorHex')
         : (library.accentColor != 0
             ? PdfColor.fromInt(library.accentColor)
             : PdfColor.fromHex('#1E3A8A'));
+    final isDarkPrimary = (0.299 * primaryColor.red + 0.587 * primaryColor.green + 0.114 * primaryColor.blue) < 0.58;
+    final onPrimaryColor = isDarkPrimary ? PdfColors.white : PdfColor.fromHex('#0F172A');
+    final onPrimarySubColor = isDarkPrimary ? PdfColor.fromHex('#E2E8F0') : PdfColor.fromHex('#334155');
+    final primarySoftBg = PdfColor(
+      primaryColor.red * 0.08 + 0.92,
+      primaryColor.green * 0.08 + 0.92,
+      primaryColor.blue * 0.08 + 0.92,
+    );
+    final primaryBorder = PdfColor(
+      primaryColor.red * 0.35 + 0.65,
+      primaryColor.green * 0.35 + 0.65,
+      primaryColor.blue * 0.35 + 0.65,
+    );
     final currencyFmt = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
     final depositAmount = (receipt.securityDeposit != null && receipt.securityDeposit! > 0)
@@ -449,7 +462,7 @@ class PdfService {
 
     final planFeatures = resolvedFeatures.take(4).toList();
 
-    final universalTheme = await PdfFontService.getUniversalTheme(base: notoSans);
+    final universalTheme = await PdfFontService.getUniversalTheme(fontFamily: fontFamily);
 
     pdf.addPage(
       pw.Page(
@@ -615,9 +628,9 @@ class PdfService {
                                       pw.Text(
                                         cleanOrgName.toUpperCase(),
                                         style: pw.TextStyle(
-                                          fontSize: headerFontSize.clamp(13.0, 16.0),
+                                          fontSize: headerFontSize.clamp(14.0, 24.0),
                                           fontWeight: pw.FontWeight.bold,
-                                          color: PdfColor.fromHex('#0F172A'),
+                                          color: primaryColor,
                                           letterSpacing: 0.3,
                                         ),
                                       ),
@@ -663,9 +676,12 @@ class PdfService {
                             pw.Container(
                               padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
                               decoration: pw.BoxDecoration(
-                                color: isRefund ? PdfColor.fromHex('#FEF2F2') : PdfColor.fromHex('#ECFDF5'),
+                                color: isRefund ? PdfColor.fromHex('#FEF2F2') : primarySoftBg,
                                 borderRadius: pw.BorderRadius.circular(16),
-                                border: pw.Border.all(color: isRefund ? PdfColor.fromHex('#FECACA') : PdfColor.fromHex('#A7F3D0'), width: 1),
+                                border: pw.Border.all(
+                                  color: isRefund ? PdfColor.fromHex('#FECACA') : primaryBorder,
+                                  width: 1,
+                                ),
                               ),
                               child: pw.Row(
                                 mainAxisSize: pw.MainAxisSize.min,
@@ -674,7 +690,7 @@ class PdfService {
                                     width: 5.5,
                                     height: 5.5,
                                     decoration: pw.BoxDecoration(
-                                      color: isRefund ? PdfColor.fromHex('#EF4444') : PdfColor.fromHex('#10B981'),
+                                      color: isRefund ? PdfColor.fromHex('#EF4444') : primaryColor,
                                       shape: pw.BoxShape.circle,
                                     ),
                                   ),
@@ -686,7 +702,7 @@ class PdfService {
                                     style: pw.TextStyle(
                                       fontSize: 8,
                                       fontWeight: pw.FontWeight.bold,
-                                      color: isRefund ? PdfColor.fromHex('#B91C1C') : PdfColor.fromHex('#047857'),
+                                      color: isRefund ? PdfColor.fromHex('#B91C1C') : primaryColor,
                                       letterSpacing: 0.5,
                                     ),
                                   ),
@@ -710,7 +726,7 @@ class PdfService {
                       ],
                     ),
                     pw.SizedBox(height: 10),
-                    pw.Divider(thickness: 1, color: PdfColor.fromHex('#E2E8F0')),
+                    pw.Divider(thickness: 1, color: primaryBorder),
                     pw.SizedBox(height: 10),
 
                     // ── 2. Dual Metadata Cards (Key-Value Grid, Transparent to preserve Watermark) ──
@@ -723,14 +739,14 @@ class PdfService {
                             padding: const pw.EdgeInsets.all(10),
                             decoration: pw.BoxDecoration(
                               borderRadius: pw.BorderRadius.circular(8),
-                              border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 1),
+                              border: pw.Border.all(color: primaryBorder, width: 1),
                             ),
                             child: pw.Column(
                               crossAxisAlignment: pw.CrossAxisAlignment.start,
                               children: [
                                 pw.Text(
                                   'RECEIPT INFORMATION',
-                                  style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#94A3B8'), letterSpacing: 0.8),
+                                  style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: primaryColor, letterSpacing: 0.8),
                                 ),
                                 pw.SizedBox(height: 6),
                                 if (showReceiptNo)
@@ -749,10 +765,11 @@ class PdfService {
                                     pw.Container(
                                       padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: pw.BoxDecoration(
+                                        color: primarySoftBg,
                                         borderRadius: pw.BorderRadius.circular(4),
-                                        border: pw.Border.all(color: PdfColor.fromHex('#C7D2FE'), width: 0.8),
+                                        border: pw.Border.all(color: primaryBorder, width: 0.8),
                                       ),
-                                      child: pw.Text(paymentMode, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#4338CA'))),
+                                      child: pw.Text(paymentMode, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                                     ),
                                   ),
                                 if (isGstInvoice && resolvedGstin.isNotEmpty)
@@ -776,14 +793,14 @@ class PdfService {
                             padding: const pw.EdgeInsets.all(10),
                             decoration: pw.BoxDecoration(
                               borderRadius: pw.BorderRadius.circular(8),
-                              border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 1),
+                              border: pw.Border.all(color: primaryBorder, width: 1),
                             ),
                             child: pw.Column(
                               crossAxisAlignment: pw.CrossAxisAlignment.start,
                               children: [
                                 pw.Text(
                                   'STUDENT & ALLOCATION',
-                                  style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#94A3B8'), letterSpacing: 0.8),
+                                  style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: primaryColor, letterSpacing: 0.8),
                                 ),
                                 pw.SizedBox(height: 6),
                                 if (showStudentName)
@@ -801,10 +818,11 @@ class PdfService {
                                     pw.Container(
                                       padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: pw.BoxDecoration(
+                                        color: primarySoftBg,
                                         borderRadius: pw.BorderRadius.circular(4),
-                                        border: pw.Border.all(color: PdfColor.fromHex('#A7F3D0'), width: 0.8),
+                                        border: pw.Border.all(color: primaryBorder, width: 0.8),
                                       ),
-                                      child: pw.Text(resolvedSeat, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#047857'))),
+                                      child: pw.Text(resolvedSeat, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                                     ),
                                   ),
                                 dualCardRow(
@@ -844,21 +862,21 @@ class PdfService {
                             2: const pw.FlexColumnWidth(2.0),
                           },
                           children: [
-                            // Header Row (Slate-900)
+                            // Header Row (Brand Accent Color with Auto-Contrast Text)
                             pw.TableRow(
-                              decoration: pw.BoxDecoration(color: PdfColor.fromHex('#0F172A')),
+                              decoration: pw.BoxDecoration(color: primaryColor),
                               children: [
                                 pw.Padding(
                                   padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                  child: pw.Text('PLAN / SERVICE DESCRIPTION', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColors.white, letterSpacing: 0.6)),
+                                  child: pw.Text('PLAN / SERVICE DESCRIPTION', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: onPrimaryColor, letterSpacing: 0.6)),
                                 ),
                                 pw.Padding(
                                   padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 7),
-                                  child: pw.Text('PLAN VALIDITY PERIOD', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColors.white, letterSpacing: 0.6), textAlign: pw.TextAlign.center),
+                                  child: pw.Text('PLAN VALIDITY PERIOD', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: onPrimaryColor, letterSpacing: 0.6), textAlign: pw.TextAlign.center),
                                 ),
                                 pw.Padding(
                                   padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                  child: pw.Text('AMOUNT', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColors.white, letterSpacing: 0.6), textAlign: pw.TextAlign.right),
+                                  child: pw.Text('AMOUNT', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: onPrimaryColor, letterSpacing: 0.6), textAlign: pw.TextAlign.right),
                                 ),
                               ],
                             ),
@@ -1070,7 +1088,7 @@ class PdfService {
                               pw.Container(
                                 padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                                 decoration: pw.BoxDecoration(
-                                  color: isRefund ? PdfColor.fromHex('#DC2626') : PdfColor.fromHex('#047857'),
+                                  color: isRefund ? PdfColor.fromHex('#DC2626') : primaryColor,
                                   borderRadius: pw.BorderRadius.circular(8),
                                 ),
                                 child: pw.Column(
@@ -1081,14 +1099,18 @@ class PdfService {
                                       style: pw.TextStyle(
                                         fontSize: 7,
                                         fontWeight: pw.FontWeight.bold,
-                                        color: isRefund ? PdfColor.fromHex('#FECACA') : PdfColor.fromHex('#A7F3D0'),
+                                        color: isRefund ? PdfColor.fromHex('#FECACA') : onPrimarySubColor,
                                         letterSpacing: 0.6,
                                       ),
                                     ),
                                     pw.SizedBox(height: 2),
                                     pw.Text(
                                       receipt.amount > 0 ? currencyFmt.format(receipt.amount) : "₹0.00",
-                                      style: pw.TextStyle(fontSize: 12.5, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                                      style: pw.TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: isRefund ? PdfColors.white : onPrimaryColor,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1194,16 +1216,16 @@ class PdfService {
                                         height: 56,
                                         decoration: pw.BoxDecoration(
                                           shape: pw.BoxShape.circle,
-                                          border: pw.Border.all(color: PdfColor.fromHex('#4338CA'), width: 1.5, style: pw.BorderStyle.dashed),
+                                          border: pw.Border.all(color: primaryColor, width: 1.5, style: pw.BorderStyle.dashed),
                                         ),
                                         child: pw.Transform.rotate(
                                           angle: -0.1,
                                           child: pw.Column(
                                             mainAxisAlignment: pw.MainAxisAlignment.center,
                                             children: [
-                                              pw.Text('• ${cleanOrgName.length > 12 ? cleanOrgName.substring(0, 12) : cleanOrgName} •'.toUpperCase(), style: pw.TextStyle(fontSize: 5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#3730A3'))),
-                                              pw.Text('VERIFIED', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#047857'))),
-                                              pw.Text('OFFICIAL SEAL', style: pw.TextStyle(fontSize: 4, color: PdfColor.fromHex('#4338CA'))),
+                                              pw.Text('• ${cleanOrgName.length > 12 ? cleanOrgName.substring(0, 12) : cleanOrgName} •'.toUpperCase(), style: pw.TextStyle(fontSize: 5, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                                              pw.Text('VERIFIED', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                                              pw.Text('OFFICIAL SEAL', style: pw.TextStyle(fontSize: 4, color: primaryColor)),
                                             ],
                                           ),
                                         ),
@@ -1222,14 +1244,14 @@ class PdfService {
                             ],
                           ),
                           pw.SizedBox(height: 8),
-                          pw.Divider(thickness: 0.5, color: PdfColor.fromHex('#F1F5F9')),
+                          pw.Divider(thickness: 0.6, color: primaryBorder),
                           pw.SizedBox(height: 3),
                           pw.Center(
                             child: pw.Text(
                               resolvedFooter.isNotEmpty
                                   ? resolvedFooter
                                   : 'Thank you for choosing ${cleanOrgName.isNotEmpty ? cleanOrgName : "Study Library Center"} • This is an electronically generated receipt verified on our cloud ledger.',
-                              style: pw.TextStyle(fontSize: 7.5, color: PdfColor.fromHex('#94A3B8')),
+                              style: pw.TextStyle(fontSize: 7.5, color: primaryColor),
                               textAlign: pw.TextAlign.center,
                             ),
                           ),

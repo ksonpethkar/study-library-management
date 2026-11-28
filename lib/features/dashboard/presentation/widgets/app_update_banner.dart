@@ -109,7 +109,10 @@ class AppUpdateBanner extends ConsumerWidget {
                       child: const Text('Later'),
                     ),
                     FilledButton.icon(
-                      onPressed: () => reloadAppWeb(),
+                      onPressed: () async {
+                        await ref.read(updateServiceProvider.notifier).dismissLater();
+                        reloadAppWeb();
+                      },
                       icon: const Icon(Icons.refresh_rounded, size: 15),
                       label: const Text('Reload'),
                       style: FilledButton.styleFrom(

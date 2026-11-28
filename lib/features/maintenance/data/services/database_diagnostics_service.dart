@@ -327,7 +327,13 @@ class DatabaseDiagnosticsService {
               title: 'Desk #$seatLabel Held by $sStatus Student',
               description: '${sData['name'] ?? "Student"} is $sStatus, but desk was not released.',
               entityId: seat['_docId'] as String?,
-              details: {'seat': seat, 'student': sData},
+              details: {
+                'seat': seat,
+                'student': sData,
+                'studentId': assignedStudentId,
+                'seatId': seat['_docId'],
+                'sectionId': seat['_sectionId'],
+              },
             ));
           } else if (sSeatId.isNotEmpty && sSeatId != seat['_docId'] && sSeatId != seat['id'] && sSeatId != seatLabel.toString()) {
             issues.add(IntegrityIssue(
@@ -420,6 +426,32 @@ class DatabaseDiagnosticsService {
     }
 
     // 3. Stale Items Scans
+    // Invariant Check D: Inactive / Expired / Archived Students Still Retaining a Seat Reference
+    for (final entry in studentMap.entries) {
+      final s = entry.value;
+      final status = (s['membershipStatus'] ?? 'active').toString().toLowerCase();
+      final seatId = (s['seatId'] as String?)?.trim() ?? '';
+      final sectionId = (s['sectionId'] as String?)?.trim();
+      if ((status == 'expired' || status == 'inactive' || status == 'archived') && seatId.isNotEmpty) {
+        final formattedSeat = SeatHelper.formatSeatNumberOnly(seatId: seatId);
+        issues.add(IntegrityIssue(
+          id: 'inactive_student_seat_${entry.key}',
+          type: 'inactive_student_seat_ref',
+          severity: IssueSeverity.warning,
+          title: 'Stale Desk #$formattedSeat on $status Student',
+          description: '${s['name'] ?? "Student"} is $status, but their profile still shows Desk #$formattedSeat.',
+          entityId: entry.key,
+          details: {
+            'studentId': entry.key,
+            'studentName': s['name'] ?? entry.key,
+            'seatId': seatId,
+            if (sectionId != null && sectionId.isNotEmpty) 'sectionId': sectionId,
+          },
+          canAutoHeal: true,
+        ));
+      }
+    }
+
     final now = DateTime.now();
     final thirtyDaysAgo = now.subtract(const Duration(days: 30));
     final ninetyDaysAgo = now.subtract(const Duration(days: 90));
@@ -489,6 +521,39 @@ class DatabaseDiagnosticsService {
           });
           healedSeats++;
           healedDescriptions.add('${issue.title} -> Released to Available');
+        }
+        if (issue.type == 'expired_holding_seat') {
+          final studentId = issue.details['studentId'] as String?;
+          final seatId = (issue.details['seatId'] ?? seat?['_docId']) as String?;
+          final sectionId = (issue.details['sectionId'] ?? seat?['_sectionId']) as String?;
+          if (studentId != null && studentId.isNotEmpty) {
+            final sRef = libRef.collection(FirestorePaths.students).doc(studentId);
+            batch.update(sRef, {
+              'seatId': FieldValue.delete(),
+              'sectionId': FieldValue.delete(),
+              if (seatId != null && seatId.isNotEmpty) 'previousSeatId': seatId,
+              if (sectionId != null && sectionId.isNotEmpty) 'previousSectionId': sectionId,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+            syncedRecords++;
+            healedDescriptions.add('${issue.title} -> Cleared seat reference from student profile');
+          }
+        }
+      } else if (issue.type == 'inactive_student_seat_ref') {
+        final studentId = issue.details['studentId'] as String?;
+        final seatId = issue.details['seatId'] as String?;
+        final sectionId = issue.details['sectionId'] as String?;
+        if (studentId != null && studentId.isNotEmpty) {
+          final sRef = libRef.collection(FirestorePaths.students).doc(studentId);
+          batch.update(sRef, {
+            'seatId': FieldValue.delete(),
+            'sectionId': FieldValue.delete(),
+            if (seatId != null && seatId.isNotEmpty) 'previousSeatId': seatId,
+            if (sectionId != null && sectionId.isNotEmpty) 'previousSectionId': sectionId,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          syncedRecords++;
+          healedDescriptions.add('${issue.title} -> Cleared stale desk from ${issue.details['studentName'] ?? studentId}');
         }
       } else if (issue.type == 'ghost_student_id') {
         final seat = issue.details['seat'] as Map<String, dynamic>?;

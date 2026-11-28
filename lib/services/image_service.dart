@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image/image.dart' as img;
 import 'package:study_library/core/utils/image_compressor.dart';
+import 'package:study_library/core/widgets/in_app_pdf_viewer.dart';
 import 'package:study_library/services/inactivity_lock_service.dart';
 
 class ImageService {
@@ -360,22 +361,29 @@ class ImageService {
               onPressed: () => Navigator.of(ctx).pop(),
             ),
           ),
-          body: Center(
-            child: InteractiveViewer(
-              panEnabled: true,
-              minScale: 0.8,
-              maxScale: 4.0,
-              child: imageFile != null
-                  ? Image.file(imageFile)
-                  : imageUrl!.startsWith('data:image')
-                      ? Image.memory(
-                          base64Decode(
-                            imageUrl.contains(',') ? imageUrl.split(',')[1] : imageUrl,
-                          ),
-                          fit: BoxFit.contain,
-                        )
-                      : CachedNetworkImage(
-                          imageUrl: imageUrl,
+          body: (imageUrl != null &&
+                  (imageUrl.trim().toLowerCase().startsWith('data:application/pdf') ||
+                      imageUrl.trim().toLowerCase().endsWith('.pdf')))
+              ? InAppPdfViewer(
+                  pdfUrlOrDataUrl: imageUrl,
+                  title: title,
+                )
+              : Center(
+                  child: InteractiveViewer(
+                    panEnabled: true,
+                    minScale: 0.8,
+                    maxScale: 4.0,
+                    child: imageFile != null
+                        ? Image.file(imageFile)
+                        : imageUrl!.startsWith('data:image')
+                            ? Image.memory(
+                                base64Decode(
+                                  imageUrl.contains(',') ? imageUrl.split(',')[1] : imageUrl,
+                                ),
+                                fit: BoxFit.contain,
+                              )
+                            : CachedNetworkImage(
+                                imageUrl: imageUrl,
                           fit: BoxFit.contain,
                           placeholder: (context, url) => const Center(
                             child: CircularProgressIndicator(color: Colors.white),

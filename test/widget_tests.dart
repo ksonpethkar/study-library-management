@@ -62,10 +62,10 @@ void main() {
   group('💺 SeatTile — Colour Semantics (Light Theme)', () {
     testWidgets('Available seat renders green background', (tester) async {
       await tester.pumpWidget(_wrap(_tile(_seat(status: SeatStatus.available))));
-      final container = tester
-          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+      final box = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
           .first;
-      final decoration = container.decoration as BoxDecoration;
+      final decoration = box.decoration as BoxDecoration;
       // Light available = 0xFFE8F5E9 (light green)
       expect(decoration.color, equals(const Color(0xFFE8F5E9)));
     });
@@ -76,20 +76,20 @@ void main() {
         studentId: 'std_001',
         label: 'B1',
       ))));
-      final container = tester
-          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+      final box = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
           .first;
-      final decoration = container.decoration as BoxDecoration;
+      final decoration = box.decoration as BoxDecoration;
       // Light occupied = 0xFFFFEBEE (light red)
       expect(decoration.color, equals(const Color(0xFFFFEBEE)));
     });
 
     testWidgets('Reserved seat renders amber background', (tester) async {
       await tester.pumpWidget(_wrap(_tile(_seat(status: SeatStatus.reserved))));
-      final container = tester
-          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+      final box = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
           .first;
-      final decoration = container.decoration as BoxDecoration;
+      final decoration = box.decoration as BoxDecoration;
       // Light reserved = 0xFFFFF8E1 (amber tint)
       expect(decoration.color, equals(const Color(0xFFFFF8E1)));
     });
@@ -97,10 +97,10 @@ void main() {
     testWidgets('Maintenance seat renders grey background', (tester) async {
       await tester
           .pumpWidget(_wrap(_tile(_seat(status: SeatStatus.maintenance))));
-      final container = tester
-          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+      final box = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
           .first;
-      final decoration = container.decoration as BoxDecoration;
+      final decoration = box.decoration as BoxDecoration;
       // Light maintenance = 0xFFEEEEEE (grey)
       expect(decoration.color, equals(const Color(0xFFEEEEEE)));
     });
@@ -110,10 +110,10 @@ void main() {
     testWidgets('Available seat renders dark green in dark mode', (tester) async {
       await tester
           .pumpWidget(_wrapDark(_tile(_seat(status: SeatStatus.available))));
-      final container = tester
-          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+      final box = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
           .first;
-      final decoration = container.decoration as BoxDecoration;
+      final decoration = box.decoration as BoxDecoration;
       expect(decoration.color, equals(const Color(0xFF1B382B)));
     });
 
@@ -122,10 +122,10 @@ void main() {
         status: SeatStatus.occupied,
         studentId: 'std_001',
       ))));
-      final container = tester
-          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+      final box = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
           .first;
-      final decoration = container.decoration as BoxDecoration;
+      final decoration = box.decoration as BoxDecoration;
       expect(decoration.color, equals(const Color(0xFF45141D)));
     });
   });
@@ -160,13 +160,13 @@ void main() {
 
       await tester.pumpWidget(_wrap(unselected));
       final unselectedBox = tester
-          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
           .first;
       final unselectedDecoration = unselectedBox.decoration as BoxDecoration;
 
       await tester.pumpWidget(_wrap(selected));
       final selectedBox = tester
-          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
           .first;
       final selectedDecoration = selectedBox.decoration as BoxDecoration;
 
@@ -192,8 +192,8 @@ void main() {
         ),
       ));
       await tester.pump();
-      // Layout shows first name only (split(' ').first)
-      expect(find.text('Rahul'), findsOneWidget);
+      // Layout abbreviates multi-word names as "First L."
+      expect(find.text('Rahul S.'), findsOneWidget);
     });
 
     testWidgets('Female-only badge: Icons.female_rounded rendered in tile',
@@ -558,7 +558,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(WhatsAppPreviewSheet), findsNothing);
-      expect(returnedResult, equals('Fee receipt ready'));
+      expect(returnedResult, contains('200'));
+      expect(returnedResult, contains('The Cozy Corner Study Centre'));
     });
   });
 

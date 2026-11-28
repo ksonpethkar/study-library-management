@@ -150,7 +150,7 @@ class _QrShareScreenState extends ConsumerState<QrShareScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.tune_rounded),
-            tooltip: 'Customize Amenity Badges',
+            tooltip: 'Customize Poster & Amenities',
             onPressed: () => PosterConfigService.showCustomizer(context, libraryId),
           ),
           IconButton(
@@ -204,10 +204,16 @@ class _QrShareScreenState extends ConsumerState<QrShareScreen> {
                         stream: PosterConfigService.streamAmenities(libraryId),
                         builder: (context, snapshot) {
                           final amenities = snapshot.data ?? PosterConfigService.defaultAmenities;
-                          return EntrancePosterCard(
-                            library: library,
-                            libraryId: libraryId,
-                            amenities: amenities,
+                          return StreamBuilder<PosterLayoutConfig>(
+                            stream: PosterConfigService.streamPosterConfig(libraryId),
+                            builder: (context, configSnap) {
+                              return EntrancePosterCard(
+                                library: library,
+                                libraryId: libraryId,
+                                amenities: amenities,
+                                config: configSnap.data ?? const PosterLayoutConfig(),
+                              );
+                            },
                           );
                         },
                       ),
@@ -246,10 +252,13 @@ class _QrShareScreenState extends ConsumerState<QrShareScreen> {
                         ? null
                         : () => _printPoster(libraryId, library, seatMapUrl),
                     icon: _isPrintingPdf
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: theme.colorScheme.onPrimary,
+                            ),
                           )
                         : const Icon(Icons.print_rounded),
                     label: const Text('Print Poster (A4)'),

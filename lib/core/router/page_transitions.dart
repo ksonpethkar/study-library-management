@@ -19,6 +19,7 @@ class AppPageTransitions {
       transitionDuration: const Duration(milliseconds: 300),
       reverseTransitionDuration: const Duration(milliseconds: 250),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        if (MediaQuery.disableAnimationsOf(context)) return child;
         final curvedAnimation = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,
@@ -49,6 +50,7 @@ class AppPageTransitions {
       transitionDuration: const Duration(milliseconds: 350),
       reverseTransitionDuration: const Duration(milliseconds: 300),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        if (MediaQuery.disableAnimationsOf(context)) return child;
         final curvedAnimation = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,

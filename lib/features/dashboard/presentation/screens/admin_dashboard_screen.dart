@@ -470,10 +470,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                         : const SystemAlertsState();
                     final unreadPending = (_pendingCount - alertsState.acknowledgedPendingCount).clamp(0, 999999);
                     final unreadRenewals = (effectiveRenewalsDue - alertsState.acknowledgedRenewalsCount).clamp(0, 999999);
-                    final totalUnread = unreadNotifsCount + unreadPending + unreadRenewals;
+                    final unreadSystemCards = (unreadPending > 0 ? 1 : 0) + (unreadRenewals > 0 ? 1 : 0);
+                    final totalUnread = unreadNotifsCount + unreadSystemCards;
                     final reqCounts = ref.watch(requestModuleCountsProvider);
                     final hasUrgentPending = reqCounts.hasAnyActionable || totalUnread > 0;
-                    final displayBadgeCount = totalUnread > 0 ? totalUnread : reqCounts.totalActionableItems;
+                    final displayBadgeCount = totalUnread > 0 ? totalUnread : (reqCounts.hasAnyActionable ? 1 : 0);
 
                     return Badge(
                       isLabelVisible: displayBadgeCount > 0,

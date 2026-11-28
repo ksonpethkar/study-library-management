@@ -3,12 +3,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/security/encryption_service.dart';
+import 'package:study_library/core/widgets/in_app_pdf_viewer.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
@@ -29,6 +31,7 @@ class AdminDocumentStudioDialog extends StatefulWidget {
   final String? initialFilterMode;
   final bool? initialShowWatermark;
   final int? initialQuarterTurns;
+  final bool initialKycVerified;
   final VoidCallback? onDocumentUpdated;
 
   const AdminDocumentStudioDialog({
@@ -44,6 +47,7 @@ class AdminDocumentStudioDialog extends StatefulWidget {
     this.initialFilterMode,
     this.initialShowWatermark,
     this.initialQuarterTurns,
+    this.initialKycVerified = false,
     this.onDocumentUpdated,
   });
 
@@ -60,6 +64,7 @@ class AdminDocumentStudioDialog extends StatefulWidget {
     String? initialFilterMode,
     bool? initialShowWatermark,
     int? initialQuarterTurns,
+    bool initialKycVerified = false,
     VoidCallback? onDocumentUpdated,
   }) {
     return showDialog(
@@ -77,6 +82,7 @@ class AdminDocumentStudioDialog extends StatefulWidget {
         initialFilterMode: initialFilterMode,
         initialShowWatermark: initialShowWatermark,
         initialQuarterTurns: initialQuarterTurns,
+        initialKycVerified: initialKycVerified,
         onDocumentUpdated: onDocumentUpdated,
       ),
     );
@@ -94,6 +100,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
   int _quarterTurns = 0;
   DocumentFilterMode _filterMode = DocumentFilterMode.original;
   bool _showWatermark = true;
+  late bool _kycVerified = widget.initialKycVerified;
 
   // In-line ID correction
   late GovIdType _selectedType;
@@ -214,12 +221,15 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                 (data['studentData'] is Map ? (data['studentData'] as Map)['govIdShowWatermark'] as bool? : null);
             final remoteRotation = (data['govIdRotation'] as num?)?.toInt() ??
                 (data['studentData'] is Map ? ((data['studentData'] as Map)['govIdRotation'] as num?)?.toInt() : null);
+            final remoteKycVerified = data['kycVerified'] as bool? ??
+                (data['studentData'] is Map ? (data['studentData'] as Map)['kycVerified'] as bool? : null);
 
-            if (remoteFilter != null || remoteWatermark != null || remoteRotation != null) {
+            if (remoteFilter != null || remoteWatermark != null || remoteRotation != null || remoteKycVerified != null) {
               setState(() {
                 if (remoteFilter != null) _filterMode = _parseFilterMode(remoteFilter);
                 if (remoteWatermark != null) _showWatermark = remoteWatermark;
                 if (remoteRotation != null) _quarterTurns = remoteRotation % 4;
+                if (remoteKycVerified != null) _kycVerified = remoteKycVerified;
               });
 
               if (remoteFilter != null) await prefs.setString('${key}_filter', remoteFilter);
@@ -282,6 +292,60 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
       }
     } catch (e) {
       debugPrint('Error persisting document studio preferences: $e');
+    }
+  }
+
+  Future<void> _toggleKycVerified(bool verified) async {
+    setState(() => _kycVerified = verified);
+    final verifier = FirebaseAuth.instance.currentUser?.email ??
+        FirebaseAuth.instance.currentUser?.displayName ??
+        'Admin';
+    final kycUpdates = <String, dynamic>{
+      'kycVerified': verified,
+      'kycVerifiedAt': verified ? DateTime.now().toIso8601String() : null,
+      'kycVerifiedBy': verified ? verifier : null,
+    };
+
+    try {
+      if (widget.requestId != null && widget.libraryId.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('requests')
+            .doc(widget.requestId)
+            .set({
+          ...kycUpdates,
+          'studentData': kycUpdates,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      if (widget.studentId != null && widget.libraryId.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(widget.libraryId)
+            .collection('students')
+            .doc(widget.studentId)
+            .set({
+          ...kycUpdates,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      widget.onDocumentUpdated?.call();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              verified
+                  ? 'KYC marked as Verified by $verifier'
+                  : 'KYC verification cleared (Pending Review)',
+            ),
+            backgroundColor: verified ? Colors.green.shade700 : Colors.amber.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating KYC status: $e');
     }
   }
 
@@ -671,6 +735,37 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                         _persistPreferences(showWatermark: val);
                       },
                     ),
+                    const SizedBox(width: 8),
+
+                    // KYC Verified Toggle
+                    FilterChip(
+                      avatar: Icon(
+                        _kycVerified ? Icons.verified_rounded : Icons.pending_outlined,
+                        size: 16,
+                        color: _kycVerified
+                            ? (isDark ? const Color(0xFF6EE7B7) : Colors.green.shade800)
+                            : Colors.amber,
+                      ),
+                      label: Text(
+                        _kycVerified ? 'KYC Verified' : 'Mark KYC Verified',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: _kycVerified ? FontWeight.bold : FontWeight.w500,
+                          color: _kycVerified
+                              ? (isDark ? Colors.white : Colors.green.shade900)
+                              : (isDark ? Colors.white : const Color(0xFF1E293B)),
+                        ),
+                      ),
+                      selected: _kycVerified,
+                      selectedColor: isDark ? const Color(0xFF065F46) : const Color(0xFFD1FAE5),
+                      backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      side: BorderSide(
+                        color: _kycVerified
+                            ? const Color(0xFF059669)
+                            : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+                      ),
+                      onSelected: _toggleKycVerified,
+                    ),
                     const SizedBox(width: 14),
 
                     // Re-Upload / Replace Document
@@ -932,32 +1027,12 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
     }
 
     if (DocumentPickerService.isPdf(url)) {
-      return Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF334155)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 64),
-              const SizedBox(height: 16),
-              const Text(
-                'PDF Document Attached',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'This document was uploaded as a PDF file (e.g. e-Aadhaar / DigiLocker proof).',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-              ),
-            ],
-          ),
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: InAppPdfViewer(
+          pdfUrlOrDataUrl: url,
+          title: widget.documentTitle,
+          compact: true,
         ),
       );
     }

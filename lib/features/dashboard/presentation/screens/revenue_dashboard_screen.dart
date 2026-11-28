@@ -10,6 +10,7 @@ import 'package:study_library/features/expenses/presentation/providers/expense_p
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/expense_model.dart';
+import 'package:study_library/core/widgets/cozy_segmented_tabs.dart';
 
 class RevenueDashboardScreen extends ConsumerStatefulWidget {
   const RevenueDashboardScreen({super.key});
@@ -72,6 +73,13 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
       final db = FirebaseFirestore.instance;
       final libRef = db.collection('libraries').doc(libraryId);
 
+      final receiptsQuery = since != null
+          ? libRef
+              .collection('receipts')
+              .where('createdAt', isGreaterThanOrEqualTo: since.toIso8601String())
+              .orderBy('createdAt', descending: true)
+          : libRef.collection('receipts').orderBy('createdAt', descending: true);
+
       // Run all Firestore reads in parallel instead of 6 sequential roundtrips.
       // Cache plan & student lookup maps across range-chip toggles.
       final futures = await Future.wait<dynamic>([
@@ -81,9 +89,7 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
         _studentNames.isEmpty
             ? libRef.collection('students').limit(50).get().then<QuerySnapshot<Map<String, dynamic>>?>((s) => s).catchError((_) => null)
             : Future<QuerySnapshot<Map<String, dynamic>>?>.value(null),
-        libRef
-            .collection('receipts')
-            .orderBy('createdAt', descending: true)
+        receiptsQuery
             .get()
             .then<QuerySnapshot<Map<String, dynamic>>?>((s) => s)
             .catchError((_) => null),
@@ -103,6 +109,9 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
             .read(expenseRepositoryProvider)
             .getExpenses(libraryId, startDate: since)
             .catchError((_) => <ExpenseModel>[]),
+        since != null
+            ? ref.read(unifiedFinancialLedgerProvider.future).catchError((_) => const UnifiedFinancialLedger())
+            : Future<UnifiedFinancialLedger?>.value(null),
       ]);
 
       final plansSnap = futures[0] as QuerySnapshot<Map<String, dynamic>>?;
@@ -125,8 +134,9 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
       final paySnap = futures[3] as QuerySnapshot<Map<String, dynamic>>?;
       final stuSnap = futures[4] as AggregateQuerySnapshot?;
       final filteredExpenses = futures[5] as List;
+      final cachedLedger = futures[6] as UnifiedFinancialLedger?;
 
-      double total = 0;
+      double total = cachedLedger != null && cachedLedger.grossRevenue > 0 ? cachedLedger.grossRevenue : 0;
       double rangeTotal = 0;
       final byPlan = <String, double>{};
       final byMethod = <String, double>{};
@@ -142,7 +152,7 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
           if (receipt.deletedAt != null || receipt.status == ReceiptStatus.voided) continue;
 
           final amt = receipt.amount;
-          total += amt;
+          if (cachedLedger == null || cachedLedger.grossRevenue <= 0) total += amt;
 
           final genAt = receipt.createdAt;
           if (since == null || (genAt != null && genAt.isAfter(since))) {
@@ -180,7 +190,7 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
           }
 
           final amt = (pData['amount'] as num?)?.toDouble() ?? 0.0;
-          total += amt;
+          if (cachedLedger == null || cachedLedger.grossRevenue <= 0) total += amt;
 
           final dateRaw = pData['date'] ?? pData['createdAt'];
           DateTime? payDate;
@@ -344,25 +354,19 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Date Range Filter
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final r in [('week','This Week'),('month','This Month'),('year','This Year'),('all','All Time')])
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: FilterChip(
-                                label: Text(r.$2),
-                                selected: _range == r.$1,
-                                onSelected: (_) {
-                                  setState(() => _range = r.$1);
-                                  _loadData();
-                                },
-                              ),
-                            ),
-                        ],
-                      ),
+                    // Date Range Filter (Sliding Pill Tabs)
+                    CozySegmentedTabs<String>(
+                      selectedValue: _range,
+                      items: const [
+                        CozySegmentItem(value: 'week', label: 'Week'),
+                        CozySegmentItem(value: 'month', label: 'Month'),
+                        CozySegmentItem(value: 'year', label: 'Year'),
+                        CozySegmentItem(value: 'all', label: 'All Time'),
+                      ],
+                      onChanged: (val) {
+                        setState(() => _range = val);
+                        _loadData();
+                      },
                     ),
                     const SizedBox(height: 16),
                     

@@ -989,6 +989,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         'createdStudentId': _newCreatedStudentId,
       });
 
+      AppNotificationService.markRequestNotificationsAsRead(
+        libraryId: libraryId,
+        requestId: widget.requestId,
+      ).ignore();
+
       AuditLogger().log(
         action: AuditAction.approved,
         entityType: AuditEntity.request,
@@ -1242,6 +1247,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         'rejectionReason': reason,
         'rejectedAt': FieldValue.serverTimestamp(),
       });
+
+      AppNotificationService.markRequestNotificationsAsRead(
+        libraryId: libraryId,
+        requestId: widget.requestId,
+      ).ignore();
 
       // Release soft-locked desk ONLY if still held by this rejected applicant
       final target = _requestData != null ? _extractTargetDesk(_requestData!) : null;

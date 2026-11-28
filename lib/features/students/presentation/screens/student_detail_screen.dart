@@ -6804,11 +6804,53 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                 const Icon(Icons.document_scanner_rounded, size: 16, color: Colors.blue),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(
-                    hasDoc ? '${s.govIdType.displayName} Attached' : 'Government ID Document',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          hasDoc ? '${s.govIdType.displayName} Attached' : 'Government ID Document',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      if (hasDoc) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: s.kycVerified
+                                ? Colors.green.withValues(alpha: 0.14)
+                                : Colors.amber.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: s.kycVerified
+                                  ? Colors.green.withValues(alpha: 0.5)
+                                  : Colors.amber.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                s.kycVerified ? Icons.verified_rounded : Icons.schedule_rounded,
+                                size: 11,
+                                color: s.kycVerified ? Colors.green.shade700 : Colors.amber.shade800,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                s.kycVerified ? 'KYC Verified' : 'Pending Review',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: s.kycVerified ? Colors.green.shade800 : Colors.amber.shade900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -6826,6 +6868,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                       initialFilterMode: s.govIdFilterMode,
                       initialShowWatermark: s.govIdShowWatermark,
                       initialQuarterTurns: s.govIdRotation,
+                      initialKycVerified: s.kycVerified,
                       onDocumentUpdated: _loadStudent,
                     );
                   },
@@ -6857,6 +6900,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                           initialFilterMode: s.govIdFilterMode,
                           initialShowWatermark: s.govIdShowWatermark,
                           initialQuarterTurns: s.govIdRotation,
+                          initialKycVerified: s.kycVerified,
                           onDocumentUpdated: _loadStudent,
                         );
                       },
@@ -6893,6 +6937,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                           initialFilterMode: s.govIdFilterMode,
                           initialShowWatermark: s.govIdShowWatermark,
                           initialQuarterTurns: s.govIdRotation,
+                          initialKycVerified: s.kycVerified,
                           onDocumentUpdated: _loadStudent,
                         );
                       },

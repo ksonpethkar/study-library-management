@@ -1,26 +1,26 @@
 ﻿{
     "web":  {
-                "version":  "1.5.61",
-                "buildNumber":  2078,
-                "buildDate":  "2026-11-26"
+                "version":  "1.5.62",
+                "buildNumber":  2079,
+                "buildDate":  "2026-11-28"
             },
-    "versionCode":  2078,
-    "latestVersionCode":  2078,
-    "latestBuild":  2078,
-    "latestVersion":  "1.5.61",
-    "versionName":  "1.5.61+2078",
-    "apkSize":  "54.8 MB",
+    "versionCode":  2079,
+    "latestVersionCode":  2079,
+    "latestBuild":  2079,
+    "latestVersion":  "1.5.62",
+    "versionName":  "1.5.62+2079",
+    "apkSize":  "81.9 MB",
     "apkType":  "64-Bit ARM (arm64-v8a) — High-Performance \u0026 Instant Download",
-    "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-arm64-v8a.apk",
-    "arm64ApkSize":  "54.8 MB",
+    "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.62/StudyLibrary-arm64-v8a.apk",
+    "arm64ApkSize":  "81.9 MB",
     "legacy32DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-armeabi-v7a.apk",
-    "legacy32ApkSize":  "48.0 MB",
+    "legacy32ApkSize":  "48.1 MB",
     "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary.apk",
-    "universalApkSize":  "141.6 MB",
+    "universalApkSize":  "141.7 MB",
     "aabDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary.aab",
-    "aabSize":  "107.7 MB",
-    "releaseNotes":  "v1.5.61 (Build 2078): Strict Admin/Student notification role isolation \u0026 self-action suppression; Student Portal Screenshot Protection (Android FLAG_SECURE, Web capture deterrent, Home Pass live clock) with Admin screenshots unlocked; full Form Builder parity across Add/Edit, Registration, Profile, ID Cards, Receipts \u0026 CSV Exports; status-gated seat maps \u0026 single canonical amenities; and live version-keyed release links.",
-    "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-arm64-v8a.apk",
+    "aabSize":  "107.9 MB",
+    "releaseNotes":  "v1.5.62 (Build 2079): Admin Notification Center UI \u0026 count overhaul — overflow-safe 2-row header, unclipped system alert pills (4 Due - Read), exact card-count parity across filter chips \u0026 bell badge, singular Request grammar, multi-line alert readability, and auto-read + direct deep-link for approved/rejected requests.",
+    "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.62/StudyLibrary-arm64-v8a.apk",
     "mandatory":  false,
     "organization":  {
                          "name":  "The Cozy Corner Study Centre",
@@ -32,6 +32,45 @@
                          "logoUrl":  "/app/favicon.png"
                      },
     "changelog":  [
+                      {
+                          "version":  "1.5.62",
+                          "buildNumber":  2079,
+                          "date":  "2026-11-28",
+                          "summary":  "Admin Notification Center layout overhaul, exact card-count parity, full multi-line alert readability \u0026 auto-read request lifecycle.",
+                          "highlights":  [
+                                             "Overflow-safe 2-row Notifications header \u0026 unclipped system alert pills (4 Due - Read)",
+                                             "Exact card-count parity across All Alerts, Pass \u0026 Desks, Unread \u0026 bell badge",
+                                             "Auto-read \u0026 direct Review Request deep-link when handling admission/update requests"
+                                         ],
+                          "adminFeatures":  [
+                                                {
+                                                    "icon":  "notifications",
+                                                    "badge":  "Notification Center",
+                                                    "title":  "Overflow-Safe Notification Center \u0026 Exact Card Counts",
+                                                    "description":  "2-row header prevents Clear/Close clipping on mobile, system alert pills (4 Due - Read) never truncate, and All Alerts/Unread badges match rendered cards.",
+                                                    "actionRoute":  "/admin",
+                                                    "actionLabel":  "Open Dashboard"
+                                                },
+                                                {
+                                                    "icon":  "approval",
+                                                    "badge":  "Auto-Read Sync",
+                                                    "title":  "Auto-Cleared Request Alerts \u0026 Direct Review Deep-Links",
+                                                    "description":  "Approving or rejecting a request automatically clears its unread registration alert, and Review Request pills jump directly to that request detail view.",
+                                                    "actionRoute":  "/admin/requests",
+                                                    "actionLabel":  "View Requests"
+                                                }
+                                            ],
+                          "studentFeatures":  [
+                                                  {
+                                                      "icon":  "notifications",
+                                                      "badge":  "Clean Alerts",
+                                                      "title":  "Overflow-Safe Notification Center \u0026 Full Alert Readability",
+                                                      "description":  "Clean 2-row header with unclipped Mark all read / Clear Read controls and expanded multi-line alert titles and descriptions.",
+                                                      "actionRoute":  "/student/home",
+                                                      "actionLabel":  "Go Home"
+                                                  }
+                                              ]
+                      },
                       {
                           "version":  "1.5.61",
                           "buildNumber":  2078,
@@ -158,72 +197,42 @@
                   ],
     "studentFeatures":  [
                             {
-                                "icon":  "lock",
-                                "badge":  "Pass Security",
-                                "title":  "Screenshot-Shielded Smart Pass \u0026 Clean Student Alerts",
-                                "description":  "Digital Pass, Receipts, and Payment screens enforce screenshot protection with a live verification clock ticker on your Home Pass, while notifications deliver strictly student-relevant updates."
-                            },
-                            {
-                                "icon":  "tune",
-                                "badge":  "Smart Forms",
-                                "title":  "Upgraded Admission Forms \u0026 Full Profile Editing",
-                                "description":  "Registration \u0026 Profile Update forms now adapt dynamically with toggles, multi-select tags, custom validations, accurate blood group display, and Digital Pass custom tags."
-                            },
-                            {
-                                "icon":  "seat",
-                                "badge":  "Seat Map",
-                                "title":  "Clear Status-Gated Seat Selection \u0026 Genuine Amenities",
-                                "description":  "See exact hall availability (Reserved, Maintenance, Occupied vs Available) and genuine library-equipped amenities without accidental booking triggers."
-                            },
-                            {
-                                "icon":  "system_update",
-                                "badge":  "What\u0027s New",
-                                "title":  "Version-Accurate Release Notes Across Web \u0026 App",
-                                "description":  "See the exact new features added in each build right inside What\u0027s New and when reloading a fresh web or APK release."
+                                "icon":  "notifications",
+                                "badge":  "Clean Alerts",
+                                "title":  "Overflow-Safe Notification Center \u0026 Full Alert Readability",
+                                "description":  "Clean 2-row header with unclipped Mark all read / Clear Read controls and expanded multi-line alert titles and descriptions."
                             }
                         ],
     "adminFeatures":  [
                           {
-                              "icon":  "lock",
-                              "badge":  "Security \u0026 Roles",
-                              "title":  "Admin/Student Notification Isolation \u0026 Student Screenshot Shield",
-                              "description":  "Strict role fencing stops student admission/desk/announcement alerts from reaching Admin devices, while Student Portal Screenshot Protection settings stay controlled from Admin without blocking Admin screenshots."
+                              "icon":  "notifications",
+                              "badge":  "Notification Center",
+                              "title":  "Overflow-Safe Notification Center \u0026 Exact Card Counts",
+                              "description":  "2-row header prevents Clear/Close clipping on mobile, system alert pills (4 Due - Read) never truncate, and All Alerts/Unread badges match rendered cards."
                           },
                           {
-                              "icon":  "tune",
-                              "badge":  "Form Builder",
-                              "title":  "Full Custom Field Parity Across Add, Edit, Cards \u0026 Exports",
-                              "description":  "Custom and built-in fields (Text, Long Text, Dropdown, Multi-Select, Date, Toggle, Regex Presets) now render live across Admin Add/Edit, Registration, Profile, ID Cards, Receipts, and CSV/Excel exports."
-                          },
-                          {
-                              "icon":  "seat",
-                              "badge":  "Seat \u0026 Amenity Sync",
-                              "title":  "Status-Gated Public Seat Maps \u0026 Single Amenity Catalog",
-                              "description":  "Reserved, Maintenance, and Occupied desks restrict booking on public/student seat maps, while Library Profile amenities act as the single canonical source of truth everywhere."
-                          },
-                          {
-                              "icon":  "system_update",
-                              "badge":  "Release Sync",
-                              "title":  "Unified Version-Keyed What\u0027s New \u0026 Dynamic APK/Web Links",
-                              "description":  "What\u0027s New highlights hydrate live per version across Web, APK, update banners, and the /download portal with verified release binary links."
+                              "icon":  "approval",
+                              "badge":  "Auto-Read Sync",
+                              "title":  "Auto-Cleared Request Alerts \u0026 Direct Review Deep-Links",
+                              "description":  "Approving or rejecting a request automatically clears its unread registration alert, and Review Request pills jump directly to that request detail view."
                           }
                       ],
     "android":  {
-                    "versionCode":  2078,
-                    "versionName":  "1.5.61+2078",
-                    "apkSize":  "54.8 MB",
-                    "arm64ApkSize":  "54.8 MB",
-                    "legacy32ApkSize":  "48.0 MB",
-                    "universalApkSize":  "141.6 MB",
-                    "aabSize":  "107.7 MB",
-                    "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-arm64-v8a.apk",
-                    "apkUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-arm64-v8a.apk",
-                    "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-arm64-v8a.apk",
+                    "versionCode":  2079,
+                    "versionName":  "1.5.62+2079",
+                    "apkSize":  "81.9 MB",
+                    "arm64ApkSize":  "81.9 MB",
+                    "legacy32ApkSize":  "48.1 MB",
+                    "universalApkSize":  "141.7 MB",
+                    "aabSize":  "107.9 MB",
+                    "downloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.62/StudyLibrary-arm64-v8a.apk",
+                    "apkUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.62/StudyLibrary-arm64-v8a.apk",
+                    "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.62/StudyLibrary-arm64-v8a.apk",
                     "legacy32DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary-armeabi-v7a.apk",
                     "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary.apk",
                     "aabDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.61/StudyLibrary.aab",
-                    "releaseUrl":  "https://github.com/ksonpethkar/study-library-management/releases/tag/v1.5.61",
-                    "releasedAt":  "2026-11-26T07:21:46Z",
-                    "releaseNotes":  "v1.5.61 (Build 2078): Strict Admin/Student notification role isolation \u0026 self-action suppression; Student Portal Screenshot Protection (Android FLAG_SECURE, Web capture deterrent, Home Pass live clock) with Admin screenshots unlocked; full Form Builder parity across Add/Edit, Registration, Profile, ID Cards, Receipts \u0026 CSV Exports; status-gated seat maps \u0026 single canonical amenities; and live version-keyed release links."
+                    "releaseUrl":  "https://github.com/ksonpethkar/study-library-management/releases/tag/v1.5.62",
+                    "releasedAt":  "2026-11-28T06:11:39.555Z",
+                    "releaseNotes":  "v1.5.62 (Build 2079): Admin Notification Center UI \u0026 count overhaul — overflow-safe 2-row header, unclipped system alert pills (4 Due - Read), exact card-count parity across filter chips \u0026 bell badge, singular Request grammar, multi-line alert readability, and auto-read + direct deep-link for approved/rejected requests."
                 }
 }

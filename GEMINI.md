@@ -1177,3 +1177,26 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
    - Guardrails:
      a) Completely eliminate client-side Aadhaar QR scanner tabs/buttons in favor of standard camera/gallery photo OCR and clean manual entry.
      b) Enforce strict regex validation on extracted text (isIdValid, isNameValid, isDobValid, isPinValid, isAddressValid). If confidence is low or text contains administrative government boilerplate, discard it (null) and require user manual entry rather than filling false data.
+
+---
+
+## 39. Government ID Upload, Smart PDF Unlocker, Pre-Upload Editor & KYC Verification (Learned Nov 2026)
+1. **Format Support & Client-Side PDF Unlocker (`DocumentPickerService`, `PdfHelper`):**
+   - Whitelist `.heic`/`.heif` alongside `.jpg`, `.jpeg`, `.png`, `.webp`, `.pdf`.
+   - Oversized (`> 650 KB`) or password-protected PDFs (e.g., UIDAI e-Aadhaar) must prompt for the password locally via `_promptPdfPassword` and rasterize page 1 into a compressed JPEG via `PdfHelper.renderFirstPageAsJpeg` without ever persisting or transmitting the PDF password.
+2. **In-App PDF Viewer (`InAppPdfViewer`):**
+   - Both `ImageService.showImageViewer` and `AdminDocumentStudioDialog` must render attached PDFs inline using `InAppPdfViewer` (with password-unlock support and download fallback) rather than static placeholder cards.
+3. **Pre-Upload Interactive ID Editor (`IdDocumentEditorDialog`):**
+   - Support 90° rotation, interactive cropping (with 1.58:1 ID card preset), Auto Clarity / B&W Scan filters, permanent black-box privacy redaction (including Aadhaar digit masking), optional KYC watermark, and automatic resolution/brightness quality warnings.
+4. **OCR Number Cross-Check & KYC Audit Fields:**
+   - `GovIdCrossCheck.checkMismatch` warns users when a manually typed ID number disagrees with OCR-extracted digits.
+   - `StudentModel` tracks `kycVerified`, `kycVerifiedAt`, and `kycVerifiedBy`, togglable in `AdminDocumentStudioDialog` and surfaced on `StudentDetailScreen`.
+
+---
+
+## 40. Bidirectional Auto-Healer Seat/Student Sync & Diagnostics Refresh Feedback (Learned Nov 2026)
+1. **Bidirectional Seat & Student Profile Healing (`DatabaseDiagnosticsService`):**
+   - Root Cause: Releasing an `expired_holding_seat` (`Desk #15`, `Desk #35`) only reset `status: 'available', studentId: null` on the `seats` document without clearing `seatId`/`sectionId` on the `INACTIVE`/`EXPIRED`/`ARCHIVED` student document, leaving stale `Desk #15`/`Desk #35` badges on the Students screen while reporting "All Database Invariants 100% Intact".
+   - Guardrail: `autoHealIntegrityIssues` must atomically release the seat AND clear `seatId`/`sectionId` (moving them to `previousSeatId`/`previousSectionId`) on the student record. `scanDatabaseIntegrity` must include Invariant Check D (`inactive_student_seat_ref`) to detect inactive/expired/archived students still holding a `seatId`.
+2. **Diagnostics AppBar Refresh Visual Feedback (`MaintenanceDiagnosticsScreen`):**
+   - Wire the top-right refresh `IconButton` to `_runManualScan()`, awaiting `ref.refresh(...future)` with an active `_isScanning` spinner and completion SnackBar showing exact issue counts.

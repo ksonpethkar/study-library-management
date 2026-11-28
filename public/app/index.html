@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
   <!--
@@ -224,8 +224,8 @@
       return _lazyScriptCache[src];
     }
 
-    // ── Instant Client-Side PDF Text Extractor (e-Aadhaar & DigiLocker) ──
-    window.extractPdfText = async function(base64Pdf) {
+    // ── Instant Client-Side PDF Text Extractor & Page Renderer (e-Aadhaar & DigiLocker) ──
+    window.extractPdfText = async function(base64Pdf, password) {
       try {
         if (!window.pdfjsLib) {
           await _loadExternalScript("https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js");
@@ -244,7 +244,9 @@
           bytes[i] = binaryStr.charCodeAt(i);
         }
 
-        const loadingTask = pdfjsLib.getDocument({ data: bytes });
+        const docParams = { data: bytes };
+        if (password) docParams.password = password;
+        const loadingTask = pdfjsLib.getDocument(docParams);
         const pdf = await loadingTask.promise;
         let fullText = "";
 
@@ -259,7 +261,51 @@
 
         return fullText.trim();
       } catch (err) {
+        if (err && err.name === "PasswordException") {
+          return "__PDF_PASSWORD_REQUIRED__";
+        }
         console.warn("PDF text extraction error:", err);
+        return "";
+      }
+    };
+
+    window.renderPdfPageAsJpeg = async function(base64Pdf, password) {
+      try {
+        if (!window.pdfjsLib) {
+          await _loadExternalScript("https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js");
+        }
+        if (!window.pdfjsLib) {
+          return "";
+        }
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+
+        const cleanBase64 = base64Pdf.includes(",") ? base64Pdf.split(",")[1] : base64Pdf;
+        const binaryStr = atob(cleanBase64);
+        const len = binaryStr.length;
+        const bytes = new Uint8List(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+
+        const docParams = { data: bytes };
+        if (password) docParams.password = password;
+        const pdf = await pdfjsLib.getDocument(docParams).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.8 });
+        const canvas = document.createElement("canvas");
+        const maxDim = 1200;
+        const downScale = Math.min(1.0, maxDim / Math.max(viewport.width, viewport.height));
+        const finalViewport = downScale < 1.0 ? page.getViewport({ scale: 1.8 * downScale }) : viewport;
+        canvas.width = Math.round(finalViewport.width);
+        canvas.height = Math.round(finalViewport.height);
+        const ctx = canvas.getContext("2d");
+        await page.render({ canvasContext: ctx, viewport: finalViewport }).promise;
+        return canvas.toDataURL("image/jpeg", 0.82);
+      } catch (err) {
+        if (err && err.name === "PasswordException") {
+          return "__PDF_PASSWORD_REQUIRED__";
+        }
+        console.warn("PDF page render error:", err);
         return "";
       }
     };
@@ -359,7 +405,7 @@
   </script>
 
   <!--
-    You can customize the "flutter_bootstrap.js?v=20261120_04" script.
+    You can customize the "flutter_bootstrap.js?v=20261128_1131" script.
     This is useful to provide a custom configuration to the Flutter loader
     or to give the user feedback during the initialization process.
 
@@ -367,7 +413,7 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
     <!-- Progressive Web App (PWA) Offline-First Loader -->
-  <script src="/app/flutter_bootstrap.js?v=20261126_08" async></script>
+  <script src="/app/flutter_bootstrap.js?v=20261128_1131" async></script>
 </body>
 </html>
 

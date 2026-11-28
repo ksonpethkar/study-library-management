@@ -172,20 +172,35 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   }
 
   String? _resolveStudentSeatId(StudentModel student, [List<SeatModel>? seats]) {
-    if (student.seatId != null && student.seatId!.isNotEmpty) {
-      return student.seatId;
-    }
+    final isInactiveOrArchived =
+        student.membershipStatus == MembershipStatus.inactive ||
+        student.membershipStatus == MembershipStatus.archived;
+
     if (seats != null) {
       final studentUid = student.userId;
       for (final seat in seats) {
-        if (seat.studentId == student.id || (studentUid != null && studentUid.isNotEmpty && seat.studentId == studentUid)) {
+        if (seat.studentId == student.id ||
+            (studentUid != null && studentUid.isNotEmpty && seat.studentId == studentUid)) {
           return seat.id;
         }
       }
+      if (isInactiveOrArchived) return null;
+      return (student.seatId != null && student.seatId!.isNotEmpty) ? student.seatId : null;
+    }
+
+    final liveSeatId = _seatIdByStudentId[student.id] ??
+        (student.userId != null && student.userId!.isNotEmpty ? _seatIdByStudentId[student.userId!] : null);
+    if (liveSeatId != null && liveSeatId.isNotEmpty) {
+      return liveSeatId;
+    }
+    // Never display a stale released desk badge for inactive/archived students
+    if (isInactiveOrArchived && _seatIdByStudentId.isNotEmpty) {
       return null;
     }
-    return _seatIdByStudentId[student.id] ??
-        (student.userId != null && student.userId!.isNotEmpty ? _seatIdByStudentId[student.userId!] : null);
+    if (student.seatId != null && student.seatId!.isNotEmpty) {
+      return student.seatId;
+    }
+    return null;
   }
 
   List<StudentModel> _filteredStudents(List<StudentModel> all) {

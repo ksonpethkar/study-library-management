@@ -86,7 +86,7 @@ class _MaintenanceDiagnosticsScreenState extends ConsumerState<MaintenanceDiagno
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✓ Auto-Heal Complete: ${res.healedSeatsCount} desks released, ${res.clearedGhostIdsCount} ghost IDs cleaned.',
+              '✓ Auto-Heal Complete: ${res.healedSeatsCount} desks released, ${res.clearedGhostIdsCount} ghost IDs cleaned, ${res.syncedRecordsCount} student records synced.',
             ),
             backgroundColor: const Color(0xFF059669),
             behavior: SnackBarBehavior.floating,
@@ -242,25 +242,51 @@ class _MaintenanceDiagnosticsScreenState extends ConsumerState<MaintenanceDiagno
     if (_isScanning) return;
     setState(() => _isScanning = true);
     AppHaptics.medium();
-    ref.invalidate(integrityReportProvider);
-    ref.invalidate(databaseMetricsProvider);
-    await Future.delayed(const Duration(milliseconds: 650));
-    if (mounted) {
-      setState(() => _isScanning = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Expanded(child: Text('Diagnostic Scan Complete: Database invariants 100% verified.')),
-            ],
+    try {
+      await Future.wait([
+        ref.refresh(databaseMetricsProvider.future),
+        ref.refresh(integrityReportProvider.future),
+      ]);
+      final report = ref.read(integrityReportProvider).value;
+      if (mounted) {
+        final issueCount = report?.issues.length ?? 0;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  issueCount == 0 ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    issueCount == 0
+                        ? 'Diagnostic Scan Complete: Database invariants 100% verified.'
+                        : 'Diagnostic Scan Complete: Found $issueCount issue(s) to review.',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: issueCount == 0 ? const Color(0xFF059669) : Colors.amber.shade800,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: Color(0xFF059669),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Diagnostic scan failed: $e'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isScanning = false);
     }
   }
 
@@ -292,13 +318,15 @@ class _MaintenanceDiagnosticsScreenState extends ConsumerState<MaintenanceDiagno
             onPressed: _exportDiagnosticReport,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh Metrics',
-            onPressed: () {
-              AppHaptics.light();
-              ref.invalidate(databaseMetricsProvider);
-              ref.invalidate(integrityReportProvider);
-            },
+            icon: _isScanning
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh Metrics & Re-Scan',
+            onPressed: _isScanning ? null : _runManualScan,
           ),
         ],
         bottom: TabBar(

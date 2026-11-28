@@ -173,9 +173,37 @@
     }
 
     .lib-subtitle {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      margin-top: 2px;
+      font-size: 0.84rem;
+      color: #CBD5E1;
+      margin-top: 3px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .header-book-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 9999px;
+      background: linear-gradient(135deg, #10B981, #059669);
+      color: #FFFFFF;
+      font-size: 0.76rem;
+      font-weight: 800;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.28);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .header-book-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.36);
     }
 
     .live-badge {
@@ -265,6 +293,33 @@
       display: flex;
       align-items: center;
       gap: 0.35rem;
+    }
+
+    .legend-filter {
+      cursor: pointer;
+      padding: 0.25rem 0.55rem;
+      border-radius: 9999px;
+      border: 1px solid transparent;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      user-select: none;
+    }
+
+    .legend-filter:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .legend-filter.active {
+      background: rgba(16, 185, 129, 0.14);
+      border-color: rgba(16, 185, 129, 0.45);
+      color: #6EE7B7;
+    }
+
+    .seat-map-card.filter-available .seat-cell:not(.available),
+    .seat-map-card.filter-occupied .seat-cell:not(.occupied),
+    .seat-map-card.filter-reserved .seat-cell:not(.reserved),
+    .seat-map-card.filter-maintenance .seat-cell:not(.maintenance) {
+      opacity: 0.2;
+      transform: scale(0.94);
     }
 
     .legend-pill {
@@ -871,9 +926,14 @@
             <p class="lib-subtitle" id="libAddress">Front Of Reliance Fashion Factory, Nath Road, Parli-431515</p>
           </div>
         </div>
-        <div class="live-badge">
-          <span class="live-dot"></span>
-          <span>LIVE OCCUPANCY</span>
+        <div class="header-actions">
+          <div class="live-badge">
+            <span class="live-dot"></span>
+            <span>LIVE OCCUPANCY</span>
+          </div>
+          <button id="headerQuickBookBtn" type="button" class="header-book-btn" onclick="highlightFirstAvailableSeat()">
+            <span>✨ Find Open Desk</span>
+          </button>
         </div>
       </div>
 
@@ -902,21 +962,21 @@
       </div>
     </div>
 
-    <!-- Complete Legend -->
+    <!-- Complete Legend (Interactive Status Filters) -->
     <div class="legend-bar">
-      <div class="legend-item">
+      <div class="legend-item legend-filter" data-filter="available" onclick="toggleStatusFilter('available')" title="Tap to highlight available desks">
         <div class="legend-pill" style="background: var(--color-available)"></div>
-        <span>Available</span>
+        <span>Available Only</span>
       </div>
-      <div class="legend-item">
+      <div class="legend-item legend-filter" data-filter="occupied" onclick="toggleStatusFilter('occupied')" title="Tap to highlight occupied desks">
         <div class="legend-pill" style="background: var(--color-occupied)"></div>
         <span>Occupied</span>
       </div>
-      <div class="legend-item">
+      <div class="legend-item legend-filter" data-filter="reserved" onclick="toggleStatusFilter('reserved')" title="Tap to highlight reserved desks">
         <div class="legend-pill" style="background: var(--color-reserved)"></div>
         <span>Reserved</span>
       </div>
-      <div class="legend-item">
+      <div class="legend-item legend-filter" data-filter="maintenance" onclick="toggleStatusFilter('maintenance')" title="Tap to highlight maintenance desks">
         <div class="legend-pill" style="background: var(--color-disabled)"></div>
         <span>Maintenance</span>
       </div>
@@ -1013,7 +1073,7 @@
     </div>
 
     <footer>
-      The Cozy Corner Study Centre &bull; Parli-Vaijnath &bull; Real-Time Live Occupancy Engine
+      <span id="footerLibName">The Cozy Corner Study Centre</span> &bull; Live Desk Availability
     </footer>
   </div>
 
@@ -1767,15 +1827,56 @@
       }
     }
 
+    let activeStatusFilter = null;
+    function toggleStatusFilter(status) {
+      activeStatusFilter = activeStatusFilter === status ? null : status;
+      const mapCard = document.querySelector('.seat-map-card');
+      if (mapCard) {
+        mapCard.classList.remove('filter-available', 'filter-occupied', 'filter-reserved', 'filter-maintenance');
+        if (activeStatusFilter) {
+          mapCard.classList.add('filter-' + activeStatusFilter);
+        }
+      }
+      document.querySelectorAll('.legend-filter').forEach(el => {
+        el.classList.toggle('active', el.dataset.filter === activeStatusFilter);
+      });
+    }
+
+    function findNearestAvailableSeatObj(originSeatId, sec) {
+      if (!Array.isArray(latestSeatsList) || latestSeatsList.length === 0) return null;
+      const originIdx = originSeatId ? latestSeatsList.findIndex(s => s.id === originSeatId) : -1;
+      let bestSeat = null;
+      let bestDist = Infinity;
+      latestSeatsList.forEach((s, idx) => {
+        if (resolveEffectiveStatus(s, sec) !== 'available') return;
+        const dist = originIdx >= 0 ? Math.abs(idx - originIdx) : idx;
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestSeat = s;
+        }
+      });
+      return bestSeat;
+    }
+
     function highlightFirstAvailableSeat() {
+      const sec = sectionsList.find(s => s.id === activeSectionId) || sectionsList[0];
+      const originId = selectedSeatId;
+      const nearest = findNearestAvailableSeatObj(originId, sec);
       hideDrawer();
-      const firstAvailCell = document.querySelector('.seat-cell.available');
-      if (!firstAvailCell) return;
-      firstAvailCell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-      firstAvailCell.classList.remove('pulse-highlight');
-      void firstAvailCell.offsetWidth;
-      firstAvailCell.classList.add('pulse-highlight');
-      setTimeout(() => firstAvailCell.classList.remove('pulse-highlight'), 2200);
+
+      const targetCell = nearest
+        ? document.getElementById('cell_' + nearest.id)
+        : document.querySelector('.seat-cell.available');
+      if (!targetCell) return;
+
+      targetCell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      targetCell.classList.remove('pulse-highlight');
+      void targetCell.offsetWidth;
+      targetCell.classList.add('pulse-highlight');
+      setTimeout(() => targetCell.classList.remove('pulse-highlight'), 2200);
+      if (originId) {
+        setTimeout(() => targetCell.click(), 360);
+      }
     }
 
     function showDrawer(seat, sec) {
@@ -1796,15 +1897,15 @@
       if (status === 'occupied') {
         statusColor = 'var(--color-occupied)';
         statusBg = 'var(--color-occupied-bg)';
-        statusText = '🔴 Currently Occupied by Student';
+        statusText = '🔴 Occupied';
       } else if (status === 'reserved') {
         statusColor = 'var(--color-reserved)';
         statusBg = 'var(--color-reserved-bg)';
-        statusText = '🟡 Temporarily Reserved';
+        statusText = '🟡 On Hold';
       } else if (status === 'maintenance') {
         statusColor = 'var(--color-disabled)';
         statusBg = 'var(--color-disabled-bg)';
-        statusText = (sec && sec.isActive === false) ? '⚪ Hall Under Maintenance' : '⚪ Under Maintenance';
+        statusText = (sec && sec.isActive === false) ? '⚪ Hall Under Maintenance' : '⚪ Unavailable';
       }
 
       if (effectiveGender === 'male') statusText += ' • Boys Only';
@@ -1814,9 +1915,10 @@
       badge.style.background = statusBg;
       badge.innerText = statusText;
 
-      // Render STRICTLY Admin-configured amenities from Library -> Section -> Seat
+      // Render Admin-configured amenities cleanly on Available desks only
+      // (keeps Occupied / Reserved / Maintenance popups focused on finding an open seat)
       const amenitiesGrid = document.getElementById('drawerAmenitiesGrid');
-      const resolvedAmenities = resolveEffectiveAmenities(libraryMeta, sec, seat);
+      const resolvedAmenities = status === 'available' ? resolveEffectiveAmenities(libraryMeta, sec, seat) : [];
       if (resolvedAmenities.length > 0) {
         amenitiesGrid.innerHTML = resolvedAmenities.map(a => `
           <div class="amenity-chip">
@@ -1867,38 +1969,36 @@
         regBtn.style.display = 'none';
         regBtn.removeAttribute('href');
 
-        let title = '';
         let details = '';
         if (status === 'reserved') {
-          title = '🟡 Desk Reserved — Booking Restricted';
           const expDate = parseExpiryDate(seat.reservationExpiresAt);
           const expiryInfo = expDate && expDate > new Date()
-            ? ` (active hold until ${expDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
+            ? ` until ${expDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
             : '';
-          const reasonNote = seat.statusReason ? ` Reason: ${escapeHtml(seat.statusReason)}.` : '';
-          details = `Seat #${escapeHtml(label)} is currently held or reserved${expiryInfo}.${reasonNote} Direct WhatsApp requests and online booking are disabled for reserved desks.`;
+          const reasonNote = seat.statusReason ? ` Note: ${escapeHtml(seat.statusReason)}.` : '';
+          details = `Desk #${escapeHtml(label)} is currently held${expiryInfo}.${reasonNote} If unclaimed, it opens automatically — or jump to the nearest open desk right now.`;
         } else if (status === 'maintenance') {
-          title = (sec && sec.isActive === false) ? '⚪ Hall Under Maintenance' : '⚪ Desk Under Maintenance';
           const reasonNote = seat.statusReason
-            ? ` Reason: ${escapeHtml(seat.statusReason)}.`
+            ? ` Note: ${escapeHtml(seat.statusReason)}.`
             : (sec && sec.isActive === false
-                ? ` ${escapeHtml(secName)} is temporarily closed for maintenance.`
-                : ' Management has temporarily paused bookings on this desk.');
-          details = `Seat #${escapeHtml(label)} is currently unavailable.${reasonNote} Direct WhatsApp requests and online admission for this desk are disabled.`;
+                ? ` ${escapeHtml(secName)} is temporarily closed for upkeep.`
+                : ' This desk is paused for maintenance.');
+          details = `Desk #${escapeHtml(label)} is currently unavailable.${reasonNote} Please choose another open desk nearby.`;
         } else {
-          title = '🔴 Desk Occupied — Cannot Be Booked';
-          details = `Seat #${escapeHtml(label)} is currently allocated to an enrolled student. Direct booking and WhatsApp reservation requests are disabled for occupied desks.`;
+          details = `Desk #${escapeHtml(label)} is currently occupied by an active member. Tap below to jump straight to the nearest open desk.`;
         }
 
         if (effectiveGender === 'male' || effectiveGender === 'female') {
           details += ` (${effectiveGender === 'male' ? '♂ Boys Only Zone' : '♀ Girls Only Zone'})`;
         }
 
-        restrictionBox.innerHTML = `<span class="drawer-restriction-title">${title}</span>${details}`;
+        restrictionBox.innerHTML = details;
         restrictionBox.style.display = 'block';
 
-        if ((latestHallStats?.available || 0) > 0) {
-          findBtn.innerHTML = `<span>🔍 Find an Available Seat (${latestHallStats.available} Open)</span>`;
+        const nearestOpen = findNearestAvailableSeatObj(seat.id, sec);
+        if (nearestOpen) {
+          const nearestLabel = nearestOpen._displayLabel || formatSeatLabel(nearestOpen.label || nearestOpen.seatNumber, '');
+          findBtn.innerHTML = `<span>✨ View Nearest Open Desk (#${escapeHtml(nearestLabel)})</span>`;
           findBtn.style.display = 'flex';
           waitlistBtn.style.display = 'none';
         } else {

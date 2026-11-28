@@ -46,13 +46,42 @@ if ($builtVerJson.version -ne $expectedVer -or "$($builtVerJson.build_number)" -
     Set-Content -Path "build\web\version.json" -Value $freshVer -Encoding UTF8 -NoNewline
 }
 
-# 3. Synchronize Web Artifacts & Portals to public/ and ..\public/
-Write-Host "`n[3/4] Copying build artifacts to public\app and syncing portals..." -ForegroundColor Yellow
+# 3. Clean stale artifacts & synchronize Web Artifacts & Portals to public/ and ..\public/
+Write-Host "`n[3/4] Cleaning stale files & syncing build artifacts to public\app..." -ForegroundColor Yellow
+foreach ($stale in @(
+    "public\StudyLibrary.apk", "public\download\StudyLibrary.apk",
+    "public\main.dart.js", "public\flutter_bootstrap.js",
+    "public\flutter_service_worker.js", "public\version.json",
+    "..\public\StudyLibrary.apk", "..\public\download\StudyLibrary.apk",
+    "..\public\main.dart.js", "..\public\flutter_bootstrap.js",
+    "..\public\flutter_service_worker.js", "..\public\version.json"
+)) {
+    if (Test-Path $stale) { Remove-Item $stale -Force }
+}
+if (Test-Path "public\app") { Remove-Item "public\app\*" -Recurse -Force }
+New-Item -ItemType Directory -Force -Path "public\app" | Out-Null
 Copy-Item -Path "build\web\*" -Destination "public\app" -Recurse -Force
-if (Test-Path "web\flutter_service_worker.js") { Copy-Item -Path "web\flutter_service_worker.js" -Destination "public\app\flutter_service_worker.js" -Force }
+$cacheBust = Get-Date -Format "yyyyMMdd_HHmm"
+if (Test-Path "web\flutter_service_worker.js") {
+    $swRaw = Get-Content "web\flutter_service_worker.js" -Raw -Encoding UTF8
+    $swRaw = [regex]::Replace($swRaw, "const CACHE_NAME = '[^']+';", "const CACHE_NAME = 'cozy-corner-pwa-v$expectedVer-$cacheBust';")
+    Set-Content -Path "web\flutter_service_worker.js" -Value $swRaw -Encoding UTF8 -NoNewline
+    Copy-Item -Path "web\flutter_service_worker.js" -Destination "public\app\flutter_service_worker.js" -Force
+}
+if (Test-Path "public\app\index.html") {
+    $idxRaw = Get-Content "public\app\index.html" -Raw -Encoding UTF8
+    $idxRaw = [regex]::Replace($idxRaw, 'flutter_bootstrap\.js\?v=[A-Za-z0-9_]+', "flutter_bootstrap.js?v=$cacheBust")
+    Set-Content -Path "public\app\index.html" -Value $idxRaw -Encoding UTF8 -NoNewline
+}
 if (Test-Path "..\public\app") {
+    Remove-Item "..\public\app\*" -Recurse -Force
     Copy-Item -Path "build\web\*" -Destination "..\public\app" -Recurse -Force
     if (Test-Path "web\flutter_service_worker.js") { Copy-Item -Path "web\flutter_service_worker.js" -Destination "..\public\app\flutter_service_worker.js" -Force }
+    if (Test-Path "..\public\app\index.html") {
+        $idxRoot = Get-Content "..\public\app\index.html" -Raw -Encoding UTF8
+        $idxRoot = [regex]::Replace($idxRoot, 'flutter_bootstrap\.js\?v=[A-Za-z0-9_]+', "flutter_bootstrap.js?v=$cacheBust")
+        Set-Content -Path "..\public\app\index.html" -Value $idxRoot -Encoding UTF8 -NoNewline
+    }
 }
 if (Test-Path "..\public\download") {
     Copy-Item -Path "public\download\index.html" -Destination "..\public\download\index.html" -Force

@@ -533,7 +533,7 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
           body: '$sName submitted an admission application$seatSnippet. Please review and approve.',
           type: 'admission',
           targetRole: 'admin',
-          actionRoute: Routes.adminRequests,
+          actionRoute: '${Routes.adminRequests}/${requestRef.id}',
           metadata: {
             'requestId': requestRef.id,
             'studentName': sName,

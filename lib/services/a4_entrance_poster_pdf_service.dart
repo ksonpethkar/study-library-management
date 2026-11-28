@@ -33,6 +33,7 @@ class A4EntrancePosterPdfService {
     required String seatMapUrl,
     List<Map<String, dynamic>>? customAmenities,
     String? urgencyText,
+    PosterLayoutConfig? config,
   }) async {
     final libName = library?.name.isNotEmpty == true ? library!.name : 'Study Centre';
     final libAddress = library?.address.isNotEmpty == true
@@ -52,18 +53,26 @@ class A4EntrancePosterPdfService {
         ? library!.operatingHours
         : '06:00 AM – 11:00 PM (Daily)';
     final safeOperatingHours = operatingHours.replaceAll('–', '-').replaceAll('—', '-');
-    final tagline = library?.tagline.isNotEmpty == true
-        ? library!.tagline
-        : 'Smart Study Center & Silent Reading Hall';
+    final tagline = PosterLayoutConfig.resolveTagline(library?.tagline ?? '', libName);
 
     final brandPrimaryInt = (library?.accentColor != null && library!.accentColor != 0)
         ? library.accentColor
         : 0xFF5D4037;
     final brandColor = PdfColor.fromInt(brandPrimaryInt);
 
+    final effectiveConfig = config ?? await PosterConfigService.fetchPosterConfig(libraryId);
+
     // Fetch amenities if not supplied
     final amenities = customAmenities ?? await PosterConfigService.fetchAmenities(libraryId);
-    final activeAmenities = amenities.where((a) => a['enabled'] == true).toList();
+    final displayAmenities = amenities
+        .where((a) => a['enabled'] == true)
+        .take(effectiveConfig.maxAmenities)
+        .toList();
+    final amenityCols = PosterLayoutConfig.resolveAmenityColumns(displayAmenities.length);
+    final pdfQrSize = ((effectiveConfig.qrSizeMode == 'large' ? 215.0 : 185.0) +
+            (displayAmenities.length <= 3 ? 15.0 : 0.0) +
+            (!effectiveConfig.showHowToSteps ? 10.0 : 0.0))
+        .clamp(180.0, 235.0);
 
     // Load logo image safely (supports base64 and network URLs)
     pw.ImageProvider? logoImage;
@@ -87,7 +96,7 @@ class A4EntrancePosterPdfService {
 
     final rawUrgency = (urgencyText != null && urgencyText.trim().isNotEmpty)
         ? urgencyText.trim()
-        : 'HURRY! LIMITED SEATS LEFT';
+        : effectiveConfig.urgencyText;
     final cleanUrgency = rawUrgency
         .replaceAll(RegExp(r'[^\x20-\x7E\u0900-\u097F]'), '')
         .replaceAll(RegExp(r'\s+'), ' ')
@@ -294,8 +303,8 @@ class A4EntrancePosterPdfService {
                         ),
                       ),
 
-                      // Tagline / Mission
-                      if (tagline.isNotEmpty) ...[
+                      // Tagline / Mission (Deduplicated)
+                      if (effectiveConfig.showTagline && tagline.isNotEmpty) ...[
                         pw.SizedBox(height: 3),
                         pw.Text(
                           tagline,
@@ -318,34 +327,36 @@ class A4EntrancePosterPdfService {
                         ),
                       ],
 
-                      pw.SizedBox(height: 8),
+                      if (effectiveConfig.showHours) ...[
+                        pw.SizedBox(height: 8),
 
-                      // Operating Hours Badge
-                      pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-                        decoration: pw.BoxDecoration(
-                          color: const PdfColor(0.20, 0.12, 0.08),
-                          borderRadius: pw.BorderRadius.circular(16),
-                          border: pw.Border.all(
-                            color: const PdfColor(0.95, 0.65, 0.20),
-                            width: 1.2,
+                        // Operating Hours Badge
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+                          decoration: pw.BoxDecoration(
+                            color: const PdfColor(0.20, 0.12, 0.08),
+                            borderRadius: pw.BorderRadius.circular(16),
+                            border: pw.Border.all(
+                              color: const PdfColor(0.95, 0.65, 0.20),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: pw.Row(
+                            mainAxisSize: pw.MainAxisSize.min,
+                            children: [
+                              pw.Text(
+                                'HOURS: $safeOperatingHours',
+                                style: pw.TextStyle(
+                                  color: const PdfColor(1.0, 0.96, 0.88),
+                                  fontSize: 9.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: pw.Row(
-                          mainAxisSize: pw.MainAxisSize.min,
-                          children: [
-                            pw.Text(
-                              'HOURS: $safeOperatingHours',
-                              style: pw.TextStyle(
-                                color: const PdfColor(1.0, 0.96, 0.88),
-                                fontSize: 9.5,
-                                fontWeight: pw.FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -358,38 +369,39 @@ class A4EntrancePosterPdfService {
                       mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
-                        // Urgency Callout Pill Badge (Replaces static seat count!)
-                        pw.Container(
-                          padding: const pw.EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-                          decoration: pw.BoxDecoration(
-                            color: const PdfColor.fromInt(0xFFFEF3C7), // Amber 50
-                            borderRadius: pw.BorderRadius.circular(16),
-                            border: pw.Border.all(
-                              color: const PdfColor.fromInt(0xFFF59E0B), // Amber 500
-                              width: 1.2,
+                        // Urgency Callout Pill Badge
+                        if (effectiveConfig.showUrgency)
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                            decoration: pw.BoxDecoration(
+                              color: const PdfColor.fromInt(0xFFFEF3C7), // Amber 50
+                              borderRadius: pw.BorderRadius.circular(16),
+                              border: pw.Border.all(
+                                color: const PdfColor.fromInt(0xFFF59E0B), // Amber 500
+                                width: 1.2,
+                              ),
+                            ),
+                            child: pw.Row(
+                              mainAxisSize: pw.MainAxisSize.min,
+                              children: [
+                                pw.SvgImage(
+                                  svg: '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M7 2v11h3v9l7-12h-4l4-8z" fill="#D97706"/></svg>',
+                                  width: 13,
+                                  height: 13,
+                                ),
+                                pw.SizedBox(width: 7),
+                                pw.Text(
+                                  effectiveUrgency,
+                                  style: pw.TextStyle(
+                                    color: const PdfColor.fromInt(0xFF92400E), // Amber 800
+                                    fontSize: 11.5,
+                                    fontWeight: pw.FontWeight.bold,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: pw.Row(
-                            mainAxisSize: pw.MainAxisSize.min,
-                            children: [
-                              pw.SvgImage(
-                                svg: '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M7 2v11h3v9l7-12h-4l4-8z" fill="#D97706"/></svg>',
-                                width: 13,
-                                height: 13,
-                              ),
-                              pw.SizedBox(width: 7),
-                              pw.Text(
-                                effectiveUrgency,
-                                style: pw.TextStyle(
-                                  color: const PdfColor.fromInt(0xFF92400E), // Amber 800
-                                  fontSize: 11.5,
-                                  fontWeight: pw.FontWeight.bold,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
 
                         // Action Heading
                         pw.Column(
@@ -416,7 +428,7 @@ class A4EntrancePosterPdfService {
 
                         // Large Optical QR Code with Center Shield
                         pw.Container(
-                          padding: const pw.EdgeInsets.all(12),
+                          padding: const pw.EdgeInsets.fromLTRB(14, 14, 14, 10),
                           decoration: pw.BoxDecoration(
                             color: PdfColors.white,
                             border: pw.Border.all(
@@ -425,35 +437,119 @@ class A4EntrancePosterPdfService {
                             ),
                             borderRadius: pw.BorderRadius.circular(20),
                           ),
-                          child: pw.Stack(
-                            alignment: pw.Alignment.center,
+                          child: pw.Column(
+                            mainAxisSize: pw.MainAxisSize.min,
                             children: [
-                              pw.BarcodeWidget(
-                                barcode: pw.Barcode.qrCode(),
-                                data: seatMapUrl,
-                                width: 200,
-                                height: 200,
-                                color: const PdfColor.fromInt(0xFF0F172A),
+                              pw.Stack(
+                                alignment: pw.Alignment.center,
+                                children: [
+                                  pw.BarcodeWidget(
+                                    barcode: pw.Barcode.qrCode(),
+                                    data: seatMapUrl,
+                                    width: pdfQrSize,
+                                    height: pdfQrSize,
+                                    color: const PdfColor.fromInt(0xFF0F172A),
+                                  ),
+                                  if (logoImage != null)
+                                    pw.Container(
+                                      width: 46,
+                                      height: 46,
+                                      decoration: pw.BoxDecoration(
+                                        color: PdfColors.white,
+                                        shape: pw.BoxShape.circle,
+                                        border: pw.Border.all(color: brandColor, width: 2.2),
+                                      ),
+                                      child: pw.ClipOval(
+                                        child: pw.Image(logoImage, fit: pw.BoxFit.cover),
+                                      ),
+                                    ),
+                                ],
                               ),
-                              if (logoImage != null)
-                                pw.Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: pw.BoxDecoration(
-                                    color: PdfColors.white,
-                                    shape: pw.BoxShape.circle,
-                                    border: pw.Border.all(color: brandColor, width: 2.2),
-                                  ),
-                                  child: pw.ClipOval(
-                                    child: pw.Image(logoImage, fit: pw.BoxFit.cover),
-                                  ),
+                              pw.SizedBox(height: 8),
+                              pw.Text(
+                                'NO APP REQUIRED  -  INSTANT LIVE SEAT MAP',
+                                style: pw.TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: brandColor,
+                                  letterSpacing: 0.8,
                                 ),
+                              ),
                             ],
                           ),
                         ),
 
-                        // ── 3. Full-Width Amenities Grid ───────────────────
-                        if (activeAmenities.isNotEmpty)
+                        if (effectiveConfig.showHowToSteps)
+                          pw.Row(
+                            children: [
+                              for (final step in const [
+                                ('1', 'Scan QR Code', 'Use any phone camera'),
+                                ('2', 'Pick Vacant Desk', 'See live hall availability'),
+                                ('3', 'Apply Online', 'Instant digital admission'),
+                              ])
+                                pw.Expanded(
+                                  child: pw.Container(
+                                    margin: const pw.EdgeInsets.symmetric(horizontal: 4),
+                                    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                                    decoration: pw.BoxDecoration(
+                                      color: const PdfColor.fromInt(0xFFF8FAFC),
+                                      borderRadius: pw.BorderRadius.circular(8),
+                                      border: pw.Border.all(
+                                        color: const PdfColor.fromInt(0xFFE2E8F0),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: pw.Row(
+                                      children: [
+                                        pw.Container(
+                                          width: 18,
+                                          height: 18,
+                                          alignment: pw.Alignment.center,
+                                          decoration: pw.BoxDecoration(
+                                            color: brandColor,
+                                            shape: pw.BoxShape.circle,
+                                          ),
+                                          child: pw.Text(
+                                            step.$1,
+                                            style: pw.TextStyle(
+                                              color: PdfColors.white,
+                                              fontSize: 9,
+                                              fontWeight: pw.FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        pw.SizedBox(width: 6),
+                                        pw.Expanded(
+                                          child: pw.Column(
+                                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                            children: [
+                                              pw.Text(
+                                                step.$2,
+                                                style: pw.TextStyle(
+                                                  fontSize: 8.5,
+                                                  fontWeight: pw.FontWeight.bold,
+                                                  color: const PdfColor.fromInt(0xFF0F172A),
+                                                ),
+                                              ),
+                                              pw.Text(
+                                                step.$3,
+                                                style: const pw.TextStyle(
+                                                  fontSize: 7,
+                                                  color: PdfColor.fromInt(0xFF64748B),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+
+                        // ── 3. Adaptive Full-Width Amenities Grid (Up to 9) ─
+                        if (displayAmenities.isNotEmpty)
                           pw.Column(
                             children: [
                               pw.Text(
@@ -466,24 +562,16 @@ class A4EntrancePosterPdfService {
                                 ),
                               ),
                               pw.SizedBox(height: 8),
-                              // Row 1 of amenities
-                              pw.Row(
-                                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                                children: [
-                                  for (int i = 0; i < 3; i++)
-                                    if (i < activeAmenities.length)
-                                      buildAmenityCard(activeAmenities[i]),
-                                ],
-                              ),
-                              // Row 2 of amenities
-                              if (activeAmenities.length > 3) ...[
-                                pw.SizedBox(height: 6),
+                              for (int r = 0; r < (displayAmenities.length / amenityCols).ceil(); r++) ...[
+                                if (r > 0) pw.SizedBox(height: 6),
                                 pw.Row(
                                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                                   children: [
-                                    for (int i = 3; i < 6; i++)
-                                      if (i < activeAmenities.length)
-                                        buildAmenityCard(activeAmenities[i]),
+                                    for (int c = 0; c < amenityCols; c++)
+                                      if ((r * amenityCols + c) < displayAmenities.length)
+                                        buildAmenityCard(displayAmenities[r * amenityCols + c])
+                                      else
+                                        pw.Expanded(child: pw.SizedBox()),
                                   ],
                                 ),
                               ],

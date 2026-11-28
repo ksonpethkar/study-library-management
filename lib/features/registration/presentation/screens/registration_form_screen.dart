@@ -10,6 +10,7 @@ import '../../data/ocr_parser.dart';
 import '../../data/document_layout_classifier.dart';
 import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/utils/app_validators.dart';
+import 'package:study_library/core/utils/gov_id_cross_check.dart';
 import 'package:study_library/services/form_config_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
@@ -316,6 +317,8 @@ class _RegistrationFormScreenState
     final doc = await DocumentPickerService.pickDocument(
       context: context,
       preferredSource: source,
+      enableEditor: true,
+      govIdType: _selectedGovIdType,
     );
     if (doc == null || !mounted) return;
 
@@ -485,6 +488,21 @@ class _RegistrationFormScreenState
         );
 
         String successFeedback = 'ID details scanned and filled successfully!';
+        final mismatchWarning = GovIdCrossCheck.checkMismatch(
+          type: finalType,
+          typedId: _idNumberController.text,
+          ocrDetectedId: result.idNumber,
+        );
+        if (mismatchWarning != null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(mismatchWarning),
+              backgroundColor: Colors.amber.shade800,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+        }
 
         final updates = <String, dynamic>{
           'govIdType': finalType.name,

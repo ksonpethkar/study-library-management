@@ -197,141 +197,166 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
               ),
             ),
 
-            // Sheet Header
+            // Sheet Header (Overflow-safe 2-row layout for small screens)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.notifications_active_rounded,
-                          color: theme.colorScheme.primary,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Notifications',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            shape: BoxShape.circle,
                           ),
-                          Text(
-                            widget.role == 'admin' ? 'Desk & Admission Alerts' : 'My Pass & Seat Alerts',
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          child: Icon(
+                            Icons.notifications_active_rounded,
+                            color: theme.colorScheme.primary,
+                            size: 20,
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Notifications',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                widget.role == 'admin' ? 'Desk & Admission Alerts' : 'My Pass & Seat Alerts',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  Row(
-                    children: [
-                      TextButton.icon(
-                        onPressed: () async {
-                          HapticFeedback.heavyImpact();
-                          final allNotifs = notifsAsync.value ?? [];
-                          final ids = allNotifs.map((n) => n.id).toList();
-                          setState(() {
-                            _locallyReadIds.addAll(ids);
-                          });
-                          await AppNotificationService.markAllAsRead(
-                            libraryId: widget.libraryId,
-                            targetRole: widget.role,
-                            targetUserId: widget.studentId,
-                            notificationIds: ids,
-                          );
-                          ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
-                          ref.invalidate(adminNotificationsStreamProvider);
-                          if (widget.role == 'admin' && widget.libraryId.isNotEmpty) {
-                            await ref.read(systemAlertsProvider(widget.libraryId).notifier).acknowledgeAll(
-                              pendingCount: widget.pendingRequestsCount,
-                              renewalsCount: widget.renewalsDueCount,
-                            );
-                          }
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('All notifications marked as read'),
-                                duration: const Duration(seconds: 4),
-                                behavior: SnackBarBehavior.floating,
-                                action: SnackBarAction(
-                                  label: 'Clear All Read',
-                                  textColor: Colors.amberAccent,
-                                  onPressed: () async {
-                                    setState(() {
-                                      _locallyDismissedIds.addAll(_locallyReadIds);
-                                    });
-                                    await AppNotificationService.clearAllRead(
-                                      libraryId: widget.libraryId,
-                                      targetRole: widget.role,
-                                      targetUserId: widget.studentId,
-                                      readNotificationIds: _locallyReadIds.toList(),
-                                    );
-                                    ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
-                                    ref.invalidate(adminNotificationsStreamProvider);
-                                  },
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.done_all_rounded, size: 16),
-                        label: const Text('Mark all read', style: TextStyle(fontSize: 12)),
-                      ),
-                      TextButton.icon(
-                        onPressed: () async {
-                          HapticFeedback.lightImpact();
-                          final allNotifs = notifsAsync.value ?? [];
-                          final readIds = allNotifs
-                              .where((n) => n.read || _locallyReadIds.contains(n.id) || AppNotificationService.isLocallyRead(n.id))
-                              .map((n) => n.id)
-                              .toList();
-                          setState(() {
-                            _locallyDismissedIds.addAll(readIds);
-                          });
-                          await AppNotificationService.clearAllRead(
-                            libraryId: widget.libraryId,
-                            targetRole: widget.role,
-                            targetUserId: widget.studentId,
-                            readNotificationIds: readIds,
-                          );
-                          ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
-                          ref.invalidate(adminNotificationsStreamProvider);
-                          if (widget.role == 'admin' && widget.libraryId.isNotEmpty) {
-                            await ref.read(systemAlertsProvider(widget.libraryId).notifier).acknowledgeAll(
-                              pendingCount: widget.pendingRequestsCount,
-                              renewalsCount: widget.renewalsDueCount,
-                            );
-                          }
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Read notifications cleared!'),
-                                duration: Duration(milliseconds: 1400),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.delete_sweep_rounded, size: 16),
-                        label: const Text('Clear Read', style: TextStyle(fontSize: 12)),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+              child: SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      ),
+                      onPressed: () async {
+                        HapticFeedback.heavyImpact();
+                        final allNotifs = notifsAsync.value ?? [];
+                        final ids = allNotifs.map((n) => n.id).toList();
+                        setState(() {
+                          _locallyReadIds.addAll(ids);
+                        });
+                        await AppNotificationService.markAllAsRead(
+                          libraryId: widget.libraryId,
+                          targetRole: widget.role,
+                          targetUserId: widget.studentId,
+                          notificationIds: ids,
+                        );
+                        ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+                        ref.invalidate(adminNotificationsStreamProvider);
+                        if (widget.role == 'admin' && widget.libraryId.isNotEmpty) {
+                          await ref.read(systemAlertsProvider(widget.libraryId).notifier).acknowledgeAll(
+                            pendingCount: widget.pendingRequestsCount,
+                            renewalsCount: widget.renewalsDueCount,
+                          );
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('All notifications marked as read'),
+                              duration: const Duration(seconds: 4),
+                              behavior: SnackBarBehavior.floating,
+                              action: SnackBarAction(
+                                label: 'Clear All Read',
+                                textColor: Colors.amberAccent,
+                                onPressed: () async {
+                                  setState(() {
+                                    _locallyDismissedIds.addAll(_locallyReadIds);
+                                  });
+                                  await AppNotificationService.clearAllRead(
+                                    libraryId: widget.libraryId,
+                                    targetRole: widget.role,
+                                    targetUserId: widget.studentId,
+                                    readNotificationIds: _locallyReadIds.toList(),
+                                  );
+                                  ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+                                  ref.invalidate(adminNotificationsStreamProvider);
+                                },
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.done_all_rounded, size: 16),
+                      label: const Text('Mark all read', style: TextStyle(fontSize: 12)),
+                    ),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      ),
+                      onPressed: () async {
+                        HapticFeedback.lightImpact();
+                        final allNotifs = notifsAsync.value ?? [];
+                        final readIds = allNotifs
+                            .where((n) => n.read || _locallyReadIds.contains(n.id) || AppNotificationService.isLocallyRead(n.id))
+                            .map((n) => n.id)
+                            .toList();
+                        setState(() {
+                          _locallyDismissedIds.addAll(readIds);
+                        });
+                        await AppNotificationService.clearAllRead(
+                          libraryId: widget.libraryId,
+                          targetRole: widget.role,
+                          targetUserId: widget.studentId,
+                          readNotificationIds: readIds,
+                        );
+                        ref.invalidate(studentNotificationsStreamProvider(widget.studentId));
+                        ref.invalidate(adminNotificationsStreamProvider);
+                        if (widget.role == 'admin' && widget.libraryId.isNotEmpty) {
+                          await ref.read(systemAlertsProvider(widget.libraryId).notifier).acknowledgeAll(
+                            pendingCount: widget.pendingRequestsCount,
+                            renewalsCount: widget.renewalsDueCount,
+                          );
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Read notifications cleared!'),
+                              duration: Duration(milliseconds: 1400),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.delete_sweep_rounded, size: 16),
+                      label: const Text('Clear Read', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
               ),
             ),
             const Divider(height: 1),
@@ -350,11 +375,17 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                 final unreadPending = (widget.pendingRequestsCount - alertsState.acknowledgedPendingCount).clamp(0, 999999);
                 final unreadRenewals = (widget.renewalsDueCount - alertsState.acknowledgedRenewalsCount).clamp(0, 999999);
 
-                final unreadCount = allNotifs.where((n) => !n.read).length +
-                    (widget.role == 'admin' ? (unreadPending + unreadRenewals) : 0);
+                final systemCardCount = widget.role == 'admin'
+                    ? ((widget.pendingRequestsCount > 0 ? 1 : 0) + (widget.renewalsDueCount > 0 ? 1 : 0))
+                    : 0;
+                final unreadSystemCardCount = widget.role == 'admin'
+                    ? ((unreadPending > 0 ? 1 : 0) + (unreadRenewals > 0 ? 1 : 0))
+                    : 0;
+
+                final unreadCount = allNotifs.where((n) => !n.read).length + unreadSystemCardCount;
                 final receiptsCount = allNotifs.where((n) => _matchesCategory(n, NotificationCategory.receipts)).length;
                 final passSeatsCount = allNotifs.where((n) => _matchesCategory(n, NotificationCategory.passSeats)).length +
-                    (widget.role == 'admin' ? (widget.pendingRequestsCount + widget.renewalsDueCount) : 0);
+                    systemCardCount;
                 final noticesCount = allNotifs.where((n) => _matchesCategory(n, NotificationCategory.notices)).length;
 
                 return SingleChildScrollView(
@@ -365,7 +396,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                       _buildCategoryChip(
                         label: 'All Alerts',
                         category: NotificationCategory.all,
-                        count: allNotifs.length + (widget.role == 'admin' ? widget.pendingRequestsCount + widget.renewalsDueCount : 0),
+                        count: allNotifs.length + systemCardCount,
                       ),
                       const SizedBox(width: 8),
                       _buildCategoryChip(
@@ -467,7 +498,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                             theme: theme,
                             icon: Icons.pending_actions_rounded,
                             iconColor: Colors.red,
-                            title: '${widget.pendingRequestsCount} Pending Action Requests',
+                            title: '${widget.pendingRequestsCount} Pending Action Request${widget.pendingRequestsCount == 1 ? "" : "s"}',
                             body: ref.watch(requestModuleCountsProvider).detailedSummary,
                             badgeText: unreadPending > 0
                                 ? '${widget.pendingRequestsCount} New'
@@ -694,12 +725,12 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
                             notif.title,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 13,
@@ -708,10 +739,17 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                             ),
                           ),
                         ),
-                        if (isRead) ...[
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (isRead)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                            margin: const EdgeInsets.only(right: 6),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(4),
@@ -725,22 +763,21 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                               ),
                             ),
                           ),
-                        ],
                         Text(
                           dateFormat.format(notif.createdAt),
                           style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
                       notif.body,
-                      maxLines: 2,
+                      maxLines: 4,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
                         color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.3,
+                        height: 1.35,
                       ),
                     ),
                     Builder(
@@ -840,7 +877,14 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
 
     if (label == null || color == null) return null;
 
-    final targetRoute = notif.actionRoute?.isNotEmpty == true ? notif.actionRoute! : defaultRoute;
+    final metaReqId = (notif.metadata['requestId'] ?? '').toString().trim();
+    final isRequestAlert = isAdmin &&
+        metaReqId.isNotEmpty &&
+        (type == 'admission' || type == 'new_registration' || type == 'profile_update_request');
+    final rawRoute = notif.actionRoute?.trim() ?? '';
+    final targetRoute = isRequestAlert && (rawRoute.isEmpty || rawRoute == Routes.adminRequests)
+        ? '${Routes.adminRequests}/$metaReqId'
+        : (rawRoute.isNotEmpty ? rawRoute : defaultRoute);
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -920,88 +964,105 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
               : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
-      child: ListTile(
+      child: InkWell(
         onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // UNREAD DOT (Only if unread)
-            if (isUnread)
-              Container(
-                margin: const EdgeInsets.only(right: 8),
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: badgeColor.withValues(alpha: 0.4),
-                      blurRadius: 4,
-                      spreadRadius: 1,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // UNREAD DOT (Only if unread)
+              if (isUnread)
+                Container(
+                  margin: const EdgeInsets.only(top: 14, right: 8),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: badgeColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: badgeColor.withValues(alpha: 0.4),
+                        blurRadius: 4,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                )
+              else
+                const SizedBox(width: 4),
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: isUnread
+                    ? iconColor.withValues(alpha: 0.15)
+                    : theme.colorScheme.surfaceContainerHighest,
+                child: Icon(
+                  icon,
+                  color: isUnread ? iconColor : theme.colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
+                        fontSize: 13,
+                        color: isUnread ? theme.colorScheme.onSurface : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      body,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isUnread ? badgeColor : theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              color: isUnread ? Colors.white : theme.colorScheme.onSurfaceVariant,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              )
-            else
-              const SizedBox(width: 4),
-            CircleAvatar(
-              backgroundColor: isUnread
-                  ? iconColor.withValues(alpha: 0.15)
-                  : theme.colorScheme.surfaceContainerHighest,
-              child: Icon(
-                icon,
-                color: isUnread ? iconColor : theme.colorScheme.onSurfaceVariant,
-                size: 20,
               ),
-            ),
-          ],
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
-            fontSize: 13,
-            color: isUnread ? theme.colorScheme.onSurface : theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        subtitle: Text(
-          body,
-          style: TextStyle(
-            fontSize: 11,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: isUnread ? badgeColor : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                badgeText,
-                style: TextStyle(
-                  color: isUnread ? Colors.white : theme.colorScheme.onSurfaceVariant,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+              if (isUnread && onMarkRead != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                  tooltip: 'Mark as read',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: onMarkRead,
                 ),
-              ),
-            ),
-            if (isUnread && onMarkRead != null) ...[
-              const SizedBox(width: 4),
-              IconButton(
-                icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
-                tooltip: 'Mark as read',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: onMarkRead,
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

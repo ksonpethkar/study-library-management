@@ -7,12 +7,15 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:printing/printing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/services/pdf_service.dart';
+import 'package:study_library/services/pdf_font_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/image_transparency_service.dart';
 import 'package:study_library/core/widgets/brand_color_picker_dialog.dart';
@@ -52,6 +55,7 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
   final TextEditingController _prefixController = TextEditingController(text: 'REC');
   final TextEditingController _termsController = TextEditingController();
   final TextEditingController _footerController = TextEditingController(text: 'Thank you for your payment! 📚');
+  bool _hasLocalEdits = false;
 
   // Stamp settings
   String? _stampUrl;
@@ -71,6 +75,7 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
   // Style / layout settings
   String _receiptStyle = 'classic';
   String _pageSize = 'a4';
+  String _fontFamily = 'noto_sans';
   Color _primaryColor = const Color(0xFF1565C0);
 
   bool _isLoading = true;
@@ -117,44 +122,49 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
           .get();
 
       if (doc.exists && mounted) {
-        final data = doc.data() ?? {};
-        setState(() {
-          _prefixController.text = (data['prefix'] as String?) ?? 'REC';
-          _termsController.text = (data['customTerms'] as String?) ?? '';
-          _footerController.text = (data['footerText'] as String?) ?? 'Thank you for your payment! 📚';
-          _stampUrl = data['stampUrl'] as String?;
-          _stampEnabled = (data['stampEnabled'] as bool?) ?? (_stampUrl != null && _stampUrl!.isNotEmpty);
-          _stampRotation = ((data['stampRotation'] as num?)?.toDouble()) ?? -12.0;
-          _stampScale = ((data['stampScale'] as num?)?.toDouble()) ?? 1.0;
-          _watermarkUrl = data['watermarkUrl'] as String?;
-          _watermarkEnabled = (data['watermarkEnabled'] as bool?) ?? true;
-          _watermarkOpacity = (((data['watermarkOpacity'] as num?)?.toDouble()) ?? 0.08).clamp(0.02, 0.40);
-          _watermarkScale = (((data['watermarkScale'] as num?)?.toDouble()) ?? 0.88).clamp(0.10, 0.98);
-          _headerFontSize = ((data['headerFontSize'] as num?)?.toDouble()) ?? 22.0;
-          final loadedStyle = (data['receiptStyle'] as String?) ?? 'classic';
-          _receiptStyle = loadedStyle == 'compact' ? 'classic' : loadedStyle;
-          final loadedSize = (data['pageSize'] as String?) ?? 'a4';
-          _pageSize = loadedSize.toLowerCase() == 'a5' ? 'a4' : loadedSize;
-
-          final colorHex = data['primaryColor'] as String?;
-          if (colorHex != null && colorHex.isNotEmpty) {
-            try {
-              final v = int.parse('FF$colorHex', radix: 16);
-              _primaryColor = Color.fromARGB((v >> 24) & 0xFF, (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF);
-            } catch (_) {}
-          }
-
-          for (final key in _elements.keys) {
-            if (data.containsKey(key)) {
-              _elements[key] = data[key] as bool;
-            }
-          }
-        });
+        _applyTemplateData(doc.data() ?? {});
       }
     } catch (_) {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _applyTemplateData(Map<String, dynamic> data) {
+    setState(() {
+      _prefixController.text = (data['prefix'] as String?) ?? 'REC';
+      _termsController.text = (data['customTerms'] as String?) ?? '';
+      _footerController.text = (data['footerText'] as String?) ?? 'Thank you for your payment! 📚';
+      _stampUrl = data['stampUrl'] as String?;
+      _stampEnabled = (data['stampEnabled'] as bool?) ?? (_stampUrl != null && _stampUrl!.isNotEmpty);
+      _stampRotation = ((data['stampRotation'] as num?)?.toDouble()) ?? -12.0;
+      _stampScale = ((data['stampScale'] as num?)?.toDouble()) ?? 1.0;
+      _watermarkUrl = data['watermarkUrl'] as String?;
+      _watermarkEnabled = (data['watermarkEnabled'] as bool?) ?? true;
+      _watermarkOpacity = (((data['watermarkOpacity'] as num?)?.toDouble()) ?? 0.08).clamp(0.02, 0.40);
+      _watermarkScale = (((data['watermarkScale'] as num?)?.toDouble()) ?? 0.88).clamp(0.10, 0.98);
+      _headerFontSize = ((data['headerFontSize'] as num?)?.toDouble()) ?? 22.0;
+      final loadedStyle = (data['receiptStyle'] as String?) ?? 'classic';
+      _receiptStyle = loadedStyle == 'compact' ? 'classic' : loadedStyle;
+      final loadedSize = (data['pageSize'] as String?) ?? 'a4';
+      _pageSize = loadedSize.toLowerCase() == 'a5' ? 'a4' : loadedSize;
+      _fontFamily = PdfFontService.normalizeFontFamily(data['fontFamily'] as String?);
+
+      final colorHex = data['primaryColor'] as String?;
+      if (colorHex != null && colorHex.isNotEmpty) {
+        try {
+          final v = int.parse('FF$colorHex', radix: 16);
+          _primaryColor = Color.fromARGB((v >> 24) & 0xFF, (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF);
+        } catch (_) {}
+      }
+
+      for (final key in _elements.keys) {
+        if (data.containsKey(key)) {
+          _elements[key] = data[key] as bool;
+        }
+      }
+      _hasLocalEdits = false;
+    });
   }
 
   /// Safely process transparent PNG images to keep document size < 60KB or upload to Firebase Storage
@@ -452,12 +462,7 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
       }
 
       final prefixText = _prefixController.text.trim().isEmpty ? 'REC' : _prefixController.text.trim();
-      await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('settings')
-          .doc('receipt_template')
-          .set({
+      final payload = <String, dynamic>{
         ..._elements,
         'prefix': prefixText,
         'customTerms': _termsController.text.trim(),
@@ -473,10 +478,26 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
         'headerFontSize': _headerFontSize,
         'receiptStyle': _receiptStyle,
         'pageSize': _pageSize,
+        'fontFamily': _fontFamily,
         'primaryColor': _primaryColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase(),
+      };
+
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('receipt_template')
+          .set({
+        ...payload,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_receipt_template_$libraryId', jsonEncode(payload));
+      } catch (_) {}
+
+      _hasLocalEdits = false;
       ref.invalidate(receiptTemplateStreamProvider);
 
       if (mounted) {
@@ -559,13 +580,16 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
       displayOrder: 1,
     );
 
+    final includeDeposit = _elements['Security Deposit'] ?? true;
+    final prefix = _prefixController.text.trim().isNotEmpty ? _prefixController.text.trim() : 'REC';
     final mockReceipt = ReceiptModel(
-      id: 'REC-2026-0004',
+      id: '$prefix-${DateTime.now().year}-0001',
       libraryId: library.id,
-      receiptNumber: 'REC-2026-0004',
+      receiptNumber: '$prefix-${DateTime.now().year}-0001',
       studentId: mockStudent.id,
       planId: mockPlan.id,
-      amount: 1500.0,
+      amount: includeDeposit ? 1500.0 : 1000.0,
+      securityDeposit: includeDeposit ? 500.0 : null,
       paymentMethod: 'UPI',
       validFrom: DateTime.now(),
       validTo: DateTime.now().add(const Duration(days: 30)),
@@ -589,6 +613,7 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
         'headerFontSize': _headerFontSize,
         'receiptStyle': _receiptStyle,
         'pageSize': _pageSize,
+        'fontFamily': _fontFamily,
         'primaryColor': _primaryColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase(),
         'footerText': _footerController.text.trim(),
       };
@@ -599,7 +624,7 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
         mockPlan,
         library,
         templateMap,
-        seatLabel: 'Seat #2 (Cozy Hall)',
+        seatLabel: '12',
       );
 
       await Printing.layoutPdf(
@@ -618,10 +643,18 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final libraryLogo = ref.watch(currentLibraryProvider).value?.logoUrl ?? '';
+    final library = ref.watch(currentLibraryProvider).value;
+    final libraryLogo = library?.logoUrl ?? '';
     final effectiveWatermark = (_watermarkUrl != null && _watermarkUrl!.isNotEmpty)
         ? _watermarkUrl!
         : libraryLogo;
+
+    ref.listen<AsyncValue<Map<String, dynamic>?>>(receiptTemplateStreamProvider, (_, next) {
+      final remote = next.value;
+      if (!_isLoading && !_isSaving && !_hasLocalEdits && remote != null) {
+        _applyTemplateData(remote);
+      }
+    });
 
     if (_isLoading) {
       return Scaffold(
@@ -654,6 +687,9 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
             children: [
+          _buildLiveReceiptPreviewCard(context, library, effectiveWatermark),
+          const SizedBox(height: 16),
+
           // ── CARD 1: FORMAT, LAYOUT & BRANDING ────────────────────────────
           Card(
             elevation: 0,
@@ -774,10 +810,10 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
                     decoration: InputDecoration(
                       hintText: 'e.g. REC, INV, CC',
                       prefixIcon: const Icon(Icons.tag_rounded),
-                      helperText: 'Sample generated number: ${_prefixController.text.trim().isEmpty ? "REC" : _prefixController.text.trim()}-2026-0001',
+                      helperText: 'Sample generated number: ${_prefixController.text.trim().isEmpty ? "REC" : _prefixController.text.trim()}-${DateTime.now().year}-0001',
                       border: const OutlineInputBorder(),
                     ),
-                    onChanged: (_) => setState(() {}),
+                    onChanged: (_) => setState(() => _hasLocalEdits = true),
                   ),
                   const SizedBox(height: 16),
 
@@ -798,7 +834,10 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
                           const Color(0xFF0277BD), // Cyan Blue
                           const Color(0xFFBE185D), // Magenta
                         ].map((color) => GestureDetector(
-                          onTap: () => setState(() => _primaryColor = color),
+                          onTap: () => setState(() {
+                            _primaryColor = color;
+                            _hasLocalEdits = true;
+                          }),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
                             margin: const EdgeInsets.only(right: 10),
@@ -828,7 +867,10 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
                               title: 'Pick Custom Receipt Accent Color',
                             );
                             if (chosen != null && mounted) {
-                              setState(() => _primaryColor = chosen);
+                              setState(() {
+                                _primaryColor = chosen;
+                                _hasLocalEdits = true;
+                              });
                             }
                           },
                           child: Container(
@@ -853,6 +895,35 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Receipt Font Family Selector
+                  Text('Receipt Typography & Font', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: PdfFontService.supportedFontFamilies.entries.map((entry) {
+                      final isSelected = _fontFamily == entry.key;
+                      return ChoiceChip(
+                        label: Text(
+                          entry.value,
+                          style: _previewFontStyle(
+                            family: entry.key,
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                        selected: isSelected,
+                        onSelected: (_) {
+                          setState(() {
+                            _fontFamily = entry.key;
+                            _hasLocalEdits = true;
+                          });
+                        },
+                      );
+                    }).toList(),
                   ),
                 ],
               ),
@@ -1422,6 +1493,7 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
                   TextField(
                     controller: _termsController,
                     maxLines: 4,
+                    onChanged: (_) => setState(() => _hasLocalEdits = true),
                     decoration: const InputDecoration(
                       hintText: '• Fees once paid are non-refundable.\n• Preserving receipt is mandatory for library access.\n• Maintain strict silence in study halls.',
                       border: OutlineInputBorder(),
@@ -1434,6 +1506,7 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _footerController,
+                    onChanged: (_) => setState(() => _hasLocalEdits = true),
                     decoration: const InputDecoration(
                       hintText: 'Thank you for choosing {libraryName} • Computer-generated receipt',
                       border: OutlineInputBorder(),
@@ -1511,6 +1584,408 @@ class _ReceiptTemplateScreenState extends ConsumerState<ReceiptTemplateScreen> {
     ),
   ),
 );
+  }
+
+  TextStyle _previewFontStyle({
+    String? family,
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+    FontStyle? fontStyle,
+    double? letterSpacing,
+  }) {
+    final effectiveFamily = family ?? _fontFamily;
+    final base = TextStyle(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      fontStyle: fontStyle,
+      letterSpacing: letterSpacing,
+    );
+    switch (effectiveFamily) {
+      case 'noto_serif':
+        return GoogleFonts.notoSerif(textStyle: base);
+      case 'poppins':
+        return GoogleFonts.poppins(textStyle: base);
+      case 'roboto_mono':
+        return GoogleFonts.robotoMono(textStyle: base);
+      default:
+        return GoogleFonts.notoSans(textStyle: base);
+    }
+  }
+
+  Widget _buildLiveReceiptPreviewCard(
+    BuildContext context,
+    LibraryModel? library,
+    String effectiveWatermark,
+  ) {
+    final theme = Theme.of(context);
+    final libName = (library?.name.trim().isNotEmpty == true) ? library!.name.trim() : 'The Cozy Corner Study Centre';
+    final libraryLogo = library?.logoUrl ?? '';
+    final libAddr = (library?.address.trim().isNotEmpty == true) ? library!.address.trim() : 'Station Road, City Centre';
+    final libPhone = (library?.effectiveContact.trim().isNotEmpty == true) ? library!.effectiveContact.trim() : '+91 98000 00000';
+    final libTagline = (library?.tagline.trim().isNotEmpty == true) ? library!.tagline.trim() : 'Your Peaceful Study Haven';
+    final prefix = _prefixController.text.trim().isEmpty ? 'REC' : _prefixController.text.trim().toUpperCase();
+    final sampleNo = '$prefix-${DateTime.now().year}-0001';
+    final showLogo = _elements['Logo'] ?? true;
+    final showOrgName = _elements['Org Name'] ?? true;
+    final showAddress = _elements['Address'] ?? true;
+    final showContact = _elements['Contact'] ?? true;
+    final showTagline = _elements['Tagline'] ?? false;
+    final showReceiptNo = _elements['Receipt #'] ?? true;
+    final showDate = _elements['Date'] ?? true;
+    final showStudentName = _elements['Student Name'] ?? true;
+    final showSeat = _elements['Seat Number'] ?? true;
+    final showPlan = _elements['Plan Name'] ?? true;
+    final showValidity = _elements['Valid From'] ?? true;
+    final showMethod = _elements['Payment Method'] ?? true;
+    final showDeposit = _elements['Security Deposit'] ?? true;
+    final showNextDue = _elements['Next Due Date'] ?? false;
+    final showTerms = _elements['Terms'] ?? true;
+    final showSignature = _elements['Signature'] ?? true;
+    final footerText = _footerController.text.trim().isNotEmpty
+        ? _footerController.text.trim().replaceAll('{libraryName}', libName)
+        : 'Thank you for choosing $libName';
+
+    final onPrimary = _primaryColor.computeLuminance() < 0.45 ? Colors.white : const Color(0xFF0F172A);
+    final softBg = _primaryColor.withValues(alpha: 0.08);
+    final softBorder = _primaryColor.withValues(alpha: 0.35);
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: softBorder, width: 1.4),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.visibility_rounded, size: 18, color: _primaryColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Live Instant Receipt Preview (A4)',
+                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _previewPdf,
+                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                  label: const Text('Full PDF'),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  children: [
+                    if (_watermarkEnabled && effectiveWatermark.isNotEmpty)
+                      Positioned.fill(
+                        child: Center(
+                          child: Opacity(
+                            opacity: _watermarkOpacity.clamp(0.02, 0.35),
+                            child: Transform.scale(
+                              scale: _watermarkScale.clamp(0.4, 1.05),
+                              child: _previewImage(effectiveWatermark, size: 150),
+                            ),
+                          ),
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (showLogo) ...[
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: softBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: softBorder),
+                                  ),
+                                  child: libraryLogo.isNotEmpty
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(7),
+                                          child: _previewImage(libraryLogo, size: 36, fit: BoxFit.cover),
+                                        )
+                                      : Icon(Icons.menu_book_rounded, color: _primaryColor, size: 20),
+                                ),
+                                const SizedBox(width: 10),
+                              ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (showOrgName)
+                                      Text(
+                                        libName.toUpperCase(),
+                                        style: _previewFontStyle(
+                                          color: _primaryColor,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: (_headerFontSize * 0.56).clamp(11.0, 16.0),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    if (showTagline)
+                                      Text(
+                                        libTagline,
+                                        style: _previewFontStyle(fontSize: 8.5, fontStyle: FontStyle.italic, color: Colors.grey.shade700),
+                                      ),
+                                    if (showAddress)
+                                      Text(
+                                        libAddr,
+                                        style: _previewFontStyle(fontSize: 8.5, color: Colors.grey.shade600),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    if (showContact)
+                                      Text(
+                                        'Helpline: $libPhone',
+                                        style: _previewFontStyle(fontSize: 8.5, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: softBg,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: softBorder),
+                                    ),
+                                    child: Text(
+                                      '• PAYMENT CONFIRMED',
+                                      style: _previewFontStyle(color: _primaryColor, fontSize: 7.5, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'ORIGINAL STUDENT COPY',
+                                    style: _previewFontStyle(fontSize: 6.5, fontWeight: FontWeight.bold, color: Colors.grey.shade500),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Divider(color: softBorder, height: 14),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: softBorder),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('RECEIPT INFO', style: _previewFontStyle(fontSize: 7, fontWeight: FontWeight.bold, color: _primaryColor)),
+                                      const SizedBox(height: 3),
+                                      if (showReceiptNo)
+                                        Text('No: $sampleNo', style: _previewFontStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                      if (showDate)
+                                        Text('Date: 28 Nov 2026', style: _previewFontStyle(fontSize: 8, color: Colors.black87)),
+                                      if (showMethod)
+                                        Text('Mode: UPI', style: _previewFontStyle(fontSize: 8, fontWeight: FontWeight.bold, color: _primaryColor)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: softBorder),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('STUDENT & DESK', style: _previewFontStyle(fontSize: 7, fontWeight: FontWeight.bold, color: _primaryColor)),
+                                      const SizedBox(height: 3),
+                                      if (showStudentName)
+                                        Text('Sample Student', style: _previewFontStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                      if (showSeat)
+                                        Text('Seat #12', style: _previewFontStyle(fontSize: 8, fontWeight: FontWeight.bold, color: _primaryColor)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Column(
+                              children: [
+                                Container(
+                                  color: _primaryColor,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text('PLAN / SERVICE', style: _previewFontStyle(fontSize: 7, fontWeight: FontWeight.bold, color: onPrimary)),
+                                      ),
+                                      Text('AMOUNT', style: _previewFontStyle(fontSize: 7, fontWeight: FontWeight.bold, color: onPrimary)),
+                                    ],
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              showPlan ? 'Monthly Dedicated Seat Plan' : 'Library Membership',
+                                              style: _previewFontStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.black87),
+                                            ),
+                                            if (showValidity)
+                                              Text('Valid: 01 Dec – 31 Dec 2026', style: _previewFontStyle(fontSize: 8, color: Colors.grey.shade700)),
+                                            if (showDeposit)
+                                              Text('+ Security Deposit: ₹500', style: _previewFontStyle(fontSize: 8, color: Colors.grey.shade700)),
+                                            if (showNextDue)
+                                              Text('Next Due: 01 Jan 2027', style: _previewFontStyle(fontSize: 8, fontWeight: FontWeight.w600, color: _primaryColor)),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: _primaryColor,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          showDeposit ? '₹1,500' : '₹1,000',
+                                          style: _previewFontStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: onPrimary),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (showTerms)
+                                      Text(
+                                        _termsController.text.trim().isNotEmpty
+                                            ? _termsController.text.trim()
+                                            : '• Fees once paid are non-refundable.',
+                                        style: _previewFontStyle(fontSize: 7.8, color: Colors.grey.shade700),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      footerText,
+                                      style: _previewFontStyle(fontSize: 8, fontWeight: FontWeight.w600, color: _primaryColor),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (_stampEnabled || showSignature) ...[
+                                const SizedBox(width: 8),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (_stampEnabled && _stampUrl != null && _stampUrl!.isNotEmpty)
+                                      Transform.rotate(
+                                        angle: _stampRotation * 3.14159 / 180,
+                                        child: Transform.scale(
+                                          scale: (_stampScale * 0.55).clamp(0.35, 0.9),
+                                          child: _previewImage(_stampUrl!, size: 42),
+                                        ),
+                                      ),
+                                    if (showSignature) ...[
+                                      const SizedBox(width: 6),
+                                      Column(
+                                        children: [
+                                          Container(width: 56, height: 1, color: Colors.grey.shade500),
+                                          const SizedBox(height: 2),
+                                          Text('Authorized', style: _previewFontStyle(fontSize: 7.5, color: Colors.grey.shade700)),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _previewImage(String url, {required double size, BoxFit fit = BoxFit.contain}) {
+    final provider = ImageService.getImageProvider(url);
+    if (provider == null) return SizedBox(width: size, height: size);
+    return Image(
+      image: provider,
+      width: size,
+      height: size,
+      fit: fit,
+      errorBuilder: (_, _, _) => SizedBox(width: size, height: size),
+    );
   }
 
   Widget _buildBrandingGuideItem(String title, String desc) {

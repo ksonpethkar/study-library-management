@@ -12,6 +12,20 @@ class PdfFontService {
   static pw.Font? _cachedBase;
   static pw.Font? _cachedBold;
   static List<pw.Font>? _cachedFallbacks;
+  static final Map<String, ({pw.Font regular, pw.Font bold, pw.Font italic, pw.Font boldItalic})> _familyCache = {};
+
+  static const Map<String, String> supportedFontFamilies = {
+    'noto_sans': 'Modern Sans (Noto Sans)',
+    'noto_serif': 'Classic Serif (Noto Serif)',
+    'poppins': 'Clean Geometric (Poppins)',
+    'roboto_mono': 'Ledger Mono (Roboto Mono)',
+  };
+
+  static String normalizeFontFamily(String? raw) {
+    final key = (raw ?? '').trim().toLowerCase();
+    if (supportedFontFamilies.containsKey(key)) return key;
+    return 'noto_sans';
+  }
 
   /// Loads base Latin/Symbol Unicode font (NotoSans)
   static Future<pw.Font> getBaseFont() async {
@@ -71,10 +85,29 @@ class PdfFontService {
   }
 
   /// Returns a complete pw.ThemeData preconfigured with universal font fallbacks
+  /// for the requested [fontFamily] (`noto_sans`, `noto_serif`, `poppins`, `roboto_mono`).
   static Future<pw.ThemeData> getUniversalTheme({
     pw.Font? base,
     pw.Font? bold,
+    String fontFamily = 'noto_sans',
   }) async {
+    final normalized = normalizeFontFamily(fontFamily);
+    if (base == null && bold == null && normalized != 'noto_sans') {
+      final pair = await _loadFamilyFonts(normalized);
+      final fallbacks = await getFallbackFonts();
+      final fallbackBase = await getBaseFont();
+      return pw.ThemeData.withFont(
+        base: pair.regular,
+        bold: pair.bold,
+        italic: pair.italic,
+        boldItalic: pair.boldItalic,
+        fontFallback: [
+          fallbackBase,
+          ...fallbacks,
+        ],
+      );
+    }
+
     final defaultBase = base ?? await getBaseFont();
     final defaultBold = bold ?? await getBaseBoldFont();
     final fallbacks = await getFallbackFonts();
@@ -89,5 +122,58 @@ class PdfFontService {
         ...fallbacks,
       ],
     );
+  }
+
+  static Future<({pw.Font regular, pw.Font bold, pw.Font italic, pw.Font boldItalic})> _loadFamilyFonts(
+    String family,
+  ) async {
+    if (_familyCache.containsKey(family)) {
+      return _familyCache[family]!;
+    }
+    final fallbackReg = await getBaseFont();
+    final fallbackBold = await getBaseBoldFont();
+    const timeout = Duration(milliseconds: 2500);
+
+    Future<pw.Font> safeLoad(Future<pw.Font> Function() loader, pw.Font fallback) async {
+      try {
+        return await loader().timeout(timeout);
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    late final ({pw.Font regular, pw.Font bold, pw.Font italic, pw.Font boldItalic}) result;
+    switch (family) {
+      case 'noto_serif':
+        final reg = await safeLoad(PdfGoogleFonts.notoSerifRegular, fallbackReg);
+        final bold = await safeLoad(PdfGoogleFonts.notoSerifBold, fallbackBold);
+        final italic = await safeLoad(PdfGoogleFonts.notoSerifItalic, reg);
+        final boldItalic = await safeLoad(PdfGoogleFonts.notoSerifBoldItalic, bold);
+        result = (regular: reg, bold: bold, italic: italic, boldItalic: boldItalic);
+        break;
+      case 'poppins':
+        final reg = await safeLoad(PdfGoogleFonts.poppinsRegular, fallbackReg);
+        final bold = await safeLoad(PdfGoogleFonts.poppinsBold, fallbackBold);
+        final italic = await safeLoad(PdfGoogleFonts.poppinsItalic, reg);
+        final boldItalic = await safeLoad(PdfGoogleFonts.poppinsBoldItalic, bold);
+        result = (regular: reg, bold: bold, italic: italic, boldItalic: boldItalic);
+        break;
+      case 'roboto_mono':
+        final reg = await safeLoad(PdfGoogleFonts.robotoMonoRegular, fallbackReg);
+        final bold = await safeLoad(PdfGoogleFonts.robotoMonoBold, fallbackBold);
+        final italic = await safeLoad(PdfGoogleFonts.robotoMonoItalic, reg);
+        final boldItalic = await safeLoad(PdfGoogleFonts.robotoMonoBoldItalic, bold);
+        result = (regular: reg, bold: bold, italic: italic, boldItalic: boldItalic);
+        break;
+      default:
+        result = (
+          regular: fallbackReg,
+          bold: fallbackBold,
+          italic: fallbackReg,
+          boldItalic: fallbackBold,
+        );
+    }
+    _familyCache[family] = result;
+    return result;
   }
 }
