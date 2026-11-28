@@ -405,7 +405,7 @@
   </script>
 
   <!--
-    You can customize the "flutter_bootstrap.js?v=20261128_1131" script.
+    You can customize the "flutter_bootstrap.js?v=20261128_1153" script.
     This is useful to provide a custom configuration to the Flutter loader
     or to give the user feedback during the initialization process.
 
@@ -413,7 +413,23 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
     <!-- Progressive Web App (PWA) Offline-First Loader -->
-  <script src="/app/flutter_bootstrap.js?v=20261128_1131" async></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.getRegistrations().then((regs) => {
+          for (const reg of regs) { reg.update().catch(() => {}); }
+        }).catch(() => {});
+      });
+    }
+  </script>
+  <script src="/app/flutter_bootstrap.js?v=20261128_1153" async></script>
 </body>
 </html>
 
