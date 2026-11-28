@@ -251,6 +251,8 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
             transformationController: _transformationController,
             minScale: 0.75,
             maxScale: 4.0,
+            trackpadScrollCausesScale: true,
+            boundaryMargin: const EdgeInsets.all(40),
             clipBehavior: Clip.none,
             child: PdfPreview(
               build: (format) => PdfService().generateReceiptPdf(

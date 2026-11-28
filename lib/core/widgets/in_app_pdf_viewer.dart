@@ -312,6 +312,8 @@ class _InAppPdfViewerState extends State<InAppPdfViewer> {
             InteractiveViewer(
               minScale: 0.8,
               maxScale: 4.0,
+              trackpadScrollCausesScale: true,
+              boundaryMargin: const EdgeInsets.all(40),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.memory(

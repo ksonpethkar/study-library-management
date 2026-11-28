@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image/image.dart' as img;
 import 'package:study_library/core/utils/image_compressor.dart';
 import 'package:study_library/core/widgets/in_app_pdf_viewer.dart';
+import 'package:study_library/core/widgets/zoomable_document_viewport.dart';
 import 'package:study_library/services/inactivity_lock_service.dart';
 
 class ImageService {
@@ -368,37 +369,35 @@ class ImageService {
                   pdfUrlOrDataUrl: imageUrl,
                   title: title,
                 )
-              : Center(
-                  child: InteractiveViewer(
-                    panEnabled: true,
-                    minScale: 0.8,
-                    maxScale: 4.0,
-                    child: imageFile != null
-                        ? Image.file(imageFile)
-                        : imageUrl!.startsWith('data:image')
-                            ? Image.memory(
-                                base64Decode(
-                                  imageUrl.contains(',') ? imageUrl.split(',')[1] : imageUrl,
-                                ),
-                                fit: BoxFit.contain,
-                              )
-                            : CachedNetworkImage(
-                                imageUrl: imageUrl,
-                          fit: BoxFit.contain,
-                          placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(color: Colors.white),
-                          ),
-                          errorWidget: (context, url, error) => const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
-                              SizedBox(height: 12),
-                              Text('Failed to load image', style: TextStyle(color: Colors.white70)),
-                            ],
-                          ),
-                        ),
-            ),
-          ),
+              : ZoomableDocumentViewport(
+                  minScale: 0.6,
+                  maxScale: 5.0,
+                  boundaryMargin: const EdgeInsets.all(100),
+                  child: imageFile != null
+                      ? Image.file(imageFile)
+                      : imageUrl!.startsWith('data:image')
+                          ? Image.memory(
+                              base64Decode(
+                                imageUrl.contains(',') ? imageUrl.split(',')[1] : imageUrl,
+                              ),
+                              fit: BoxFit.contain,
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.contain,
+                              placeholder: (context, url) => const Center(
+                                child: CircularProgressIndicator(color: Colors.white),
+                              ),
+                              errorWidget: (context, url, error) => const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
+                                  SizedBox(height: 12),
+                                  Text('Failed to load image', style: TextStyle(color: Colors.white70)),
+                                ],
+                              ),
+                            ),
+                ),
         ),
       ),
     );

@@ -9,10 +9,10 @@
     "latestBuild":  2079,
     "latestVersion":  "1.5.62",
     "versionName":  "1.5.62+2079",
-    "apkSize":  "81.9 MB",
+    "apkSize":  "79.5 MB",
     "apkType":  "64-Bit ARM (arm64-v8a) — High-Performance \u0026 Instant Download",
     "arm64DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.62/StudyLibrary-arm64-v8a.apk",
-    "arm64ApkSize":  "81.9 MB",
+    "arm64ApkSize":  "79.5 MB",
     "legacy32DownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.62/StudyLibrary-armeabi-v7a.apk",
     "legacy32ApkSize":  "48.1 MB",
     "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.62/StudyLibrary.apk",
@@ -220,8 +220,8 @@
     "android":  {
                     "versionCode":  2079,
                     "versionName":  "1.5.62+2079",
-                    "apkSize":  "81.9 MB",
-                    "arm64ApkSize":  "81.9 MB",
+                    "apkSize":  "79.5 MB",
+                    "arm64ApkSize":  "79.5 MB",
                     "legacy32ApkSize":  "48.1 MB",
                     "universalApkSize":  "141.7 MB",
                     "aabSize":  "107.9 MB",
@@ -232,7 +232,7 @@
                     "universalDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.62/StudyLibrary.apk",
                     "aabDownloadUrl":  "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.62/StudyLibrary.aab",
                     "releaseUrl":  "https://github.com/ksonpethkar/study-library-management/releases/tag/v1.5.62",
-                    "releasedAt":  "2026-11-28T06:50:07Z",
+                    "releasedAt":  "2026-11-28T07:06:28Z",
                     "releaseNotes":  "v1.5.62 (Build 2079): Admin Notification Center UI \u0026 count overhaul — overflow-safe 2-row header, unclipped system alert pills (4 Due - Read), exact card-count parity across filter chips \u0026 bell badge, singular Request grammar, multi-line alert readability, and auto-read + direct deep-link for approved/rejected requests."
                 }
 }

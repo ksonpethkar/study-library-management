@@ -11,6 +11,7 @@ import 'package:study_library/core/validators/gov_id_validator.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/widgets/in_app_pdf_viewer.dart';
+import 'package:study_library/core/widgets/zoomable_document_viewport.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/document_picker_service.dart';
 import 'package:study_library/core/utils/error_formatter.dart';
@@ -107,6 +108,7 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
   late final TextEditingController _idNumberController;
   bool _isSavingDetails = false;
   bool _isUploadingNewImage = false;
+  bool _isEditorExpanded = true;
 
   // Color Filter Matrices
   static const List<double> _grayscaleMatrix = [
@@ -574,14 +576,27 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
 
     final dateStr = DateFormat('dd/MM/yyyy').format(DateTime.now());
 
+    final screenSize = MediaQuery.sizeOf(context);
+    final isMobileViewport = screenSize.width < 600;
+
     return Dialog(
       backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 880, maxHeight: 900),
-        child: Column(
-          children: [
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isMobileViewport ? 0 : 20),
+      ),
+      insetPadding: isMobileViewport
+          ? EdgeInsets.zero
+          : const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: SafeArea(
+        top: isMobileViewport,
+        bottom: isMobileViewport,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: isMobileViewport ? screenSize.width : 880,
+            maxHeight: isMobileViewport ? screenSize.height : 900,
+          ),
+          child: Column(
+            children: [
             // Studio Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -792,69 +807,97 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
             Expanded(
               child: Container(
                 color: isDark ? Colors.black45 : Colors.grey.shade100,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    InteractiveViewer(
-                      maxScale: 5.0,
-                      minScale: 0.5,
-                      child: Center(
-                        child: RotatedBox(
-                          quarterTurns: _quarterTurns,
-                          child: _buildFilteredImage(activeUrl),
+                child: ClipRect(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (activeUrl.trim().isEmpty || DocumentPickerService.isPdf(activeUrl))
+                        _buildFilteredImage(activeUrl)
+                      else
+                        ZoomableDocumentViewport(
+                          minScale: 0.5,
+                          maxScale: 5.0,
+                          boundaryMargin: const EdgeInsets.all(100),
+                          child: RotatedBox(
+                            quarterTurns: _quarterTurns,
+                            child: _buildFilteredImage(activeUrl),
+                          ),
                         ),
-                      ),
-                    ),
 
-                    // Diagonal Security Watermark Overlay
-                    if (_showWatermark)
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: CustomPaint(
-                            painter: _SecurityWatermarkPainter(
-                              text: 'COZY CORNER STUDY CENTRE • ADMISSION VERIFIED • $dateStr',
+                      // Diagonal Security Watermark Overlay (clipped strictly inside viewport)
+                      if (_showWatermark && activeUrl.trim().isNotEmpty && !DocumentPickerService.isPdf(activeUrl))
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: CustomPaint(
+                              painter: _SecurityWatermarkPainter(
+                                text: 'COZY CORNER STUDY CENTRE • ADMISSION VERIFIED • $dateStr',
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
-                    // Zoom Helper Hint
-                    Positioned(
-                      bottom: 12,
-                      right: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.65),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
+            // Bottom In-Line ID Details Editor (Responsive & Collapsible for Mobile)
+            Container(
+              padding: EdgeInsets.fromLTRB(16, isMobileViewport ? 8 : 14, 16, isMobileViewport ? 12 : 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(isMobileViewport ? 0 : 20)),
+                border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : Colors.grey.shade200)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isMobileViewport)
+                    InkWell(
+                      onTap: () => setState(() => _isEditorExpanded = !_isEditorExpanded),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
                           children: [
-                            Icon(Icons.pinch_rounded, color: Colors.white70, size: 16),
-                            SizedBox(width: 6),
+                            Icon(
+                              Icons.badge_outlined,
+                              size: 16,
+                              color: isDark ? Colors.white70 : Colors.grey.shade700,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '${_selectedType.displayName} • ${_idNumberController.text.trim().isEmpty ? "Not entered" : _idNumberController.text.trim()}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                ),
+                              ),
+                            ),
                             Text(
-                              'Pinch / Scroll to Zoom & Pan',
-                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                              _isEditorExpanded ? 'Hide' : 'Edit ID',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            Icon(
+                              _isEditorExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+                              size: 18,
+                              color: theme.colorScheme.primary,
                             ),
                           ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Bottom In-Line ID Details Editor (Responsive Mobile-First)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-                border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : Colors.grey.shade200)),
-              ),
-              child: LayoutBuilder(
+                  if (!isMobileViewport || _isEditorExpanded) ...[
+                    if (isMobileViewport) const SizedBox(height: 8),
+                    LayoutBuilder(
                 builder: (context, constraints) {
                   final isNarrow = constraints.maxWidth < 540;
 
@@ -968,8 +1011,12 @@ class _AdminDocumentStudioDialogState extends State<AdminDocumentStudioDialog> {
                   );
                 },
               ),
+                  ],
+                ],
+              ),
             ),
           ],
+        ),
         ),
       ),
     );

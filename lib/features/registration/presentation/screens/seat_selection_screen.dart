@@ -1366,6 +1366,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
             InteractiveViewer(
               minScale: 0.7,
               maxScale: 2.5,
+              trackpadScrollCausesScale: true,
               clipBehavior: Clip.none,
               boundaryMargin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: SizedBox(

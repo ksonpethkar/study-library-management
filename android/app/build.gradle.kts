@@ -48,6 +48,13 @@ android {
     }
 
     packaging {
+        jniLibs {
+            excludes += listOf(
+                "lib/x86_64/**",
+                "lib/armeabi-v7a/**",
+                "lib/x86/**"
+            )
+        }
         resources {
             excludes += listOf(
                 "META-INF/*.kotlin_module",

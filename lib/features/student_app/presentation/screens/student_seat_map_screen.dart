@@ -1645,6 +1645,7 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
               InteractiveViewer(
                 minScale: 0.65,
                 maxScale: 2.8,
+                trackpadScrollCausesScale: true,
                 clipBehavior: Clip.none,
                 boundaryMargin: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
                 child: SizedBox(
