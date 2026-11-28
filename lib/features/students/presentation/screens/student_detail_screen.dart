@@ -5787,8 +5787,124 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
     );
   }
 
+  Future<void> _removeAssignedSeat(StudentModel s) async {
+    final seatId = s.seatId;
+    if (seatId == null || seatId.isEmpty) return;
+
+    final friendlyDesk = SeatHelper.formatSeatLabel(
+      seatId: seatId,
+      rawLabel: seatLabel.isNotEmpty ? seatLabel : null,
+      cols: sectionCols ?? 10,
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Seat Assignment?'),
+        content: Text(
+          'This will unassign $friendlyDesk from ${s.name} and immediately mark the desk as Available for other students.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove Seat'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    if (libraryId.isEmpty) return;
+
+    try {
+      final seatRepo = ref.read(seatRepositoryProvider);
+      var targetSectionId = s.sectionId ?? '';
+      if (targetSectionId.isEmpty) {
+        final found = await seatRepo.findSeatInLibrary(libraryId, seatId);
+        targetSectionId = found?.sectionId ?? '';
+      }
+      if (targetSectionId.isEmpty) {
+        throw Exception('Could not locate the section for $friendlyDesk.');
+      }
+
+      await seatRepo.unassignStudent(
+        libraryId: libraryId,
+        sectionId: targetSectionId,
+        seatId: seatId,
+        studentId: s.id,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        previousSeatLabel = seatLabel;
+        previousSectionName = sectionName;
+        student = s.copyWith(
+          seatId: null,
+          sectionId: null,
+          previousSeatId: seatId,
+          previousSectionId: targetSectionId,
+        );
+        seatLabel = '';
+        sectionName = '';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Removed $friendlyDesk from ${s.name}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _loadStudent();
+    } catch (e) {
+      if (mounted) {
+        AppErrorFormatter.showErrorSnackBar(context, e);
+      }
+    }
+  }
+
   Widget _buildSeatInfoCard(BuildContext context, StudentModel s) {
     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    final sectionsList = ref.watch(sectionsProvider).value ?? const [];
+    final allSeats = ref.watch(allSeatsProvider);
+    final isInactiveOrArchived =
+        s.membershipStatus == MembershipStatus.inactive ||
+        s.membershipStatus == MembershipStatus.archived;
+
+    String? effectiveSeatId;
+    String? effectiveSectionId = s.sectionId;
+    String? liveSeatLabel;
+    for (final seat in allSeats) {
+      if (seat.studentId == s.id ||
+          (s.userId != null && s.userId!.isNotEmpty && seat.studentId == s.userId)) {
+        effectiveSeatId = seat.id;
+        effectiveSectionId = seat.sectionId.isNotEmpty ? seat.sectionId : effectiveSectionId;
+        liveSeatLabel = seat.label;
+        break;
+      }
+    }
+    if (effectiveSeatId == null && !(isInactiveOrArchived && allSeats.isNotEmpty)) {
+      if (s.seatId != null && s.seatId!.isNotEmpty) {
+        effectiveSeatId = s.seatId;
+      }
+    }
+
+    String resolvedSectionName = sectionName;
+    if (resolvedSectionName.isEmpty && effectiveSectionId != null && effectiveSectionId.isNotEmpty) {
+      for (final sec in sectionsList) {
+        if (sec.id == effectiveSectionId) {
+          resolvedSectionName = sec.name;
+          break;
+        }
+      }
+    }
     return             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -5803,7 +5919,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    if (s.seatId != null && s.seatId!.isNotEmpty)
+                    if (effectiveSeatId != null && effectiveSeatId.isNotEmpty)
                       Row(
                         children: [
                           Container(
@@ -5821,21 +5937,45 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                               children: [
                                 Text(
                                   SeatHelper.formatSeatLabel(
-                                    seatId: s.seatId,
-                                    rawLabel: seatLabel.isNotEmpty ? seatLabel : null,
+                                    seatId: effectiveSeatId,
+                                    rawLabel: (liveSeatLabel != null && liveSeatLabel.isNotEmpty)
+                                        ? liveSeatLabel
+                                        : (seatLabel.isNotEmpty ? seatLabel : null),
                                     cols: sectionCols ?? 10,
                                   ),
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  sectionName.isNotEmpty ? 'Section: $sectionName' : 'Section assigned',
+                                  resolvedSectionName.isNotEmpty ? 'Section: $resolvedSectionName' : 'Section assigned',
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[400]),
                                 ),
                               ],
                             ),
                           ),
-                          OutlinedButton(onPressed: _showAssignSeatSheet, child: const Text('Change')),
+                          const SizedBox(width: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.end,
+                            children: [
+                              OutlinedButton(
+                                onPressed: _showAssignSeatSheet,
+                                child: const Text('Change'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () => _removeAssignedSeat(s),
+                                icon: const Icon(Icons.link_off_rounded, size: 16),
+                                label: const Text('Remove'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Theme.of(context).colorScheme.error,
+                                  side: BorderSide(
+                                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.45),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       )
                     else
@@ -5971,6 +6111,25 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
   }
 
   Widget _buildPlanInfoCard(BuildContext context, StudentModel s) {
+    final plansList = ref.watch(plansStreamProvider).value ?? const [];
+    String resolvedPlanName = planName;
+    double resolvedPlanPrice = planPrice;
+    if (resolvedPlanName.isEmpty && s.planId != null) {
+      if (s.planId == 'custom') {
+        resolvedPlanName = s.customPlanName?.isNotEmpty == true ? s.customPlanName! : 'Custom Plan';
+        if (resolvedPlanPrice <= 0 && (s.customPlanFee ?? 0) > 0) {
+          resolvedPlanPrice = s.customPlanFee!;
+        }
+      } else {
+        for (final p in plansList) {
+          if (p.id == s.planId) {
+            resolvedPlanName = p.name;
+            if (resolvedPlanPrice <= 0) resolvedPlanPrice = p.price;
+            break;
+          }
+        }
+      }
+    }
     return             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -6023,12 +6182,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      planName.isNotEmpty ? planName : 'Plan Assigned',
+                                      resolvedPlanName.isNotEmpty ? resolvedPlanName : 'Plan Assigned',
                                       style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                                     ),
-                                    if (planPrice > 0)
+                                    if (resolvedPlanPrice > 0)
                                       Text(
-                                        '₹${planPrice.toStringAsFixed(0)}',
+                                        '₹${resolvedPlanPrice.toStringAsFixed(0)}',
                                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                           color: Theme.of(context).colorScheme.primary,
                                           fontWeight: FontWeight.bold,
@@ -6047,12 +6206,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          planName.isNotEmpty ? planName : 'Plan Assigned',
+                                          resolvedPlanName.isNotEmpty ? resolvedPlanName : 'Plan Assigned',
                                           style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                                         ),
-                                        if (planPrice > 0)
+                                        if (resolvedPlanPrice > 0)
                                           Text(
-                                            '₹${planPrice.toStringAsFixed(0)}',
+                                            '₹${resolvedPlanPrice.toStringAsFixed(0)}',
                                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                               color: Theme.of(context).colorScheme.primary,
                                               fontWeight: FontWeight.bold,

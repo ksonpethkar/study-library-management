@@ -1811,6 +1811,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: -0.2,
                                     ),
+                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),

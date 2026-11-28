@@ -11,7 +11,7 @@
  * - Network-First with Cache Fallback for app shell during basement reading room network dropouts
  */
 
-const CACHE_NAME = 'cozy-corner-pwa-v1.5.62-20261128_1153';
+const CACHE_NAME = 'cozy-corner-pwa-v1.5.62-20261128_1228';
 
 const PRECACHE_ASSETS = [
   './manifest.json',

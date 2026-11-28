@@ -27,6 +27,7 @@ class QuickControlCenterSheet extends ConsumerWidget {
   final int unreadNotificationsCount;
   final int pendingRequestsCount;
   final int renewalsDueCount;
+  final int? totalBadgeCount;
 
   const QuickControlCenterSheet({
     super.key,
@@ -37,6 +38,7 @@ class QuickControlCenterSheet extends ConsumerWidget {
     this.unreadNotificationsCount = 0,
     this.pendingRequestsCount = 0,
     this.renewalsDueCount = 0,
+    this.totalBadgeCount,
   });
 
   static Future<void> show(
@@ -48,6 +50,7 @@ class QuickControlCenterSheet extends ConsumerWidget {
     int unreadNotificationsCount = 0,
     int pendingRequestsCount = 0,
     int renewalsDueCount = 0,
+    int? totalBadgeCount,
   }) {
     HapticFeedback.lightImpact();
     return showModalBottomSheet(
@@ -62,6 +65,7 @@ class QuickControlCenterSheet extends ConsumerWidget {
         unreadNotificationsCount: unreadNotificationsCount,
         pendingRequestsCount: pendingRequestsCount,
         renewalsDueCount: renewalsDueCount,
+        totalBadgeCount: totalBadgeCount,
       ),
     );
   }
@@ -264,7 +268,7 @@ class QuickControlCenterSheet extends ConsumerWidget {
     final theme = Theme.of(context);
     final themeMode = ref.watch(themeNotifierProvider);
     final isDark = themeMode == ThemeMode.dark;
-    final totalUnread = unreadNotificationsCount + pendingRequestsCount + renewalsDueCount;
+    final totalUnread = totalBadgeCount ?? (unreadNotificationsCount + pendingRequestsCount + renewalsDueCount);
 
     return Align(
       alignment: Alignment.bottomCenter,

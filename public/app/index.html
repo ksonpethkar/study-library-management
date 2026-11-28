@@ -21,21 +21,7 @@
   </script>
   <base href="/app/">
 
-  <!-- Progressive PWA Offline Service Worker (Pre-caches fonts, icons & app shell) -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        const swPath = window.location.pathname.startsWith('/app')
-            ? '/app/flutter_service_worker.js'
-            : '/flutter_service_worker.js';
-        navigator.serviceWorker.register(swPath).then(function(reg) {
-          console.log('[PWA] Cozy Corner Service Worker registered:', reg.scope);
-        }).catch(function(err) {
-          console.warn('[PWA] Service Worker registration skipped:', err);
-        });
-      });
-    }
-  </script>
+  <!-- Service worker registration is handled by flutter_bootstrap.js to avoid URL mismatch reload loops. -->
 
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache">
@@ -405,7 +391,7 @@
   </script>
 
   <!--
-    You can customize the "flutter_bootstrap.js?v=20261128_1153" script.
+    You can customize the "flutter_bootstrap.js?v=20261128_1228" script.
     This is useful to provide a custom configuration to the Flutter loader
     or to give the user feedback during the initialization process.
 
@@ -415,21 +401,17 @@
     <!-- Progressive Web App (PWA) Offline-First Loader -->
   <script>
     if ('serviceWorker' in navigator) {
+      const hadController = !!navigator.serviceWorker.controller;
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
+        if (hadController && !refreshing) {
           refreshing = true;
           window.location.reload();
         }
       });
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.getRegistrations().then((regs) => {
-          for (const reg of regs) { reg.update().catch(() => {}); }
-        }).catch(() => {});
-      });
     }
   </script>
-  <script src="/app/flutter_bootstrap.js?v=20261128_1153" async></script>
+  <script src="/app/flutter_bootstrap.js?v=20261128_1228" async></script>
 </body>
 </html>
 

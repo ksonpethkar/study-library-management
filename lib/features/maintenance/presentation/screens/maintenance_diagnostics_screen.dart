@@ -80,6 +80,7 @@ class _MaintenanceDiagnosticsScreenState extends ConsumerState<MaintenanceDiagno
       final res = await service.autoHealIntegrityIssues(libraryId, report);
 
       ref.invalidate(integrityReportProvider);
+      ref.invalidate(backgroundIntegrityCheckProvider);
       ref.invalidate(databaseMetricsProvider);
 
       if (mounted) {
@@ -156,6 +157,7 @@ class _MaintenanceDiagnosticsScreenState extends ConsumerState<MaintenanceDiagno
       );
 
       ref.invalidate(integrityReportProvider);
+      ref.invalidate(backgroundIntegrityCheckProvider);
       ref.invalidate(databaseMetricsProvider);
 
       if (mounted) {

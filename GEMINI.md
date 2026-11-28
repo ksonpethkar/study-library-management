@@ -1200,3 +1200,10 @@ Derived from past bugs: *Typography settings existed for Admin but missing for S
    - Guardrail: `autoHealIntegrityIssues` must atomically release the seat AND clear `seatId`/`sectionId` (moving them to `previousSeatId`/`previousSectionId`) on the student record. `scanDatabaseIntegrity` must include Invariant Check D (`inactive_student_seat_ref`) to detect inactive/expired/archived students still holding a `seatId`.
 2. **Diagnostics AppBar Refresh Visual Feedback (`MaintenanceDiagnosticsScreen`):**
    - Wire the top-right refresh `IconButton` to `_runManualScan()`, awaiting `ref.refresh(...future)` with an active `_isScanning` spinner and completion SnackBar showing exact issue counts.
+
+---
+
+## 41. Lean 64-Bit (`arm64-v8a`) APK ABI Filtering & Symbol Stripping (Learned Nov 2026)
+1. **Strict `arm64-v8a` NDK ABI Filter (`android/app/build.gradle.kts`):**
+   - Root Cause: Passing `--target-platform android-arm64` to `flutter build apk` only filtered Flutter's `libapp.so`/`libflutter.so`, while MLKit OCR and Barhopper (`mobile_scanner`) still bundled 26.29 MB of unused `x86_64` and `armeabi-v7a` `.so` libraries, inflating the APK to 81.9 MB.
+   - Guardrail: Keep `ndk { abiFilters += listOf("arm64-v8a") }` and `packaging { resources { excludes += ... } }` in `android/app/build.gradle.kts`, and build with `--split-debug-info=build/debug-info --obfuscate` in `scripts/publish_latest_build.ps1`.

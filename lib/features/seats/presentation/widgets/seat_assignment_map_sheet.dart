@@ -87,6 +87,48 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
     _selectedSectionId = widget.currentSectionId;
   }
 
+  Future<void> _confirmUnassign() async {
+    final curSeat = widget.currentSeatId;
+    if (_isSubmitting || curSeat == null || curSeat.isEmpty) return;
+    setState(() => _isSubmitting = true);
+    HapticFeedback.mediumImpact();
+
+    try {
+      final seatRepo = ref.read(seatRepositoryProvider);
+      var secId = widget.currentSectionId ?? '';
+      if (secId.isEmpty) {
+        final found = await seatRepo.findSeatInLibrary(widget.libraryId, curSeat);
+        secId = found?.sectionId ?? '';
+      }
+      if (secId.isEmpty) {
+        throw Exception('Could not locate section for current desk.');
+      }
+      await seatRepo.unassignStudent(
+        libraryId: widget.libraryId,
+        sectionId: secId,
+        seatId: curSeat,
+        studentId: widget.studentId,
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSeatAssigned();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Removed desk from ${MessageTemplateService.toTitleCase(widget.studentName)}'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppErrorFormatter.showErrorSnackBar(context, e);
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   Future<void> _confirmAssignment(SectionModel section, SeatModel targetSeat) async {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
@@ -382,6 +424,16 @@ class _SeatAssignmentMapSheetState extends ConsumerState<SeatAssignmentMapSheet>
                         ],
                       ),
                     ),
+                    if (widget.currentSeatId != null && widget.currentSeatId!.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: _isSubmitting ? null : _confirmUnassign,
+                        icon: const Icon(Icons.link_off_rounded, size: 16),
+                        label: const Text('Remove'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded),
                       tooltip: 'Close',

@@ -28,7 +28,7 @@ if (-not $env:ANDROID_HOME) { $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk
 if (-not $env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT = "$env:LOCALAPPDATA\Android\Sdk" }
 
 Write-Host "`n[1/5] Building single lean 64-bit APK (arm64-v8a)..." -ForegroundColor Yellow
-& flutter build apk --release --target-platform android-arm64
+& flutter build apk --release --target-platform android-arm64 --split-debug-info=build/debug-info --obfuscate
 if ($LASTEXITCODE -ne 0) { throw "arm64-v8a APK build failed!" }
 
 # ── Step 2: Clean old staging & stage canonical asset name ────────────────────

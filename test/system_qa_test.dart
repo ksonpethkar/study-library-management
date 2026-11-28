@@ -11477,10 +11477,14 @@ Gender: Female
       expect(studentHomeSrc.contains('isolated Consumer scope'), isTrue);
       expect(studentHomeSrc.contains('Dedicated Seat Change In-Progress + High-Readability Seat Radar Card (isolated Consumer scope)'), isTrue);
 
-      // 12. Phase 3: WebAssembly (--wasm) build pipeline, main.dart.wasm revalidation & RevenueDashboard parallelization
+      // 12. Phase 3: Safe Web build pipeline (dart2js + CanvasKit, no SW reload loop) & RevenueDashboard parallelization
       final publishScript = readProjFile('scripts/publish_web.ps1');
-      expect(publishScript.contains('--wasm'), isTrue,
-          reason: 'publish_web.ps1 must build WebAssembly + JS fallback bundles');
+      expect(publishScript.contains('--base-href /app/'), isTrue,
+          reason: 'publish_web.ps1 must build with --base-href /app/');
+      expect(publishScript.contains(' --wasm '), isFalse,
+          reason: 'publish_web.ps1 must not emit dart2wasm until all JS-interop plugins are WasmGC-safe');
+      expect(webIndex.contains('navigator.serviceWorker.register('), isFalse,
+          reason: 'web/index.html must not manually register SW alongside flutter_bootstrap.js (causes infinite reload loop)');
       expect(firebaseJson.contains('"source": "**/main.dart.wasm"'), isTrue,
           reason: 'main.dart.wasm must use ETag must-revalidate instead of 7-day immutable caching');
       final revDashSrc = readProjFile('lib/features/dashboard/presentation/screens/revenue_dashboard_screen.dart');
@@ -12030,6 +12034,43 @@ Gender: Female
       final diagScreenSrc = readLib('features/maintenance/presentation/screens/maintenance_diagnostics_screen.dart');
       expect(diagScreenSrc.contains('Refresh Metrics & Re-Scan'), isTrue);
       expect(diagScreenSrc.contains('ref.refresh(integrityReportProvider.future)'), isTrue);
+    });
+
+    test('Test 196: REMOVE SEAT ACTION, SEAT DETAIL GHOST-OCCUPANCY FIX & SAFE STUDENT ROUTE', () {
+      String readProjFile(String relPath) {
+        final direct = File(relPath);
+        if (direct.existsSync()) return direct.readAsStringSync();
+        return File('study_library/$relPath').readAsStringSync();
+      }
+
+      final detailSrc = readProjFile('lib/features/students/presentation/screens/student_detail_screen.dart');
+      expect(detailSrc.contains('_removeAssignedSeat'), isTrue);
+      expect(detailSrc.contains("label: const Text('Remove')"), isTrue);
+      expect(detailSrc.contains('resolvedSectionName'), isTrue);
+      expect(detailSrc.contains('resolvedPlanName'), isTrue);
+
+      final assignSheetSrc = readProjFile('lib/features/seats/presentation/widgets/seat_assignment_map_sheet.dart');
+      expect(assignSheetSrc.contains('_confirmUnassign'), isTrue);
+
+      final seatSheetSrc = readProjFile('lib/features/seats/presentation/widgets/seat_detail_sheet.dart');
+      expect(seatSheetSrc.contains('isStaleInactiveStudent'), isTrue);
+      expect(seatSheetSrc.contains('resolvedStudentId'), isTrue);
+      expect(seatSheetSrc.contains('Inactive Student Linked:'), isTrue);
+    });
+
+    test('Lean arm64-v8a APK ABI filter & symbol-splitting invariants', () {
+      String readProj(String rel) => File(rel).existsSync()
+          ? File(rel).readAsStringSync()
+          : File('study_library/$rel').readAsStringSync();
+
+      final gradleSrc = readProj('android/app/build.gradle.kts');
+      expect(gradleSrc.contains('abiFilters += listOf("arm64-v8a")'), isTrue);
+      expect(gradleSrc.contains('isMinifyEnabled = true'), isTrue);
+      expect(gradleSrc.contains('isShrinkResources = true'), isTrue);
+
+      final publishSrc = readProj('scripts/publish_latest_build.ps1');
+      expect(publishSrc.contains('--split-debug-info=build/debug-info'), isTrue);
+      expect(publishSrc.contains('--obfuscate'), isTrue);
     });
   });
 }

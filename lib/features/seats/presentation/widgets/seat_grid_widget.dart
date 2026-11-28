@@ -776,6 +776,7 @@ class _SeatGridWidgetState extends ConsumerState<SeatGridWidget> {
                                         builder: (context) => SeatDetailSheet(
                                           seat: seat,
                                           sectionId: widget.sectionId,
+                                          preloadedStudent: student,
                                         ),
                                       );
                                     }

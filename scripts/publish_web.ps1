@@ -25,9 +25,9 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# 2. Compile Web Release (Wasm + JS fallback) with Base Href /app/
-Write-Host "`n[2/4] Compiling Flutter WebAssembly + JS fallback bundle (--base-href /app/)..." -ForegroundColor Yellow
-flutter build web --release --wasm --base-href /app/
+# 2. Compile Web Release (dart2js + CanvasKit) with Base Href /app/
+Write-Host "`n[2/4] Compiling Flutter Web bundle (dart2js + CanvasKit, --base-href /app/)..." -ForegroundColor Yellow
+flutter build web --release --no-wasm-dry-run --base-href /app/
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Flutter Web build failed. Aborting." -ForegroundColor Red
     exit 1
@@ -58,7 +58,7 @@ foreach ($stale in @(
 )) {
     if (Test-Path $stale) { Remove-Item $stale -Force }
 }
-if (Test-Path "public\app") { Remove-Item "public\app\*" -Recurse -Force }
+if (Test-Path "public\app") { Remove-Item "public\app\*" -Recurse -Force -ErrorAction SilentlyContinue }
 New-Item -ItemType Directory -Force -Path "public\app" | Out-Null
 Copy-Item -Path "build\web\*" -Destination "public\app" -Recurse -Force
 $cacheBust = Get-Date -Format "yyyyMMdd_HHmm"
@@ -74,7 +74,7 @@ if (Test-Path "public\app\index.html") {
     Set-Content -Path "public\app\index.html" -Value $idxRaw -Encoding UTF8 -NoNewline
 }
 if (Test-Path "..\public\app") {
-    Remove-Item "..\public\app\*" -Recurse -Force
+    Remove-Item "..\public\app\*" -Recurse -Force -ErrorAction SilentlyContinue
     Copy-Item -Path "build\web\*" -Destination "..\public\app" -Recurse -Force
     if (Test-Path "web\flutter_service_worker.js") { Copy-Item -Path "web\flutter_service_worker.js" -Destination "..\public\app\flutter_service_worker.js" -Force }
     if (Test-Path "..\public\app\index.html") {

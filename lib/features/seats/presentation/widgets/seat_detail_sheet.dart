@@ -20,11 +20,13 @@ import '../providers/seat_providers.dart';
 class SeatDetailSheet extends ConsumerStatefulWidget {
   final SeatModel seat;
   final String sectionId;
+  final StudentModel? preloadedStudent;
 
   const SeatDetailSheet({
     super.key,
     required this.seat,
     required this.sectionId,
+    this.preloadedStudent,
   });
 
   @override
@@ -33,12 +35,24 @@ class SeatDetailSheet extends ConsumerStatefulWidget {
 
 class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
   String? studentName;
+  String? resolvedStudentId;
+  bool isStaleInactiveStudent = false;
   bool isLoading = false;
+  bool _isResolvingStudent = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.seat.studentId != null && widget.seat.studentId!.isNotEmpty) {
+    if (widget.preloadedStudent != null) {
+      resolvedStudentId = widget.preloadedStudent!.id;
+      studentName = widget.preloadedStudent!.name.isNotEmpty
+          ? widget.preloadedStudent!.name
+          : 'Assigned Student';
+      isStaleInactiveStudent = !widget.seat.isOccupied &&
+          (widget.preloadedStudent!.membershipStatus == MembershipStatus.inactive ||
+              widget.preloadedStudent!.membershipStatus == MembershipStatus.archived);
+    } else if (widget.seat.studentId != null && widget.seat.studentId!.isNotEmpty) {
+      resolvedStudentId = widget.seat.studentId;
       _loadStudentName();
     } else {
       _lookupStudentBySeat();
@@ -48,6 +62,7 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
   Future<void> _lookupStudentBySeat() async {
     final libraryId = ref.read(currentLibraryIdProvider);
     if (libraryId == null) return;
+    if (mounted) setState(() => _isResolvingStudent = true);
 
     try {
       final snap = await FirebaseFirestore.instance
@@ -55,20 +70,58 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
           .doc(libraryId)
           .collection('students')
           .where('seatId', isEqualTo: widget.seat.id)
-          .limit(1)
           .get();
-      if (snap.docs.isNotEmpty && mounted) {
-        final doc = snap.docs.first;
+      if (!mounted) return;
+
+      DocumentSnapshot<Map<String, dynamic>>? activeDoc;
+      DocumentSnapshot<Map<String, dynamic>>? staleDoc;
+      for (final doc in snap.docs) {
+        final d = doc.data();
+        if (d['deletedAt'] != null) continue;
+        final status = (d['membershipStatus'] ?? '').toString().toLowerCase();
+        if (status == 'inactive' || status == 'archived') {
+          staleDoc ??= doc;
+        } else {
+          activeDoc ??= doc;
+        }
+      }
+
+      final chosen = activeDoc ?? staleDoc;
+      if (chosen != null && mounted) {
         setState(() {
-          studentName = doc.data()['name'] ?? 'Unknown';
+          resolvedStudentId = chosen.id;
+          studentName = (chosen.data()?['name'] ?? 'Assigned Student').toString();
+          isStaleInactiveStudent = activeDoc == null && staleDoc != null;
+          _isResolvingStudent = false;
+        });
+      } else if (mounted) {
+        setState(() {
+          _isResolvingStudent = false;
+          if (widget.seat.isOccupied && (studentName == null || studentName!.isEmpty)) {
+            studentName = widget.seat.studentName?.trim().isNotEmpty == true
+                ? widget.seat.studentName!.trim()
+                : 'Assigned Student';
+          }
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isResolvingStudent = false;
+          if (widget.seat.isOccupied && (studentName == null || studentName!.isEmpty)) {
+            studentName = widget.seat.studentName?.trim().isNotEmpty == true
+                ? widget.seat.studentName!.trim()
+                : 'Assigned Student';
+          }
+        });
+      }
+    }
   }
 
   Future<void> _loadStudentName() async {
     final libraryId = ref.read(currentLibraryIdProvider);
     if (libraryId == null) return;
+    if (mounted) setState(() => _isResolvingStudent = true);
 
     try {
       final doc = await FirebaseFirestore.instance
@@ -78,9 +131,21 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
           .doc(widget.seat.studentId)
           .get();
       if (doc.exists && mounted) {
-        setState(() => studentName = doc.data()?['name'] ?? 'Unknown');
+        final d = doc.data();
+        final status = (d?['membershipStatus'] ?? '').toString().toLowerCase();
+        setState(() {
+          resolvedStudentId = doc.id;
+          studentName = (d?['name'] ?? 'Assigned Student').toString();
+          isStaleInactiveStudent =
+              !widget.seat.isOccupied && (status == 'inactive' || status == 'archived');
+          _isResolvingStudent = false;
+        });
+        return;
       }
     } catch (_) {}
+
+    // Doc missing or lookup failed — fall back to seatId query instead of spinning on "Loading..." forever
+    await _lookupStudentBySeat();
   }
 
   void _showRenameSeatDialog() {
@@ -516,7 +581,8 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
       if (widget.seat.genderRestriction == GenderRestriction.female) 'Girls Zone',
     ];
 
-    final isOccupied = widget.seat.isOccupied || (studentName != null && studentName!.isNotEmpty);
+    final isOccupied = widget.seat.isOccupied ||
+        (!isStaleInactiveStudent && studentName != null && studentName!.isNotEmpty);
     final effectiveStatus = isOccupied ? SeatStatus.occupied : widget.seat.effectiveStatus;
 
     return Padding(
@@ -653,6 +719,91 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                 ],
                 const SizedBox(height: 20),
 
+                // Stale inactive link warning (seat doc is available, but an inactive student still points to it)
+                if (!isOccupied && isStaleInactiveStudent && studentName != null && resolvedStudentId != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFF59E0B)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Inactive Student Linked: $studentName',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Color(0xFF92400E),
+                                ),
+                              ),
+                              const Text(
+                                'This desk is Available, but this inactive profile still references it.',
+                                style: TextStyle(fontSize: 11.5, color: Color(0xFF78350F)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFD97706),
+                            foregroundColor: Colors.white,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          onPressed: () async {
+                            final libraryId = ref.read(currentLibraryIdProvider);
+                            if (libraryId == null) return;
+                            final messenger = ScaffoldMessenger.of(context);
+                            setState(() => isLoading = true);
+                            try {
+                              await ref.read(seatRepositoryProvider).unassignStudent(
+                                    libraryId: libraryId,
+                                    sectionId: widget.sectionId,
+                                    seatId: widget.seat.id,
+                                    studentId: resolvedStudentId!,
+                                  );
+                              if (mounted) {
+                                setState(() {
+                                  studentName = null;
+                                  resolvedStudentId = null;
+                                  isStaleInactiveStudent = false;
+                                  isLoading = false;
+                                });
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Released stale seat link.'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                setState(() => isLoading = false);
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to release seat link: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          child: const Text('Release'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
                 // Student info (if occupied)
                 if (isOccupied) ...[
                   Card(
@@ -665,21 +816,22 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                         ),
                       ),
                       title: Text(
-                        studentName ?? 'Loading...',
+                        studentName ?? (_isResolvingStudent ? 'Loading...' : 'Assigned Student'),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       subtitle: widget.seat.reservationType == 'study_leave' || widget.seat.reservationType == 'freeze'
                           ? const Text('🟡 On Study Vacation / Leave (Pass Frozen)', style: TextStyle(color: Color(0xFFD97706), fontWeight: FontWeight.bold))
                           : const Text('Currently assigned'),
-                      trailing: TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          context.go(
-                            '/admin/students/${widget.seat.studentId}',
-                          );
-                        },
-                        child: const Text('View'),
-                      ),
+                      trailing: (resolvedStudentId ?? widget.seat.studentId) != null
+                          ? TextButton(
+                              onPressed: () {
+                                final targetId = resolvedStudentId ?? widget.seat.studentId!;
+                                Navigator.pop(context);
+                                context.go('/admin/students/$targetId');
+                              },
+                              child: const Text('View'),
+                            )
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 12),

@@ -368,6 +368,93 @@ async function runExpiryCheck() {
         console.warn(`[${libraryName}] Digest skipped:`, digestErr?.message || digestErr);
       }
 
+      // 3) Free Database Invariant Audit (Alert-only -> Admin Bell + optional Telegram)
+      try {
+        const istDateKey = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Kolkata',
+        }).format(nowDate);
+        const [auditStudentsSnap, auditSectionsSnap] = await Promise.all([
+          db.collection(`libraries/${libraryId}/students`).get(),
+          db.collection(`libraries/${libraryId}/sections`).get(),
+        ]);
+
+        const studentMap = new Map();
+        const activeDeskOwners = new Map();
+        const discrepancies = [];
+
+        for (const stDoc of auditStudentsSnap.docs) {
+          const s = stDoc.data() || {};
+          studentMap.set(stDoc.id, s);
+          const status = (s.membershipStatus || '').toLowerCase();
+          const seatId = (s.seatId || '').toString().trim();
+          const sectionId = (s.sectionId || '').toString().trim();
+          const name = (s.name || 'Student').toString().trim();
+
+          if ((status === 'inactive' || status === 'expired' || status === 'archived' || status === 'deleted') && seatId) {
+            discrepancies.push(`Stale Desk #${seatId} on ${status} student ${name}`);
+          } else if ((status === 'active' || status === 'grace') && seatId) {
+            const deskKey = `${sectionId}:${seatId}`;
+            if (activeDeskOwners.has(deskKey)) {
+              discrepancies.push(`Duplicate Desk #${seatId} (${activeDeskOwners.get(deskKey)} & ${name})`);
+            } else {
+              activeDeskOwners.set(deskKey, name);
+            }
+          }
+        }
+
+        for (const secDoc of auditSectionsSnap.docs) {
+          const seatsSnap = await secDoc.ref.collection('seats').where('status', '==', 'occupied').get();
+          for (const seatDoc of seatsSnap.docs) {
+            const seat = seatDoc.data() || {};
+            const occId = (seat.studentId || '').toString().trim();
+            const occStudent = occId ? studentMap.get(occId) : null;
+            const occStatus = occStudent ? (occStudent.membershipStatus || '').toLowerCase() : '';
+            if (!occId || !occStudent || (occStatus !== 'active' && occStatus !== 'grace')) {
+              const label = seat.label || seat.seatNumber || seatDoc.id;
+              discrepancies.push(`Orphaned occupied Seat #${label}`);
+            }
+          }
+        }
+
+        if (discrepancies.length > 0 && libData.lastHealthAuditAlertKey !== istDateKey) {
+          const preview = discrepancies.slice(0, 2).join('; ');
+          const extra = discrepancies.length > 2 ? ` (+${discrepancies.length - 2} more)` : '';
+          await db.collection(`libraries/${libraryId}/notifications`).add({
+            title: `⚠️ ${discrepancies.length} Database Discrepanc${discrepancies.length === 1 ? 'y' : 'ies'} Detected`,
+            body: `${preview}${extra}. Open System Diagnostics → Auto-Healer to fix.`,
+            targetRole: 'admin',
+            type: 'system_health',
+            actionRoute: '/admin/maintenance',
+            createdAt: nowTs,
+            read: false,
+          });
+
+          if (commsChannels.telegramEnabled === true) {
+            const botToken = (commsSecrets.telegramBotToken || '').trim();
+            const chatId = (commsSecrets.telegramChatId || '').trim();
+            if (botToken && chatId) {
+              await sendFreeTelegramMessage(
+                botToken,
+                chatId,
+                `<b>⚠️ System Health Alert — ${libraryName}</b>\n${discrepancies.length} discrepancy(s) found:\n• ${preview}${extra}\n\nOpen <b>More → System Diagnostics → Auto-Healer</b> to resolve.`
+              );
+            }
+          }
+
+          await db.collection('libraries').doc(libraryId).set(
+            { lastHealthAuditAlertKey: istDateKey },
+            { merge: true }
+          );
+        } else if (discrepancies.length === 0 && libData.lastHealthAuditAlertKey) {
+          await db.collection('libraries').doc(libraryId).set(
+            { lastHealthAuditAlertKey: admin.firestore.FieldValue.delete() },
+            { merge: true }
+          );
+        }
+      } catch (auditErr) {
+        console.warn(`[${libraryName}] Invariant audit skipped:`, auditErr?.message || auditErr);
+      }
+
       grandTotalExpired += libraryExpired;
       grandTotalGrace += libraryGrace;
       grandReleasedSeats += libraryReleased;

@@ -33,6 +33,7 @@ import 'package:study_library/features/holidays/presentation/screens/holiday_cal
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
+import 'package:study_library/features/maintenance/presentation/providers/maintenance_providers.dart';
 import 'package:study_library/features/payments/presentation/widgets/smart_payment_picker_sheet.dart';
 import 'package:intl/intl.dart';
 
@@ -525,6 +526,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                     final notifs = ref.watch(adminNotificationsStreamProvider).value ?? [];
                     final unreadNotifsCount = notifs.where((n) => !n.read).length;
                     final libId = library.value?.id ?? ref.read(currentLibraryIdProvider) ?? '';
+                    final alertsState = libId.isNotEmpty
+                        ? ref.watch(systemAlertsProvider(libId))
+                        : const SystemAlertsState();
+                    final unreadPending = (_pendingCount - alertsState.acknowledgedPendingCount).clamp(0, 999999);
+                    final unreadRenewals = (effectiveRenewalsDue - alertsState.acknowledgedRenewalsCount).clamp(0, 999999);
+                    final unreadSystemCards = (unreadPending > 0 ? 1 : 0) + (unreadRenewals > 0 ? 1 : 0);
+                    final totalUnread = unreadNotifsCount + unreadSystemCards;
+                    final reqCounts = ref.watch(requestModuleCountsProvider);
+                    final displayBadgeCount = totalUnread > 0 ? totalUnread : (reqCounts.hasAnyActionable ? 1 : 0);
                     return IconButton(
                       icon: const Icon(Icons.tune_rounded),
                       tooltip: 'Quick Controls & Security',
@@ -536,6 +546,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                           unreadNotificationsCount: unreadNotifsCount,
                           pendingRequestsCount: _pendingCount,
                           renewalsDueCount: effectiveRenewalsDue,
+                          totalBadgeCount: displayBadgeCount,
                         );
                       },
                     );
@@ -552,6 +563,84 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                   children: [
                     const AppUpdateBanner(),
                     const SizedBox(height: 12),
+
+                    // Background Database Invariant Health Alert Banner (Auto-Healer)
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final healthAlert = ref.watch(backgroundIntegrityCheckProvider).value;
+                        if (healthAlert == null || healthAlert.issueCount <= 0) {
+                          return const SizedBox.shrink();
+                        }
+                        final isDark = theme.brightness == Brightness.dark;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: InkWell(
+                            onTap: () => context.push(Routes.adminMaintenance),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF7F1D1D).withValues(alpha: 0.3)
+                                    : const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: const Color(0xFFEF4444).withValues(alpha: 0.45),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444).withValues(alpha: 0.18),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.healing_rounded,
+                                      size: 20,
+                                      color: Color(0xFFDC2626),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${healthAlert.issueCount} Database Discrepanc${healthAlert.issueCount == 1 ? 'y' : 'ies'} Detected',
+                                          style: TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${healthAlert.headline}. Tap to open Auto-Healer.',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 14,
+                                    color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
 
                     // Priority 1: Real-time Action Required Hero Strip (Pending Admissions, Seat Changes, Renewals)
                     Consumer(
